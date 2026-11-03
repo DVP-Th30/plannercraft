@@ -117,6 +117,8 @@ jobs:
 
       - name: Rejeu en mémoire et en HTTP
         run: cargo test -p plannercraft-mcp --features http --test replay --test replay_http
+        env:
+          PLANNERCRAFT_REPLAY_BUDGET: "1"
 
       - name: Rejeu sur le binaire (stdio)
         run: cargo test -p plannercraft-cli --test mcp_replay

@@ -47,6 +47,14 @@ const SCENARIO: &str = "build_30";
 /// la CI Linux le 2026-10-19 avec huit rejeux simultanés).
 const BUDGET: Duration = Duration::from_secs(10);
 
+/// Le budget n'est vérifié que si `PLANNERCRAFT_REPLAY_BUDGET` est posée
+/// (job CI `mcp`, Linux, rejeux seuls) : sur les runners Windows et macOS de
+/// `cargo test --workspace`, le temps réel dépend de la charge (20 à 24 s
+/// observés sous Windows le 2026-11-03) sans rien dire du code.
+fn budget_checked() -> bool {
+    std::env::var_os("PLANNERCRAFT_REPLAY_BUDGET").is_some()
+}
+
 fn root() -> std::path::PathBuf {
     repo_root(env!("CARGO_MANIFEST_DIR"))
 }
@@ -143,7 +151,7 @@ async fn replay_memory(name: &str, saved: Option<&str>) -> Scenario {
     replay::assert_results(&scenario, &got);
     replay::assert_journal(&scenario, &produced, tmp.path());
     assert!(
-        elapsed < BUDGET,
+        !budget_checked() || elapsed < BUDGET,
         "rejeu de {name} en {elapsed:?}, budget {BUDGET:?}"
     );
     if let Some(saved) = saved {
@@ -466,7 +474,7 @@ async fn replay_tracking_j6_memory() {
     replay::assert_results(&scenario, &got);
     replay::assert_journal(&scenario, &produced, tmp.path());
     assert!(
-        elapsed < BUDGET,
+        !budget_checked() || elapsed < BUDGET,
         "rejeu de {name} en {elapsed:?}, budget {BUDGET:?}"
     );
     let now = now_of(name);
@@ -812,7 +820,7 @@ async fn replay_claude_run_3() {
         "{name} : MSPDI enregistré différent de l'attendu"
     );
     assert!(
-        elapsed < BUDGET,
+        !budget_checked() || elapsed < BUDGET,
         "rejeu de {name} en {elapsed:?}, budget {BUDGET:?}"
     );
     let tools: Vec<&str> = scenario.calls.iter().map(|c| c.tool.as_str()).collect();
