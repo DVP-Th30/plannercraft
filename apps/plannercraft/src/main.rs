@@ -608,14 +608,25 @@ fn adopt_legacy_state() {
     }
 }
 
-/// Options de la fenêtre : titre, tailles, boucle d'événements ; repli des
-/// polices du système gardé (`system_font_fallback`, défaut d'eframe).
+/// Icône de la fenêtre (barre des tâches Windows et Linux ; macOS prend
+/// celle du `.app`), dessinée par `cargo xtask icon` (ADR-0021).
+const WINDOW_ICON_PNG: &[u8] = include_bytes!("../../../assets/icon/plannercraft-256.png");
+
+/// Options de la fenêtre : titre, icône, tailles, boucle d'événements ;
+/// repli des polices du système gardé (`system_font_fallback`, défaut
+/// d'eframe).
 fn native_options() -> eframe::NativeOptions {
+    let mut viewport = eframe::egui::ViewportBuilder::default()
+        .with_title(PRODUCT_NAME)
+        .with_inner_size([1440.0, 900.0])
+        .with_min_inner_size([800.0, 500.0]);
+    // PNG illisible : fenêtre sans icône plutôt qu'un échec au lancement.
+    match eframe::icon_data::from_png_bytes(WINDOW_ICON_PNG) {
+        Ok(icon) => viewport = viewport.with_icon(icon),
+        Err(error) => eprintln!("{PRODUCT_NAME} : icône de fenêtre illisible ({error})"),
+    }
     eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default()
-            .with_title(PRODUCT_NAME)
-            .with_inner_size([1440.0, 900.0])
-            .with_min_inner_size([800.0, 500.0]),
+        viewport,
         event_loop_builder: event_loop_hook(),
         ..Default::default()
     }
@@ -700,7 +711,14 @@ mod tests {
     use plannercraft_ui_egui::document;
     use plannercraft_ui_egui::{DocOrigin, DocumentObserver, OpenDocument};
 
-    use super::{ControlRendezvous, startup_path, version_requested};
+    use super::{ControlRendezvous, WINDOW_ICON_PNG, startup_path, version_requested};
+
+    /// L'icône de fenêtre embarquée se décode, au côté attendu.
+    #[test]
+    fn desktop_window_icon_decodes() {
+        let icon = eframe::icon_data::from_png_bytes(WINDOW_ICON_PNG).unwrap();
+        assert_eq!((icon.width, icon.height), (256, 256));
+    }
 
     /// `--version` et `-V`, seuls, demandent la version ; tout autre
     /// argument suit le chemin d'ouverture (C-REL-03).

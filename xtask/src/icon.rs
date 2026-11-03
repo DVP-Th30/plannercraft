@@ -1,9 +1,11 @@
-//! `cargo xtask icon [--check]` : icône de l'application (J8, lot L1),
-//! **à valider par le propriétaire** (ADR-0016, actions du propriétaire).
+//! `cargo xtask icon [--check]` : icône de l'application, choisie par le
+//! propriétaire le 2026-11-03 (ADR-0021).
 //!
-//! Dessin : carré arrondi sombre (gabarit des icônes macOS : marge de
-//! 100/1024, rayon 185/1024) portant trois barres de Gantt décalées, aux
-//! couleurs de la palette Okabe-Ito (lisibles par les daltoniens). Rendu
+//! Dessin (ADR-0021) : carré arrondi noir (gabarit des icônes macOS : marge
+//! de 100/1024, rayon 185/1024) sur lequel une grille de 16 × 16 cellules
+//! (51,5/1024 chacune) porte un point blanc en bas à gauche et trois barres
+//! de Gantt en escalier violet `OneNote` (`#7719AA`), même grammaire que le
+//! logo `BatiScope`. Rendu
 //! en entiers seulement, sur-échantillonné 4 × 4 par pixel (bords lissés),
 //! encodé en PNG par le crate `image` : mêmes octets à chaque exécution.
 //! Écrit `assets/icon/plannercraft-<n>.png` pour n = 16, 32, 64, 128, 256, 512,
@@ -45,41 +47,50 @@ struct Shape {
 }
 
 /// Formes, de l'arrière vers l'avant.
-const SHAPES: [Shape; 4] = [
-    // Fond : ardoise sombre.
+const SHAPES: [Shape; 5] = [
+    // Fond : noir.
     Shape {
         left: 100,
         top: 100,
         right: 924,
         bottom: 924,
         radius: 185,
-        color: (0x1F, 0x29, 0x33),
+        color: (0x00, 0x00, 0x00),
     },
-    // Barres de Gantt, extrémités en demi-cercle (Okabe-Ito : bleu ciel,
-    // orange, vert bleuté).
+    // Point blanc en bas à gauche (cellules 2..5 × 11..14).
     Shape {
-        left: 230,
-        top: 290,
-        right: 560,
-        bottom: 400,
-        radius: 55,
-        color: (0x56, 0xB4, 0xE9),
+        left: 203,
+        top: 667,
+        right: 358,
+        bottom: 821,
+        radius: 0,
+        color: (0xFF, 0xFF, 0xFF),
+    },
+    // Barres de Gantt en escalier, violet OneNote (cellules 6..11 × 2..5,
+    // 8..13 × 6,5..9,5, 10..14 × 11..14).
+    Shape {
+        left: 409,
+        top: 203,
+        right: 667,
+        bottom: 358,
+        radius: 0,
+        color: (0x77, 0x19, 0xAA),
     },
     Shape {
-        left: 420,
-        top: 457,
+        left: 512,
+        top: 435,
         right: 770,
-        bottom: 567,
-        radius: 55,
-        color: (0xE6, 0x9F, 0x00),
+        bottom: 589,
+        radius: 0,
+        color: (0x77, 0x19, 0xAA),
     },
     Shape {
-        left: 320,
-        top: 624,
-        right: 800,
-        bottom: 734,
-        radius: 55,
-        color: (0x00, 0x9E, 0x73),
+        left: 615,
+        top: 667,
+        right: 821,
+        bottom: 821,
+        radius: 0,
+        color: (0x77, 0x19, 0xAA),
     },
 ];
 
@@ -235,19 +246,24 @@ mod tests {
         [pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]]
     }
 
-    /// Deux rendus donnent les mêmes octets ; coin transparent, fond opaque,
-    /// barre orange au centre.
+    /// Deux rendus donnent les mêmes octets ; coin transparent, fond noir,
+    /// point blanc, barre violette au centre.
     #[test]
     fn icon_deterministic_render() {
         assert_eq!(png(64).unwrap(), png(64).unwrap());
         let pixels = render(1024);
         assert_eq!(pixels.len(), 1024 * 1024 * 4);
         assert_eq!(pixel(&pixels, 1024, 2, 2)[3], 0, "coin transparent");
-        assert_eq!(pixel(&pixels, 1024, 150, 512), [0x1F, 0x29, 0x33, 255], "fond");
+        assert_eq!(pixel(&pixels, 1024, 150, 512), [0, 0, 0, 255], "fond");
         assert_eq!(
-            pixel(&pixels, 1024, 600, 512),
-            [0xE6, 0x9F, 0x00, 255],
-            "barre orange"
+            pixel(&pixels, 1024, 280, 744),
+            [255, 255, 255, 255],
+            "point blanc"
+        );
+        assert_eq!(
+            pixel(&pixels, 1024, 640, 512),
+            [0x77, 0x19, 0xAA, 255],
+            "barre violette"
         );
         // Bord lissé : opacité intermédiaire sur l'arrondi du fond.
         let small = render(16);

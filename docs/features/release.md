@@ -57,7 +57,7 @@ Le contrôle après publication est fait dans le job `publish` et non dans un jo
 
 Marqueur du web : `apps/plannercraft-web` pose `data-plannercraft-started="1"` sur `<html>` dès que le wasm s'exécute, **avant** l'initialisation graphique (le runner n'a pas de GPU) : C-REL-06 prouve que le wasm a tourné, pas que l'interface s'affiche (message « GPU indisponible » : H-UI-57, lot L13).
 
-Icône : `cargo xtask icon` (PNG 16 à 1 024 px dans `assets/icon/`, dessin déterministe, test de fraîcheur `icon_files_fresh`) ; à valider par le propriétaire. Le `.exe` Windows ne porte pas d'icône (ressource Windows non embarquée).
+Icône : `cargo xtask icon` (PNG 16 à 1 024 px dans `assets/icon/`, dessin déterministe, test de fraîcheur `icon_files_fresh`), choisie par le propriétaire (ADR-0021) ; même PNG (256 px) en icône de fenêtre du desktop, favicon SVG inline pour le web. Le `.exe` Windows ne porte pas d'icône dans l'Explorateur (ressource Windows non embarquée).
 
 ## 5. Publier une version
 
