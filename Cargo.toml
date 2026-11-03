@@ -23,7 +23,7 @@ edition = "2024"
 # eframe/egui 0.37 exigent Rust 1.95.
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/theodu78/plannercraft"
+repository = "https://github.com/DVP-Th30/plannercraft"
 
 [workspace.dependencies]
 # Crates internes (version explicite : pas de dépendance « wildcard » pour cargo-deny).

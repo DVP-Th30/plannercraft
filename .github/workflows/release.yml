@@ -88,7 +88,7 @@ jobs:
           ls -la "$mnt" "$mnt/cli"
           codesign --verify --deep --strict --verbose=2 "$mnt/PlannerCraft.app"
           id="$(plutil -extract CFBundleIdentifier raw "$mnt/PlannerCraft.app/Contents/Info.plist")"
-          [ "$id" = "io.github.theodu78.plannercraft" ] || { echo "::error::CFBundleIdentifier $id"; exit 1; }
+          [ "$id" = "io.github.dvp-th30.plannercraft" ] || { echo "::error::CFBundleIdentifier $id"; exit 1; }
           test -f "$mnt/PlannerCraft.app/Contents/Resources/plannercraft.icns"
           test -f "$mnt/LISEZ-MOI.txt"
           for f in LICENSE-MIT LICENSE-APACHE NOTICE assets/fonts/OFL.txt assets/icons/lucide/LICENSE; do

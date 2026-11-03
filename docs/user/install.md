@@ -1,6 +1,6 @@
 # Installer PlannerCraft
 
-Chaque release (`https://github.com/theodu78/plannercraft/releases`) porte cinq fichiers : un par plateforme et `SHA256SUMS`. Chaque archive contient deux programmes :
+Chaque release (`https://github.com/DVP-Th30/plannercraft/releases`) porte cinq fichiers : un par plateforme et `SHA256SUMS`. Chaque archive contient deux programmes :
 
 - `plannercraft-desktop` : l'application (fenêtre) ;
 - `plannercraft` : la ligne de commande et le serveur MCP (`plannercraft mcp`), pour piloter un planning depuis un agent IA.
@@ -19,7 +19,7 @@ Placer les fichiers téléchargés et `SHA256SUMS` dans un même dossier, puis :
 - Linux : `sha256sum -c SHA256SUMS --ignore-missing`
 - Windows (PowerShell) : `Get-FileHash plannercraft-<version>-windows-x86_64.zip -Algorithm SHA256`, à comparer à la ligne correspondante de `SHA256SUMS`.
 
-Avec la CLI GitHub, la provenance (fichier construit par le workflow `release.yml` du dépôt) se vérifie par `gh attestation verify <fichier> --repo theodu78/plannercraft`.
+Avec la CLI GitHub, la provenance (fichier construit par le workflow `release.yml` du dépôt) se vérifie par `gh attestation verify <fichier> --repo DVP-Th30/plannercraft`.
 
 ## macOS (11 Big Sur ou plus récent, Apple Silicon et Intel)
 

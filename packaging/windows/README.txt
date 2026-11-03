@@ -12,4 +12,4 @@ plannercraft-desktop.exe --version n'affiche rien dans un terminal (application
 fenêtrée) ; utiliser plannercraft.exe --version, ou plannercraft-desktop.exe --version | more.
 
 Guide complet (empreintes SHA256SUMS comprises) : docs/user/install.md du
-dépôt, https://github.com/theodu78/plannercraft
+dépôt, https://github.com/DVP-Th30/plannercraft

@@ -15,4 +15,4 @@ Pour la ligne de commande copiée hors du DMG :
   xattr -d com.apple.quarantine /chemin/vers/plannercraft
 
 Guide complet (empreintes SHA256SUMS comprises) : docs/user/install.md du
-dépôt, https://github.com/theodu78/plannercraft
+dépôt, https://github.com/DVP-Th30/plannercraft

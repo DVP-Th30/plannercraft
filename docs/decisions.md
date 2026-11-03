@@ -1156,3 +1156,5 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 **Conséquences.** Renommage partout sauf l'historique (ADR passés, cahiers `docs/plans/`, brief, sections publiées du `CHANGELOG.md`, citations datées), qui garde `planrs`. Reprise sans perte de l'état laissé par `planrs` (préférences d'interface, répertoire d'état, style des fichiers) : `docs/rename.md`. Le dépôt GitHub est renommé ensuite (`theodu78/plannercraft`, l'ancienne adresse est redirigée).
 
 **Réserve.** « Planner » est une marque de Microsoft (Microsoft Planner) : vérification de marque à faire avant toute publication.
+
+**Propriétaire du dépôt (2026-11-03).** Le dépôt a été transféré de `theodu78` à `DVP-Th30` (GitHub redirige l'ancienne adresse) ; il est renommé `DVP-Th30/plannercraft`. Références alignées : `repository` du Cargo.toml, page des releases et attestation dans `docs/user/install.md`, README de packaging, identifiant du bundle macOS `io.github.dvp-th30.plannercraft` (vérifié par `release.yml`).
