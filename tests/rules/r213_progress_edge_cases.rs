@@ -3,8 +3,8 @@
 //! 100 %, fin réelle = début réel, `MilestoneRounded`.
 
 use crate::r201_percent_input::{MON, at, calendar, ctx, pct, task};
-use planrs_core::progress::edit::{EditError, EditNote, Input, apply};
-use planrs_core::{Minutes, Percent};
+use plannercraft_core::progress::edit::{EditError, EditNote, Input, apply};
+use plannercraft_core::{Minutes, Percent};
 
 #[test]
 fn r213_summary_refused() {
@@ -50,10 +50,10 @@ fn r213_milestone_rounded() {
 /// acceptée.
 #[test]
 fn r213_duration_below_actual_refused() {
-    use planrs_automation::error::codes;
-    use planrs_automation::text::Language;
-    use planrs_tests::resource_edit::{duration, with_tasks};
-    use planrs_tests::task_edit::{apply as apply_ops, try_apply};
+    use plannercraft_automation::error::codes;
+    use plannercraft_automation::text::Language;
+    use plannercraft_tests::resource_edit::{duration, with_tasks};
+    use plannercraft_tests::task_edit::{apply as apply_ops, try_apply};
     use serde_json::json;
 
     let mut s = with_tasks(&[("A", "3j")]);
@@ -72,7 +72,9 @@ fn r213_duration_below_actual_refused() {
         (
             codes::PROGRESS_DURATION_BELOW_ACTUAL,
             Some("duration"),
-            Some(planrs_core::Subject::Task(planrs_core::TaskUid::new(1)))
+            Some(plannercraft_core::Subject::Task(plannercraft_core::TaskUid::new(
+                1
+            )))
         )
     );
     assert_eq!(s.project(), &before);

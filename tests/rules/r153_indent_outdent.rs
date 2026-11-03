@@ -1,14 +1,14 @@
 //! R-153 — Indentation et désindentation d'un bloc (tâche + descendants).
 
-use planrs_automation::CommandErrorKind;
-use planrs_automation::error::codes;
-use planrs_core::{Diagnostic, OutlineLevel, TaskUid};
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{link, session};
-use planrs_tests::task_edit::{apply, push_outline, rows, try_apply};
+use plannercraft_automation::CommandErrorKind;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{Diagnostic, OutlineLevel, TaskUid};
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{link, session};
+use plannercraft_tests::task_edit::{apply, push_outline, rows, try_apply};
 use serde_json::json;
 
-fn outline(spec: &[(u32, u16)]) -> planrs_automation::Session {
+fn outline(spec: &[(u32, u16)]) -> plannercraft_automation::Session {
     let mut p = new_project("2026-11-02T08:00");
     push_outline(&mut p, spec);
     session(p)
@@ -57,7 +57,7 @@ fn r153_outdent_siblings_become_children() {
     apply(&mut s, json!([{ "op": "task.outdent", "uid": 3 }]));
     assert_eq!(rows(&s), [(1, 1), (2, 2), (3, 1), (4, 2)]);
     let b = s.schedule().scheduled(TaskUid::new(3)).unwrap();
-    assert_eq!(b.role, planrs_core::TaskRole::Summary);
+    assert_eq!(b.role, plannercraft_core::TaskRole::Summary);
     // Le bloc entier remonte : [P(1), a(2), a1(3)], outdent 2 → a(1), a1(2).
     let mut s = outline(&[(1, 1), (2, 2), (3, 3)]);
     apply(&mut s, json!([{ "op": "task.outdent", "uid": 2 }]));

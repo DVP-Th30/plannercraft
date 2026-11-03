@@ -8,9 +8,11 @@
 //! subtask can't be scheduled any earlier than the summary task »), S8
 //! (échéances sur les récapitulatives), Q11.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, Driver, LateDriver, Minutes, Pass, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{
+    Constraint, ConstraintKind, Diagnostic, Driver, LateDriver, Minutes, Pass, TaskOutcome,
+};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// S {A 1 j ; B 1 j FS de A}, C 4 j seule.
 fn net() -> Net {

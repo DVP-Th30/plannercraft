@@ -6,9 +6,9 @@
 //! Repère : calendrier Standard, début du projet lun 19/10/2026 08:00.
 //! Hypothèse.
 
-use planrs_automation::Workspace;
-use planrs_automation::text::Language;
-use planrs_tests::{moment, tests_path};
+use plannercraft_automation::Workspace;
+use plannercraft_automation::text::Language;
+use plannercraft_tests::{moment, tests_path};
 use serde_json::{Value, json};
 
 /// Cinq tâches indépendantes de 2 j (lun 19 – mar 20/10), ligne 0 posée,
@@ -73,7 +73,7 @@ fn r228_variance_pagination() {
     assert_eq!(t2["variance"]["finish"]["text"], json!("-0,5j"));
     assert_eq!(t2["variance"]["start"]["minutes"], json!(0));
     assert_eq!(t2["variance"]["duration"]["minutes"], json!(-240));
-    // Ligne du projet (déduite : projet créé par planrs) : fin de base mar
+    // Ligne du projet (déduite : projet créé par PlannerCraft) : fin de base mar
     // 20/10 17:00, fin courante jeu 22/10 17:00 (T5) ⇒ +2 j.
     let project = &v["project"];
     assert_eq!(project["uid"], json!(0));

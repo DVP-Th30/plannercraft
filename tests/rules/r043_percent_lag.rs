@@ -2,11 +2,11 @@
 //! consommé sur `σ` (`%` ouvré, `e%` civil). Sources : S21, S15 ; base pour
 //! une récapitulative : hypothèse.
 
-use planrs_core::LinkType;
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_epct, lag_pct};
+use plannercraft_core::LinkType;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_epct, lag_pct};
 
-fn run(a: i64, kind: LinkType, lag: planrs_core::Lag) -> planrs_tests::net::Run {
+fn run(a: i64, kind: LinkType, lag: plannercraft_core::Lag) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .task("A", a)
         .task("B", 480)

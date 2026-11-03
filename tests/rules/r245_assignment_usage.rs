@@ -5,12 +5,12 @@
 //! `MAX_ASSIGNMENT_ROWS` lignes, `usage.limit`. Hypothèse (S60 pour la
 //! surutilisation affichée).
 
-use planrs_core::calendar::{CalendarSet, Span};
-use planrs_core::resource::usage::{MAX_ASSIGNMENT_ROWS, MAX_PERIODS, MAX_RESOURCES};
-use planrs_core::resource::{Granularity, UsageError, usage, usage_by_assignment};
-use planrs_core::{AssignmentUid, ResourceKind, ResourceUid};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, Run};
+use plannercraft_core::calendar::{CalendarSet, Span};
+use plannercraft_core::resource::usage::{MAX_ASSIGNMENT_ROWS, MAX_PERIODS, MAX_RESOURCES};
+use plannercraft_core::resource::{Granularity, UsageError, usage, usage_by_assignment};
+use plannercraft_core::{AssignmentUid, ResourceKind, ResourceUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, Run};
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, resource, resource_kind};
 use crate::r184_work_rollups::work;

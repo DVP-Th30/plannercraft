@@ -3,8 +3,8 @@
 //! effet sur les dates ni sur le travail de la tâche, hors surutilisation ;
 //! une ressource de coût n'a ni travail ni unités. Source : S5 ; O30.
 
-use planrs_core::{ResourceKind, ResourceUid, Units, Work};
-use planrs_tests::net::Net;
+use plannercraft_core::{ResourceKind, ResourceUid, Units, Work};
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, resource, resource_kind};
 use crate::r184_work_rollups::work;

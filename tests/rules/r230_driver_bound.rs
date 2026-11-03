@@ -7,9 +7,9 @@
 //! Recaler la borne sur l'échelle de la tâche redonne son début au plus tôt
 //! (hors retard, réel, manuelle ; P41, lot L7). Hypothèse.
 
-use planrs_core::{Constraint, Driver, LevelingDelay, LinkType, TimeScale};
-use planrs_tests::net::{Net, lag_w};
-use planrs_tests::{compile_one, moment, standard};
+use plannercraft_core::{Constraint, Driver, LevelingDelay, LinkType, TimeScale};
+use plannercraft_tests::net::{Net, lag_w};
+use plannercraft_tests::{compile_one, moment, standard};
 
 #[test]
 fn r230_driver_bound_link_and_constraint() {
@@ -106,8 +106,8 @@ fn r230_no_bound_for_manual_actual_and_before_leveling_delay() {
         .fs("A", "L")
         .with_task("L", |t| {
             t.leveling_delay = Some(LevelingDelay {
-                minutes: planrs_core::Minutes::new(480),
-                unit: planrs_core::DurationUnit::Day,
+                minutes: plannercraft_core::Minutes::new(480),
+                unit: plannercraft_core::DurationUnit::Day,
                 elapsed: false,
             });
         })

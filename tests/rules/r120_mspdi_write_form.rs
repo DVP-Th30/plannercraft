@@ -1,9 +1,9 @@
 //! R-120 — Écriture : forme du document et des valeurs.
 
-use planrs_core::{
+use plannercraft_core::{
     Duration, DurationUnit, Lag, LagValue, Link, LinkType, Minutes, SignedPercent, Task, TaskUid, TimeBasis,
 };
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
 
 #[test]
 fn r120_document_form() {
@@ -100,7 +100,7 @@ fn r120_durations_and_lags() {
 
 #[test]
 fn r120_indentation_and_newlines() {
-    use planrs_mspdi::write::{Computed, Indent, Newline, WriteOptions, write};
+    use plannercraft_mspdi::write::{Computed, Indent, Newline, WriteOptions, write};
     let proj = new_project("2026-10-19T08:00");
     let crlf = write(
         &proj,

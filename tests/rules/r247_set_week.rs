@@ -6,13 +6,13 @@
 //! Repère : calendrier Standard (UID 1, calendrier du projet), début lun
 //! 19/10/2026 08:00.
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, Session};
-use planrs_core::calendar::{CalendarKind, DayRule, DaySetting};
-use planrs_core::{CalendarUid, Diagnostic, Moment, TaskUid, Weekday};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, batch, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, Session};
+use plannercraft_core::calendar::{CalendarKind, DayRule, DaySetting};
+use plannercraft_core::{CalendarUid, Diagnostic, Moment, TaskUid, Weekday};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, batch, try_apply};
 use serde_json::{Value, json};
 
 /// T (2 j) affectée à Maçon (calendrier propre UID 4, dérivé de S),

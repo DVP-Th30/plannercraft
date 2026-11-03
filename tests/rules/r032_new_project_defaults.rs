@@ -1,11 +1,11 @@
 //! R-032 — Valeurs par défaut d'un projet neuf et d'une nouvelle tâche.
 
-use planrs_core::calendar::CalendarKind;
-use planrs_core::{
+use plannercraft_core::calendar::CalendarKind;
+use plannercraft_core::{
     BuiltinCalendarNames, CalendarUid, Constraint, DurationUnit, Minutes, Project, ProjectInit,
     ProjectOptions, ScheduleAnchor, SchedulingMode, Task, TaskType, TaskUid, TimeBasis, TimeOfDay, Weekday,
 };
-use planrs_tests::moment;
+use plannercraft_tests::moment;
 
 fn new_project() -> Project {
     Project::new(ProjectInit {

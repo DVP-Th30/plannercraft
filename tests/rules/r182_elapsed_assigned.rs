@@ -1,9 +1,9 @@
 //! R-182 — Tâche à durée écoulée affectée : calendriers ignorés, `d_a` en
 //! minutes civiles (W ÷ U). Hypothèse.
 
-use planrs_core::{EffectiveCalendar, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{EffectiveCalendar, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{STANDARD, assign, assign_full, placed, resource};
 

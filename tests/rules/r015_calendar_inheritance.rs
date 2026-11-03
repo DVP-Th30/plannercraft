@@ -2,9 +2,9 @@
 //! exister et être un calendrier de base ; ses jours `Inherit` prennent la
 //! valeur de la base, et une modification de la base se répercute.
 
-use planrs_core::calendar::{Calendar, DayRule, chain, resolve_day};
-use planrs_core::{CalendarError, CalendarUid, Weekday};
-use planrs_tests::{calendars, day, day_minutes, hours, standard};
+use plannercraft_core::calendar::{Calendar, DayRule, chain, resolve_day};
+use plannercraft_core::{CalendarError, CalendarUid, Weekday};
+use plannercraft_tests::{calendars, day, day_minutes, hours, standard};
 
 fn uid(v: u32) -> CalendarUid {
     CalendarUid::new(v)
@@ -82,7 +82,7 @@ fn r015_inheritance_errors() {
 
 #[test]
 fn r015_derived_conversion() {
-    use planrs_tests::{compiled, mins, moment};
+    use plannercraft_tests::{compiled, mins, moment};
     let a = calendars(vec![standard(), paul()]);
     let c = compiled(&a, 4);
     // Ven 23/10 08:00 + 480 sur Paul : ven 08-12 (240), lun 26 08-12 (240)

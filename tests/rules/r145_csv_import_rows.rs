@@ -5,11 +5,11 @@
 //! garde de formule. Projet depuis lun 19/10/2026 08:00, calendrier
 //! Standard, 480 / 2 400 / 20.
 
-use planrs_automation::csv::{CsvCode, CsvDates, CsvImport, CsvImportOptions, import};
-use planrs_core::{
+use plannercraft_automation::csv::{CsvCode, CsvDates, CsvImport, CsvImportOptions, import};
+use plannercraft_core::{
     Constraint, DurationUnit, LinkType, Minutes, ScheduleAnchor, Task, TaskUid, TimeBasis, schedule,
 };
-use planrs_tests::moment;
+use plannercraft_tests::moment;
 
 fn options() -> CsvImportOptions {
     CsvImportOptions::new(

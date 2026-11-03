@@ -1,9 +1,9 @@
 //! R-083 — Valeurs enregistrées par MS Project, marges en dixièmes de minute
 //! (import MSPDI).
 
-use planrs_core::{Minutes, TaskUid};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, RecordedTask, Tenths, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Minutes, TaskUid};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, RecordedTask, Tenths, read};
+use plannercraft_tests::{moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/tasks.xml")).unwrap();
@@ -77,17 +77,17 @@ fn r083_start_and_finish_slack_are_recorded() {
     // `StartSlack` et `FinishSlack` lus en dixièmes, sans arrondi, dans le
     // planning enregistré (réécrits tels quels avec `Computed::Recorded`,
     // R-122).
-    let bytes = std::fs::read(planrs_tests::tests_path("fixtures/mspdi/resources.xml")).unwrap();
-    let doc = planrs_mspdi::read(
+    let bytes = std::fs::read(plannercraft_tests::tests_path("fixtures/mspdi/resources.xml")).unwrap();
+    let doc = plannercraft_mspdi::read(
         &bytes,
-        &planrs_mspdi::ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+        &plannercraft_mspdi::ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
     )
     .unwrap();
-    let rec = &doc.recorded.tasks[&planrs_core::TaskUid::new(1)];
-    assert_eq!(rec.start_slack, Some(planrs_mspdi::Tenths(9_600)));
-    assert_eq!(rec.finish_slack, Some(planrs_mspdi::Tenths(4_800)));
+    let rec = &doc.recorded.tasks[&plannercraft_core::TaskUid::new(1)];
+    assert_eq!(rec.start_slack, Some(plannercraft_mspdi::Tenths(9_600)));
+    assert_eq!(rec.finish_slack, Some(plannercraft_mspdi::Tenths(4_800)));
     assert_eq!(
-        doc.recorded.tasks[&planrs_core::TaskUid::new(2)].start_slack,
+        doc.recorded.tasks[&plannercraft_core::TaskUid::new(2)].start_slack,
         None
     );
 }

@@ -2,9 +2,9 @@
 //! deux passes ; l'indicateur `milestone` n'influe pas (seule la durée
 //! compte). Observé O1 (A2 UID 1) ; A6 UID 4 et 38.
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r061_milestone_between_tasks() {

@@ -2,13 +2,13 @@
 //! à la période et limitées à `occurrences` (ordre chronologique) ; jamais
 //! lues comme une période continue.
 
-use planrs_core::calendar::{
+use plannercraft_core::calendar::{
     Calendar, CalendarException, DaySetting, MonthItem, MonthPosition, Recurrence, expand_exception,
 };
-use planrs_core::{
+use plannercraft_core::{
     BuiltinCalendarNames, CalendarUid, Diagnostic, Month, Project, ProjectInit, ScheduleAnchor, Week, Weekday,
 };
-use planrs_tests::{calendars, day_minutes, days, moment, standard};
+use plannercraft_tests::{calendars, day_minutes, days, moment, standard};
 
 fn recurring(from: &str, to: &str, recurrence: Recurrence, occurrences: Option<u32>) -> CalendarException {
     CalendarException {
@@ -200,7 +200,7 @@ fn r018_unsupported_recurrence_ignored_with_warning() {
 
 #[test]
 fn r018_daily_every_two_days_conversion() {
-    use planrs_tests::{compile_one, mins};
+    use plannercraft_tests::{compile_one, mins};
     let mut c = standard();
     c.add_exception(recurring(
         "2026-11-02",
@@ -219,7 +219,7 @@ fn r018_daily_every_two_days_conversion() {
 
 #[test]
 fn r018_recurring_exception_overlapping_a_period() {
-    use planrs_tests::{compile_one, mins, working};
+    use plannercraft_tests::{compile_one, mins, working};
     // Lues depuis un fichier, stockées à rebours de leurs dates de début :
     // n° 0 = du mar 03/11 au ven 06/11/2026, ouvré [09:00,11:00) ; n° 1 =
     // chaque mercredi du lun 02/11 au lun 30/11, chômé. La n° 1 commence la

@@ -7,16 +7,16 @@
 //! écarts « sans ligne de base » (R-224, R-225). Repère : calendrier
 //! Standard, début lun 19/10/2026 08:00.
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, Session, SideEffect};
-use planrs_core::baseline;
-use planrs_core::{
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, Session, SideEffect};
+use plannercraft_core::baseline;
+use plannercraft_core::{
     AssignmentUid, BaselineNumber, CalendarSet, Diagnostic, ExtraEntry, Minutes, ResourceUid, TaskUid,
 };
-use planrs_mspdi::write::WriteOptions;
-use planrs_tests::mspdi::compact;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, batch, get, try_apply};
+use plannercraft_mspdi::write::WriteOptions;
+use plannercraft_tests::mspdi::compact;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, batch, get, try_apply};
 use serde_json::json;
 
 /// A 2 j → B 3 j (FS), R affectée à A ; ligne 0 posée.
@@ -65,14 +65,14 @@ fn r250_clear_project() {
     // Extras de portée `Baseline#0/` relus d'un fichier : jetés.
     let mut project = s.project().clone();
     let entry = |key: &str| ExtraEntry {
-        origin: planrs_mspdi::extras::ORIGIN.to_owned(),
+        origin: plannercraft_mspdi::extras::ORIGIN.to_owned(),
         key: key.to_owned(),
         payload: String::new(),
     };
     let extras = &mut project.tasks.get_mut(TaskUid::new(1)).unwrap().extras.0;
     extras.push(entry("Baseline#0/BCWS"));
     extras.push(entry("Baseline#1/BCWS"));
-    let mut s = planrs_tests::session::session(project);
+    let mut s = plannercraft_tests::session::session(project);
     let dry = s
         .apply(&batch(json!([{ "op": "baseline.clear" }])), ApplyMode::DryRun)
         .unwrap();
@@ -89,7 +89,7 @@ fn r250_clear_project() {
         }
     );
     assert!(out.side_effects.contains(&SideEffect::ExtrasDropped {
-        subject: planrs_core::Subject::Task(TaskUid::new(1)),
+        subject: plannercraft_core::Subject::Task(TaskUid::new(1)),
         keys: vec!["Baseline#0/BCWS".to_owned()],
     }));
     assert!(!has_line(&s, 1) && !has_line(&s, 2));

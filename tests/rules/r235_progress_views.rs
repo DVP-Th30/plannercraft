@@ -5,9 +5,9 @@
 //! présentes. Repère : calendrier Standard, début du projet lun 19/10/2026
 //! 08:00. Hypothèse.
 
-use planrs_automation::Workspace;
-use planrs_automation::text::Language;
-use planrs_tests::moment;
+use plannercraft_automation::Workspace;
+use plannercraft_automation::text::Language;
+use plannercraft_tests::moment;
 use serde_json::{Value, json};
 
 /// A 2 j → B 2 j (FS). Rend l'espace et les UID de A et B.

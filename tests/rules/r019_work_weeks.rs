@@ -2,9 +2,9 @@
 //! elles remplacent la semaine par défaut du même calendrier pour les jours
 //! qu'elles définissent ; `Inherit` renvoie à la semaine par défaut.
 
-use planrs_core::calendar::{Calendar, DayRule, WorkWeek};
-use planrs_core::{Week, Weekday};
-use planrs_tests::{calendars, day_minutes, days, hours, standard};
+use plannercraft_core::calendar::{Calendar, DayRule, WorkWeek};
+use plannercraft_core::{Week, Weekday};
+use plannercraft_tests::{calendars, day_minutes, days, hours, standard};
 
 /// Standard avec une semaine datée sur `[from, to]`.
 fn with_work_week(from: &str, to: &str, rule: impl Fn(Weekday) -> DayRule) -> Calendar {
@@ -64,7 +64,7 @@ fn r019_inherit_falls_back_to_default_week() {
 
 #[test]
 fn r019_work_week_conversions() {
-    use planrs_tests::{compile_one, mins, moment};
+    use plannercraft_tests::{compile_one, mins, moment};
     // Été 2026, lun-ven [08:00,15:00) : lun 06/07 08:00 + 480 → lundi 420,
     // mar 07/07 08:00-09:00 (60) → mar 07/07 09:00.
     let c = with_work_week("2026-07-01", "2026-08-31", |d| match d {
@@ -89,9 +89,11 @@ fn r019_work_week_conversions() {
 
 #[test]
 fn r019_overlap_storage_order_differs_from_start_order() {
-    use planrs_core::calendar::Calendar;
-    use planrs_core::{BuiltinCalendarNames, CalendarUid, Diagnostic, Project, ProjectInit, ScheduleAnchor};
-    use planrs_tests::{compile_one, mins, moment};
+    use plannercraft_core::calendar::Calendar;
+    use plannercraft_core::{
+        BuiltinCalendarNames, CalendarUid, Diagnostic, Project, ProjectInit, ScheduleAnchor,
+    };
+    use plannercraft_tests::{compile_one, mins, moment};
     // Lues depuis un fichier (une commande refuse le chevauchement), stockées
     // à rebours de leurs dates de début :
     // - n° 0 : du lun 09/11 au lun 30/11/2026, lundi [08:00,10:00), autres

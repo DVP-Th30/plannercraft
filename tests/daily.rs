@@ -7,8 +7,8 @@
 //! œuvre » ⊃ 6 « Plâtrerie » 4 j (3→6 FS), 7 « Peinture » 3 j (6→7 FS) ;
 //! chemin critique 2, 3, 6, 7.
 
-use planrs_automation::Session;
-use planrs_core::{Moment, TaskUid};
+use plannercraft_automation::Session;
+use plannercraft_core::{Moment, TaskUid};
 use serde_json::json;
 
 use crate::resource_edit::fresh;

@@ -1,8 +1,8 @@
 //! R-081 — Ancienne forme des exceptions (`WeekDay` de `DayType` 0, import
 //! MSPDI).
 
-use planrs_mspdi::{MspdiDocument, ReadOptions, read};
-use planrs_tests::{day_minutes, moment, tests_path};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{day_minutes, moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/calendars.xml")).unwrap();

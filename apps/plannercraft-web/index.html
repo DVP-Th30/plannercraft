@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Titre remplacé au démarrage par plannercraft_core::PRODUCT_NAME. -->
+  <title>PlannerCraft</title>
+  <!-- Pas d'icône : évite une requête /favicon.ico en 404 (erreur console). -->
+  <link rel="icon" href="data:,">
+  <!-- trunk compile la crate en wasm et génère la colle wasm-bindgen : aucun JS écrit à la main.
+       Profil cargo : `cargo_profile` de Trunk.toml (wasm-release). -->
+  <link data-trunk rel="rust" data-bin="plannercraft-web" data-wasm-opt="z">
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1b1b; }
+    #plannercraft_canvas { display: block; width: 100%; height: 100%; }
+    /* « Chargement… » (H-UI-57) : CSS seul, retiré par Rust au démarrage,
+       remplacé par un message traduit si l'interface ne peut pas démarrer. */
+    #plannercraft_loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; padding: 16px; box-sizing: border-box; text-align: center;
+      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #d6d6d6; background: #1b1b1b;
+    }
+    #plannercraft_loading .spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid #3c3c3c; border-top-color: #8ab4f8; animation: plannercraft-spin 0.9s linear infinite;
+    }
+    #plannercraft_loading.failed { color: #f2b8b5; max-width: 40em; margin: auto; }
+    @keyframes plannercraft-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #plannercraft_loading .spinner { animation: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="plannercraft_canvas"></canvas>
+  <div id="plannercraft_loading" role="status" aria-live="polite">
+    <div class="spinner"></div>
+    <div>Chargement…</div>
+  </div>
+</body>
+</html>

@@ -1,8 +1,8 @@
 //! R-085 — Tâches en mode manuel (import MSPDI).
 
-use planrs_core::{Minutes, SchedulingMode, TaskUid};
-use planrs_mspdi::{MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Minutes, SchedulingMode, TaskUid};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/manual.xml")).unwrap();
@@ -13,8 +13,8 @@ fn manual(
     doc: &MspdiDocument,
     uid: u32,
 ) -> (
-    Option<planrs_core::Moment>,
-    Option<planrs_core::Moment>,
+    Option<plannercraft_core::Moment>,
+    Option<plannercraft_core::Moment>,
     Option<i64>,
 ) {
     match doc.project.tasks.get(TaskUid::new(uid)).unwrap().mode {

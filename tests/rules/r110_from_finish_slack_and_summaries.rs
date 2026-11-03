@@ -8,12 +8,12 @@
 //! récapitulative (R-103) jugés sur ses dates planifiées. Source : hypothèse
 //! (miroir de R-051, R-058).
 
-use planrs_core::{Constraint, Diagnostic, Driver, LateDriver, LinkType, Minutes, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_pct, lag_w};
+use plannercraft_core::{Constraint, Diagnostic, Driver, LateDriver, LinkType, Minutes, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_pct, lag_w};
 
 /// F ven 23/10 17:00 ; A 1 j → B 1 j (FS), C 3 j.
-fn chain(multiple: bool) -> planrs_tests::net::Run {
+fn chain(multiple: bool) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .from_finish("2026-10-23T17:00")
         .options(|o| o.multiple_critical_paths = multiple)
@@ -141,7 +141,7 @@ fn r110_summary_constraints_from_finish() {
         run.schedule.diagnostics,
         [Diagnostic::ConstraintNotHonored {
             task: run.uid("S"),
-            kind: planrs_core::ConstraintKind::StartNoEarlierThan,
+            kind: plannercraft_core::ConstraintKind::StartNoEarlierThan,
             date
         }]
     );

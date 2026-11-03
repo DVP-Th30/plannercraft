@@ -6,9 +6,9 @@
 //! diagnostic `resource.overallocated`. Source : S47 ; O31 ; débit
 //! effectif : hypothèse.
 
-use planrs_core::{Constraint, Diagnostic, Overload, ResourceUid, TaskType, Units};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Diagnostic, Overload, ResourceUid, TaskType, Units};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 

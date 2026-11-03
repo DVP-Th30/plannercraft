@@ -5,9 +5,9 @@
 //! agrégats de R-210 calculés, durée réelle = `percent_of(durée utilisée,
 //! %)`. Source : O41 (A7 UID 1 et 4) ; hypothèse (UID 4 ne discrimine pas).
 
-use planrs_core::{Diagnostic, Driver, LateDriver, Minutes, Percent, ProgressState};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Driver, LateDriver, Minutes, Percent, ProgressState};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r208_manual_leaf_actual_dates() {

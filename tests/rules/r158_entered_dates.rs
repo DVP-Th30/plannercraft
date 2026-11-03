@@ -1,15 +1,15 @@
 //! R-158 — Début ou fin saisis → contrainte (SNET/FNET depuis le début,
 //! SNLT/FNLT à rebours ; effacés → ASAP/ALAP).
 
-use planrs_automation::SideEffect;
-use planrs_automation::error::codes;
-use planrs_core::{
+use plannercraft_automation::SideEffect;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{
     BuiltinCalendarNames, Constraint, ConstraintKind, Project, ProjectInit, ScheduleAnchor, TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{link, push_tasks, session};
-use planrs_tests::task_edit::{apply, get, try_apply};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{link, push_tasks, session};
+use plannercraft_tests::task_edit::{apply, get, try_apply};
 use serde_json::json;
 
 fn uid(u: u32) -> TaskUid {

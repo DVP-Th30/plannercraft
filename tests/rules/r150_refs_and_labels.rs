@@ -11,12 +11,12 @@
 
 use std::collections::BTreeMap;
 
-use planrs_automation::Batch;
-use planrs_automation::command::{Command, TaskRef, define_label, is_valid_label, resolve_task};
-use planrs_automation::error::{CommandErrorKind, codes};
-use planrs_core::calendar::BuiltinCalendarNames;
-use planrs_core::{Project, ProjectInit, ScheduleAnchor, Subject, Task, TaskUid};
-use planrs_tests::moment;
+use plannercraft_automation::Batch;
+use plannercraft_automation::command::{Command, TaskRef, define_label, is_valid_label, resolve_task};
+use plannercraft_automation::error::{CommandErrorKind, codes};
+use plannercraft_core::calendar::BuiltinCalendarNames;
+use plannercraft_core::{Project, ProjectInit, ScheduleAnchor, Subject, Task, TaskUid};
+use plannercraft_tests::moment;
 
 /// Projet de 3 tâches, UID 1 à 3.
 fn three_tasks() -> Project {

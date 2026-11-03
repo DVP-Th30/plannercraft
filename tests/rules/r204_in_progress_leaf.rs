@@ -5,9 +5,9 @@
 //! `forward_span(Resume, D − réel).finish` ; `Driver::Actual`. Source : S26,
 //! S51, S53 ; reste : hypothèse.
 
-use planrs_core::{Diagnostic, Driver, Minutes, Percent, ProgressState};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Driver, Minutes, Percent, ProgressState};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// T 3 j (1 440), début réel lun 19/10 08:00, `pct` (1/100 de %).
 pub(crate) fn started(pct: i64) -> Net {

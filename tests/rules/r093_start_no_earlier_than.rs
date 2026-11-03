@@ -3,9 +3,9 @@
 //! aucun effet en passe arrière depuis le début. Sources : S27 (« ES=CD »),
 //! S28, S30.
 
-use planrs_core::{Constraint, ConstraintKind, Driver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, Driver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn snet(d: &str) -> Constraint {
     Constraint::StartNoEarlierThan { date: moment(d) }

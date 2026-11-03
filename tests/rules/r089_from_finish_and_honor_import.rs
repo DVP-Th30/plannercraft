@@ -6,9 +6,9 @@
 //! Source : schéma MSPDI, élément Project (S34) ; O15 (hypothèse
 //! concurrente : codage inversé).
 
-use planrs_core::{ScheduleAnchor, Severity};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::moment;
+use plannercraft_core::{ScheduleAnchor, Severity};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::moment;
 
 /// Projet minimal : champs `head` de `Project`, puis `tasks` (contenu de
 /// `Tasks`).
@@ -113,8 +113,8 @@ fn r089_from_finish_file_is_scheduled() {
         "<Task><UID>1</UID><ID>1</ID><Name>A</Name><Duration>PT8H0M0S</Duration>\
          <ConstraintType>1</ConstraintType></Task>",
     );
-    let s = planrs_core::schedule(&doc.project);
-    let a = s.scheduled(planrs_core::TaskUid::new(1)).unwrap();
+    let s = plannercraft_core::schedule(&doc.project);
+    let a = s.scheduled(plannercraft_core::TaskUid::new(1)).unwrap();
     assert_eq!(a.start, moment("2026-10-23T08:00"));
     assert_eq!(s.project_finish, moment("2026-10-23T17:00"));
 }

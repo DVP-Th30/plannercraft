@@ -1,9 +1,9 @@
 //! Harnais du corpus public (ADR-0004, ADR-0009 ; cible `tests/corpus`).
 //!
 //! Chaîne : manifeste figé ([`manifest`]) → fichier présent et empreinte
-//! conforme → lecture MSPDI (`planrs_mspdi::read` : les valeurs calculées par
+//! conforme → lecture MSPDI (`plannercraft_mspdi::read` : les valeurs calculées par
 //! MS Project vont dans `RecordedSchedule`, jamais dans le `Project`, donc
-//! l'effacement est structurel) → recalcul (`planrs_core::schedule`) →
+//! l'effacement est structurel) → recalcul (`plannercraft_core::schedule`) →
 //! comparaison champ par champ ([`compare`]) → verdict contre les planchers
 //! ([`verdict`]) → rapport sans nom de tâche ([`report`]).
 //!
@@ -19,7 +19,7 @@ pub mod verdict;
 
 use std::path::Path;
 
-use planrs_mspdi::{MspdiDocument, ReadOptions};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions};
 
 use crate::corpus::compare::FileComparison;
 use crate::corpus::manifest::Entry;
@@ -95,7 +95,7 @@ pub fn run_file(entry: &Entry, files_dir: &Path) -> FileRun {
 #[must_use]
 pub fn run_bytes(entry: &Entry, bytes: &[u8]) -> FileRun {
     let now = crate::moment(CURRENT_DATE);
-    let document = match planrs_mspdi::read(bytes, &ReadOptions::new(now)) {
+    let document = match plannercraft_mspdi::read(bytes, &ReadOptions::new(now)) {
         Ok(d) => d,
         Err(e) => {
             return FileRun {
@@ -108,7 +108,7 @@ pub fn run_bytes(entry: &Entry, bytes: &[u8]) -> FileRun {
             };
         }
     };
-    let schedule = planrs_core::schedule(&document.project);
+    let schedule = plannercraft_core::schedule(&document.project);
     let comparison = compare::compare(&document, &schedule);
     let resources = resources::compare(&document, &schedule);
     let engine_diagnostics = schedule.diagnostics.iter().map(|d| d.code().to_owned()).collect();

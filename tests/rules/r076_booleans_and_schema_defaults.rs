@@ -1,9 +1,9 @@
 //! R-076 — Booléens, éléments absents et valeurs par défaut du schéma
 //! (import MSPDI).
 
-use planrs_core::{DurationUnit, ScheduleAnchor, TaskType, Weekday};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path, time};
+use plannercraft_core::{DurationUnit, ScheduleAnchor, TaskType, Weekday};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path, time};
 
 fn fixture(name: &str) -> MspdiDocument {
     let bytes = std::fs::read(tests_path(&format!("fixtures/mspdi/{name}"))).unwrap();
@@ -148,20 +148,20 @@ fn r076_task_booleans() {
     let xml = "<Project><SaveVersion>12</SaveVersion><StartDate>2026-10-19T08:00:00</StartDate>\
                <Tasks><Task><UID>1</UID><ID>1</ID><Duration>PT8H0M0S</Duration></Task></Tasks></Project>";
     let doc = read(xml.as_bytes(), &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
-    let t = doc.project.tasks.get(planrs_core::TaskUid::new(1)).unwrap();
+    let t = doc.project.tasks.get(plannercraft_core::TaskUid::new(1)).unwrap();
     assert!(t.active);
     assert!(!t.is_null);
-    assert_eq!(t.mode, planrs_core::SchedulingMode::Auto);
+    assert_eq!(t.mode, plannercraft_core::SchedulingMode::Auto);
     // Fixture `tasks.xml` : UID 6 `<Milestone>2</Milestone>` → faux, signalé ;
     // UID 7 `<Active>0</Active>` → inactive.
     let doc = fixture("tasks.xml");
-    let t6 = doc.project.tasks.get(planrs_core::TaskUid::new(6)).unwrap();
+    let t6 = doc.project.tasks.get(plannercraft_core::TaskUid::new(6)).unwrap();
     assert!(!t6.milestone);
     assert!(has(&doc, &ImportCode::InvalidValue, "Tasks/Task/Milestone"));
     assert!(
         !doc.project
             .tasks
-            .get(planrs_core::TaskUid::new(7))
+            .get(plannercraft_core::TaskUid::new(7))
             .unwrap()
             .active
     );
@@ -170,7 +170,7 @@ fn r076_task_booleans() {
     assert_eq!(
         doc.project
             .tasks
-            .get(planrs_core::TaskUid::new(1))
+            .get(plannercraft_core::TaskUid::new(1))
             .unwrap()
             .task_type,
         TaskType::FixedDuration

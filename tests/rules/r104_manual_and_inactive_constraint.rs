@@ -7,9 +7,9 @@
 //! « manually scheduled » : « Ignored by Project »), S25 ; inactive :
 //! hypothèse.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, Minutes, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, Diagnostic, Minutes, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn manual() -> Net {
     // M manuelle mer 21/10 08:00 – jeu 22/10 17:00.

@@ -1,10 +1,10 @@
 //! R-126 — Lignes de base MSPDI (lecture ; écriture : commit d'écriture des
 //! lignes de base).
 
-use planrs_core::{
+use plannercraft_core::{
     AssignmentUid, BaselineNumber, DurationUnit, Minutes, Money, ResourceUid, TaskUid, TimeBasis,
 };
-use planrs_tests::moment;
+use plannercraft_tests::moment;
 
 use crate::r088_resources_assignments_baselines_import as r088;
 
@@ -55,8 +55,8 @@ fn r126_resource_and_assignment_baselines() {
 
 #[test]
 fn r126_baselines_are_written_by_number() {
-    use planrs_core::{Duration, Task, TaskBaseline, Work};
-    use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+    use plannercraft_core::{Duration, Task, TaskBaseline, Work};
+    use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
     let mut proj = new_project("2026-10-19T08:00");
     let mut t = Task::new(TaskUid::new(1), "A".to_owned(), &proj.options);
     t.baselines.insert(

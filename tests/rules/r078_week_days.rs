@@ -1,8 +1,8 @@
 //! R-078 — Jours de la semaine (import MSPDI) : `DayType` 1 = dimanche …
 //! 7 = samedi, `DayWorking`, plages par défaut, jours manquants.
 
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{day_minutes, moment, tests_path};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{day_minutes, moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/calendars.xml")).unwrap();

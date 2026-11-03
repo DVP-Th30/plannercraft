@@ -2,7 +2,7 @@
 //! minutes ouvrées dans [1984-01-01 00:00, t) ; `working_between(a, b)` =
 //! W(b) − W(a), signé et additif. Calendrier Standard.
 
-use planrs_tests::{compile_one, mins, moment, standard};
+use plannercraft_tests::{compile_one, mins, moment, standard};
 
 #[test]
 fn r020_full_week() {

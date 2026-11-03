@@ -3,12 +3,12 @@
 //! ligne vide ou tâche exclue ⇒ aucun lot ; refus du registre (R-156 :
 //! doublon, cycle ; R-059 : vers sa descendante) ⇒ rien ne change.
 
-use planrs_automation::error::codes;
-use planrs_automation::gesture::{self, GestureError, NotDraggable};
-use planrs_automation::{ApplyMode, Session};
-use planrs_core::{Link, LinkType, TaskUid};
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::gesture::{self, GestureError, NotDraggable};
+use plannercraft_automation::{ApplyMode, Session};
+use plannercraft_core::{Link, LinkType, TaskUid};
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 fn uid(u: u32) -> TaskUid {

@@ -21,7 +21,7 @@
 {"v":1,"seq":11,"tool":"apply_style","params":{"reset":true,"template":"presentation"}}
 {"v":1,"seq":11,"tool":"apply_style","params":null,"result":{"error":{"code":"param.invalid","diagnostics":[],"field":"reset","message":"paramètre invalide : « reset » exclut « template » et « patch » (opération 0, champ « reset »)","op_index":0,"subject":null}}}
 {"v":1,"seq":12,"tool":"save_project","params":{"path":"$TMP/style_j8.xml"}}
-{"v":1,"seq":12,"tool":"save_project","params":null,"result":{"ok":{"bytes":11312,"diagnostics":[],"dirty":false,"path":"$TMP/style_j8.xml"}}}
+{"v":1,"seq":12,"tool":"save_project","params":null,"result":{"ok":{"bytes":11318,"diagnostics":[],"dirty":false,"path":"$TMP/style_j8.xml"}}}
 {"v":1,"seq":13,"tool":"undo","params":{}}
 {"v":1,"seq":13,"tool":"undo","params":null,"result":{"ok":{"committed":true,"created":[],"created_uids":[],"diff":{"changed":[],"changed_total":0,"critical_entered":[],"critical_left":[],"finish_after":"2026-11-06T17:00","finish_before":"2026-11-06T17:00","finish_delta":{"minutes":0,"text":"0j","unit":"day"},"start_after":"2026-10-19T08:00","start_before":"2026-10-19T08:00","truncated":false},"history_len":1,"labels":{},"side_effects":[],"warnings":[]}}}
 {"v":1,"seq":14,"tool":"get_style","params":{}}

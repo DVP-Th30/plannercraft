@@ -8,9 +8,9 @@
 //! S58 (« Roll up baselines » : « To all summary tasks », « From subtasks
 //! into selected summary task(s) ») ; sémantique : hypothèse.
 
-use planrs_core::TaskUid;
-use planrs_core::baseline::{self, BaselineError, Rollup, Scope};
-use planrs_tests::net::Net;
+use plannercraft_core::TaskUid;
+use plannercraft_core::baseline::{self, BaselineError, Rollup, Scope};
+use plannercraft_tests::net::Net;
 
 use crate::r220_baseline_values::{line, number, plan, set, spec, with_root};
 

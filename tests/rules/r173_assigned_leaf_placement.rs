@@ -6,9 +6,9 @@
 //! intervalles travaillés (et non l'enveloppe). Source : S45, S14 (« total
 //! span of active working time »), S8 ; O23, O26.
 
-use planrs_core::{LinkType, Minutes, TaskSchedule, Work};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{LinkType, Minutes, TaskSchedule, Work};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 
@@ -53,8 +53,8 @@ fn r173_two_finishes() {
 fn dates(s: &TaskSchedule) -> (TaskSchedule, Minutes) {
     let mut c = *s;
     c.work = Work::ZERO;
-    c.driver = planrs_core::Driver::ProjectStart;
-    c.late_driver = planrs_core::LateDriver::ProjectFinish;
+    c.driver = plannercraft_core::Driver::ProjectStart;
+    c.late_driver = plannercraft_core::LateDriver::ProjectFinish;
     (c, s.duration)
 }
 
@@ -83,9 +83,9 @@ fn r173_single_assignment_equals_j4() {
 /// le mar 20/10 (calendrier propre) ⇒ R1 lun 19 – mer 21, R2 lun 19 – jeu
 /// 22/10 17:00 ; union lun – jeu = 4 j (1 920 min), et non 3 j (le plus
 /// grand des `d_a`).
-fn two_parts_session() -> planrs_automation::Session {
-    use planrs_tests::resource_edit::{resource, with_tasks};
-    use planrs_tests::task_edit::apply;
+fn two_parts_session() -> plannercraft_automation::Session {
+    use plannercraft_tests::resource_edit::{resource, with_tasks};
+    use plannercraft_tests::task_edit::apply;
     use serde_json::json;
     let mut s = with_tasks(&[("A", "3j")]);
     apply(
@@ -108,28 +108,30 @@ fn two_parts_session() -> planrs_automation::Session {
 }
 
 /// Enregistre la session en MSPDI et la rouvre.
-fn reopened(s: &planrs_automation::Session) -> planrs_automation::Session {
-    use planrs_automation::text::Language;
-    let bytes = s.save_bytes(&planrs_mspdi::write::WriteOptions::default()).xml;
-    let origin = planrs_automation::DocOrigin {
+fn reopened(s: &plannercraft_automation::Session) -> plannercraft_automation::Session {
+    use plannercraft_automation::text::Language;
+    let bytes = s
+        .save_bytes(&plannercraft_mspdi::write::WriteOptions::default())
+        .xml;
+    let origin = plannercraft_automation::DocOrigin {
         name: "p.xml".to_owned(),
         path: None,
     };
-    planrs_automation::Session::open_bytes(&bytes, origin, moment("2026-10-19T08:00"), Language::Fr)
+    plannercraft_automation::Session::open_bytes(&bytes, origin, moment("2026-10-19T08:00"), Language::Fr)
         .unwrap()
         .0
 }
 
 #[test]
 fn r173_session_duration_is_union_and_reread_identical() {
-    use planrs_tests::resource_edit::{duration, units_work};
+    use plannercraft_tests::resource_edit::{duration, units_work};
     let s = two_parts_session();
     assert_eq!(
         (units_work(&s, 1, 1), units_work(&s, 1, 2)),
         ((10_000, 1_440), (10_000, 1_440))
     );
-    let a = s.schedule().get(planrs_core::TaskUid::new(1)).unwrap();
-    let planrs_core::TaskOutcome::Scheduled(a) = a else {
+    let a = s.schedule().get(plannercraft_core::TaskUid::new(1)).unwrap();
+    let plannercraft_core::TaskOutcome::Scheduled(a) = a else {
         panic!("A non planifiée");
     };
     assert_eq!(a.finish, moment("2026-10-22T17:00"));
@@ -142,16 +144,16 @@ fn r173_session_duration_is_union_and_reread_identical() {
     assert_eq!(
         r.project()
             .tasks
-            .get(planrs_core::TaskUid::new(1))
+            .get(plannercraft_core::TaskUid::new(1))
             .map(|t| t.duration),
         s.project()
             .tasks
-            .get(planrs_core::TaskUid::new(1))
+            .get(plannercraft_core::TaskUid::new(1))
             .map(|t| t.duration)
     );
     assert_eq!(
-        r.schedule().get(planrs_core::TaskUid::new(1)),
-        s.schedule().get(planrs_core::TaskUid::new(1))
+        r.schedule().get(plannercraft_core::TaskUid::new(1)),
+        s.schedule().get(plannercraft_core::TaskUid::new(1))
     );
 }
 
@@ -161,23 +163,27 @@ fn r173_open_syncs_recorded_duration() {
     // n'est pas l'union (4 j) : dès l'ouverture, la durée du modèle est
     // l'union, document non modifié ; un lot sans rapport (renommage) ne
     // change plus la durée de A.
-    use planrs_tests::resource_edit::duration;
-    use planrs_tests::task_edit::apply;
+    use plannercraft_tests::resource_edit::duration;
+    use plannercraft_tests::task_edit::apply;
     use serde_json::json;
     let s = two_parts_session();
-    let xml = String::from_utf8(s.save_bytes(&planrs_mspdi::write::WriteOptions::default()).xml).unwrap();
+    let xml = String::from_utf8(
+        s.save_bytes(&plannercraft_mspdi::write::WriteOptions::default())
+            .xml,
+    )
+    .unwrap();
     let union = "<Duration>PT32H0M0S</Duration>";
     assert!(xml.contains(union), "{xml}");
     let legacy = xml.replacen(union, "<Duration>PT24H0M0S</Duration>", 1);
-    let origin = planrs_automation::DocOrigin {
+    let origin = plannercraft_automation::DocOrigin {
         name: "p.xml".to_owned(),
         path: None,
     };
-    let (mut r, _) = planrs_automation::Session::open_bytes(
+    let (mut r, _) = plannercraft_automation::Session::open_bytes(
         legacy.as_bytes(),
         origin,
         moment("2026-10-19T08:00"),
-        planrs_automation::text::Language::Fr,
+        plannercraft_automation::text::Language::Fr,
     )
     .unwrap();
     assert_eq!(duration(&r, 1), 1_920);
@@ -185,14 +191,14 @@ fn r173_open_syncs_recorded_duration() {
     let before = r
         .project()
         .tasks
-        .get(planrs_core::TaskUid::new(1))
+        .get(plannercraft_core::TaskUid::new(1))
         .unwrap()
         .duration;
     apply(&mut r, json!([{ "op": "task.update", "uid": 1, "name": "A2" }]));
     let after = r
         .project()
         .tasks
-        .get(planrs_core::TaskUid::new(1))
+        .get(plannercraft_core::TaskUid::new(1))
         .unwrap()
         .duration;
     assert_eq!(before, after);
@@ -202,8 +208,8 @@ fn r173_open_syncs_recorded_duration() {
 fn r173_session_duration_follows_later_edits() {
     // Les éditions suivantes partent de l'union, en session comme après la
     // réouverture : même résultat des deux côtés.
-    use planrs_tests::resource_edit::{duration, units_work};
-    use planrs_tests::task_edit::apply;
+    use plannercraft_tests::resource_edit::{duration, units_work};
+    use plannercraft_tests::task_edit::apply;
     use serde_json::json;
     let edits = [
         // Retrait non piloté de R2 : durée gardée (4 j) puis replacée sur
@@ -239,7 +245,7 @@ fn r173_session_duration_follows_later_edits() {
         // travail, laissé tel quel en session ; le reste est identique.
         let mut relu = r.project().assignments.clone();
         for o in &s.project().assignments {
-            if let Some(a) = relu.get_mut(planrs_core::HasUid::uid(o)) {
+            if let Some(a) = relu.get_mut(plannercraft_core::HasUid::uid(o)) {
                 a.remaining_work = o.remaining_work;
             }
         }
@@ -262,20 +268,21 @@ fn r173_duration_sync_exclusions() {
     };
     let sync = |net: Net| {
         let mut p = net.build();
-        let s = planrs_core::schedule(&p);
-        let changed = planrs_core::schedule::sync_assigned_durations(&mut p, &s);
+        let s = plannercraft_core::schedule(&p);
+        let changed = plannercraft_core::schedule::sync_assigned_durations(&mut p, &s);
         (changed, p)
     };
     // Unités fixes : union (960) reportée.
     let (changed, p) = sync(base());
-    assert_eq!(changed, [planrs_core::TaskUid::new(1)]);
+    assert_eq!(changed, [plannercraft_core::TaskUid::new(1)]);
     assert_eq!(
         p.tasks.iter().next().unwrap().duration.minutes(),
         Minutes::new(960)
     );
     // Durée fixe : rien.
-    let (changed, _) = sync(base().with_task("A", |t| t.task_type = planrs_core::TaskType::FixedDuration));
-    assert_eq!(changed, Vec::<planrs_core::TaskUid>::new());
+    let (changed, _) =
+        sync(base().with_task("A", |t| t.task_type = plannercraft_core::TaskType::FixedDuration));
+    assert_eq!(changed, Vec::<plannercraft_core::TaskUid>::new());
     // Une affectation à unités nulles : rien.
     let (changed, _) = sync(assign_full(
         resource(base(), 3, None),
@@ -284,14 +291,14 @@ fn r173_duration_sync_exclusions() {
         Some(3),
         (480, 0, 0),
     ));
-    assert_eq!(changed, Vec::<planrs_core::TaskUid>::new());
+    assert_eq!(changed, Vec::<plannercraft_core::TaskUid>::new());
 }
 
 /// R1 sur le Standard 80 h (lun 19 – ven 30/10) ; R2 sur un calendrier de
 /// week-end (sam-dim 08:00-12:00, 13:00-17:00) 16 h (sam 24 – dim 25/10).
 fn weekend_parts() -> Net {
     use crate::r171_assignment_effective_calendar::base_calendar;
-    use planrs_core::Weekday;
+    use plannercraft_core::Weekday;
     let net = Net::new("2026-10-19T08:00").task("A", 4_800).project(|p| {
         p.calendars
             .push(base_calendar(30, |d| {
@@ -310,9 +317,9 @@ fn r173_measure_without_compiled_union() {
     // mesure passe par le repli (plus grand des temps ouvrés : 16 h de R2),
     // jamais par l'échelle de la première part seule (0 h le week-end).
     // Durée = 40 h + 16 h + 40 h = 5 760, comme avec l'union compilée.
-    let run = weekend_parts().run_with(planrs_core::Limits {
+    let run = weekend_parts().run_with(plannercraft_core::Limits {
         combined_segments: 0,
-        ..planrs_core::Limits::default()
+        ..plannercraft_core::Limits::default()
     });
     assert!(
         run.codes().contains(&"calendar.too_many_segments"),

@@ -5,11 +5,11 @@
 //! arrière, `constraint.not_honored` si le début dépasse `s*`). Sources :
 //! S27 (« ES,LS,SS=CD »), S8, S31.
 
-use planrs_core::{
+use plannercraft_core::{
     Constraint, ConstraintKind, Diagnostic, Driver, LateDriver, LinkType, Minutes, OverriddenBound,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn mso(d: &str) -> Constraint {
     Constraint::MustStartOn { date: moment(d) }

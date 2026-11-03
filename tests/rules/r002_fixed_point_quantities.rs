@@ -1,6 +1,6 @@
 //! R-002 — Unités, pourcentages et coûts en point fixe, conversion par R-001.
 
-use planrs_core::{Decimal, Money, Percent, SignedPercent, Units};
+use plannercraft_core::{Decimal, Money, Percent, SignedPercent, Units};
 
 fn dec(mantissa: i64, scale: u8) -> Decimal {
     Decimal::new(mantissa, scale).unwrap()

@@ -1,16 +1,16 @@
 //! R-071 — `DurationFormat` d'une tâche : unité, base, estimation (import
 //! MSPDI).
 
-use planrs_core::{DurationUnit, Minutes, TaskUid, TimeBasis};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{DurationUnit, Minutes, TaskUid, TimeBasis};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/tasks.xml")).unwrap();
     read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap()
 }
 
-fn duration(doc: &MspdiDocument, uid: u32) -> planrs_core::Duration {
+fn duration(doc: &MspdiDocument, uid: u32) -> plannercraft_core::Duration {
     doc.project.tasks.get(TaskUid::new(uid)).unwrap().duration
 }
 

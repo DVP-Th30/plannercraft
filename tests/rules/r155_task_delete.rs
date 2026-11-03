@@ -1,12 +1,12 @@
 //! R-155 — `task.delete` : récapitulative en cascade seulement ; liens et
 //! affectations retirés ; ID renumérotés, UID jamais réutilisés.
 
-use planrs_automation::error::codes;
-use planrs_automation::{CommandErrorKind, SideEffect};
-use planrs_core::{Assignment, AssignmentUid, ExtraEntry, Subject, TaskId, TaskUid};
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{link, push_tasks, session};
-use planrs_tests::task_edit::{apply, get, push_outline, rows, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{CommandErrorKind, SideEffect};
+use plannercraft_core::{Assignment, AssignmentUid, ExtraEntry, Subject, TaskId, TaskUid};
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{link, push_tasks, session};
+use plannercraft_tests::task_edit::{apply, get, push_outline, rows, try_apply};
 use serde_json::json;
 
 fn uid(u: u32) -> TaskUid {

@@ -1,8 +1,8 @@
 //! Aides des tests MSPDI (écriture, relecture, ordre des éléments).
 
-use planrs_core::{BuiltinCalendarNames, Project, ProjectInit, ScheduleAnchor};
-use planrs_mspdi::write::{Computed, WriteOptions, Written, write};
-use planrs_mspdi::{MspdiDocument, ReadOptions, read};
+use plannercraft_core::{BuiltinCalendarNames, Project, ProjectInit, ScheduleAnchor};
+use plannercraft_mspdi::write::{Computed, WriteOptions, Written, write};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions, read};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 

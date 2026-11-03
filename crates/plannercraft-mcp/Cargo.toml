@@ -1,0 +1,56 @@
+[package]
+name = "plannercraft-mcp"
+description = "Serveur MCP de PlannerCraft, au-dessus de plannercraft-automation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+plannercraft-automation.workspace = true
+plannercraft-core.workspace = true
+plannercraft-render.workspace = true
+rmcp.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+# Feature `http` (lot L17).
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+
+[features]
+# Transport MCP « streamable HTTP » (`plannercraft mcp --http`, lot L17).
+http = [
+    "rmcp/transport-streamable-http-server",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:http-body-util",
+    "dep:bytes",
+    "tokio/net",
+]
+
+[dev-dependencies]
+# Relecture du MSPDI enregistré par le rejeu `build_30` (lot L18).
+plannercraft-mspdi.workspace = true
+# Client rmcp en mémoire (`tokio::io::duplex`) pour les tests du serveur.
+rmcp = { workspace = true, features = ["client"] }
+# Client HTTP/1.1 minimal des tests `http.rs` (feature `http`).
+hyper = { workspace = true, features = ["client"] }
+hyper-util = { workspace = true }
+http-body-util = { workspace = true }
+bytes = { workspace = true }
+
+[[test]]
+name = "http"
+required-features = ["http"]
+
+# Rejeu `build_30` en HTTP (lot L18, vérification 6).
+[[test]]
+name = "replay_http"
+required-features = ["http"]
+
+[lints]
+workspace = true

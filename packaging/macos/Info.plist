@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Info.plist de planrs.app (J8, lot L1). Gabarit : @VERSION@ (version
+  Info.plist de PlannerCraft.app (J8, lot L1). Gabarit : @VERSION@ (version
   complète, ex. 1.0.0-rc.1) et @SHORT_VERSION@ (X.Y.Z seul, forme exigée
   par CFBundleShortVersionString) sont remplacés par le job build-macos
   de desktop-build.yml (appelé par release.yml). Identifiant du bundle et nom : docs/rename.md.
@@ -11,17 +11,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>fr</string>
 	<key>CFBundleDisplayName</key>
-	<string>planrs</string>
+	<string>PlannerCraft</string>
 	<key>CFBundleExecutable</key>
-	<string>planrs-desktop</string>
+	<string>plannercraft-desktop</string>
 	<key>CFBundleIconFile</key>
-	<string>planrs</string>
+	<string>plannercraft</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.theodu78.planrs</string>
+	<string>io.github.theodu78.plannercraft</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>planrs</string>
+	<string>PlannerCraft</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,7 +29,7 @@
 	<key>CFBundleVersion</key>
 	<string>@SHORT_VERSION@</string>
 	<key>CFBundleGetInfoString</key>
-	<string>planrs @VERSION@</string>
+	<string>PlannerCraft @VERSION@</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -37,6 +37,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Les contributeurs de planrs, MIT OR Apache-2.0</string>
+	<string>Les contributeurs de PlannerCraft, MIT OR Apache-2.0</string>
 </dict>
 </plist>

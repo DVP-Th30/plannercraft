@@ -3,8 +3,8 @@
 //! domaine des durées. Les aides de ce fichier servent aussi aux tests de
 //! R-189 à R-194 (`resource::edit`, fonctions pures en minutes ouvrées).
 
-use planrs_core::resource::{Edit, EditError, Part, Rebalanced, Recalculated, TaskSide, apply};
-use planrs_core::{AssignmentUid, Minutes, TaskType, Units, Work};
+use plannercraft_core::resource::{Edit, EditError, Part, Rebalanced, Recalculated, TaskSide, apply};
+use plannercraft_core::{AssignmentUid, Minutes, TaskType, Units, Work};
 
 /// Un jour ouvré du calendrier Standard : 480 min.
 pub(crate) const DAY: i64 = 480;

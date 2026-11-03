@@ -5,12 +5,12 @@
 //! −65 535 retirée, équilibrage R-190 à R-192 à l'ajout et au retrait.
 //! Repère : calendrier Standard, début lun 19/10/2026 08:00 (1 j = 480 min).
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, SideEffect};
-use planrs_core::{Assignment, AssignmentUid, Minutes, TaskUid, Work};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::{duration, units_work, with_tasks, work};
-use planrs_tests::task_edit::{apply, batch, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, SideEffect};
+use plannercraft_core::{Assignment, AssignmentUid, Minutes, TaskUid, Work};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::{duration, units_work, with_tasks, work};
+use plannercraft_tests::task_edit::{apply, batch, try_apply};
 use serde_json::json;
 
 #[test]
@@ -74,7 +74,7 @@ fn r196_default_units_and_given_work() {
     assert_eq!(units_work(&s, 2, 2), (10_000, 1_440));
     assert_eq!((duration(&s, 2), work(&s, 2)), (1_440, 1_440));
     assert_eq!(
-        planrs_tests::resource_edit::assignment(&s, 2, 2).delay,
+        plannercraft_tests::resource_edit::assignment(&s, 2, 2).delay,
         Minutes::new(480)
     );
 }
@@ -84,12 +84,12 @@ fn r196_placeholder_removed() {
     // Tâche relue avec l'affectation fictive (−65 535 : sans ressource,
     // O24) : retirée par l'affectation d'une vraie ressource, effet
     // signalé ; jamais recréée au retrait.
-    let mut p = planrs_tests::mspdi::new_project("2026-10-19T08:00");
-    planrs_tests::session::push_tasks(&mut p, &[1], 2);
+    let mut p = plannercraft_tests::mspdi::new_project("2026-10-19T08:00");
+    plannercraft_tests::session::push_tasks(&mut p, &[1], 2);
     let mut placeholder = Assignment::new(AssignmentUid::new(7), TaskUid::new(1), None);
     placeholder.work = Work::new(Minutes::new(960)).unwrap();
     p.assignments.push(placeholder).unwrap();
-    let mut s = planrs_tests::session::session(p);
+    let mut s = plannercraft_tests::session::session(p);
     let o = apply(
         &mut s,
         json!([
@@ -353,7 +353,7 @@ fn r196_update_units_work_delay() {
     );
     assert_eq!((units_work(&s, 1, 1), duration(&s, 1)), ((5_000, 1_440), 2_880));
     assert_eq!(
-        planrs_tests::resource_edit::assignment(&s, 1, 1).delay,
+        plannercraft_tests::resource_edit::assignment(&s, 1, 1).delay,
         Minutes::new(960)
     );
     let err = try_apply(
@@ -377,12 +377,12 @@ fn r196_summary_and_manual_tasks() {
     apply(&mut s, json!([{ "op": "task.indent", "uid": 2 }]));
     let mut p = s.project().clone();
     let t = p.tasks.get_mut(TaskUid::new(2)).unwrap();
-    t.mode = planrs_core::SchedulingMode::Manual {
+    t.mode = plannercraft_core::SchedulingMode::Manual {
         start: Some(moment("2026-10-19T08:00")),
         finish: None,
         duration: Some(t.duration),
     };
-    let mut s = planrs_tests::session::session(p);
+    let mut s = plannercraft_tests::session::session(p);
     let stored = duration(&s, 1);
     apply(
         &mut s,
@@ -420,16 +420,18 @@ fn r196_summary_read_from_file_uses_computed_duration() {
             { "op": "link.add", "pred": 2, "succ": 3 }
         ]),
     );
-    let xml = s.save_bytes(&planrs_mspdi::write::WriteOptions::default()).xml;
-    let origin = planrs_automation::DocOrigin {
+    let xml = s
+        .save_bytes(&plannercraft_mspdi::write::WriteOptions::default())
+        .xml;
+    let origin = plannercraft_automation::DocOrigin {
         name: "p.xml".to_owned(),
         path: None,
     };
-    let (mut r, _) = planrs_automation::Session::open_bytes(
+    let (mut r, _) = plannercraft_automation::Session::open_bytes(
         &xml,
         origin,
         moment("2026-10-19T08:00"),
-        planrs_automation::text::Language::Fr,
+        plannercraft_automation::text::Language::Fr,
     )
     .unwrap();
     assert_eq!(duration(&r, 1), 0);

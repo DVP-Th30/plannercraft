@@ -7,9 +7,9 @@
 //! se calculent comme pour une feuille manuelle ; sans date : récapitulative
 //! automatique. Source : observé O8 (A7 UID 1, 5, 6) ; reste : hypothèse.
 
-use planrs_core::{Driver, Minutes, TaskRole};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Driver, Minutes, TaskRole};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r064_manual_summary_keeps_entered_dates() {

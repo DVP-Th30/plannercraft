@@ -3,8 +3,10 @@
 //! anglais (casse et accents ignorés), `e`/`é` pour l'écoulé, `?` pour une
 //! durée estimée. Options 480 / 2 400 / 20 sauf mention.
 
-use planrs_automation::text::{Language, TextContext, TextError, parse_duration, parse_lag};
-use planrs_core::{ConversionFactors, Duration, DurationUnit, LagValue, Minutes, ProjectOptions, TimeBasis};
+use plannercraft_automation::text::{Language, TextContext, TextError, parse_duration, parse_lag};
+use plannercraft_core::{
+    ConversionFactors, Duration, DurationUnit, LagValue, Minutes, ProjectOptions, TimeBasis,
+};
 
 fn ctx() -> TextContext {
     TextContext::for_options(&ProjectOptions::default(), Language::Fr)

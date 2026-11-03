@@ -9,10 +9,10 @@
     reason = "tests : noms des tâches des exemples (A, B, C…)"
 )]
 
-use planrs_automation::explain::summary;
-use planrs_automation::text::Language;
-use planrs_core::schedule::explain::{Side, explain};
-use planrs_tests::net::Net;
+use plannercraft_automation::explain::summary;
+use plannercraft_automation::text::Language;
+use plannercraft_core::schedule::explain::{Side, explain};
+use plannercraft_tests::net::Net;
 
 use crate::r204_in_progress_leaf::started;
 use crate::r230_explain_start::{abc, plan};

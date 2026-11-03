@@ -9,9 +9,9 @@
 //! of the task and all of its successors »), S8 (ALAP avec échéance).
 //! Hypothèse concurrente M1 : dates au plus tôt pures, TF > 0.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, Driver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, Diagnostic, Driver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r092_alap_takes_its_late_dates_and_moves_its_successors() {

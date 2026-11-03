@@ -8,10 +8,10 @@ Une release `vX.Y.Z[-pre]` porte exactement cinq fichiers (C-REL-08) :
 
 | Fichier | Contenu |
 |---|---|
-| `planrs-<v>-macos-universal.dmg` | `planrs.app` universel (x86_64 + arm64, signé ad hoc) avec `planrs-desktop` ; la CLI `planrs` (CLI et serveur MCP) dans `cli/planrs` du DMG |
-| `planrs-<v>-windows-x86_64.zip` | `planrs-desktop.exe` (sous-système fenêtré), `planrs.exe` (console), `README.txt` ; non signé (SmartScreen) |
-| `planrs-<v>-linux-x86_64.tar.gz` | `planrs-desktop`, `planrs`, `planrs.desktop`, icône ; construit en conteneur `debian:bookworm` (glibc ≤ 2.36) |
-| `planrs-<v>-web.tar.gz` | `dist` de trunk (`index.html`, `.wasm`, JS de colle généré par wasm-bindgen) |
+| `plannercraft-<v>-macos-universal.dmg` | `PlannerCraft.app` universel (x86_64 + arm64, signé ad hoc) avec `plannercraft-desktop` ; la CLI `plannercraft` (CLI et serveur MCP) dans `cli/plannercraft` du DMG |
+| `plannercraft-<v>-windows-x86_64.zip` | `plannercraft-desktop.exe` (sous-système fenêtré), `plannercraft.exe` (console), `README.txt` ; non signé (SmartScreen) |
+| `plannercraft-<v>-linux-x86_64.tar.gz` | `plannercraft-desktop`, `plannercraft`, `plannercraft.desktop`, icône ; construit en conteneur `debian:bookworm` (glibc ≤ 2.36) |
+| `plannercraft-<v>-web.tar.gz` | `dist` de trunk (`index.html`, `.wasm`, JS de colle généré par wasm-bindgen) |
 | `SHA256SUMS` | Empreintes SHA-256 des quatre fichiers ci-dessus |
 
 Chacune des quatre archives porte aussi un dossier `licenses/` (ADR-0017, lot L6) : `LICENSE-MIT`, `LICENSE-APACHE`, `NOTICE`, et les licences des composants tiers embarqués aux chemins que cite `NOTICE` (`assets/fonts/OFL.txt` pour Inter, `assets/icons/lucide/LICENSE` pour Lucide, ISC et MIT de Feather). Les jobs `verify-*` échouent si l'un manque ou est vide.
@@ -24,10 +24,10 @@ Tags `v*-test.*` ⇒ brouillon (non public) ; un tag d'essai `vX.Y.Z-test.N` ép
 |---|---|---|
 | C-REL-01 | Tag `vX.Y.Z[-pre]` = `version` du workspace = première section de `CHANGELOG.md` | L1 |
 | C-REL-02 | macOS : `lipo -archs` des deux binaires = « x86_64 arm64 » ; `codesign --verify --deep --strict` vert ; `hdiutil verify` vert | L1 |
-| C-REL-03 | `planrs --version` et `planrs-desktop --version` impriment `planrs <version>` sans fenêtre, sur les 3 OS | L1 |
+| C-REL-03 | `plannercraft --version` et `plannercraft-desktop --version` impriment `PlannerCraft <version>` sans fenêtre, sur les 3 OS | L1 |
 | C-REL-04 | Linux : plus haute version `GLIBC_` requise (`objdump -T`) ≤ 2.36 | L1 |
 | C-REL-05 | Web : `.wasm` compressé gzip -9 ≤ 4 Mio (3 Mio jusqu'au 2026-10-27, ADR-0016) | L1 (mesure), L13 (porte) |
-| C-REL-06 | Web : `chromium --headless` sur `dist` servi en HTTP ⇒ attribut `data-planrs-started="1"` dans le DOM (posé par Rust au démarrage) | L1, L13 |
+| C-REL-06 | Web : `chromium --headless` sur `dist` servi en HTTP ⇒ attribut `data-plannercraft-started="1"` dans le DOM (posé par Rust au démarrage) | L1, L13 |
 | C-REL-07 | `sha256sum -c SHA256SUMS` vert sur les artefacts téléchargés de la release | L1 |
 | C-REL-08 | `gh release view --json assets` liste exactement les cinq fichiers du § 1 ; `gh attestation verify` vert sur l'un d'eux | L1 |
 
@@ -44,18 +44,18 @@ Mesure de la release d'essai (2026-10-27, `v1.0.0-test.1`) : 9 897 306 octets, 3
 | Job | Rôle | Contrats |
 |---|---|---|
 | `check` | `cargo xtask release-check <tag>` puis `cargo xtask release-notes <tag>` (tag seulement) | C-REL-01 |
-| `build` | appelle `desktop-build.yml` (`workflow_call`) : `build-macos` (deux cibles, `lipo`, `planrs.app` avec `packaging/macos/Info.plist`, `.icns` par `iconutil` depuis `assets/icon`, `codesign --force --deep -s -`, DMG UDZO avec `planrs.app`, `cli/planrs`, `LISEZ-MOI.txt`), `build-windows` (`x86_64-pc-windows-msvc`, zip), `build-linux` (conteneur `debian:bookworm`, rustup installé dans le job), `build-web` (trunk 0.21.14) | — |
+| `build` | appelle `desktop-build.yml` (`workflow_call`) : `build-macos` (deux cibles, `lipo`, `PlannerCraft.app` avec `packaging/macos/Info.plist`, `.icns` par `iconutil` depuis `assets/icon`, `codesign --force --deep -s -`, DMG UDZO avec `PlannerCraft.app`, `cli/plannercraft`, `LISEZ-MOI.txt`), `build-windows` (`x86_64-pc-windows-msvc`, zip), `build-linux` (conteneur `debian:bookworm`, rustup installé dans le job), `build-web` (trunk 0.21.14) | — |
 | `verify-macos` | `hdiutil verify`, `codesign --verify --deep --strict`, `lipo -archs`, `--version` des deux binaires (tranche x86_64 aussi si Rosetta est présent) | C-REL-02, C-REL-03 |
 | `verify-windows` | contenu du zip, `--version` des deux `.exe` (sortie redirigée) | C-REL-03 |
 | `verify-linux` | dans `debian:bookworm` : `objdump -T` (plus haute `GLIBC_` ≤ 2.36), `--version`, `desktop-file-validate` | C-REL-03, C-REL-04 |
-| `verify-web` | taille du `.wasm` gzip -9 publiée dans le résumé du run, **échec** au-delà de 4 Mio (porte depuis le lot L13, relevée de 3 à 4 Mio le 2026-10-27) ; `dist` servi en HTTP, Chromium headless, `data-planrs-started="1"` cherché dans le DOM | C-REL-05, C-REL-06 |
+| `verify-web` | taille du `.wasm` gzip -9 publiée dans le résumé du run, **échec** au-delà de 4 Mio (porte depuis le lot L13, relevée de 3 à 4 Mio le 2026-10-27) ; `dist` servi en HTTP, Chromium headless, `data-plannercraft-started="1"` cherché dans le DOM | C-REL-05, C-REL-06 |
 | `publish` | tag `v*` seulement : `SHA256SUMS`, `actions/attest-build-provenance`, `gh release create --verify-tag --notes-file` (`--draft` si `-test.`, `--prerelease` si `-`), puis contrôle de la release publiée : téléchargement, `sha256sum -c`, liste exacte des cinq fichiers, `gh attestation verify` | C-REL-07, C-REL-08 |
 
 Le contrôle après publication est fait dans le job `publish` et non dans un job séparé : un brouillon n'est visible que d'un jeton en écriture, et ce job est le seul à en avoir un. Aucun secret n'est ajouté (seul `github.token`).
 
 `desktop-build.yml` est la seule définition des builds : appelé par `release.yml`, ou lancé seul (tag `ui-*`, lancement manuel) pour une préversion, sans vérification ni publication (artefacts d'Actions).
 
-Marqueur du web : `apps/planrs-web` pose `data-planrs-started="1"` sur `<html>` dès que le wasm s'exécute, **avant** l'initialisation graphique (le runner n'a pas de GPU) : C-REL-06 prouve que le wasm a tourné, pas que l'interface s'affiche (message « GPU indisponible » : H-UI-57, lot L13).
+Marqueur du web : `apps/plannercraft-web` pose `data-plannercraft-started="1"` sur `<html>` dès que le wasm s'exécute, **avant** l'initialisation graphique (le runner n'a pas de GPU) : C-REL-06 prouve que le wasm a tourné, pas que l'interface s'affiche (message « GPU indisponible » : H-UI-57, lot L13).
 
 Icône : `cargo xtask icon` (PNG 16 à 1 024 px dans `assets/icon/`, dessin déterministe, test de fraîcheur `icon_files_fresh`) ; à valider par le propriétaire. Le `.exe` Windows ne porte pas d'icône (ressource Windows non embarquée).
 
@@ -66,4 +66,4 @@ Icône : `cargo xtask icon` (PNG 16 à 1 024 px dans `assets/icon/`, dessin dét
 3. `cargo xtask release-check vX.Y.Z[-pré]` vert en local, commit, puis tag `vX.Y.Z[-pré]` poussé sur ce commit.
 4. Tag de test `vX.Y.Z-test.N` sur le commit de la version (aucun changement de version : `release-check` le rapporte à la version du workspace de même noyau) : brouillon non public, vérifié de bout en bout, puis supprimé (`gh release delete <tag> --cleanup-tag`).
 
-Limite : sous Windows, `planrs-desktop.exe --version` n'imprime que si sa sortie est redirigée (sous-système fenêtré ; attacher la console du parent demanderait du code `unsafe`, interdit par la règle 10).
+Limite : sous Windows, `plannercraft-desktop.exe --version` n'imprime que si sa sortie est redirigée (sous-système fenêtré ; attacher la console du parent demanderait du code `unsafe`, interdit par la règle 10).

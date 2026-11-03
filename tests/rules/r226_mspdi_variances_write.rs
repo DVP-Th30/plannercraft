@@ -1,14 +1,14 @@
 //! R-226 — MSPDI : écarts écrits (minutes × 1000) avec le moteur, relus
 //! tels quels avec les valeurs relues.
 
-use planrs_core::{
+use plannercraft_core::{
     Assignment, AssignmentUid, BaselineNumber, Duration, DurationUnit, Minutes, Project, Resource,
     ResourceUid, Task, TaskBaseline, TaskUid, TimeBasis, Work, schedule,
 };
-use planrs_mspdi::write::{Computed, WriteOptions, write};
-use planrs_mspdi::{ReadOptions, read};
-use planrs_tests::mspdi::{compact, new_project, reread, text};
-use planrs_tests::{moment, tests_path};
+use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+use plannercraft_mspdi::{ReadOptions, read};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text};
+use plannercraft_tests::{moment, tests_path};
 
 fn task(p: &Project, uid: u32, minutes: i64) -> Task {
     let mut t = Task::new(TaskUid::new(uid), format!("T{uid}"), &p.options);
@@ -162,7 +162,8 @@ fn r226_corpus_variances_equal_recorded() {
         let mut differ = Vec::new();
         for (uid, rec) in &doc.recorded.tasks {
             let w = &back.tasks[uid];
-            let key = |r: &planrs_mspdi::RecordedTask| (r.start_variance, r.finish_variance, r.work_variance);
+            let key =
+                |r: &plannercraft_mspdi::RecordedTask| (r.start_variance, r.finish_variance, r.work_variance);
             if key(w) != key(rec) {
                 differ.push(format!("tâche {} : {:?} ≠ {:?}", uid.get(), key(w), key(rec)));
             }

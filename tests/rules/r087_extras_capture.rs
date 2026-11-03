@@ -1,8 +1,8 @@
 //! R-087 — Lecture : éléments non modélisés conservés en `Extras`.
 
-use planrs_core::{Extras, TaskUid};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::moment;
+use plannercraft_core::{Extras, TaskUid};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::moment;
 
 fn read_xml(xml: &str, keep_extras: bool) -> MspdiDocument {
     let options = ReadOptions {
@@ -180,7 +180,7 @@ fn r087_children_without_extras_are_lost_and_reported() {
             .find(|d| d.code == ImportCode::NotPreserved)
             .unwrap()
             .severity,
-        planrs_core::Severity::Info
+        plannercraft_core::Severity::Info
     );
     // Le lien est lu.
     assert_eq!(
@@ -221,13 +221,13 @@ fn r087_scheduled_work_distribution_of_an_assignment_is_dropped() {
     // 1 (travail planifié, calculé par MS Project) écartées et comptées ;
     // type 2 (réel) conservé. Profil modifié (`WorkContour` 8) : tout est
     // conservé (fixture `resources.xml`).
-    let bytes = std::fs::read(planrs_tests::tests_path("fixtures/mspdi/resources.xml")).unwrap();
+    let bytes = std::fs::read(plannercraft_tests::tests_path("fixtures/mspdi/resources.xml")).unwrap();
     let doc = read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
     let extras = |uid: u32| {
         pairs(
             &doc.project
                 .assignments
-                .get(planrs_core::AssignmentUid::new(uid))
+                .get(plannercraft_core::AssignmentUid::new(uid))
                 .unwrap()
                 .extras,
         )
@@ -246,7 +246,7 @@ fn r087_payload_with_an_undefined_entity_is_not_rewritten() {
     // (`mspdi.inconsistent`) et capture la charge telle quelle, mais la
     // réécrire produirait un document mal formé. L'écriture l'écarte
     // (`mspdi.write.extra_invalid`) ; `normalize` décrit la perte.
-    use planrs_mspdi::write::{Computed, WriteCode, WriteOptions, write};
+    use plannercraft_mspdi::write::{Computed, WriteCode, WriteOptions, write};
     let xml = project(
         "<Task><UID>1</UID><ID>1</ID><Name>A</Name><Hyperlink>a&nbsp;b</Hyperlink>\
          <Contact>x &amp; &#233;</Contact></Task>",
@@ -273,5 +273,8 @@ fn r087_payload_with_an_undefined_entity_is_not_rewritten() {
         .collect();
     assert_eq!(invalid, ["Tasks/Task/Hyperlink"]);
     let back = read(&out.xml, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
-    assert_eq!(back.project, planrs_mspdi::normalize(&doc.project, &options));
+    assert_eq!(
+        back.project,
+        plannercraft_mspdi::normalize(&doc.project, &options)
+    );
 }

@@ -8,10 +8,10 @@
 //! travail se place sur la base. Observé : O13 (A4, 20 cas reproduits).
 //! Hypothèse pour les décalages.
 
-use planrs_core::calendar::{Calendar, DayRule, DaySetting};
-use planrs_core::{CalendarUid, LinkType, Minutes, Week, Weekday};
-use planrs_tests::net::{Net, lag_w};
-use planrs_tests::{hours, moment, working};
+use plannercraft_core::calendar::{Calendar, DayRule, DaySetting};
+use plannercraft_core::{CalendarUid, LinkType, Minutes, Week, Weekday};
+use plannercraft_tests::net::{Net, lag_w};
+use plannercraft_tests::{hours, moment, working};
 
 pub(crate) const BASE: u32 = 10;
 pub(crate) const DERIVED: u32 = 11;
@@ -212,13 +212,13 @@ fn r113_unusable_base_keeps_the_designated_calendar() {
 /// chaque tâche planifiée (feuilles ouvrées et récapitulatives) et pour
 /// l'UID 0 : la marge totale (R-048) et la durée d'une récapitulative
 /// (R-054) s'y retrouvent exactement.
-fn assert_matches_engine(p: &planrs_core::Project) {
-    use planrs_core::calendar::{CalendarSet, TimeScale};
-    use planrs_core::schedule::measure_calendar;
-    use planrs_core::{TaskOutcome, TaskRole, TaskSchedule, TimeBasis};
-    let sched = planrs_core::schedule(p);
+fn assert_matches_engine(p: &plannercraft_core::Project) {
+    use plannercraft_core::calendar::{CalendarSet, TimeScale};
+    use plannercraft_core::schedule::measure_calendar;
+    use plannercraft_core::{TaskOutcome, TaskRole, TaskSchedule, TimeBasis};
+    let sched = plannercraft_core::schedule(p);
     let (set, _) = CalendarSet::compile(p);
-    let check = |task: &planrs_core::Task, s: &TaskSchedule| {
+    let check = |task: &plannercraft_core::Task, s: &TaskSchedule| {
         let summary = s.role == TaskRole::Summary;
         if !summary && task.duration.basis() == TimeBasis::Elapsed {
             return;
@@ -249,8 +249,8 @@ fn assert_matches_engine(p: &planrs_core::Project) {
 
 #[test]
 fn r113_measure_calendar_public_matches_engine() {
-    use planrs_core::schedule::measure_calendar;
-    use planrs_core::{Task, TaskUid};
+    use plannercraft_core::schedule::measure_calendar;
+    use plannercraft_core::{Task, TaskUid};
     // Projet dérivé : A 4 h, C 1 j ; S {X 2 j ; Y 1 j FS} ; D de calendrier
     // propre (le dérivé), E de calendrier propre 24 heures (UID 2), F à
     // durée écoulée.
@@ -292,7 +292,7 @@ fn r113_measure_calendar_public_matches_engine() {
     let t = small.tasks.iter().next().unwrap();
     assert_eq!(measure_calendar(&small, t), Some(uid(BASE)));
     assert_eq!(
-        planrs_core::schedule(&small)
+        plannercraft_core::schedule(&small)
             .scheduled(t.uid())
             .unwrap()
             .total_slack,

@@ -1,16 +1,16 @@
 //! R-133 — Image d'un projet par l'aller-retour MSPDI (`normalize`).
 
-use planrs_core::calendar::{CalendarException, DaySetting, Recurrence};
-use planrs_core::{
+use plannercraft_core::calendar::{CalendarException, DaySetting, Recurrence};
+use plannercraft_core::{
     CalendarUid, DayRange, ExtraEntry, Extras, Lag, LagValue, Link, LinkType, OutlineLevel, Percent,
     SignedPercent, Task, TaskUid, TimeBasis,
 };
-use planrs_mspdi::normalize;
-use planrs_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
-use planrs_tests::day;
-use planrs_tests::mspdi::{new_project, reread};
+use plannercraft_mspdi::normalize;
+use plannercraft_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
+use plannercraft_tests::day;
+use plannercraft_tests::mspdi::{new_project, reread};
 
-fn round_trip(proj: &planrs_core::Project, options: &WriteOptions) -> planrs_core::Project {
+fn round_trip(proj: &plannercraft_core::Project, options: &WriteOptions) -> plannercraft_core::Project {
     reread(&write(proj, Computed::Omit, options).xml).project
 }
 
@@ -37,7 +37,7 @@ fn r133_percentages_and_percent_lags() {
     proj.tasks.push(b).unwrap();
     let options = WriteOptions::default();
     let norm = normalize(&proj, &options);
-    let t = |p: &planrs_core::Project, uid: u32| p.tasks.get(TaskUid::new(uid)).unwrap().clone();
+    let t = |p: &plannercraft_core::Project, uid: u32| p.tasks.get(TaskUid::new(uid)).unwrap().clone();
     assert_eq!(
         t(&norm, 1).progress.percent_complete,
         Percent::new(3_300).unwrap()
@@ -63,7 +63,7 @@ fn r133_summary_duration_strings_period_and_extras() {
     a.outline_level = OutlineLevel::new(2).unwrap();
     a.extras = Extras(vec![
         ExtraEntry {
-            origin: "planrs".to_owned(),
+            origin: "plannercraft".to_owned(),
             key: "Contact".to_owned(),
             payload: "<Contact>x</Contact>".to_owned(),
         },

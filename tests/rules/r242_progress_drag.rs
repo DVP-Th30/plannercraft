@@ -5,11 +5,11 @@
 //! percent_complete }` (R-201). Feuille de durée non nulle (jalon : aucune
 //! zone). Repère : Standard, début lun 19/10/2026 08:00.
 
-use planrs_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
-use planrs_automation::{ApplyMode, Session};
-use planrs_core::{CalendarSet, Percent, TaskUid};
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::get;
+use plannercraft_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
+use plannercraft_automation::{ApplyMode, Session};
+use plannercraft_core::{CalendarSet, Percent, TaskUid};
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::get;
 
 const T: TaskUid = TaskUid::new(1);
 
@@ -62,7 +62,7 @@ fn r242_milestone_no_zone() {
         GestureError::NotDraggable(T, NotDraggable::Milestone)
     );
     let mut s = s;
-    planrs_tests::task_edit::apply(&mut s, serde_json::json!([{ "op": "task.indent", "uid": 3 }]));
+    plannercraft_tests::task_edit::apply(&mut s, serde_json::json!([{ "op": "task.indent", "uid": 3 }]));
     let set = CalendarSet::compile(s.project()).0;
     assert_eq!(
         gesture::progress_drag(&s, &set, TaskUid::new(2), 1).unwrap_err(),

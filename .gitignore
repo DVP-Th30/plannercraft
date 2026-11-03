@@ -1,6 +1,6 @@
 # Sorties de compilation
 /target/
-/apps/planrs-web/dist/
+/apps/plannercraft-web/dist/
 
 # Corpus public : fichiers non versionnés (droits d'auteur), seul le manifeste l'est
 /tests/corpus/files/

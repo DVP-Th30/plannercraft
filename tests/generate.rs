@@ -11,8 +11,10 @@
 
 use std::collections::BTreeSet;
 
-use planrs_core::calendar::{BuiltinCalendarNames, Calendar, CalendarException, DaySetting, Recurrence};
-use planrs_core::{
+use plannercraft_core::calendar::{
+    BuiltinCalendarNames, Calendar, CalendarException, DaySetting, Recurrence,
+};
+use plannercraft_core::{
     Assignment, AssignmentUid, CalendarUid, Constraint, Day, DayRange, Duration, DurationUnit, Lag, LagValue,
     Link, LinkType, Minutes, Moment, OutlineLevel, Project, ProjectInit, Resource, ResourceUid,
     ScheduleAnchor, SignedPercent, Task, TaskUid, TimeBasis, Units, Work,
@@ -538,7 +540,7 @@ pub fn hostile_parts(n: u32) -> Project {
 #[must_use]
 pub fn from_finish_network(seed: u64) -> Project {
     let mut p = large_network(seed);
-    let finish = planrs_core::schedule(&p).project_finish;
+    let finish = plannercraft_core::schedule(&p).project_finish;
     let anchor = ScheduleAnchor::FromFinish(finish);
     p.anchor = anchor;
     add_constraints(&mut p, seed, finish, anchor);
@@ -591,14 +593,14 @@ pub fn assigned_progress_network(seed: u64) -> Project {
 /// Avancement de [`progress_network`] posé sur les feuilles de `p`, d'après
 /// son planning sans avancement.
 fn with_progress(mut p: Project, seed: u64) -> Project {
-    let base = planrs_core::schedule(&p);
+    let base = plannercraft_core::schedule(&p);
     let mut r = Rng::new(seed.rotate_left(41));
     let uids: Vec<TaskUid> = p.tasks.iter().map(Task::uid).collect();
     for uid in uids {
         let Some(ts) = base.scheduled(uid).copied() else {
             continue;
         };
-        if ts.role != planrs_core::TaskRole::Leaf || ts.duration == Minutes::ZERO {
+        if ts.role != plannercraft_core::TaskRole::Leaf || ts.duration == Minutes::ZERO {
             continue;
         }
         let Some(t) = p.tasks.get_mut(uid) else {
@@ -620,7 +622,7 @@ fn with_progress(mut p: Project, seed: u64) -> Project {
             t.progress.actual_start = Some(start);
             let pct = 1_000 * r.range(1, 9);
             t.progress.percent_complete =
-                planrs_core::Percent::new(pct).unwrap_or(planrs_core::Percent::ZERO);
+                plannercraft_core::Percent::new(pct).unwrap_or(plannercraft_core::Percent::ZERO);
             t.progress.actual_duration = Minutes::new(t.duration.minutes().get() * pct / 10_000);
         }
     }
@@ -726,7 +728,7 @@ const UI_LANES: usize = 19;
 
 /// Réseau de l'interface (J7 lot L14, N8) : `summaries` récapitulatives de
 /// `leaves` feuilles chacune, construit directement (sans MSPDI) pour le
-/// test de fluidité de `planrs-ui-egui` et l'exemple `snapshot --generate`.
+/// test de fluidité de `plannercraft-ui-egui` et l'exemple `snapshot --generate`.
 /// Au plus `max_links` liens entre feuilles proches, dans cet ordre de
 /// priorité : FS depuis la feuille `k − 19`, SS depuis `k − 1`, puis FF
 /// depuis `k − 2` pour une feuille sur neuf ; tous remontent la liste (aucun

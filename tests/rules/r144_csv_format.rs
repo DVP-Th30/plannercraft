@@ -3,11 +3,11 @@
 //! en-têtes, en-têtes reconnus en français et en anglais, lecture RFC 4180,
 //! bornes et numéros de ligne physiques.
 
-use planrs_automation::csv::{
+use plannercraft_automation::csv::{
     CsvCode, CsvEncoding, CsvError, CsvImport, CsvImportOptions, CsvLimits, CsvLocale, import,
 };
-use planrs_core::{Duration, DurationUnit, Minutes, ScheduleAnchor, TimeBasis};
-use planrs_tests::moment;
+use plannercraft_core::{Duration, DurationUnit, Minutes, ScheduleAnchor, TimeBasis};
+use plannercraft_tests::moment;
 
 fn options() -> CsvImportOptions {
     CsvImportOptions::new(
@@ -244,7 +244,7 @@ fn r144_leading_blank_lines_and_excel_sep_line() {
 fn r144_diagnostics_are_capped() {
     // Règle 10 : 3 000 prédécesseurs inconnus → 1 000 gardés pour ce code,
     // les autres codes ne sont pas masqués, un `csv.truncated` final.
-    use planrs_automation::csv::{CsvCode, MAX_DIAGNOSTICS_PER_CODE};
+    use plannercraft_automation::csv::{CsvCode, MAX_DIAGNOSTICS_PER_CODE};
     use std::fmt::Write as _;
     let mut csv = String::from("Nom;Durée;Prédécesseurs\n");
     for k in 0..3_000 {
@@ -267,7 +267,7 @@ fn r144_diagnostics_are_capped() {
 }
 
 /// Diagnostics `csv.date_ambiguous` : (ligne, colonne, valeur, gravité).
-fn ambiguous(i: &CsvImport) -> Vec<(u64, Option<String>, Option<String>, planrs_core::Severity)> {
+fn ambiguous(i: &CsvImport) -> Vec<(u64, Option<String>, Option<String>, plannercraft_core::Severity)> {
     i.diagnostics
         .iter()
         .filter(|d| d.code == CsvCode::DateAmbiguous)
@@ -288,7 +288,7 @@ fn r144_date_ambiguous_warning_once_per_column() {
     assert_eq!(i.detected.locale, CsvLocale::Fr);
     let first = i.project.tasks.iter().next().unwrap();
     assert_eq!(first.name, "A");
-    let warn = planrs_core::Severity::Warning;
+    let warn = plannercraft_core::Severity::Warning;
     assert_eq!(
         ambiguous(&i),
         vec![

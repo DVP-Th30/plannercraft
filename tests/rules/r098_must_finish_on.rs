@@ -3,9 +3,9 @@
 //! `f*`). Sources : S27 (« EF,LF,SF=CD »), S8, S30 (exemple MFO : « Project
 //! warns us of the scheduling conflict, and then overlaps the tasks »).
 
-use planrs_core::{Constraint, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn mfo(d: &str) -> Constraint {
     Constraint::MustFinishOn { date: moment(d) }

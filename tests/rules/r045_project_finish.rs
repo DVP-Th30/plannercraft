@@ -2,8 +2,8 @@
 //! (manuelles comprises, inactives exclues) ; sans tâche planifiée : début du
 //! projet brut. Sources : S22, S16 ; projet vide : hypothèse.
 
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// Réseau N1 : A 1 j ; B 2 j ; C 1 j FS de A et de B ; D 1 j seul.
 fn n1() -> Net {

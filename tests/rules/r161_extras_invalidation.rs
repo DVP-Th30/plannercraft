@@ -8,15 +8,15 @@
 //! interruption (`Stop`, `Resume`, `ResumeValid`), le travail réel d'une
 //! affectation ses lignes de répartition réelles (types 2 et 3).
 
-use planrs_automation::SideEffect;
-use planrs_core::{
+use plannercraft_automation::SideEffect;
+use plannercraft_core::{
     Assignment, AssignmentUid, DurationUnit, ExtraEntry, LevelingDelay, Minutes, Project, Resource,
     ResourceUid, Subject, TaskUid,
 };
-use planrs_mspdi::write::WriteOptions;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{link, push_tasks, session};
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_mspdi::write::WriteOptions;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{link, push_tasks, session};
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 fn entry(key: &str, payload: &str) -> ExtraEntry {
@@ -51,7 +51,7 @@ fn project() -> Project {
     p
 }
 
-fn mspdi(s: &planrs_automation::Session) -> String {
+fn mspdi(s: &plannercraft_automation::Session) -> String {
     String::from_utf8(s.save_bytes(&WriteOptions::default()).xml).unwrap()
 }
 
@@ -198,7 +198,7 @@ fn delayed() -> Project {
         .push(Resource::new(ResourceUid::new(1), "R".to_owned()))
         .unwrap();
     let mut a = Assignment::new(AssignmentUid::new(1), TaskUid::new(1), Some(ResourceUid::new(1)));
-    a.work = planrs_core::Work::new(Minutes::new(960)).unwrap();
+    a.work = plannercraft_core::Work::new(Minutes::new(960)).unwrap();
     a.extras.0.push(entry(
         "TimephasedData",
         "<TimephasedData><Type>1</Type><UID>1</UID></TimephasedData>",
@@ -289,7 +289,7 @@ fn r161_progress_drops_actual_timephased() {
         .push(Resource::new(ResourceUid::new(1), "R".to_owned()))
         .unwrap();
     let mut a = Assignment::new(AssignmentUid::new(1), TaskUid::new(1), Some(ResourceUid::new(1)));
-    a.work = planrs_core::Work::new(Minutes::new(960)).unwrap();
+    a.work = plannercraft_core::Work::new(Minutes::new(960)).unwrap();
     let row = |t: u8| format!("<TimephasedData><Type>{t}</Type><UID>1</UID></TimephasedData>");
     for t in [1, 2, 3] {
         a.extras.0.push(entry("TimephasedData", &row(t)));

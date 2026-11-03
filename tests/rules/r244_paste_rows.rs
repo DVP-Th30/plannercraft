@@ -6,11 +6,11 @@
 //! réels, ni ligne de base, ni UID d'origine. Repère : projet « P ».
 //! Source : hypothèse.
 
-use planrs_automation::clip::{PasteOptions, PasteReport, ResourcePaste, RowClip, paste_batch};
-use planrs_automation::{ApplyMode, Placement, Session, TaskRef};
-use planrs_core::{Constraint, SchedulingMode, TaskUid};
-use planrs_tests::daily::{plan_p, uid, uids};
-use planrs_tests::task_edit::{apply, get, names};
+use plannercraft_automation::clip::{PasteOptions, PasteReport, ResourcePaste, RowClip, paste_batch};
+use plannercraft_automation::{ApplyMode, Placement, Session, TaskRef};
+use plannercraft_core::{Constraint, SchedulingMode, TaskUid};
+use plannercraft_tests::daily::{plan_p, uid, uids};
+use plannercraft_tests::task_edit::{apply, get, names};
 use serde_json::json;
 
 /// Copie `ns`, colle à `at`, applique ; rend le compte rendu et les UID
@@ -105,12 +105,12 @@ fn r244_internal_links_only() {
         ("Livraison", 2)
     );
     assert_eq!(get(&s, 8).predecessors.len(), 0);
-    let links: Vec<(u32, planrs_core::LinkType)> = get(&s, 9)
+    let links: Vec<(u32, plannercraft_core::LinkType)> = get(&s, 9)
         .predecessors
         .iter()
         .map(|l| (l.predecessor.get(), l.kind))
         .collect();
-    assert_eq!(links, [(8, planrs_core::LinkType::FinishToStart)]);
+    assert_eq!(links, [(8, plannercraft_core::LinkType::FinishToStart)]);
     // Tâches d'origine intactes (4 garde son prédécesseur 3).
     assert_eq!(get(&s, 4).predecessors.len(), 1);
     // Sans les liens : tous comptés écartés.
@@ -160,7 +160,7 @@ fn r244_resources_match_create_drop() {
         .map(|a| {
             (
                 a.task.get(),
-                a.resource.map(planrs_core::ResourceUid::get),
+                a.resource.map(plannercraft_core::ResourceUid::get),
                 a.units.get(),
             )
         })
@@ -182,7 +182,7 @@ fn r244_resources_match_create_drop() {
         .iter()
         .find(|x| x.name == "Grue")
         .unwrap();
-    assert_eq!(grue.kind, planrs_core::ResourceKind::Work);
+    assert_eq!(grue.kind, plannercraft_core::ResourceKind::Work);
     assert!(
         created
             .project()
@@ -231,7 +231,7 @@ fn r244_no_progress_no_baseline() {
     assert_eq!(new.progress.percent_complete.get(), 0);
     assert_eq!(
         new.progress,
-        planrs_core::Task::new(TaskUid::new(8), String::new(), &s.project().options).progress
+        plannercraft_core::Task::new(TaskUid::new(8), String::new(), &s.project().options).progress
     );
     assert!(new.baselines.is_empty());
     assert!(!src.baselines.is_empty());
@@ -275,12 +275,14 @@ fn r244_unknown_task_and_empty_clip() {
     let s = plan_p();
     assert_eq!(
         RowClip::capture(&s, &[TaskUid::new(99)]),
-        Err(planrs_automation::clip::ClipError::UnknownTask(TaskUid::new(99)))
+        Err(plannercraft_automation::clip::ClipError::UnknownTask(
+            TaskUid::new(99)
+        ))
     );
     let empty = RowClip::default();
     assert_eq!(
         paste_batch(&s, &empty, &Placement::End, &PasteOptions::default()).map(|_| ()),
-        Err(planrs_automation::clip::ClipError::Unrecognized)
+        Err(plannercraft_automation::clip::ClipError::Unrecognized)
     );
 }
 
@@ -291,9 +293,9 @@ fn r244_unknown_task_and_empty_clip() {
 /// d'environ 200) ; début et durée manuels de la source.
 #[test]
 fn r244_paste_many_manual_within_budget() {
-    use planrs_automation::helpers;
-    use planrs_tests::generate::large_network;
-    use planrs_tests::session::session;
+    use plannercraft_automation::helpers;
+    use plannercraft_tests::generate::large_network;
+    use plannercraft_tests::session::session;
     let network = large_network(11);
     let leaves: Vec<TaskUid> = network
         .tasks

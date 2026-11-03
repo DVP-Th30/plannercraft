@@ -2,8 +2,8 @@
 //! `assignment.contour_unsupported` (info, une fois par affectation) ; le
 //! profil est gardé pour l'aller-retour. Hypothèse.
 
-use planrs_core::{AssignmentUid, WorkContour};
-use planrs_tests::net::{Net, Run};
+use plannercraft_core::{AssignmentUid, WorkContour};
+use plannercraft_tests::net::{Net, Run};
 
 use crate::r171_assignment_effective_calendar::{assign, placed, resource};
 

@@ -6,9 +6,9 @@
 //! plus tard `Constraint { AsSoonAsPossible }`. Sources : S28, S29, S33 ;
 //! miroir : hypothèse.
 
-use planrs_core::{Constraint, ConstraintKind, LateDriver, Minutes, Moment, ScheduleAnchor};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, LateDriver, Minutes, Moment, ScheduleAnchor};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r108_default_constraint_depends_on_the_anchor() {

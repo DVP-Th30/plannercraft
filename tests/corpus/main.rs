@@ -9,7 +9,7 @@
 //! vérifient le manifeste et le harnais lui-même sur des données écrites à la
 //! main.
 //!
-//! `PLANRS_CORPUS=required` (job CI `corpus`) : échec si tous les fichiers
+//! `PLANNERCRAFT_CORPUS=required` (job CI `corpus`) : échec si tous les fichiers
 //! sont absents ; sans la variable, un corpus absent n'est qu'un
 //! avertissement.
 
@@ -23,16 +23,16 @@
 
 use std::path::Path;
 
-use planrs_core::parity::{CORPUS_FLOOR, FLOOR, ORACLE_FLOOR};
-use planrs_tests::corpus::compare::{CaseKind, Cause, Excluded, Field};
-use planrs_tests::corpus::manifest::{self, Entry, Producer};
-use planrs_tests::corpus::report::{self, Floors};
-use planrs_tests::corpus::roundtrip::{self, RoundTrip};
-use planrs_tests::corpus::verdict::{self, AbsentReason, FileResult, FileStatus};
-use planrs_tests::corpus::{self, FileRun};
+use plannercraft_core::parity::{CORPUS_FLOOR, FLOOR, ORACLE_FLOOR};
+use plannercraft_tests::corpus::compare::{CaseKind, Cause, Excluded, Field};
+use plannercraft_tests::corpus::manifest::{self, Entry, Producer};
+use plannercraft_tests::corpus::report::{self, Floors};
+use plannercraft_tests::corpus::roundtrip::{self, RoundTrip};
+use plannercraft_tests::corpus::verdict::{self, AbsentReason, FileResult, FileStatus};
+use plannercraft_tests::corpus::{self, FileRun};
 
 fn load_manifest() -> manifest::Manifest {
-    manifest::load(&planrs_tests::tests_path("corpus/manifest.toml")).expect("manifeste lisible")
+    manifest::load(&plannercraft_tests::tests_path("corpus/manifest.toml")).expect("manifeste lisible")
 }
 
 fn floors() -> Floors {
@@ -57,7 +57,7 @@ fn corpus_floor_is_the_sum_of_manifest_floors() {
     assert_eq!(
         u64::from(CORPUS_FLOOR),
         manifest::floor_sum(&m),
-        "planrs_core::parity::CORPUS_FLOOR doit valoir la somme des `floor` du manifeste"
+        "plannercraft_core::parity::CORPUS_FLOOR doit valoir la somme des `floor` du manifeste"
     );
     assert_eq!(
         u64::from(FLOOR),
@@ -69,12 +69,12 @@ fn corpus_floor_is_the_sum_of_manifest_floors() {
 #[test]
 fn corpus_parity() {
     let m = load_manifest();
-    let runs = corpus::run(&m.file, &planrs_tests::tests_path("corpus/files"));
+    let runs = corpus::run(&m.file, &plannercraft_tests::tests_path("corpus/files"));
     let results: Vec<FileResult> = runs.iter().map(FileRun::result).collect();
-    let required = std::env::var("PLANRS_CORPUS").is_ok_and(|v| v == "required");
+    let required = std::env::var("PLANNERCRAFT_CORPUS").is_ok_and(|v| v == "required");
     let mut v = verdict::decide(&results, CORPUS_FLOOR, required);
     // P25 : aller-retour MSPDI des fichiers présents.
-    let files = planrs_tests::tests_path("corpus/files");
+    let files = plannercraft_tests::tests_path("corpus/files");
     let round_trips: Vec<RoundTrip> = runs
         .iter()
         .filter_map(|run| {
@@ -580,8 +580,8 @@ fn p25_round_trip_of_a_sample_and_verdict() {
 /// `resources::FLOORS`, et `CORPUS_RESOURCE_FLOOR` en vaut la somme.
 #[test]
 fn corpus_resource_floor() {
-    use planrs_core::parity::CORPUS_RESOURCE_FLOOR;
-    use planrs_tests::corpus::resources::FLOORS;
+    use plannercraft_core::parity::CORPUS_RESOURCE_FLOOR;
+    use plannercraft_tests::corpus::resources::FLOORS;
 
     let m = load_manifest();
     let floor_sum: u32 = FLOORS.iter().map(|(_, f)| f).sum();
@@ -595,7 +595,7 @@ fn corpus_resource_floor() {
             "{name} : absent du manifeste"
         );
     }
-    let runs = corpus::run(&m.file, &planrs_tests::tests_path("corpus/files"));
+    let runs = corpus::run(&m.file, &plannercraft_tests::tests_path("corpus/files"));
     let mut failures = Vec::new();
     let mut present = 0_u32;
     for run in &runs {
@@ -639,8 +639,8 @@ fn corpus_resource_floor() {
     )
     .unwrap();
     if present == 0 {
-        let required = std::env::var("PLANRS_CORPUS").is_ok_and(|v| v == "required");
-        assert!(!required, "corpus absent sous PLANRS_CORPUS=required");
+        let required = std::env::var("PLANNERCRAFT_CORPUS").is_ok_and(|v| v == "required");
+        assert!(!required, "corpus absent sous PLANNERCRAFT_CORPUS=required");
         eprintln!("avertissement : corpus absent, parité des ressources non mesurée");
     }
     assert!(
@@ -677,7 +677,7 @@ fn sample_with_resource(finish: &str) -> String {
 /// n'est jamais comparée, et une fin d'affectation fausse est nommée.
 #[test]
 fn resource_comparison_counts_cases_and_reports_divergences() {
-    use planrs_tests::corpus::resources::{ResourceCaseKind, ResourceField};
+    use plannercraft_tests::corpus::resources::{ResourceCaseKind, ResourceField};
 
     let xml = sample_with_resource("2026-10-19T17:00:00");
     let run = corpus::run_bytes(&entry("res.xml", xml.as_bytes(), 0), xml.as_bytes());

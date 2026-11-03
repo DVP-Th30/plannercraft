@@ -4,9 +4,9 @@
 //! `h(y) = next_working_σ(add_σ(y, −L))`. Source : S22 ; adjoint :
 //! hypothèse (aucun décalage dans le corpus).
 
-use planrs_core::{LateDriver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_e, lag_w};
+use plannercraft_core::{LateDriver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_e, lag_w};
 
 #[test]
 fn r047_fs_network() {
@@ -160,12 +160,12 @@ fn r047_ff_elapsed_lag_into_working_task() {
 fn finish_with(
     net: impl Fn() -> Net,
     name: &str,
-    start: planrs_core::Moment,
-    finish: planrs_core::Moment,
-) -> planrs_core::Moment {
+    start: plannercraft_core::Moment,
+    finish: plannercraft_core::Moment,
+) -> plannercraft_core::Moment {
     let run = net()
         .with_task(name, |t| {
-            t.mode = planrs_core::SchedulingMode::Manual {
+            t.mode = plannercraft_core::SchedulingMode::Manual {
                 start: Some(start),
                 finish: Some(finish),
                 duration: None,

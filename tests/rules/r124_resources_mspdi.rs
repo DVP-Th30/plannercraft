@@ -2,9 +2,9 @@
 //! d'affichage, coût par utilisation (lecture ; écriture : commit
 //! d'écriture des ressources).
 
-use planrs_core::{Money, Rate, RateUnit, ResourceUid};
-use planrs_mspdi::{ReadOptions, read};
-use planrs_tests::moment;
+use plannercraft_core::{Money, Rate, RateUnit, ResourceUid};
+use plannercraft_mspdi::{ReadOptions, read};
+use plannercraft_tests::moment;
 
 use crate::r088_resources_assignments_baselines_import as r088;
 
@@ -51,8 +51,8 @@ fn r124_rate_with_another_day_length() {
 
 #[test]
 fn r124_rates_are_written_per_hour() {
-    use planrs_core::{Resource, ResourceKind, Units};
-    use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+    use plannercraft_core::{Resource, ResourceKind, Units};
+    use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
     let mut proj = new_project("2026-10-19T08:00");
     let mut a = Resource::new(ResourceUid::new(1), "A".to_owned());
     // A6 UID 8 (O18) : 3 327 c/j, 480 min/j → 4,15875 par heure.
@@ -83,11 +83,11 @@ fn r124_rates_are_written_per_hour() {
 
 #[test]
 fn r124_rate_written_with_six_decimals_reads_back_exactly() {
-    use planrs_core::Resource;
-    use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+    use plannercraft_core::Resource;
+    use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
     // 1 000,00 par jour de 450 min → 133.333333 par heure → relu 100 000.
     let mut proj = new_project("2026-10-19T08:00");
-    proj.options.factors = planrs_core::ConversionFactors::new(450, 2_250, 20).unwrap();
+    proj.options.factors = plannercraft_core::ConversionFactors::new(450, 2_250, 20).unwrap();
     let mut r = Resource::new(ResourceUid::new(1), "R".to_owned());
     r.standard_rate = rate(100_000, RateUnit::Day);
     r.overtime_rate = rate(7, RateUnit::Minute);

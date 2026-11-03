@@ -3,9 +3,9 @@
 //! exception de la base > semaine datée du dérivé > semaine par défaut du
 //! dérivé > semaine datée de la base > semaine par défaut de la base.
 
-use planrs_core::calendar::{Calendar, DayRule, DaySetting, DaySource, WorkWeek, resolve_day};
-use planrs_core::{CalendarUid, Week, Weekday};
-use planrs_tests::{calendars, day, day_minutes, days, exception, hours, standard, working};
+use plannercraft_core::calendar::{Calendar, DayRule, DaySetting, DaySource, WorkWeek, resolve_day};
+use plannercraft_core::{CalendarUid, Week, Weekday};
+use plannercraft_tests::{calendars, day, day_minutes, days, exception, hours, standard, working};
 
 fn uid(v: u32) -> CalendarUid {
     CalendarUid::new(v)
@@ -86,7 +86,7 @@ fn r016_derived_default_week_beats_base_work_week() {
 
 #[test]
 fn r016_derived_conversion_skips_base_holiday() {
-    use planrs_tests::{compiled, mins, moment};
+    use plannercraft_tests::{compiled, mins, moment};
     let a = calendars(vec![base_with_christmas(), paul()]);
     let c = compiled(&a, 4);
     // Jeu 24/12 08:00 + 720 sur Paul : jeudi 480, ven 25/12 férié (exception

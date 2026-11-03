@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PlannerCraft
+GenericName=Project planning
+GenericName[fr]=Planification de projet
+Comment=MS Project compatible planning, driven by AI
+Comment[fr]=Planification de projet compatible MS Project, pilotable par IA
+Exec=plannercraft-desktop %f
+Icon=plannercraft
+Terminal=false
+Categories=Office;ProjectManagement;
+MimeType=application/xml;text/xml;

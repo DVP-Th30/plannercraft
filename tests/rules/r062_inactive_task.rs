@@ -5,9 +5,9 @@
 //! agrégats, fin du projet, passe arrière et marge libre de ses
 //! prédécesseurs. Source : S25 ; affichage et absence de pont : hypothèse.
 
-use planrs_core::{Diagnostic, Exclusion, Minutes, Span, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Exclusion, Minutes, Span, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn span(a: &str, b: &str) -> Span {
     Span {

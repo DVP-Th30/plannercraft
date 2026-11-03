@@ -2,8 +2,8 @@
 //! dates, la durée ni les autres % (S56).
 
 use crate::r201_percent_input::{FRI, MON, calendar, ctx, part, pct, task, work, write};
-use planrs_core::Percent;
-use planrs_core::progress::edit::{Input, apply};
+use plannercraft_core::Percent;
+use plannercraft_core::progress::edit::{Input, apply};
 
 #[test]
 fn r212_physical_no_effect() {

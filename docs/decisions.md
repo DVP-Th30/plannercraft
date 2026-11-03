@@ -1146,3 +1146,13 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 
 **Note CI (2026-10-29).** Les propriétés à 10 000 cas (`PROPTEST_CASES=10000`, critère J2) faisaient durer le job `checks` 2 h 09 par PR. Elles tournent désormais la nuit (`schedule`, 02:17 UTC) et à la demande (`workflow_dispatch`) ; chaque push et PR lance 256 cas, comme en local. Un échec de nuit se corrige par un correctif suivi d'une relance manuelle à 10 000 cas avant la release suivante.
 
+
+## ADR-0020 — 2026-11-03 — Nom définitif : PlannerCraft
+
+**Décision.** Le nom provisoire `planrs` devient **PlannerCraft** (choix du propriétaire, 2026-11-03) : nom affiché « PlannerCraft », nom technique en minuscules `plannercraft` (crates, binaires, variables d'environnement, serveur MCP, dossiers d'état). Raisons : famille « Craft » (PhotoCraft, ADR-0001) et catégorie « project planner » lisible d'emblée par l'utilisateur occasionnel de MS Project.
+
+**Alternatives écartées.** GanttCraft : produits existants (ganttcraft.com, ganttcraft.app) et confusion possible avec ProjectCraft. Cordeau : ne dit pas la catégorie.
+
+**Conséquences.** Renommage partout sauf l'historique (ADR passés, cahiers `docs/plans/`, brief, sections publiées du `CHANGELOG.md`, citations datées), qui garde `planrs`. Reprise sans perte de l'état laissé par `planrs` (préférences d'interface, répertoire d'état, style des fichiers) : `docs/rename.md`. Le dépôt GitHub est renommé ensuite (`theodu78/plannercraft`, l'ancienne adresse est redirigée).
+
+**Réserve.** « Planner » est une marque de Microsoft (Microsoft Planner) : vérification de marque à faire avant toute publication.

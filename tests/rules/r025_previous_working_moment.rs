@@ -2,10 +2,10 @@
 //! grand u <= t tel que la minute [u − 1, u) est ouvrée ; s'il n'en existe
 //! aucun : `OutOfDomain { Before }`. Calendrier Standard.
 
-use planrs_core::{CalendarError, CalendarUid, Direction};
-use planrs_tests::{compile_one, moment, standard};
+use plannercraft_core::{CalendarError, CalendarUid, Direction};
+use plannercraft_tests::{compile_one, moment, standard};
 
-fn previous(t: &str) -> Result<planrs_core::Moment, CalendarError> {
+fn previous(t: &str) -> Result<plannercraft_core::Moment, CalendarError> {
     compile_one(standard()).previous_working_moment(moment(t))
 }
 

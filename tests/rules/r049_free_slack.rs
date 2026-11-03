@@ -3,8 +3,8 @@
 //! sans successeur : FS = TF ; aucune troncature. Source : S17 ; formule :
 //! hypothèse ; observé O2.
 
-use planrs_core::{LinkType, Minutes};
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{LinkType, Minutes};
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r049_free_slack_n1() {

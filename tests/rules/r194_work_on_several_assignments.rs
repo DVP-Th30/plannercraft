@@ -3,8 +3,8 @@
 //! puis la grandeur du type est recalculée.
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, work};
-use planrs_core::TaskType::{FixedDuration, FixedUnits};
-use planrs_core::resource::{Edit, Recalculated};
+use plannercraft_core::TaskType::{FixedDuration, FixedUnits};
+use plannercraft_core::resource::{Edit, Recalculated};
 
 #[test]
 fn r194_prorata_and_remainder() {

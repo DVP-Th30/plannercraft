@@ -9,8 +9,8 @@
 {"v":1,"seq":5,"tool":"apply_style","params":{"template":"presentation"}}
 {"v":1,"seq":5,"tool":"apply_style","params":null,"result":{"ok":{"committed":true,"created":[],"created_uids":[],"diff":{"changed":[],"changed_total":0,"critical_entered":[],"critical_left":[],"finish_after":"2027-05-19T17:00","finish_before":"2027-05-19T17:00","finish_delta":{"minutes":0,"text":"0j","unit":"day"},"start_after":"2026-11-02T08:00","start_before":"2026-11-02T08:00","truncated":false},"history_len":3,"labels":{},"side_effects":[],"warnings":[]}}}
 {"v":1,"seq":6,"tool":"export_pdf","params":{"path":"$TMP/relay_j8.pdf","style":"sobre"}}
-{"v":1,"seq":6,"tool":"export_pdf","params":null,"result":{"ok":{"bytes":28616,"diagnostics":[],"hidden":0,"missing_glyphs":"","pages":2,"path":"$TMP/relay_j8.pdf","scale_pct":100,"shown":50,"truncated_days":false}}}
+{"v":1,"seq":6,"tool":"export_pdf","params":null,"result":{"ok":{"bytes":28628,"diagnostics":[],"hidden":0,"missing_glyphs":"","pages":2,"path":"$TMP/relay_j8.pdf","scale_pct":100,"shown":50,"truncated_days":false}}}
 {"v":1,"seq":7,"tool":"update_task","params":{"name":"Expiré","uid":5}}
 {"v":1,"seq":7,"tool":"update_task","params":null,"result":{"error":{"code":"control.approval_timeout","message":"aucune réponse de l'utilisateur dans le délai : rien n'a été appliqué"}}}
 {"v":1,"seq":8,"tool":"history","params":{}}
-{"v":1,"seq":8,"tool":"history","params":null,"result":{"ok":{"dropped":0,"entries":[{"bytes":2349,"label":null,"ops":1,"source":"agent"},{"bytes":2941,"label":null,"ops":1,"source":"agent"},{"bytes":4912,"label":null,"ops":1,"source":"agent"}],"redo":[]}}}
+{"v":1,"seq":8,"tool":"history","params":null,"result":{"ok":{"dropped":0,"entries":[{"bytes":2349,"label":null,"ops":1,"source":"agent"},{"bytes":2941,"label":null,"ops":1,"source":"agent"},{"bytes":4918,"label":null,"ops":1,"source":"agent"}],"redo":[]}}}

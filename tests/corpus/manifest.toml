@@ -4,7 +4,7 @@
 # fetch` les télécharge dans tests/corpus/files/, ignoré par git, et contrôle
 # taille et SHA-256. Seul ce manifeste est versionné. Le plancher de parité se
 # mesure en nombre de cas identiques sur cette liste : `floor` par fichier,
-# `planrs_core::parity::CORPUS_FLOOR` = somme des `floor` (vérifiée par le
+# `plannercraft_core::parity::CORPUS_FLOOR` = somme des `floor` (vérifiée par le
 # harnais). Ajouter un fichier ouvre une nouvelle ligne, il ne fait pas baisser
 # la parité mesurée. Clés et règles : tests/corpus/README.md.
 

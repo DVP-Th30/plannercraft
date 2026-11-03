@@ -3,9 +3,9 @@
 //! décale pas le début de la tâche (la tâche garde sa durée, S45). Source :
 //! S45 ; O20 (lecture en dixièmes de minute).
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 

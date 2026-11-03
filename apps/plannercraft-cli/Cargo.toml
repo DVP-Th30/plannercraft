@@ -1,0 +1,34 @@
+[package]
+name = "plannercraft-cli"
+description = "Ligne de commande de PlannerCraft."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Le binaire s'appelle `plannercraft` (voir docs/rename.md).
+[[bin]]
+name = "plannercraft"
+path = "src/main.rs"
+
+[dependencies]
+# `clock` : « maintenant » est lu ici seulement (`now.rs`), puis injecté.
+chrono = { workspace = true, features = ["clock"] }
+plannercraft-core.workspace = true
+plannercraft-automation.workspace = true
+# `http` : `plannercraft mcp --http` (lot L17).
+plannercraft-mcp = { workspace = true, features = ["http"] }
+plannercraft-mspdi.workspace = true
+plannercraft-render.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Rejeu `build_30` sur le vrai binaire en stdio (lot L18, vérification 4) :
+# client rmcp sur les tubes d'un processus fils (`tokio::process`).
+rmcp = { workspace = true, features = ["client"] }
+tokio = { workspace = true, features = ["process", "rt", "macros", "time"] }
+
+[lints]
+workspace = true

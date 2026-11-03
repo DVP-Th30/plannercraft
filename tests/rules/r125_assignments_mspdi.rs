@@ -2,7 +2,7 @@
 //! profil, aucune ressource (lecture ; écriture : commit d'écriture des
 //! affectations).
 
-use planrs_core::{AssignmentUid, Minutes, Units, WorkContour};
+use plannercraft_core::{AssignmentUid, Minutes, Units, WorkContour};
 
 use crate::r088_resources_assignments_baselines_import as r088;
 
@@ -20,8 +20,8 @@ fn r125_assignment_values() {
 
 #[test]
 fn r125_assignments_are_written() {
-    use planrs_core::{Assignment, Minutes, Resource, ResourceUid, Task, TaskUid, Units, Work};
-    use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+    use plannercraft_core::{Assignment, Minutes, Resource, ResourceUid, Task, TaskUid, Units, Work};
+    use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
     let mut proj = new_project("2026-10-19T08:00");
     proj.tasks
         .push(Task::new(TaskUid::new(1), "A".to_owned(), &proj.options))
@@ -55,9 +55,9 @@ fn r125_assignments_are_written() {
 fn r125_assignment_start_finish_written() {
     // R-125 amendée (J5, R-199) : `Start`/`Finish` d'affectation écrits
     // depuis le placement du moteur ; omis sans valeurs calculées.
-    use planrs_core::{Assignment, Resource, ResourceUid, Task, TaskUid, Work, schedule};
-    use planrs_mspdi::write::{Computed, WriteOptions, write};
-    use planrs_tests::mspdi::{compact, new_project, text};
+    use plannercraft_core::{Assignment, Resource, ResourceUid, Task, TaskUid, Work, schedule};
+    use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+    use plannercraft_tests::mspdi::{compact, new_project, text};
     let mut proj = new_project("2026-10-19T08:00");
     proj.tasks
         .push(Task::new(TaskUid::new(1), "A".to_owned(), &proj.options))

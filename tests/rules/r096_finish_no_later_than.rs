@@ -3,9 +3,11 @@
 //! `f*`), chaque borne violée signalée (R-100). Sources : S27 (« LF=CD »),
 //! S30 (exemple « Prepare lot »), Q13.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, LateDriver, LinkType, Minutes, OverriddenBound};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{
+    Constraint, ConstraintKind, Diagnostic, LateDriver, LinkType, Minutes, OverriddenBound,
+};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn fnlt(d: &str) -> Constraint {
     Constraint::FinishNoLaterThan { date: moment(d) }

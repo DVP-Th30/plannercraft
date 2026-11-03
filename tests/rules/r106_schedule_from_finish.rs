@@ -5,9 +5,9 @@
 //! (cause `Manual`), `link.manual_not_honored` pour chaque lien sortant
 //! violé. Sources : S24, S33, S22 ; ADR-0009, ADR-0010.
 
-use planrs_core::{Constraint, ConstraintKind, LateDriver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, LateDriver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// F ven 23/10 17:00 ; A 1 j FS → B 2 j ; C 1 j ; toutes ALAP (défaut à
 /// rebours, R-108).

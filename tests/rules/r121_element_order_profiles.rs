@@ -1,10 +1,10 @@
 //! R-121 — Écriture : ordre des éléments, profils observé et strict.
 
-use planrs_core::{Guid, Task, TaskUid};
-use planrs_mspdi::ReadOptions;
-use planrs_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
-use planrs_tests::mspdi::{entity_children, new_project, order_agrees, text};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Guid, Task, TaskUid};
+use plannercraft_mspdi::ReadOptions;
+use plannercraft_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
+use plannercraft_tests::mspdi::{entity_children, new_project, order_agrees, text};
+use plannercraft_tests::{moment, tests_path};
 
 fn task_children(xml: &str) -> Vec<String> {
     entity_children(xml)
@@ -66,8 +66,8 @@ fn r121_corpus_order_agrees_with_the_source() {
             continue;
         }
         let source = std::fs::read_to_string(&path).unwrap();
-        let doc =
-            planrs_mspdi::read(source.as_bytes(), &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
+        let doc = plannercraft_mspdi::read(source.as_bytes(), &ReadOptions::new(moment("2026-01-01T00:00")))
+            .unwrap();
         let out = text(&write(
             &doc.project,
             Computed::Recorded(&doc.recorded),

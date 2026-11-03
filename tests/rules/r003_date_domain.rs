@@ -1,7 +1,7 @@
 //! R-003 — Domaine des dates et résolution à la minute.
 
-use planrs_core::{Day, Moment, TimeError, Weekday};
-use planrs_tests::moment;
+use plannercraft_core::{Day, Moment, TimeError, Weekday};
+use plannercraft_tests::moment;
 
 #[test]
 fn r003_reference_moment() {

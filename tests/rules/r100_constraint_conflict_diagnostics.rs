@@ -6,11 +6,11 @@
 //! and then overlaps the tasks »), S8 (« Inflexible constraints usually
 //! override any task dependencies »).
 
-use planrs_core::{
+use plannercraft_core::{
     Constraint, ConstraintKind, Diagnostic, LinkType, Minutes, OverriddenBound, Severity, Subject,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn snlt(d: &str) -> Constraint {
     Constraint::StartNoLaterThan { date: moment(d) }
@@ -87,7 +87,7 @@ fn r100_finish_link_override() {
     let run = Net::new("2026-10-19T08:00")
         .task("P", 1_440)
         .task("A", 480)
-        .link("P", "A", LinkType::FinishToFinish, planrs_core::Lag::ZERO)
+        .link("P", "A", LinkType::FinishToFinish, plannercraft_core::Lag::ZERO)
         .constraint("A", snlt("2026-10-20T08:00"))
         .run();
     assert_eq!(run.at("A").early.start, moment("2026-10-20T08:00"));

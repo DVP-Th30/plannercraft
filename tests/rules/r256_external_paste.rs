@@ -6,14 +6,14 @@
 //! `paste.unrecognized`. Plafonds : 10 000 lignes, 4 Mio
 //! (`paste.too_large`). Repère : projet « P ». Source : hypothèse.
 
-use planrs_automation::clip::{
+use plannercraft_automation::clip::{
     ClipError, MAX_PASTE_BYTES, MAX_PASTE_LINES, RowClip, fingerprint, paste_text,
 };
-use planrs_automation::csv::{CsvColumn, Recognized, recognize};
-use planrs_automation::text::{Language, TextContext};
-use planrs_automation::{ApplyMode, Placement, Session, TaskRef};
-use planrs_tests::daily::{plan_p, uid, uids};
-use planrs_tests::task_edit::{get, names};
+use plannercraft_automation::csv::{CsvColumn, Recognized, recognize};
+use plannercraft_automation::text::{Language, TextContext};
+use plannercraft_automation::{ApplyMode, Placement, Session, TaskRef};
+use plannercraft_tests::daily::{plan_p, uid, uids};
+use plannercraft_tests::task_edit::{get, names};
 
 /// Colle `text` avant 6 et applique ; rend le nombre de tâches collées.
 fn paste_before_6(s: &mut Session, text: &str) -> Result<u32, ClipError> {
@@ -61,7 +61,7 @@ fn r256_single_column_names() {
     let pasted: Vec<&str> = got.iter().skip(5).take(3).map(|(n, _)| n.as_str()).collect();
     assert_eq!(pasted, ["A", "B", "C"]);
     assert!(got.iter().skip(5).take(3).all(|(_, l)| *l == 2));
-    let default = planrs_core::Task::new(uid(99), String::new(), &s.project().options).duration;
+    let default = plannercraft_core::Task::new(uid(99), String::new(), &s.project().options).duration;
     assert_eq!(get(&s, 8).duration, default);
     // Texte vide ou blanc : rien à coller.
     let s = plan_p();
@@ -74,7 +74,7 @@ fn r256_single_column_names() {
 #[test]
 fn r256_multi_column_without_header_refused() {
     // Exemple : « A\t3j\nB\t2j » ⇒ `paste.unrecognized`, rien écrit ; le
-    // texte tabulé émis par planrs lui-même (sans en-tête) aussi.
+    // texte tabulé émis par PlannerCraft lui-même (sans en-tête) aussi.
     let s = plan_p();
     let err = paste_text(&s, "A\t3j\nB\t2j", &Placement::End, Language::Fr).unwrap_err();
     assert_eq!(err, ClipError::Unrecognized);

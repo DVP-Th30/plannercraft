@@ -2,7 +2,7 @@
 
 État au 2026-10-19 (lots L0 à L9 de J5, ADR-0013, cahier `docs/plans/j5.md`). Toutes les règles sont au statut `hypothèse` (`docs/scheduling-rules.md`, section « Ressources et affectations ») ; le corpus en reproduit une partie à l'identique (§ 5), sans qu'aucune fiche ne soit passée à « vérifié ».
 
-## 1. Ce que planrs calcule
+## 1. Ce que PlannerCraft calcule
 
 - **Placement par affectation** (ADR-0013 D1) : une feuille automatique qui a au moins une affectation de travail est placée affectation par affectation, chacune sur son calendrier effectif (calendrier de la tâche ∩ calendrier de la ressource, R-171, R-172), avec `d_a` = travail ÷ unités (R-170), le délai d'affectation (R-177) et les retards de nivellement relus (R-178). Début de la tâche = premier instant où une ressource affectée peut travailler, fin = la plus tardive des fins d'affectation, durée calculée = temps ouvré de l'union des intervalles (R-173), reportée dans la durée du modèle après chaque recalcul (hors durée fixe et unités nulles). Passe arrière, contraintes et échéances : R-174.
 - **Tâches sans affectation de travail** : calendrier propre, sinon calendrier du projet (sa base s'il est dérivé), R-175 ; affectations neutres (fictive −65 535, matérielle, coût, ressource inconnue) sans effet sur les dates, R-176.
@@ -10,12 +10,12 @@
 - **Cumuls** : travail des tâches, des récapitulatives et des ressources (R-184) ; matérielles en quantité, coût sans travail (R-185).
 - **Surutilisation exacte** (ADR-0013 D6) : débit effectif par affectation, balayage des intervalles travaillés réels, capacité = `max_units`, intervalles bornés à 1 000 par ressource (R-186, R-187) ; diagnostic `resource.overallocated`, `Schedule.resources[uid].overloads`. `AvailabilityPeriods` ignorées (diagnostic `resource.availability_ignored`).
 - **Utilisation par période** à la demande (jour, semaine, mois), travail et surutilisation par cellule (R-188).
-- **Édition** (fonctions pures `planrs_core::resource::edit::apply`, appelées par les commandes) : matrice des types de tâche FU/FD/FW (R-189), ajout et retrait de ressource avec ou sans pilotage par l'effort (R-190 à R-192), travail fixe toujours piloté, récapitulative jamais (R-193), travail saisi réparti (R-194).
+- **Édition** (fonctions pures `plannercraft_core::resource::edit::apply`, appelées par les commandes) : matrice des types de tâche FU/FD/FW (R-189), ajout et retrait de ressource avec ou sans pilotage par l'effort (R-190 à R-192), travail fixe toujours piloté, récapitulative jamais (R-193), travail saisi réparti (R-194).
 
 ## 2. Surfaces
 
 - Commandes (R-195 à R-197) : `resource.add` (calendrier propre dérivé par défaut, O34), `resource.update`, `resource.delete` (`cascade` obligatoire s'il y a des affectations), `assignment.add` (retire l'affectation fictive), `assignment.update`, `assignment.remove`, `task.update` étendu (`type`, `effort_driven`, `work`), `project.set_info` (type et pilotage par défaut).
-- MCP et CLI : `add_resource`, `update_resource`, `delete_resource`, `list_resources`, `assign_resource`, `update_assignment`, `unassign_resource`, `resource_usage` ; `list_tasks resource=…` ; `DiffView.overallocated { new, resolved }`, y compris en `dry_run` ; CLI `planrs resources` et `planrs usage`.
+- MCP et CLI : `add_resource`, `update_resource`, `delete_resource`, `list_resources`, `assign_resource`, `update_assignment`, `unassign_resource`, `resource_usage` ; `list_tasks resource=…` ; `DiffView.overallocated { new, resolved }`, y compris en `dry_run` ; CLI `plannercraft resources` et `plannercraft usage`.
 - Calendriers et taux (J7, lot L5, R-247 à R-249, R-165 et R-195 amendées) : `calendar.add` (de base à la semaine du Standard, dérivé, ou copie), `calendar.update` (nom, base), `calendar.set_week` (semaine type ; une semaine sans minute ouvrée est acceptée avec l'avertissement `calendar.no_working_time`), `calendar.delete` (refusé si utilisé : `calendar.in_use`), `project.set_info { calendar }`, nom d'exception (`calendar.set_exception { name }`), taux de `resource.update` (`standard_rate`, `overtime_rate`, `cost_per_use`, `{ amount (centièmes), per? }`) stockés dans leur unité d'origine (O46). MCP : `add_calendar`, `update_calendar`, `set_work_week`, `delete_calendar`. Ce sont les écritures des fenêtres « Feuille des ressources » (L10) et « Modifier le temps de travail » (L12).
 - MSPDI : lecture des retards de nivellement et des valeurs enregistrées (R-198) ; écriture de `Start`/`Finish` d'affectation, `Work` des tâches et des ressources, `OverAllocated`, depuis le moteur ; `TimephasedData` de type 1 gardée seulement si le placement est inchangé (R-199).
 
@@ -24,7 +24,7 @@
 - Coûts : taux, coût par utilisation et coût fixe stockés et réécrits tels quels, jamais calculés (ADR-0013 D7) ; depuis J7 (lot L5), taux et coût par utilisation modifiables par `resource.update`, toujours sans calcul.
 - Nivellement : non calculé ; les retards enregistrés sont lus et appliqués.
 - Capacité constante (`AvailabilityPeriods` ignorées) ; profils non uniformes placés comme uniformes.
-- Affectation fictive −65 535 lue et gardée, jamais écrite pour les tâches de planrs (écart à O24).
+- Affectation fictive −65 535 lue et gardée, jamais écrite pour les tâches de PlannerCraft (écart à O24).
 - Aucune interface egui pour les ressources (J7).
 - Aucune vérification par MS Project lui-même (pas de licence) : « vérifié » veut dire « reproduit sur un fichier enregistré par MS Project ».
 
@@ -42,7 +42,7 @@
 - `delete_resource` du Maçon sans `cascade` refusé (`resource.has_assignments`) ; 3 `undo` puis 3 `redo` ; `list_tasks resource=1`, `list_resources`, `project_summary` ;
 - `export_mspdi` égal par `normalize` à `tests/mcp/expected/resources_j5.xml`, puis `open_project` du fichier exporté et mêmes lectures.
 
-Tests : `replay_resources_j5_memory` (`crates/planrs-mcp/tests/replay.rs`, avec les vérifications ci-dessus), `replay_resources_j5_http` (`replay_http.rs`), `replay_resources_j5_stdio` (`apps/planrs-cli/tests/mcp_replay.rs`) ; job CI `mcp`. Régénération : `PLANRS_BLESS=1 cargo test -p planrs-mcp --test replay replay_resources_j5_memory`, diff à relire.
+Tests : `replay_resources_j5_memory` (`crates/plannercraft-mcp/tests/replay.rs`, avec les vérifications ci-dessus), `replay_resources_j5_http` (`replay_http.rs`), `replay_resources_j5_stdio` (`apps/plannercraft-cli/tests/mcp_replay.rs`) ; job CI `mcp`. Régénération : `PLANNERCRAFT_BLESS=1 cargo test -p plannercraft-mcp --test replay replay_resources_j5_memory`, diff à relire.
 
 **Réouverture identique** (depuis le 2026-10-19) : la durée d'une feuille placée par plusieurs parts est l'union de leurs intervalles (Réseaux : 5 j, du lun 23 au ven 27/11) en session comme relue ; la session la reporte dans `Task::duration` après chaque recalcul et dès l'ouverture (R-173), l'écrivain MSPDI écrit la même valeur (R-199). Le test compare `list_tasks` avant et après la réouverture sans exception (il consignait l'écart 3 j / 5 j auparavant).
 

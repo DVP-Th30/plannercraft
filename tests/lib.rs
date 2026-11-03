@@ -1,6 +1,6 @@
-//! Outils communs aux harnais de tests transverses de planrs.
+//! Outils communs aux harnais de tests transverses de PlannerCraft.
 //!
-//! Ce paquet (`planrs-tests`, non publié) regroupe trois cibles de test :
+//! Ce paquet (`plannercraft-tests`, non publié) regroupe trois cibles de test :
 //! - `rules` (`tests/rules/`) : un test par règle de calcul `R-xxx` ;
 //! - `oracle` (`tests/oracle/`) : comparaison avec des fichiers recalculés par
 //!   MS Project, quand une licence sera disponible (ADR-0004) ;
@@ -47,7 +47,7 @@ pub fn tests_path(relative: &str) -> PathBuf {
 ///
 /// Si le texte n'est pas un instant valide du domaine.
 #[must_use]
-pub fn moment(s: &str) -> planrs_core::Moment {
+pub fn moment(s: &str) -> plannercraft_core::Moment {
     match s.parse() {
         Ok(m) => m,
         Err(e) => panic!("instant de test invalide « {s} » : {e}"),
@@ -60,7 +60,7 @@ pub fn moment(s: &str) -> planrs_core::Moment {
 ///
 /// Si le texte n'est pas un jour valide du domaine.
 #[must_use]
-pub fn day(s: &str) -> planrs_core::Day {
+pub fn day(s: &str) -> plannercraft_core::Day {
     match s.parse() {
         Ok(d) => d,
         Err(e) => panic!("jour de test invalide « {s} » : {e}"),
@@ -73,7 +73,7 @@ pub fn day(s: &str) -> planrs_core::Day {
 ///
 /// Si le texte n'est pas une heure valide.
 #[must_use]
-pub fn time(s: &str) -> planrs_core::TimeOfDay {
+pub fn time(s: &str) -> plannercraft_core::TimeOfDay {
     match s.parse() {
         Ok(t) => t,
         Err(e) => panic!("heure de test invalide « {s} » : {e}"),
@@ -86,17 +86,17 @@ pub fn time(s: &str) -> planrs_core::TimeOfDay {
 ///
 /// Si une plage ou l'ensemble des plages est invalide.
 #[must_use]
-pub fn hours(ranges: &[(&str, &str)]) -> planrs_core::calendar::DayHours {
+pub fn hours(ranges: &[(&str, &str)]) -> plannercraft_core::calendar::DayHours {
     let ranges = ranges
         .iter()
         .map(
-            |(a, b)| match planrs_core::calendar::TimeRange::new(time(a), time(b)) {
+            |(a, b)| match plannercraft_core::calendar::TimeRange::new(time(a), time(b)) {
                 Ok(r) => r,
                 Err(e) => panic!("plage de test invalide {a}-{b} : {e}"),
             },
         )
         .collect();
-    match planrs_core::calendar::DayHours::new(ranges) {
+    match plannercraft_core::calendar::DayHours::new(ranges) {
         Ok(h) => h,
         Err(e) => panic!("plages de test invalides : {e}"),
     }
@@ -108,8 +108,8 @@ pub fn hours(ranges: &[(&str, &str)]) -> planrs_core::calendar::DayHours {
 ///
 /// Voir [`hours`].
 #[must_use]
-pub fn working(ranges: &[(&str, &str)]) -> planrs_core::calendar::DaySetting {
-    planrs_core::calendar::DaySetting::Working(hours(ranges))
+pub fn working(ranges: &[(&str, &str)]) -> plannercraft_core::calendar::DaySetting {
+    plannercraft_core::calendar::DaySetting::Working(hours(ranges))
 }
 
 /// Intervalle de jours `[from, to]`.
@@ -118,8 +118,8 @@ pub fn working(ranges: &[(&str, &str)]) -> planrs_core::calendar::DaySetting {
 ///
 /// Si un jour est invalide ou si `from > to`.
 #[must_use]
-pub fn days(from: &str, to: &str) -> planrs_core::DayRange {
-    match planrs_core::DayRange::new(day(from), day(to)) {
+pub fn days(from: &str, to: &str) -> plannercraft_core::DayRange {
+    match plannercraft_core::DayRange::new(day(from), day(to)) {
         Ok(r) => r,
         Err(e) => panic!("intervalle de test invalide {from} → {to} : {e}"),
     }
@@ -130,13 +130,13 @@ pub fn days(from: &str, to: &str) -> planrs_core::DayRange {
 pub fn exception(
     from: &str,
     to: &str,
-    setting: planrs_core::calendar::DaySetting,
-) -> planrs_core::calendar::CalendarException {
-    planrs_core::calendar::CalendarException {
+    setting: plannercraft_core::calendar::DaySetting,
+) -> plannercraft_core::calendar::CalendarException {
+    plannercraft_core::calendar::CalendarException {
         name: format!("{from} → {to}"),
         period: days(from, to),
         setting,
-        recurrence: planrs_core::calendar::Recurrence::Period,
+        recurrence: plannercraft_core::calendar::Recurrence::Period,
         occurrences: None,
     }
 }
@@ -148,9 +148,9 @@ pub fn exception(
 /// Si deux calendriers ont le même UID.
 #[must_use]
 pub fn calendars(
-    list: Vec<planrs_core::calendar::Calendar>,
-) -> planrs_core::Arena<planrs_core::CalendarUid, planrs_core::calendar::Calendar> {
-    match planrs_core::Arena::try_from(list) {
+    list: Vec<plannercraft_core::calendar::Calendar>,
+) -> plannercraft_core::Arena<plannercraft_core::CalendarUid, plannercraft_core::calendar::Calendar> {
+    match plannercraft_core::Arena::try_from(list) {
         Ok(a) => a,
         Err(e) => panic!("calendriers de test invalides : {e}"),
     }
@@ -158,8 +158,8 @@ pub fn calendars(
 
 /// Calendrier Standard, UID 1.
 #[must_use]
-pub fn standard() -> planrs_core::calendar::Calendar {
-    planrs_core::calendar::standard(planrs_core::CalendarUid::new(1), "Standard".to_owned())
+pub fn standard() -> plannercraft_core::calendar::Calendar {
+    plannercraft_core::calendar::standard(plannercraft_core::CalendarUid::new(1), "Standard".to_owned())
 }
 
 /// Minutes ouvrées du jour `d` du calendrier `uid`, par la résolution froide
@@ -170,11 +170,18 @@ pub fn standard() -> planrs_core::calendar::Calendar {
 /// Si la résolution échoue.
 #[must_use]
 pub fn day_minutes(
-    calendars: &planrs_core::Arena<planrs_core::CalendarUid, planrs_core::calendar::Calendar>,
+    calendars: &plannercraft_core::Arena<
+        plannercraft_core::CalendarUid,
+        plannercraft_core::calendar::Calendar,
+    >,
     uid: u32,
     d: &str,
 ) -> i64 {
-    match planrs_core::calendar::resolve_day(calendars, planrs_core::CalendarUid::new(uid), day(d)) {
+    match plannercraft_core::calendar::resolve_day(
+        calendars,
+        plannercraft_core::CalendarUid::new(uid),
+        day(d),
+    ) {
         Ok(r) => r.hours.total().get(),
         Err(e) => panic!("résolution du {d} impossible : {e}"),
     }
@@ -187,10 +194,16 @@ pub fn day_minutes(
 /// Si la compilation échoue.
 #[must_use]
 pub fn compiled(
-    calendars: &planrs_core::Arena<planrs_core::CalendarUid, planrs_core::calendar::Calendar>,
+    calendars: &plannercraft_core::Arena<
+        plannercraft_core::CalendarUid,
+        plannercraft_core::calendar::Calendar,
+    >,
     uid: u32,
-) -> planrs_core::calendar::CompiledCalendar {
-    match planrs_core::calendar::CompiledCalendar::compile(calendars, planrs_core::CalendarUid::new(uid)) {
+) -> plannercraft_core::calendar::CompiledCalendar {
+    match plannercraft_core::calendar::CompiledCalendar::compile(
+        calendars,
+        plannercraft_core::CalendarUid::new(uid),
+    ) {
         Ok(c) => c,
         Err(e) => panic!("compilation du calendrier {uid} impossible : {e}"),
     }
@@ -202,13 +215,15 @@ pub fn compiled(
 ///
 /// Si la compilation échoue.
 #[must_use]
-pub fn compile_one(c: planrs_core::calendar::Calendar) -> planrs_core::calendar::CompiledCalendar {
+pub fn compile_one(
+    c: plannercraft_core::calendar::Calendar,
+) -> plannercraft_core::calendar::CompiledCalendar {
     let uid = c.uid().get();
     compiled(&calendars(vec![c]), uid)
 }
 
 /// Minutes signées.
 #[must_use]
-pub const fn mins(v: i64) -> planrs_core::Minutes {
-    planrs_core::Minutes::new(v)
+pub const fn mins(v: i64) -> plannercraft_core::Minutes {
+    plannercraft_core::Minutes::new(v)
 }

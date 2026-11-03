@@ -6,9 +6,9 @@
 //! `baseline.task_skipped`). Source : S58 (« Entire Project », « Selected
 //! tasks ») ; cas limites : hypothèse.
 
-use planrs_core::baseline::{self, BaselineError, Rollup, Scope};
-use planrs_core::{AssignmentUid, TaskUid};
-use planrs_tests::net::Net;
+use plannercraft_core::baseline::{self, BaselineError, Rollup, Scope};
+use plannercraft_core::{AssignmentUid, TaskUid};
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r220_baseline_values::{number, plan, spec, with_root};

@@ -1,0 +1,35 @@
+[package]
+name = "plannercraft-web"
+description = "Version web de PlannerCraft : la même interface egui compilée en WebAssembly (trunk)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+plannercraft-core.workspace = true
+plannercraft-ui-egui.workspace = true
+# `persistence` : l'état d'interface (JSON) va dans le localStorage du
+# navigateur par le stockage d'eframe (ADR-0011).
+eframe = { workspace = true, features = ["persistence"] }
+
+[dev-dependencies]
+# Test natif du drapeau « modifié » (`UnsavedFlag`) sur une session.
+plannercraft-automation.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+log.workspace = true
+# « Maintenant » : date du navigateur (`js_sys::Date`), convertie en Moment
+# par chrono (sans `clock` ni `wasmbind`).
+chrono.workspace = true
+js-sys.workspace = true
+wasm-bindgen-futures.workspace = true
+# `BeforeUnloadEvent` : garde de fermeture de l'onglet (relecture finale J4,
+# F3). `KeyboardEvent` : garde des raccourcis (H-UI-55) ; `Node` : bloc
+# « Chargement… » remplacé ou retiré (H-UI-57).
+web-sys = { workspace = true, features = ["BeforeUnloadEvent", "Event", "EventTarget", "KeyboardEvent", "Node"] }
+
+[lints]
+workspace = true

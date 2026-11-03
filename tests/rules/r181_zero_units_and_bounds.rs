@@ -4,9 +4,9 @@
 //! la tâche suit R-069 (conversion impossible, jamais de panique).
 //! Hypothèse.
 
-use planrs_core::{Exclusion, Minutes, TaskOutcome, Work};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Exclusion, Minutes, TaskOutcome, Work};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 

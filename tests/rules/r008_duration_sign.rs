@@ -1,6 +1,6 @@
 //! R-008 — Signe des durées : durée et travail >= 0, décalage signé.
 
-use planrs_core::{
+use plannercraft_core::{
     ConversionFactors, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, Minutes, TimeBasis,
     Work,
 };

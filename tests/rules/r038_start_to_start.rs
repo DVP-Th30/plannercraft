@@ -1,8 +1,8 @@
 //! R-038 — Début à début (SS) : borne de début `g(ES_p)`. Source : S8.
 
-use planrs_core::LinkType;
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::LinkType;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r038_ss_with_lag() {

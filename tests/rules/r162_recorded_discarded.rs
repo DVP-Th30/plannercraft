@@ -1,12 +1,12 @@
 //! R-162 — Valeurs relues du fichier jetées au premier commit.
 
-use planrs_automation::text::Language;
-use planrs_automation::{DocOrigin, Session, SideEffect};
-use planrs_core::{Percent, TaskUid, schedule};
-use planrs_mspdi::write::{Computed, WriteOptions, choose_computed, write};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{commit, push_tasks, rename};
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{DocOrigin, Session, SideEffect};
+use plannercraft_core::{Percent, TaskUid, schedule};
+use plannercraft_mspdi::write::{Computed, WriteOptions, choose_computed, write};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{commit, push_tasks, rename};
 
 /// Document MSPDI d'un projet avec avancement (manque `progress` de R-122
 /// jusqu'en J5 ; depuis J6, R-215, le moteur le calcule).
@@ -35,7 +35,7 @@ fn open(bytes: &[u8]) -> Session {
 #[test]
 fn r162_unmodified_save_uses_engine_values() {
     // Amendement J6 (R-215, R-122) : plus aucun manque, le planning de
-    // planrs est écrit dès l'ouverture, valeurs relues ou non.
+    // PlannerCraft est écrit dès l'ouverture, valeurs relues ou non.
     let bytes = document_with_progress();
     let s = open(&bytes);
     let expected = write(

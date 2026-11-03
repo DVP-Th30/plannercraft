@@ -1,0 +1,33 @@
+[package]
+name = "plannercraft-automation"
+description = "Session headless et registre de commandes de PlannerCraft."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+chrono.workspace = true
+csv.workspace = true
+encoding_rs.workspace = true
+plannercraft-core.workspace = true
+plannercraft-mspdi.workspace = true
+# Export PDF (`project.export_pdf`, J8 lot L7) : couche du rendu, sans egui.
+plannercraft-pdf.workspace = true
+plannercraft-render.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+unicode-normalization.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Jeton du rendez-vous du canal de contrôle (`control`, ADR-0002).
+getrandom.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

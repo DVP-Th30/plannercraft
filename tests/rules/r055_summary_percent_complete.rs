@@ -4,8 +4,8 @@
 //! Σ durée nulle : moyenne arrondie des % des feuilles ; aucune feuille : 0.
 //! Source : Q4, S26 ; cas limites et arrondi : hypothèse.
 
-use planrs_core::{LinkType, Percent};
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{LinkType, Percent};
+use plannercraft_tests::net::{Net, lag_w};
 
 fn pct(v: i64) -> Percent {
     Percent::new(v).unwrap()
@@ -81,13 +81,13 @@ fn r055_uses_effective_actual() {
         .level("A", 2)
         .with_task("A", |t| {
             t.progress.percent_complete = pct(5_000);
-            t.progress.actual_duration = planrs_core::Minutes::new(720);
+            t.progress.actual_duration = plannercraft_core::Minutes::new(720);
         })
         .task("B", 480)
         .level("B", 2)
         .with_task("B", |t| {
-            t.progress.actual_start = Some(planrs_tests::moment("2026-10-19T08:00"));
-            t.progress.actual_finish = Some(planrs_tests::moment("2026-10-19T17:00"));
+            t.progress.actual_start = Some(plannercraft_tests::moment("2026-10-19T08:00"));
+            t.progress.actual_finish = Some(plannercraft_tests::moment("2026-10-19T17:00"));
         })
         .run();
     assert_eq!(run.at("S").percent_complete, pct(8_333));
@@ -100,9 +100,9 @@ fn r055_uses_effective_actual() {
         .task("A", 480)
         .level("A", 2)
         .with_task("A", |t| {
-            t.progress.actual_start = Some(planrs_tests::moment("2026-10-19T08:00"));
-            t.progress.actual_finish = Some(planrs_tests::moment("2026-10-19T17:00"));
-            t.progress.actual_duration = planrs_core::Minutes::new(960);
+            t.progress.actual_start = Some(plannercraft_tests::moment("2026-10-19T08:00"));
+            t.progress.actual_finish = Some(plannercraft_tests::moment("2026-10-19T17:00"));
+            t.progress.actual_duration = plannercraft_core::Minutes::new(960);
         })
         .run();
     assert_eq!(run.at("S").percent_complete, Percent::FULL);

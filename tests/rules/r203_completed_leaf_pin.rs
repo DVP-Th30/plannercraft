@@ -9,11 +9,11 @@
 //! longer affect the completion of successor tasks ») ; O37, O38 (A7 UID 2,
 //! 3) ; reste : hypothèse.
 
-use planrs_core::{
+use plannercraft_core::{
     Constraint, Diagnostic, Driver, LateDriver, LevelingDelay, LinkType, Minutes, ProgressState, Span,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// A 1 j ; B 2 j FS de A, achevée lun 13:00 – mar 12:00 (D 480) ; C 1 j
 /// FS de B (exemple de la fiche).
@@ -52,7 +52,7 @@ fn r203_completed_pins_actual_dates() {
     assert_eq!(p.actual_finish, Some(actual.finish));
     assert_eq!((p.stop, p.resume), (actual.finish, actual.finish));
     assert_eq!(p.remaining_duration, Minutes::ZERO);
-    assert_eq!(p.percent_complete, planrs_core::Percent::FULL);
+    assert_eq!(p.percent_complete, plannercraft_core::Percent::FULL);
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn r203_raw_non_working_start_kept() {
                 t.leveling_delay = Some(LevelingDelay {
                     minutes: Minutes::new(2_400),
                     elapsed: false,
-                    unit: planrs_core::DurationUnit::Day,
+                    unit: plannercraft_core::DurationUnit::Day,
                 });
             })
         },
@@ -214,13 +214,13 @@ fn r203_corpus_a7_completed_leaves() {
     // achevée ven 04/10/2024 08:00 (chômé) – sam 13:00, FNET sans effet ;
     // UID 3 FS de UID 2, réelle ven 09:00 – 20:00 : le réel l'emporte sur le
     // lien (`progress.link_overridden`) ; TS 0, non critiques.
-    let Ok(bytes) = std::fs::read(planrs_tests::tests_path("corpus/files/projinteg.xml")) else {
+    let Ok(bytes) = std::fs::read(plannercraft_tests::tests_path("corpus/files/projinteg.xml")) else {
         return;
     };
-    let options = planrs_mspdi::ReadOptions::new(moment("2026-01-01T00:00"));
-    let d = planrs_mspdi::read(&bytes, &options).unwrap();
-    let s = planrs_core::schedule(&d.project);
-    let uid = planrs_core::TaskUid::new;
+    let options = plannercraft_mspdi::ReadOptions::new(moment("2026-01-01T00:00"));
+    let d = plannercraft_mspdi::read(&bytes, &options).unwrap();
+    let s = plannercraft_core::schedule(&d.project);
+    let uid = plannercraft_core::TaskUid::new;
     for (u, start, finish) in [
         (2, "2024-10-04T08:00", "2024-10-05T13:00"),
         (3, "2024-10-04T09:00", "2024-10-04T20:00"),

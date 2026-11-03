@@ -6,14 +6,14 @@
 //! pas le travail d'une tâche. Source : O25 (A4 UID 4 : 40 h + 20 h), O28
 //! (A6 UID 33 : 352 + 200 + 240 h, matériel R10 exclu).
 
-use planrs_core::{ResourceKind, ResourceUid, Work};
-use planrs_tests::net::Net;
+use plannercraft_core::{ResourceKind, ResourceUid, Work};
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, resource, resource_kind};
 
 /// Travail de `m` minutes.
 pub(crate) fn work(m: i64) -> Work {
-    Work::new(planrs_core::Minutes::new(m)).unwrap()
+    Work::new(plannercraft_core::Minutes::new(m)).unwrap()
 }
 
 #[test]

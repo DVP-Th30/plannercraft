@@ -9,8 +9,8 @@
 
 use std::collections::BTreeMap;
 
-use planrs_core::calendar::BuiltinCalendarNames;
-use planrs_core::{
+use plannercraft_core::calendar::BuiltinCalendarNames;
+use plannercraft_core::{
     CalendarUid, Constraint, Duration, DurationUnit, Lag, LagValue, Link, LinkType, Minutes, OutlineLevel,
     Project, ProjectInit, ProjectOptions, Schedule, ScheduleAnchor, SchedulingMode, SignedPercent, Task,
     TaskOutcome, TaskSchedule, TaskUid, TimeBasis,
@@ -245,14 +245,14 @@ impl Net {
     /// Calcule le planning.
     #[must_use]
     pub fn run(self) -> Run {
-        self.run_with(planrs_core::Limits::default())
+        self.run_with(plannercraft_core::Limits::default())
     }
 
     /// Calcule le planning sous des plafonds explicites.
     #[must_use]
-    pub fn run_with(self, limits: planrs_core::Limits) -> Run {
+    pub fn run_with(self, limits: plannercraft_core::Limits) -> Run {
         Run {
-            schedule: planrs_core::schedule_with(&self.project, limits),
+            schedule: plannercraft_core::schedule_with(&self.project, limits),
             names: self.names,
         }
     }
@@ -304,7 +304,7 @@ impl Run {
         self.schedule
             .diagnostics
             .iter()
-            .map(planrs_core::Diagnostic::code)
+            .map(plannercraft_core::Diagnostic::code)
             .collect()
     }
 }

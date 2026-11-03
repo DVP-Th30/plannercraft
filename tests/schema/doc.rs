@@ -1,7 +1,7 @@
 //! Arbre d'un document MSPDI écrit (noms locaux, texte) et forme canonique
 //! pj15 d'une sortie du profil observé (P26).
 
-use planrs_mspdi::schema::{Parent, Profile, sequence};
+use plannercraft_mspdi::schema::{Parent, Profile, sequence};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 

@@ -1,9 +1,9 @@
 //! R-050 — Critique : `TF ≤ critical_slack_limit_days × minutes_per_day`.
 //! Sources : S19, S20, S2 ; Q5 (seuil en durée : 1 j = 8 h).
 
-use planrs_tests::net::Net;
+use plannercraft_tests::net::Net;
 
-fn n2(limit: u32) -> planrs_tests::net::Run {
+fn n2(limit: u32) -> plannercraft_tests::net::Run {
     // N2 : TF(A) = TF(E) = 360, TF(B) = TF(C) = 0 (R-049).
     Net::new("2026-10-19T08:00")
         .task("A", 480)
@@ -17,7 +17,7 @@ fn n2(limit: u32) -> planrs_tests::net::Run {
         .run()
 }
 
-fn critical(run: &planrs_tests::net::Run) -> Vec<&str> {
+fn critical(run: &plannercraft_tests::net::Run) -> Vec<&str> {
     let mut names: Vec<&str> = ["A", "E", "B", "C"]
         .into_iter()
         .filter(|n| run.at(n).critical)

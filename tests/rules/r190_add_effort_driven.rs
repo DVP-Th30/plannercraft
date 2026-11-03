@@ -4,8 +4,8 @@
 //! fixe : D gardée, travail au prorata des unités, unités recalculées.
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, uid, units};
-use planrs_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
-use planrs_core::resource::{Edit, Recalculated};
+use plannercraft_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
+use plannercraft_core::resource::{Edit, Recalculated};
 
 fn add(id: u32, u: i64) -> Edit {
     Edit::Add {
@@ -128,7 +128,7 @@ fn r190_sequential_equals_simultaneous() {
         Recalculated::Duration,
     );
     let once = check(&side, &parts, add(3, 20_000), 960, 3_840, Recalculated::Duration);
-    let sum_units = |ps: &[planrs_core::resource::Part]| ps.iter().map(|p| p.units.get()).sum::<i64>();
+    let sum_units = |ps: &[plannercraft_core::resource::Part]| ps.iter().map(|p| p.units.get()).sum::<i64>();
     assert_eq!(sum_units(&seq.parts), sum_units(&once.parts));
 }
 

@@ -4,13 +4,13 @@
 //! `task.set_deadline` pose ou retire l'échéance. R-161 : la contrainte
 //! changée jette les clés de nivellement de la tâche.
 
-use planrs_automation::error::codes;
-use planrs_automation::view::ViewCtx;
-use planrs_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session, SideEffect};
-use planrs_core::{Constraint, ExtraEntry, OutlineLevel, Project, Subject, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{link, push_tasks, session, task};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::view::ViewCtx;
+use plannercraft_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session, SideEffect};
+use plannercraft_core::{Constraint, ExtraEntry, OutlineLevel, Project, Subject, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{link, push_tasks, session, task};
 
 fn run(s: &mut Session, ops: &str) -> Result<ApplyOutcome, CommandError> {
     let batch = Batch::from_json_str(&format!(r#"{{"format_version":1,"ops":[{ops}]}}"#)).unwrap();

@@ -1,18 +1,18 @@
-planrs pour macOS (Apple Silicon et Intel)
+PlannerCraft pour macOS (Apple Silicon et Intel)
 
-- planrs.app : l'application. La glisser dans le dossier Applications.
-- cli/planrs : la ligne de commande et le serveur MCP (planrs mcp). La copier
+- PlannerCraft.app : l'application. La glisser dans le dossier Applications.
+- cli/plannercraft : la ligne de commande et le serveur MCP (plannercraft mcp). La copier
   où l'on veut, par exemple /usr/local/bin.
 
 L'application est signée « ad hoc » mais pas notarisée par Apple. Au premier
 lancement, macOS refuse de l'ouvrir :
-1. ouvrir planrs.app une première fois (refus affiché) ;
+1. ouvrir PlannerCraft.app une première fois (refus affiché) ;
 2. Réglages Système > Confidentialité et sécurité, en bas : « Ouvrir quand
-   même » à côté du message sur planrs ;
+   même » à côté du message sur PlannerCraft ;
 3. confirmer. Les lancements suivants sont normaux.
 
 Pour la ligne de commande copiée hors du DMG :
-  xattr -d com.apple.quarantine /chemin/vers/planrs
+  xattr -d com.apple.quarantine /chemin/vers/plannercraft
 
 Guide complet (empreintes SHA256SUMS comprises) : docs/user/install.md du
-dépôt, https://github.com/theodu78/planrs
+dépôt, https://github.com/theodu78/plannercraft

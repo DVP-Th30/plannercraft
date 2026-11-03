@@ -1,6 +1,6 @@
 # Sélectionner, copier, remplir
 
-La table des tâches de planrs se manie comme une feuille Excel et comme la table de MS Project : on sélectionne à la souris ou au clavier, puis on copie, colle, recopie ou efface **des cellules**, sans toucher aux tâches elles-mêmes. Ctrl désigne Cmd sur macOS (sauf Ctrl+Espace). Toutes ces conventions sont des hypothèses de planrs (ADR-0018) : rien n'a été vérifié dans MS Project.
+La table des tâches de PlannerCraft se manie comme une feuille Excel et comme la table de MS Project : on sélectionne à la souris ou au clavier, puis on copie, colle, recopie ou efface **des cellules**, sans toucher aux tâches elles-mêmes. Ctrl désigne Cmd sur macOS (sauf Ctrl+Espace). Toutes ces conventions sont des hypothèses de PlannerCraft (ADR-0018) : rien n'a été vérifié dans MS Project.
 
 ## 1. Sélectionner
 

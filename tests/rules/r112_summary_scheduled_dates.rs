@@ -3,9 +3,9 @@
 //! durée R-054 mesurée sur elles. Depuis le début, elles égalent
 //! l'enveloppe des dates au plus tôt, épingles comprises. Sources : S23, S8.
 
-use planrs_core::{Constraint, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r112_summary_envelope_includes_pinned_alap() {

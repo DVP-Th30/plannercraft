@@ -2,9 +2,9 @@
 //! tel que d minutes ouvrées séparent s de t ; le résultat tombe au début
 //! d'une minute ouvrée (convention de début). Calendrier Standard.
 
-use planrs_tests::{compile_one, mins, moment, standard};
+use plannercraft_tests::{compile_one, mins, moment, standard};
 
-fn sub(from: &str, d: i64) -> planrs_core::Moment {
+fn sub(from: &str, d: i64) -> plannercraft_core::Moment {
     compile_one(standard())
         .add_working(moment(from), mins(-d))
         .unwrap()

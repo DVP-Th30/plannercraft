@@ -1,10 +1,10 @@
 //! R-151 — Allocation des UID de tâche dans une session.
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, ApplyOptions};
-use planrs_core::{Task, TaskUid};
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{add_task, commit, push_tasks, rename, session};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, ApplyOptions};
+use plannercraft_core::{Task, TaskUid};
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{add_task, commit, push_tasks, rename, session};
 
 #[test]
 fn r151_uid_monotone_after_undo() {

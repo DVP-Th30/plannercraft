@@ -7,15 +7,15 @@
 
 use std::collections::BTreeMap;
 
-use planrs_core::model::custom::{
+use plannercraft_core::model::custom::{
     CUSTOM_NUMBER_SCALE, MAX_CUSTOM_ALIAS_CHARS, MAX_CUSTOM_NUMBER_ABS, MAX_CUSTOM_TEXT_CHARS,
 };
-use planrs_core::{
+use plannercraft_core::{
     CustomFieldDef, CustomFieldId, CustomKind, CustomValue, CustomValueError, Diagnostic, Project, Task,
     TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
 
 fn id(kind: CustomKind, n: u8) -> CustomFieldId {
     CustomFieldId::new(kind, n).unwrap()
@@ -111,7 +111,7 @@ fn r263_validate_type_mismatch() {
         .find(|d| matches!(d, Diagnostic::TaskCustomInvalid { .. }))
         .unwrap();
     assert_eq!(one.code(), "task.custom_invalid");
-    assert_eq!(one.severity(), planrs_core::Severity::Error);
+    assert_eq!(one.severity(), plannercraft_core::Severity::Error);
 }
 
 #[test]

@@ -1,13 +1,13 @@
 //! R-160 — Refus d'un lot sur nouvelle erreur (delta de diagnostics).
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, ApplyOptions, CommandErrorKind};
-use planrs_core::{Diagnostic, Link, Subject, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{add_link, commit, edit, link, push_tasks, remove_link, rename, session};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, ApplyOptions, CommandErrorKind};
+use plannercraft_core::{Diagnostic, Link, Subject, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{add_link, commit, edit, link, push_tasks, remove_link, rename, session};
 
-fn cycles(s: &planrs_automation::Session) -> Vec<Vec<u32>> {
+fn cycles(s: &plannercraft_automation::Session) -> Vec<Vec<u32>> {
     s.diagnostics()
         .iter()
         .filter_map(|d| match d {

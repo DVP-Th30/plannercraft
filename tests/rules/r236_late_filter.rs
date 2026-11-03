@@ -6,9 +6,9 @@
 //! projet lun 02/11/2026 08:00, date d'état ven 13/11/2026 17:00.
 //! Hypothèse.
 
-use planrs_automation::Workspace;
-use planrs_automation::text::Language;
-use planrs_tests::moment;
+use plannercraft_automation::Workspace;
+use plannercraft_automation::text::Language;
+use plannercraft_tests::moment;
 use serde_json::{Value, json};
 
 fn late(ws: &mut Workspace) -> Vec<String> {

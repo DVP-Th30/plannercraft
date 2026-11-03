@@ -2,11 +2,11 @@
 //! début `P(s).backward_span(b, d).start`. Source : S8 ; conversion observée
 //! (O7, A6 UID 38).
 
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
-fn run(b_minutes: i64) -> planrs_tests::net::Run {
+fn run(b_minutes: i64) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .task("A", 960)
         .task("B", b_minutes)

@@ -2,9 +2,9 @@
 //! c'est le comportement de J2. Sources : S27 (« (Scheduled)ES=(Calculated)ES
 //! + Delay »), S28.
 
-use planrs_core::{Constraint, Driver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Driver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r091_asap_changes_nothing() {

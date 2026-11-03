@@ -8,10 +8,10 @@
 //! 0. Une récapitulative automatique commencée commence au plus tard à son
 //! début réel agrégé (O40). Source : Q4, S26 ; O40 (A7 UID 0).
 
-use planrs_core::{Diagnostic, Minutes, Percent, ProgressState, TaskUid, Work};
-use planrs_mspdi::{ReadOptions, read};
-use planrs_tests::net::Net;
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Diagnostic, Minutes, Percent, ProgressState, TaskUid, Work};
+use plannercraft_mspdi::{ReadOptions, read};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, tests_path};
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 
@@ -116,7 +116,10 @@ fn r210_stop_min_of_started() {
             t.progress.actual_finish = Some(moment("2026-10-20T12:00"));
         });
     let net = assign(assign(resource(net, 1, None), 1, "A", 1, 480), 2, "C", 1, 480).project(|p| {
-        let a = p.assignments.get_mut(planrs_core::AssignmentUid::new(1)).unwrap();
+        let a = p
+            .assignments
+            .get_mut(plannercraft_core::AssignmentUid::new(1))
+            .unwrap();
         a.actual_work = Work::new(Minutes::new(480)).unwrap();
     });
     let run = net.run();
@@ -199,7 +202,7 @@ fn r210_corpus_a7_project_summary() {
         return;
     };
     let d = read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
-    let s = planrs_core::schedule(&d.project);
+    let s = plannercraft_core::schedule(&d.project);
     let root = s.project_summary.unwrap();
     assert_eq!(root.percent_complete, pct(976));
     assert_eq!(root.start, moment("2024-10-04T08:00"));

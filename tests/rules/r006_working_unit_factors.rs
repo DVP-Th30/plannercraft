@@ -1,7 +1,7 @@
 //! R-006 — Facteurs des unités ouvrées : m = 1 ; h = 60 ; j = `MinutesPerDay` ;
 //! sem = `MinutesPerWeek` ; mois = `DaysPerMonth` × `MinutesPerDay`.
 
-use planrs_core::{ConversionFactors, Decimal, DurationUnit, Minutes, TimeBasis};
+use plannercraft_core::{ConversionFactors, Decimal, DurationUnit, Minutes, TimeBasis};
 
 const W: TimeBasis = TimeBasis::Working;
 

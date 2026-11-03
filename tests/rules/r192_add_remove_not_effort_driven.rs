@@ -2,8 +2,8 @@
 //! travail varie de D × u (S42).
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, uid, units};
-use planrs_core::TaskType::{FixedDuration, FixedUnits};
-use planrs_core::resource::{Edit, Recalculated};
+use plannercraft_core::TaskType::{FixedDuration, FixedUnits};
+use plannercraft_core::resource::{Edit, Recalculated};
 
 #[test]
 fn r192_add_keeps_duration() {

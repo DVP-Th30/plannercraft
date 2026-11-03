@@ -4,10 +4,10 @@
 //! Repère : projet « P ». Source : S74 (« Inactivate a task » : la même
 //! commande réactive) ; sélection mêlée et descendants : hypothèse.
 
-use planrs_automation::helpers;
-use planrs_automation::{ApplyMode, Batch, Session};
-use planrs_tests::daily::{plan_p, uids};
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_automation::helpers;
+use plannercraft_automation::{ApplyMode, Batch, Session};
+use plannercraft_tests::daily::{plan_p, uids};
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 fn commit(s: &mut Session, b: &Batch) {

@@ -1,14 +1,14 @@
 //! R-128 — Calendriers à l'écriture.
 
-use planrs_core::calendar::{
+use plannercraft_core::calendar::{
     Calendar, CalendarException, DayHours, DaySetting, Recurrence, TimeRange, WorkWeek,
 };
-use planrs_core::{CalendarSet, CalendarUid, DayRange, Month, TimeOfDay, Week, Weekday};
-use planrs_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
-use planrs_tests::{day, time};
+use plannercraft_core::{CalendarSet, CalendarUid, DayRange, Month, TimeOfDay, Week, Weekday};
+use plannercraft_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_tests::{day, time};
 
-fn standard(proj: &planrs_core::Project) -> &Calendar {
+fn standard(proj: &plannercraft_core::Project) -> &Calendar {
     proj.calendars.get(CalendarUid::new(1)).unwrap()
 }
 
@@ -87,9 +87,9 @@ fn r128_base_derived_ranges_and_work_weeks() {
             period: DayRange::new(day("2026-12-21"), day("2026-12-31")).unwrap(),
             days: Week::from_fn(|d| {
                 if d == Weekday::Friday {
-                    planrs_core::calendar::DayRule::NonWorking
+                    plannercraft_core::calendar::DayRule::NonWorking
                 } else {
-                    planrs_core::calendar::DayRule::Inherit
+                    plannercraft_core::calendar::DayRule::Inherit
                 }
             }),
         })
@@ -121,9 +121,9 @@ fn r128_strict_work_week_form() {
         period: DayRange::new(day("2026-07-01"), day("2026-07-31")).unwrap(),
         days: Week::from_fn(|d| {
             if d == Weekday::Friday {
-                planrs_core::calendar::DayRule::NonWorking
+                plannercraft_core::calendar::DayRule::NonWorking
             } else {
-                planrs_core::calendar::DayRule::Inherit
+                plannercraft_core::calendar::DayRule::Inherit
             }
         }),
     };

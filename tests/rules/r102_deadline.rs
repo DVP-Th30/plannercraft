@@ -5,9 +5,9 @@
 //! S8 (« Deadline dates don't usually affect task scheduling »), S31, S32,
 //! O16.
 
-use planrs_core::{Diagnostic, LateDriver, Minutes, Pass};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, LateDriver, Minutes, Pass};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r102_deadline_caps_the_late_finish() {

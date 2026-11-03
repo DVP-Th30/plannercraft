@@ -11,7 +11,7 @@
 //!   `Projec_1_File_xsd_mspdi_pj15` (crate `cab`, Rust pur), vérifie son
 //!   SHA-256, l'écrit (renommage atomique) et supprime le MSI.
 //!
-//! Le test `planrs-tests --test schema` revérifie l'empreinte du XSD. En CI
+//! Le test `plannercraft-tests --test schema` revérifie l'empreinte du XSD. En CI
 //! (job `schema`), le XSD est mis en cache sous la clé de son empreinte et
 //! revérifié par cette tâche après restauration.
 
@@ -210,7 +210,8 @@ mod tests {
     use super::*;
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("planrs-xtask-schema-{tag}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("plannercraft-xtask-schema-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir

@@ -1,4 +1,4 @@
-# Release de planrs (J8, lot L1 ; contrats C-REL-01 à C-REL-08,
+# Release de PlannerCraft (J8, lot L1 ; contrats C-REL-01 à C-REL-08,
 # docs/features/release.md).
 #
 # - Tag `v*` poussé : contrôle tag = workspace = CHANGELOG (C-REL-01), build
@@ -76,35 +76,35 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: planrs-${{ needs.build.outputs.version }}-macos-universal.dmg
+          name: plannercraft-${{ needs.build.outputs.version }}-macos-universal.dmg
 
       - name: DMG, architectures, signature, --version
         run: |
-          dmg="planrs-$VERSION-macos-universal.dmg"
+          dmg="plannercraft-$VERSION-macos-universal.dmg"
           hdiutil verify "$dmg"
           mnt="$(mktemp -d)"
           hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg"
           trap 'hdiutil detach "$mnt" || true' EXIT
           ls -la "$mnt" "$mnt/cli"
-          codesign --verify --deep --strict --verbose=2 "$mnt/planrs.app"
-          id="$(plutil -extract CFBundleIdentifier raw "$mnt/planrs.app/Contents/Info.plist")"
-          [ "$id" = "io.github.theodu78.planrs" ] || { echo "::error::CFBundleIdentifier $id"; exit 1; }
-          test -f "$mnt/planrs.app/Contents/Resources/planrs.icns"
+          codesign --verify --deep --strict --verbose=2 "$mnt/PlannerCraft.app"
+          id="$(plutil -extract CFBundleIdentifier raw "$mnt/PlannerCraft.app/Contents/Info.plist")"
+          [ "$id" = "io.github.theodu78.plannercraft" ] || { echo "::error::CFBundleIdentifier $id"; exit 1; }
+          test -f "$mnt/PlannerCraft.app/Contents/Resources/plannercraft.icns"
           test -f "$mnt/LISEZ-MOI.txt"
           for f in LICENSE-MIT LICENSE-APACHE NOTICE assets/fonts/OFL.txt assets/icons/lucide/LICENSE; do
             test -s "$mnt/licenses/$f" || { echo "::error::licenses/$f absent"; exit 1; }
           done
-          for bin in "$mnt/planrs.app/Contents/MacOS/planrs-desktop" "$mnt/cli/planrs"; do
+          for bin in "$mnt/PlannerCraft.app/Contents/MacOS/plannercraft-desktop" "$mnt/cli/plannercraft"; do
             archs="$(lipo -archs "$bin")"
             read -r -a list <<< "$archs"
             sorted="$(printf '%s\n' "${list[@]}" | LC_ALL=C sort | xargs)"
             [ "$sorted" = "arm64 x86_64" ] || { echo "::error::$bin : architectures « $archs »"; exit 1; }
             out="$("$bin" --version)"
-            [ "$out" = "planrs $VERSION" ] || { echo "::error::$bin --version : « $out »"; exit 1; }
+            [ "$out" = "PlannerCraft $VERSION" ] || { echo "::error::$bin --version : « $out »"; exit 1; }
             # Tranche x86_64 aussi, si Rosetta est présent sur le runner.
             if arch -x86_64 /usr/bin/true 2>/dev/null; then
               out="$(arch -x86_64 "$bin" --version)"
-              [ "$out" = "planrs $VERSION" ] || { echo "::error::$bin (x86_64) --version : « $out »"; exit 1; }
+              [ "$out" = "PlannerCraft $VERSION" ] || { echo "::error::$bin (x86_64) --version : « $out »"; exit 1; }
             fi
           done
           echo "C-REL-02, C-REL-03 (macOS) : OK"
@@ -124,22 +124,22 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: planrs-${{ needs.build.outputs.version }}-windows-x86_64.zip
+          name: plannercraft-${{ needs.build.outputs.version }}-windows-x86_64.zip
 
       - name: Contenu du zip, --version
         run: |
-          dir="planrs-$VERSION-windows-x86_64"
+          dir="plannercraft-$VERSION-windows-x86_64"
           7z x "$dir.zip"
           ls -la "$dir"
           test -f "$dir/README.txt"
           for f in LICENSE-MIT LICENSE-APACHE NOTICE assets/fonts/OFL.txt assets/icons/lucide/LICENSE; do
             test -s "$dir/licenses/$f" || { echo "::error::licenses/$f absent"; exit 1; }
           done
-          # planrs-desktop.exe est du sous-système fenêtré : sa sortie n'est
+          # plannercraft-desktop.exe est du sous-système fenêtré : sa sortie n'est
           # lisible que redirigée, ce que fait la substitution de commande.
-          for exe in planrs-desktop.exe planrs.exe; do
+          for exe in plannercraft-desktop.exe plannercraft.exe; do
             out="$("./$dir/$exe" --version | tr -d '\r')"
-            [ "$out" = "planrs $VERSION" ] || { echo "::error::$exe --version : « $out »"; exit 1; }
+            [ "$out" = "PlannerCraft $VERSION" ] || { echo "::error::$exe --version : « $out »"; exit 1; }
           done
           echo "C-REL-03 (Windows) : OK"
 
@@ -163,27 +163,27 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: planrs-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
+          name: plannercraft-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
 
       - name: Contenu, glibc, --version
         shell: bash
         run: |
-          dir="planrs-$VERSION-linux-x86_64"
+          dir="plannercraft-$VERSION-linux-x86_64"
           tar xzf "$dir.tar.gz"
           ls -la "$dir"
-          test -f "$dir/planrs.png"
+          test -f "$dir/plannercraft.png"
           for f in LICENSE-MIT LICENSE-APACHE NOTICE assets/fonts/OFL.txt assets/icons/lucide/LICENSE; do
             test -s "$dir/licenses/$f" || { echo "::error::licenses/$f absent"; exit 1; }
           done
-          desktop-file-validate "$dir/planrs.desktop"
-          for bin in planrs-desktop planrs; do
+          desktop-file-validate "$dir/plannercraft.desktop"
+          for bin in plannercraft-desktop plannercraft; do
             path="$dir/$bin"
             max="$(objdump -T "$path" | grep -o 'GLIBC_[0-9.]*' | sed 's/^GLIBC_//' | sort -V | tail -n 1)"
             echo "$bin : GLIBC_$max au plus"
             top="$(printf '%s\n2.36\n' "$max" | sort -V | tail -n 1)"
             [ "$top" = "2.36" ] || { echo "::error::$bin exige GLIBC_$max (> 2.36)"; exit 1; }
             out="$(timeout 60 "./$path" --version)"
-            [ "$out" = "planrs $VERSION" ] || { echo "::error::$bin --version : « $out »"; exit 1; }
+            [ "$out" = "PlannerCraft $VERSION" ] || { echo "::error::$bin --version : « $out »"; exit 1; }
           done
           echo "C-REL-03, C-REL-04 (Linux) : OK"
 
@@ -197,11 +197,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: planrs-${{ needs.build.outputs.version }}-web.tar.gz
+          name: plannercraft-${{ needs.build.outputs.version }}-web.tar.gz
 
       - name: Taille du .wasm (gzip -9)
         run: |
-          tar xzf "planrs-$VERSION-web.tar.gz"
+          tar xzf "plannercraft-$VERSION-web.tar.gz"
           ls -la dist
           test -f dist/index.html
           for f in LICENSE-MIT LICENSE-APACHE NOTICE assets/fonts/OFL.txt assets/icons/lucide/LICENSE; do
@@ -235,14 +235,14 @@ jobs:
           for attempt in 1 2 3; do
             timeout 120 "$browser" --headless=new --no-sandbox --disable-gpu \
               --virtual-time-budget=30000 --dump-dom http://127.0.0.1:8080/ > dom.html 2> chrome.log || true
-            if grep -q 'data-planrs-started="1"' dom.html; then
+            if grep -q 'data-plannercraft-started="1"' dom.html; then
               echo "C-REL-06 : OK (essai $attempt)"
               exit 0
             fi
             echo "essai $attempt : attribut absent"
           done
           head -c 2000 dom.html; tail -n 40 chrome.log
-          echo "::error::data-planrs-started=\"1\" absent du DOM : le wasm n'a pas démarré"
+          echo "::error::data-plannercraft-started=\"1\" absent du DOM : le wasm n'a pas démarré"
           exit 1
 
   publish:
@@ -262,7 +262,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: planrs-*
+          pattern: plannercraft-*
           path: dist
           merge-multiple: true
 
@@ -276,13 +276,13 @@ jobs:
           ls -la
           count="$(find . -maxdepth 1 -type f | wc -l)"
           [ "$count" = "4" ] || { echo "::error::4 artefacts attendus, $count trouvés"; exit 1; }
-          sha256sum planrs-* > SHA256SUMS
+          sha256sum plannercraft-* > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            dist/planrs-*
+            dist/plannercraft-*
             dist/SHA256SUMS
 
       - name: gh release create
@@ -291,7 +291,7 @@ jobs:
           case "$TAG" in *-test.*) flags+=(--draft) ;; esac
           case "$TAG" in *-*) flags+=(--prerelease) ;; esac
           echo "options : ${flags[*]}"
-          gh release create "$TAG" dist/* --verify-tag --title "planrs $VERSION" \
+          gh release create "$TAG" dist/* --verify-tag --title "PlannerCraft $VERSION" \
             --notes-file release-notes.md "${flags[@]}"
 
       # Contrôle de ce qui est réellement publié (pas des fichiers locaux).
@@ -303,10 +303,10 @@ jobs:
           echo "C-REL-07 : OK"
           names="$(gh release view "$TAG" --json assets --jq '[.assets[].name] | sort | join(" ")')"
           expected="$(printf '%s\n' SHA256SUMS \
-            "planrs-$VERSION-linux-x86_64.tar.gz" \
-            "planrs-$VERSION-macos-universal.dmg" \
-            "planrs-$VERSION-web.tar.gz" \
-            "planrs-$VERSION-windows-x86_64.zip" | LC_ALL=C sort | xargs)"
+            "plannercraft-$VERSION-linux-x86_64.tar.gz" \
+            "plannercraft-$VERSION-macos-universal.dmg" \
+            "plannercraft-$VERSION-web.tar.gz" \
+            "plannercraft-$VERSION-windows-x86_64.zip" | LC_ALL=C sort | xargs)"
           [ "$names" = "$expected" ] || { echo "::error::artefacts « $names » ≠ « $expected »"; exit 1; }
-          gh attestation verify "published/planrs-$VERSION-linux-x86_64.tar.gz" --repo "$GH_REPO"
+          gh attestation verify "published/plannercraft-$VERSION-linux-x86_64.tar.gz" --repo "$GH_REPO"
           echo "C-REL-08 : OK"

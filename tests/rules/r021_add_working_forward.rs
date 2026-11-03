@@ -2,9 +2,9 @@
 //! petit instant u tel que d minutes ouvrées séparent t de u ; la fin tombe
 //! en fin de plage, jamais au début de la plage suivante. Calendrier Standard.
 
-use planrs_tests::{compile_one, mins, moment, standard};
+use plannercraft_tests::{compile_one, mins, moment, standard};
 
-fn add(from: &str, d: i64) -> planrs_core::Moment {
+fn add(from: &str, d: i64) -> plannercraft_core::Moment {
     compile_one(standard())
         .add_working(moment(from), mins(d))
         .unwrap()

@@ -1,0 +1,23 @@
+[package]
+name = "plannercraft-pdf"
+description = "Export PDF du planning de PlannerCraft (couche du rendu, sans interface)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+plannercraft-core.workspace = true
+plannercraft-render.workspace = true
+krilla.workspace = true
+skrifa.workspace = true
+
+[dev-dependencies]
+# Lecture des PDF écrits dans les tests (flux FlateDecode) : P57,
+# `pdf_text_extractable` ; déjà au lock (sous krilla, MIT OR Zlib OR Apache-2.0).
+miniz_oxide = "0.8.9"
+proptest.workspace = true
+
+[lints]
+workspace = true

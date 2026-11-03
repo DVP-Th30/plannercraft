@@ -13,7 +13,7 @@
 //!   hors du code de test les `allow`/`expect` qui lèvent un interdit de la
 //!   règle 10 et la famille `assert!`, qu'aucune lint clippy ne refuse.
 //! - `fonts [--check]` : écrit (ou vérifie) la table des avances d'Inter de
-//!   `planrs-render` depuis `assets/fonts/` (H-R11).
+//!   `plannercraft-render` depuis `assets/fonts/` (H-R11).
 //! - `text-ids` : chaque `TextId` de l'interface est traduit en français et
 //!   en anglais et utilisé dans le code livré (ADR-0016 D14).
 //! - `icon [--check]` : écrit (ou vérifie) l'icône de l'application en PNG

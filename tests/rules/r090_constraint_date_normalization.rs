@@ -4,10 +4,10 @@
 //! f*)` ; temps écoulé : aucun recalage. Sources : S27 (« EF=CD »), S9, O14.
 //! Hypothèse concurrente : fin = date brute même en temps chômé.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{CalendarUid, Constraint, ConstraintKind, Driver, Week, Weekday};
-use planrs_tests::net::Net;
-use planrs_tests::{moment, working};
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{CalendarUid, Constraint, ConstraintKind, Driver, Week, Weekday};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, working};
 
 fn snet(d: &str) -> Constraint {
     Constraint::StartNoEarlierThan { date: moment(d) }

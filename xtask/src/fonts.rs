@@ -1,9 +1,9 @@
-//! `cargo xtask fonts` : table des avances d'Inter pour `planrs-render`
+//! `cargo xtask fonts` : table des avances d'Inter pour `plannercraft-render`
 //! (H-R11, ADR-0016 D9).
 //!
 //! Lit `assets/fonts/Inter-Regular.ttf` et `Inter-SemiBold.ttf` avec
 //! `skrifa` (0.44, déjà au lock ; `ttf-parser` n'est plus maintenu,
-//! RUSTSEC-2026-0192) et écrit `crates/planrs-render/src/metrics_inter.rs` :
+//! RUSTSEC-2026-0192) et écrit `crates/plannercraft-render/src/metrics_inter.rs` :
 //! cadratin (`units_per_em`) et, pour chaque graisse, la table triée
 //! `(caractère, avance)` de tous les caractères de la table `cmap` (glyphe 0
 //! exclu), avances en unités de police. Le rendu calcule ensuite les
@@ -24,7 +24,7 @@ const FONTS: [(&str, &str); 2] = [
 ];
 
 /// Fichier écrit, relatif à la racine du dépôt.
-const OUTPUT: &str = "crates/planrs-render/src/metrics_inter.rs";
+const OUTPUT: &str = "crates/plannercraft-render/src/metrics_inter.rs";
 
 /// Avances par ligne dans le fichier écrit (lisibilité des diffs).
 const PER_LINE: usize = 8;

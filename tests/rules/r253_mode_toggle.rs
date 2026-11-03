@@ -6,11 +6,11 @@
 //! `docs/plans/j8.md` § 2 ; 6 « Plâtrerie » 4 j, lun 09/11 08:00 – jeu 12/11
 //! 17:00. Source : S73.
 
-use planrs_automation::error::codes;
-use planrs_core::{Constraint, SchedulingMode};
-use planrs_tests::daily::{dates, plan_p};
-use planrs_tests::moment;
-use planrs_tests::task_edit::{apply, get, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_core::{Constraint, SchedulingMode};
+use plannercraft_tests::daily::{dates, plan_p};
+use plannercraft_tests::moment;
+use plannercraft_tests::task_edit::{apply, get, try_apply};
 use serde_json::json;
 
 #[test]
@@ -43,7 +43,7 @@ fn r253_auto_to_manual_freezes_dates() {
     assert_eq!(get(&s, 6).constraint, Constraint::AsSoonAsPossible);
     assert!(
         s.schedule()
-            .scheduled(planrs_core::TaskUid::new(6))
+            .scheduled(plannercraft_core::TaskUid::new(6))
             .unwrap()
             .manual
     );
@@ -144,8 +144,8 @@ fn r253_toggle_mode_helper() {
     // Raccourci de l'interface (H-UI-36) : une tâche automatique dans la
     // sélection ⇒ toutes en manuel ; sinon toutes en automatique ; sans
     // cascade aux descendants ; un lot.
-    use planrs_automation::helpers;
-    use planrs_tests::daily::uids;
+    use plannercraft_automation::helpers;
+    use plannercraft_tests::daily::uids;
     let mut s = plan_p();
     apply(
         &mut s,
@@ -153,7 +153,7 @@ fn r253_toggle_mode_helper() {
     );
     let b = helpers::toggle_mode(&s, &uids(&[6, 2, 6])).unwrap().unwrap();
     assert_eq!(b.ops.len(), 1);
-    s.apply(&b, planrs_automation::ApplyMode::Commit).unwrap();
+    s.apply(&b, plannercraft_automation::ApplyMode::Commit).unwrap();
     assert!(matches!(get(&s, 2).mode, SchedulingMode::Manual { .. }));
     assert_eq!(
         dates(&s, 2),
@@ -161,7 +161,7 @@ fn r253_toggle_mode_helper() {
     );
     let b = helpers::toggle_mode(&s, &uids(&[2, 6])).unwrap().unwrap();
     assert_eq!(b.ops.len(), 2);
-    s.apply(&b, planrs_automation::ApplyMode::Commit).unwrap();
+    s.apply(&b, plannercraft_automation::ApplyMode::Commit).unwrap();
     assert_eq!(get(&s, 2).mode, SchedulingMode::Auto);
     assert_eq!(get(&s, 6).mode, SchedulingMode::Auto);
     // Récapitulative seule : elle bascule, pas ses enfants.
@@ -178,9 +178,9 @@ fn r253_toggle_mode_helper() {
 /// inactive compris.
 #[test]
 fn r253_freeze_batch_matches_one_by_one() {
-    use planrs_automation::{ApplyMode, Batch, helpers};
-    use planrs_tests::generate::ui_network;
-    use planrs_tests::session::session;
+    use plannercraft_automation::{ApplyMode, Batch, helpers};
+    use plannercraft_tests::generate::ui_network;
+    use plannercraft_tests::session::session;
     let mut p = ui_network(6, 7, 60);
     // Quelques cas de plus : avancement, inactive, contrainte.
     let mut base = session(p.clone());
@@ -197,7 +197,7 @@ fn r253_freeze_batch_matches_one_by_one() {
         .tasks
         .iter()
         .filter(|t| !t.is_null)
-        .map(planrs_core::HasUid::uid)
+        .map(plannercraft_core::HasUid::uid)
         .collect();
     let batch = helpers::toggle_mode(&base, &all).unwrap().unwrap();
     assert!(batch.ops.len() > 40);
@@ -229,15 +229,15 @@ fn r253_freeze_batch_matches_one_by_one() {
 /// tâches).
 #[test]
 fn r253_toggle_mode_5000_within_budget() {
-    use planrs_automation::{ApplyMode, helpers};
-    use planrs_tests::generate::large_network;
-    use planrs_tests::session::session;
+    use plannercraft_automation::{ApplyMode, helpers};
+    use plannercraft_tests::generate::large_network;
+    use plannercraft_tests::session::session;
     let p = large_network(7);
     let all: Vec<_> = p
         .tasks
         .iter()
         .filter(|t| !t.is_null)
-        .map(planrs_core::HasUid::uid)
+        .map(plannercraft_core::HasUid::uid)
         .collect();
     let mut s = session(p);
     let batch = helpers::toggle_mode(&s, &all).unwrap().unwrap();

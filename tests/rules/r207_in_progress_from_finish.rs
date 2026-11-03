@@ -5,8 +5,8 @@
 //! (avertissement). Ses prédécesseurs sont plafonnés par sa reprise.
 //! Hypothèse.
 
-use planrs_core::{Diagnostic, Driver, LateDriver, Minutes, Severity, Span};
-use planrs_tests::moment;
+use plannercraft_core::{Diagnostic, Driver, LateDriver, Minutes, Severity, Span};
+use plannercraft_tests::moment;
 
 use crate::r204_in_progress_leaf::started;
 
@@ -47,7 +47,9 @@ fn r207_from_finish_in_progress() {
     assert_eq!(run.at("T").finish, moment("2026-10-21T17:00"));
     assert_eq!(run.at("U").start, moment("2026-10-23T08:00"));
     assert_eq!(
-        planrs_core::schedule(&started(3_333).from_finish("2026-10-23T17:00").build()),
-        planrs_core::schedule::schedule_reference(&started(3_333).from_finish("2026-10-23T17:00").build())
+        plannercraft_core::schedule(&started(3_333).from_finish("2026-10-23T17:00").build()),
+        plannercraft_core::schedule::schedule_reference(
+            &started(3_333).from_finish("2026-10-23T17:00").build()
+        )
     );
 }

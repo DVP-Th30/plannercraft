@@ -4,10 +4,12 @@
 //! `m h d w mo`) ; `e` si écoulé ; `?` si estimé ; décalage toujours signé.
 //! Options 480 / 2 400 / 20.
 
-use planrs_automation::text::{
+use plannercraft_automation::text::{
     Language, TextContext, format_duration, format_lag, parse_duration, parse_lag,
 };
-use planrs_core::{Duration, DurationUnit, Lag, LagValue, Minutes, ProjectOptions, SignedPercent, TimeBasis};
+use plannercraft_core::{
+    Duration, DurationUnit, Lag, LagValue, Minutes, ProjectOptions, SignedPercent, TimeBasis,
+};
 
 fn ctx(language: Language) -> TextContext {
     TextContext::for_options(&ProjectOptions::default(), language)

@@ -1,11 +1,11 @@
-# Construction des artefacts de plateforme de planrs (J8, lot L1) :
-# - macOS : `planrs.app` universel (x86_64 + arm64) signé ad hoc, avec la
-#   CLI dans `cli/planrs`, dans un DMG ;
-# - Windows : zip de `planrs-desktop.exe`, `planrs.exe` et `README.txt` ;
+# Construction des artefacts de plateforme de PlannerCraft (J8, lot L1) :
+# - macOS : `PlannerCraft.app` universel (x86_64 + arm64) signé ad hoc, avec la
+#   CLI dans `cli/plannercraft`, dans un DMG ;
+# - Windows : zip de `plannercraft-desktop.exe`, `plannercraft.exe` et `README.txt` ;
 # - Linux : archive construite dans un conteneur `debian:bookworm` (glibc
 #   2.36 : les binaires tournent sur toute distribution plus récente) ;
 # - web : `dist` de trunk.
-# Chaque artefact s'appelle `planrs-<version>-<plateforme>.<ext>`, version du
+# Chaque artefact s'appelle `plannercraft-<version>-<plateforme>.<ext>`, version du
 # workspace (job `version`). Chacun porte un dossier `licenses/` : textes de
 # la licence du code (MIT, Apache-2.0), `NOTICE` et licences des composants
 # tiers embarqués, aux chemins que cite `NOTICE` (police Inter, OFL ; icônes
@@ -72,51 +72,51 @@ jobs:
       - name: Build (x86_64 puis arm64)
         run: |
           for target in x86_64-apple-darwin aarch64-apple-darwin; do
-            cargo build --release --locked -p planrs -p planrs-cli --target "$target"
+            cargo build --release --locked -p plannercraft -p plannercraft-cli --target "$target"
           done
 
       - name: Binaires universels
         run: |
           mkdir -p universal
-          for bin in planrs-desktop planrs; do
+          for bin in plannercraft-desktop plannercraft; do
             lipo -create -output "universal/$bin" \
               "target/x86_64-apple-darwin/release/$bin" \
               "target/aarch64-apple-darwin/release/$bin"
             lipo -archs "universal/$bin"
           done
 
-      - name: planrs.app, icône, signature ad hoc, DMG
+      - name: PlannerCraft.app, icône, signature ad hoc, DMG
         run: |
-          app=stage/planrs.app
+          app=stage/PlannerCraft.app
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" stage/cli
           short="${VERSION%%-*}"
           sed -e "s/@VERSION@/$VERSION/g" -e "s/@SHORT_VERSION@/$short/g" \
             packaging/macos/Info.plist > "$app/Contents/Info.plist"
           plutil -lint "$app/Contents/Info.plist"
-          cp universal/planrs-desktop "$app/Contents/MacOS/planrs-desktop"
+          cp universal/plannercraft-desktop "$app/Contents/MacOS/plannercraft-desktop"
           # Icône : jeu iconutil (1x et 2x) tiré de assets/icon (cargo xtask icon).
-          mkdir planrs.iconset
+          mkdir plannercraft.iconset
           for n in 16 32 128 256 512; do
-            cp "assets/icon/planrs-$n.png" "planrs.iconset/icon_${n}x${n}.png"
-            cp "assets/icon/planrs-$((n * 2)).png" "planrs.iconset/icon_${n}x${n}@2x.png"
+            cp "assets/icon/plannercraft-$n.png" "plannercraft.iconset/icon_${n}x${n}.png"
+            cp "assets/icon/plannercraft-$((n * 2)).png" "plannercraft.iconset/icon_${n}x${n}@2x.png"
           done
-          iconutil -c icns planrs.iconset -o "$app/Contents/Resources/planrs.icns"
-          cp universal/planrs stage/cli/planrs
+          iconutil -c icns plannercraft.iconset -o "$app/Contents/Resources/plannercraft.icns"
+          cp universal/plannercraft stage/cli/plannercraft
           cp packaging/macos/LISEZ-MOI.txt stage/LISEZ-MOI.txt
           mkdir -p "stage/licenses/assets/fonts" "stage/licenses/assets/icons/lucide"
           cp LICENSE-MIT LICENSE-APACHE NOTICE "stage/licenses/"
           cp assets/fonts/OFL.txt "stage/licenses/assets/fonts/"
           cp assets/icons/lucide/LICENSE "stage/licenses/assets/icons/lucide/"
           ln -s /Applications stage/Applications
-          codesign --force -s - stage/cli/planrs
+          codesign --force -s - stage/cli/plannercraft
           codesign --force --deep -s - "$app"
-          hdiutil create -volname "planrs $VERSION" -srcfolder stage -format UDZO -ov \
-            "planrs-$VERSION-macos-universal.dmg"
+          hdiutil create -volname "PlannerCraft $VERSION" -srcfolder stage -format UDZO -ov \
+            "plannercraft-$VERSION-macos-universal.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: planrs-${{ needs.version.outputs.version }}-macos-universal.dmg
-          path: planrs-${{ needs.version.outputs.version }}-macos-universal.dmg
+          name: plannercraft-${{ needs.version.outputs.version }}-macos-universal.dmg
+          path: plannercraft-${{ needs.version.outputs.version }}-macos-universal.dmg
           if-no-files-found: error
 
   build-windows:
@@ -138,14 +138,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --release --locked -p planrs -p planrs-cli --target x86_64-pc-windows-msvc
+        run: cargo build --release --locked -p plannercraft -p plannercraft-cli --target x86_64-pc-windows-msvc
 
       - name: Zip
         run: |
-          dir="planrs-$VERSION-windows-x86_64"
+          dir="plannercraft-$VERSION-windows-x86_64"
           mkdir "$dir"
-          cp target/x86_64-pc-windows-msvc/release/planrs-desktop.exe \
-            target/x86_64-pc-windows-msvc/release/planrs.exe \
+          cp target/x86_64-pc-windows-msvc/release/plannercraft-desktop.exe \
+            target/x86_64-pc-windows-msvc/release/plannercraft.exe \
             packaging/windows/README.txt "$dir/"
           mkdir -p "$dir/licenses/assets/fonts" "$dir/licenses/assets/icons/lucide"
           cp LICENSE-MIT LICENSE-APACHE NOTICE "$dir/licenses/"
@@ -155,8 +155,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: planrs-${{ needs.version.outputs.version }}-windows-x86_64.zip
-          path: planrs-${{ needs.version.outputs.version }}-windows-x86_64.zip
+          name: plannercraft-${{ needs.version.outputs.version }}-windows-x86_64.zip
+          path: plannercraft-${{ needs.version.outputs.version }}-windows-x86_64.zip
           if-no-files-found: error
 
   build-linux:
@@ -185,25 +185,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --release --locked -p planrs -p planrs-cli
+        run: cargo build --release --locked -p plannercraft -p plannercraft-cli
 
       - name: Archive
         run: |
-          dir="planrs-$VERSION-linux-x86_64"
+          dir="plannercraft-$VERSION-linux-x86_64"
           mkdir "$dir"
-          cp target/release/planrs-desktop target/release/planrs packaging/linux/planrs.desktop "$dir/"
-          cp assets/icon/planrs-256.png "$dir/planrs.png"
+          cp target/release/plannercraft-desktop target/release/plannercraft packaging/linux/plannercraft.desktop "$dir/"
+          cp assets/icon/plannercraft-256.png "$dir/plannercraft.png"
           mkdir -p "$dir/licenses/assets/fonts" "$dir/licenses/assets/icons/lucide"
           cp LICENSE-MIT LICENSE-APACHE NOTICE "$dir/licenses/"
           cp assets/fonts/OFL.txt "$dir/licenses/assets/fonts/"
           cp assets/icons/lucide/LICENSE "$dir/licenses/assets/icons/lucide/"
-          chmod +x "$dir/planrs-desktop" "$dir/planrs"
+          chmod +x "$dir/plannercraft-desktop" "$dir/plannercraft"
           tar czf "$dir.tar.gz" "$dir"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: planrs-${{ needs.version.outputs.version }}-linux-x86_64.tar.gz
-          path: planrs-${{ needs.version.outputs.version }}-linux-x86_64.tar.gz
+          name: plannercraft-${{ needs.version.outputs.version }}-linux-x86_64.tar.gz
+          path: plannercraft-${{ needs.version.outputs.version }}-linux-x86_64.tar.gz
           if-no-files-found: error
 
   build-web:
@@ -226,15 +226,15 @@ jobs:
           tool: trunk@0.21.14
 
       - name: trunk build
-        working-directory: apps/planrs-web
+        working-directory: apps/plannercraft-web
         run: trunk build --release --locked
 
       - name: Archive
         run: |
-          dist=apps/planrs-web/dist
+          dist=apps/plannercraft-web/dist
           ls -l "$dist"
           {
-            echo "Version web de planrs $VERSION : fichiers statiques, à servir en HTTP (pas en file://)."
+            echo "Version web de PlannerCraft $VERSION : fichiers statiques, à servir en HTTP (pas en file://)."
             echo "Par exemple, depuis le dossier qui contient dist : python3 -m http.server -d dist 8080"
             echo "Puis ouvrir http://localhost:8080 dans un navigateur récent (WebGPU ou WebGL2)."
           } > "$dist/README.txt"
@@ -242,10 +242,10 @@ jobs:
           cp LICENSE-MIT LICENSE-APACHE NOTICE "$dist/licenses/"
           cp assets/fonts/OFL.txt "$dist/licenses/assets/fonts/"
           cp assets/icons/lucide/LICENSE "$dist/licenses/assets/icons/lucide/"
-          tar czf "planrs-$VERSION-web.tar.gz" -C apps/planrs-web dist
+          tar czf "plannercraft-$VERSION-web.tar.gz" -C apps/plannercraft-web dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: planrs-${{ needs.version.outputs.version }}-web.tar.gz
-          path: planrs-${{ needs.version.outputs.version }}-web.tar.gz
+          name: plannercraft-${{ needs.version.outputs.version }}-web.tar.gz
+          path: plannercraft-${{ needs.version.outputs.version }}-web.tar.gz
           if-no-files-found: error

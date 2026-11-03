@@ -3,9 +3,9 @@
 //! 19/10/2026 08:00 – ven 23/10 17:00, % en 1/10 000. Les aides de ce
 //! fichier servent aussi aux tests R-202 et R-211 à R-213.
 
-use planrs_core::calendar::standard;
-use planrs_core::progress::edit::{Ctx, Edited, Input, Part, apply};
-use planrs_core::{
+use plannercraft_core::calendar::standard;
+use plannercraft_core::progress::edit::{Ctx, Edited, Input, Part, apply};
+use plannercraft_core::{
     Arena, AssignmentUid, CalendarUid, CompiledCalendar, Duration, DurationUnit, Minutes, Moment, Percent,
     ProgressOptions, ProjectOptions, Span, Task, TaskUid, TimeBasis, Work,
 };

@@ -2,8 +2,8 @@
 //! jour ouvré, triées, sans chevauchement ; contiguës admises (fusionnées à
 //! la compilation).
 
-use planrs_core::calendar::{DayHours, TimeRange};
-use planrs_core::{CalendarModelError, Minutes, TimeOfDay};
+use plannercraft_core::calendar::{DayHours, TimeRange};
+use plannercraft_core::{CalendarModelError, Minutes, TimeOfDay};
 
 fn t(h: u16) -> TimeOfDay {
     TimeOfDay::hm(h, 0).unwrap()
@@ -56,9 +56,9 @@ fn r011_full_day_until_midnight() {
 
 #[test]
 fn r011_contiguous_ranges_merge() {
-    use planrs_core::calendar::{Calendar, DaySetting};
-    use planrs_core::{CalendarUid, Week, Weekday};
-    use planrs_tests::{compile_one, day, moment, working};
+    use plannercraft_core::calendar::{Calendar, DaySetting};
+    use plannercraft_core::{CalendarUid, Week, Weekday};
+    use plannercraft_tests::{compile_one, day, moment, working};
     // Lun-ven [08:00,12:00) + [12:00,17:00) : 540 par jour, une seule plage
     // après fusion ; 12:00 est ouvré, l'instant ouvré suivant est lui-même.
     let c = compile_one(Calendar::new_base(

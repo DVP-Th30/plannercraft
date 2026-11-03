@@ -1,7 +1,7 @@
 //! R-075 — Dates MSPDI sans fuseau, secondes tronquées (import MSPDI).
 
-use planrs_mspdi::scalar::{DateTimeError, parse_datetime};
-use planrs_tests::moment;
+use plannercraft_mspdi::scalar::{DateTimeError, parse_datetime};
+use plannercraft_tests::moment;
 
 #[test]
 fn r075_local_datetime() {

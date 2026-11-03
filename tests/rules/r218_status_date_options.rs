@@ -2,11 +2,11 @@
 //! quelles ; une option que le calcul ne suit pas est signalée une fois
 //! (`progress.option_unsupported`), le calcul garde les valeurs par défaut.
 
-use planrs_core::{Diagnostic, ProgressOption, Severity, schedule};
-use planrs_mspdi::write::{Computed, WriteOptions, write};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::moment;
-use planrs_tests::mspdi::{compact, text};
+use plannercraft_core::{Diagnostic, ProgressOption, Severity, schedule};
+use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::{compact, text};
 
 /// Document à une tâche de 2 j avec les options `options`.
 fn doc(options: &str) -> MspdiDocument {

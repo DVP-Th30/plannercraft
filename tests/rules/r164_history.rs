@@ -1,13 +1,13 @@
 //! R-164 — Historique : une entrée par lot, budget, rétablissement, état
 //! modifié.
 
-use planrs_automation::SessionLimits;
-use planrs_automation::error::HistoryError;
-use planrs_core::TaskUid;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{commit, push_tasks, rename, session};
+use plannercraft_automation::SessionLimits;
+use plannercraft_automation::error::HistoryError;
+use plannercraft_core::TaskUid;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{commit, push_tasks, rename, session};
 
-fn name(s: &planrs_automation::Session) -> String {
+fn name(s: &plannercraft_automation::Session) -> String {
     s.project().tasks.get(TaskUid::new(1)).unwrap().name.clone()
 }
 

@@ -4,14 +4,14 @@
 //! absent → `link.not_found`. R-161 (liens) : les clés de nivellement du
 //! successeur sont jetées.
 
-use planrs_automation::error::codes;
-use planrs_automation::{
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{
     ApplyMode, ApplyOutcome, Batch, CommandError, CommandErrorKind, Session, SideEffect,
 };
-use planrs_core::{ExtraEntry, LinkType, OutlineLevel, Project, Subject, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{push_tasks, session};
+use plannercraft_core::{ExtraEntry, LinkType, OutlineLevel, Project, Subject, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{push_tasks, session};
 
 fn run(s: &mut Session, ops: &str) -> Result<ApplyOutcome, CommandError> {
     let batch = Batch::from_json_str(&format!(r#"{{"format_version":1,"ops":[{ops}]}}"#)).unwrap();
@@ -25,7 +25,7 @@ fn two(days: i64) -> Project {
     p
 }
 
-fn start(s: &Session, uid: u32) -> planrs_core::Moment {
+fn start(s: &Session, uid: u32) -> plannercraft_core::Moment {
     s.schedule().scheduled(TaskUid::new(uid)).unwrap().start
 }
 
@@ -135,9 +135,9 @@ fn r156_update_keeps_absent_fields() {
     assert_eq!(link.kind, LinkType::StartToStart);
     assert_eq!(
         link.lag.value,
-        planrs_core::LagValue::Time {
-            minutes: planrs_core::Minutes::new(960),
-            unit: planrs_core::DurationUnit::Day
+        plannercraft_core::LagValue::Time {
+            minutes: plannercraft_core::Minutes::new(960),
+            unit: plannercraft_core::DurationUnit::Day
         }
     );
     assert_eq!(start(&s, 2), moment("2026-11-04T08:00"));

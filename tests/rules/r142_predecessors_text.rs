@@ -3,15 +3,15 @@
 //! types FS/FD, SS/DD, FF, SF/DF ; écriture « 3 » pour un FS sans décalage,
 //! sinon le code de la langue puis le décalage signé. Options 480 / 2 400 / 20.
 
-use planrs_automation::text::{
+use plannercraft_automation::text::{
     Language, PredecessorRef, TextContext, TextError, format_predecessor, format_predecessors,
     parse_predecessors,
 };
-use planrs_core::{
+use plannercraft_core::{
     BuiltinCalendarNames, DurationUnit, Lag, LagValue, Link, LinkType, Minutes, Project, ProjectInit,
     ProjectOptions, ScheduleAnchor, SignedPercent, Task, TaskUid, TimeBasis,
 };
-use planrs_tests::moment;
+use plannercraft_tests::moment;
 
 fn ctx(language: Language) -> TextContext {
     TextContext::for_options(&ProjectOptions::default(), language)

@@ -3,11 +3,11 @@
 //! et surutilisation de ressource relus dans `RecordedSchedule`,
 //! disponibilités gardées en `Extras`.
 
-use planrs_core::{AssignmentUid, DurationUnit, Minutes, ResourceUid, TaskUid};
-use planrs_mspdi::write::{Computed, WriteOptions, write};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::mspdi::{compact, reread, text};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{AssignmentUid, DurationUnit, Minutes, ResourceUid, TaskUid};
+use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::mspdi::{compact, reread, text};
+use plannercraft_tests::{moment, tests_path};
 
 /// Document minimal : une tâche (UID 1) et ses éléments `task`, une
 /// ressource (UID 1) et ses éléments `resource`, une affectation (UID 7)
@@ -69,7 +69,7 @@ fn r198_assignment_leveling_delay_working() {
     assert_eq!(delay.minutes, Minutes::new(480));
     assert_eq!(delay.unit, DurationUnit::Day);
     assert!(!delay.elapsed);
-    assert_eq!(a.extras, planrs_core::Extras::default());
+    assert_eq!(a.extras, plannercraft_core::Extras::default());
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn r198_leveling_delay_written_back() {
     let back = reread(xml.as_bytes());
     assert_eq!(
         back.project,
-        planrs_mspdi::normalize(&d.project, &WriteOptions::default())
+        plannercraft_mspdi::normalize(&d.project, &WriteOptions::default())
     );
     // Aucun retard : aucun élément écrit (MS Project lit l'absence comme 0).
     let d = doc("<LevelingDelay>0</LevelingDelay>", "", "");
@@ -203,7 +203,7 @@ fn r198_legacy_extras_rewritten_until_modeled() {
     // modèle ; jeté quand le modèle en a un (pas d'élément en double).
     let mut d = doc("", "", "");
     let t = d.project.tasks.get_mut(TaskUid::new(1)).unwrap();
-    t.extras.0.push(planrs_core::ExtraEntry {
+    t.extras.0.push(plannercraft_core::ExtraEntry {
         origin: "mspdi".to_owned(),
         key: "LevelingDelay".to_owned(),
         payload: "<LevelingDelay>4800</LevelingDelay>".to_owned(),
@@ -220,7 +220,7 @@ fn r198_legacy_extras_rewritten_until_modeled() {
         .unwrap();
     assert_eq!(delay.minutes, Minutes::new(480));
     let t = d.project.tasks.get_mut(TaskUid::new(1)).unwrap();
-    t.leveling_delay = planrs_core::LevelingDelay::new(Minutes::new(960), DurationUnit::Day, false);
+    t.leveling_delay = plannercraft_core::LevelingDelay::new(Minutes::new(960), DurationUnit::Day, false);
     let xml = text(&write(&d.project, Computed::Omit, &WriteOptions::default()));
     assert_eq!(xml.matches("<LevelingDelay>").count(), 1, "{xml}");
     assert!(xml.contains("<LevelingDelay>9600</LevelingDelay>"));
@@ -277,7 +277,7 @@ fn r198_recorded_resource_overallocated() {
     let d = doc("", "", "");
     assert_eq!(
         d.recorded.resources[&ResourceUid::new(1)],
-        planrs_mspdi::RecordedResource::default()
+        plannercraft_mspdi::RecordedResource::default()
     );
 }
 

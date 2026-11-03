@@ -3,12 +3,12 @@
 //! `MAX_PERIODS` inchangé. Source S62 (graduations) ; hypothèse
 //! (exercice fiscal).
 
-use planrs_core::calendar::{CalendarSet, Span};
-use planrs_core::resource::usage::{MAX_PERIODS, MAX_RESOURCES};
-use planrs_core::resource::{Granularity, UsageError, usage, usage_by_assignment};
-use planrs_core::{ResourceUid, Weekday};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, Run};
+use plannercraft_core::calendar::{CalendarSet, Span};
+use plannercraft_core::resource::usage::{MAX_PERIODS, MAX_RESOURCES};
+use plannercraft_core::resource::{Granularity, UsageError, usage, usage_by_assignment};
+use plannercraft_core::{ResourceUid, Weekday};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, Run};
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r184_work_rollups::work;

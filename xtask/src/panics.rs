@@ -31,8 +31,8 @@ use syn::visit::{self, Visit};
 use syn::{Attribute, ImplItem, Item, ItemMod, Macro, Meta, Token, TraitItem};
 
 /// Paquets du workspace exemptés : outils de test et de maintenance, jamais
-/// livrés (`planrs-tests` est entièrement du code de test).
-const EXEMPT_PACKAGES: &[&str] = &["planrs-tests", "xtask"];
+/// livrés (`plannercraft-tests` est entièrement du code de test).
+const EXEMPT_PACKAGES: &[&str] = &["plannercraft-tests", "xtask"];
 
 /// Lints (et groupes qui les contiennent) qu'aucun `allow` ne doit lever hors
 /// des tests.
@@ -47,7 +47,7 @@ const GUARDED_LINTS: &[&str] = &[
     "indexing_slicing",
     "string_slice",
     "arithmetic_side_effects",
-    // Gardes de planrs-core (attributs de crate et `clippy.toml`).
+    // Gardes de plannercraft-core (attributs de crate et `clippy.toml`).
     "float_arithmetic",
     "disallowed_methods",
     "disallowed_types",

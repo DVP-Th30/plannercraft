@@ -1,8 +1,8 @@
 //! R-123 — Écriture des `Extras`.
 
-use planrs_core::{BaselineNumber, ExtraEntry, Extras, Moment, Task, TaskBaseline, TaskUid};
-use planrs_mspdi::write::{Computed, OrderProfile, WriteCode, WriteOptions, write};
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_core::{BaselineNumber, ExtraEntry, Extras, Moment, Task, TaskBaseline, TaskUid};
+use plannercraft_mspdi::write::{Computed, OrderProfile, WriteCode, WriteOptions, write};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
 
 fn extra(origin: &str, key: &str, payload: &str) -> ExtraEntry {
     ExtraEntry {
@@ -12,7 +12,7 @@ fn extra(origin: &str, key: &str, payload: &str) -> ExtraEntry {
     }
 }
 
-fn project_with(extras: Vec<ExtraEntry>) -> planrs_core::Project {
+fn project_with(extras: Vec<ExtraEntry>) -> plannercraft_core::Project {
     let mut proj = new_project("2026-10-19T08:00");
     let mut t = Task::new(TaskUid::new(1), "A".to_owned(), &proj.options);
     t.extras = Extras(extras);
@@ -61,7 +61,7 @@ fn r123_invalid_and_foreign_extras_are_not_written() {
         // Clé illisible.
         extra("mspdi", "a b", "<a/>"),
         // Origine autre que MSPDI : gardée dans le modèle, jamais écrite.
-        extra("planrs", "Hyperlink", "<Hyperlink>h</Hyperlink>"),
+        extra("plannercraft", "Hyperlink", "<Hyperlink>h</Hyperlink>"),
     ]);
     let out = written(&proj);
     let xml = text(&out);

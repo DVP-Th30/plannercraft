@@ -1,11 +1,11 @@
 //! R-067 — Tâche à durée écoulée : placement et marges en temps civil
 //! (R-028). Source : Q5.
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
-fn run(a_minutes: i64, limit: u32) -> planrs_tests::net::Run {
+fn run(a_minutes: i64, limit: u32) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .elapsed("A", a_minutes)
         .task("B", 480)

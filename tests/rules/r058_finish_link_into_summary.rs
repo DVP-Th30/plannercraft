@@ -3,9 +3,9 @@
 //! `link.finish_to_summary`. Source : hypothèse (MS Project le refuserait
 //! peut-être à la saisie).
 
-use planrs_core::{Diagnostic, Limits, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Diagnostic, Limits, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r058_finish_to_finish_unfolded_on_leaves() {

@@ -6,13 +6,13 @@
 //! Repère : calendrier Standard, début du projet lun 19/10/2026 08:00,
 //! date d'état ven 13/11/2026 17:00.
 
-use planrs_automation::{Session, SideEffect};
-use planrs_core::{Constraint, Moment, SchedulingMode, TaskOutcome, TaskSchedule, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::session::{session, task};
-use planrs_tests::task_edit::{apply, get, try_apply};
+use plannercraft_automation::{Session, SideEffect};
+use plannercraft_core::{Constraint, Moment, SchedulingMode, TaskOutcome, TaskSchedule, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::session::{session, task};
+use plannercraft_tests::task_edit::{apply, get, try_apply};
 use serde_json::json;
 
 /// Planning de la tâche `uid`.
@@ -85,7 +85,7 @@ fn r217_snet_on_unstarted() {
         assert_eq!(sched(&s, uid).start, moment("2026-11-16T08:00"), "{uid}");
         assert!(out.side_effects.contains(&SideEffect::ConstraintSet {
             uid: TaskUid::new(uid),
-            kind: planrs_core::ConstraintKind::StartNoEarlierThan,
+            kind: plannercraft_core::ConstraintKind::StartNoEarlierThan,
         }));
     }
     // Sélection : seule W ; U garde sa SNET plus tôt. Début déjà après
@@ -107,7 +107,10 @@ fn r217_snet_on_unstarted() {
     let err = try_apply(&mut s, json!([{ "op": "progress.reschedule", "tasks": [42] }])).unwrap_err();
     assert_eq!(
         (err.code, err.field.as_deref()),
-        (planrs_automation::error::codes::TASK_NOT_FOUND, Some("tasks"))
+        (
+            plannercraft_automation::error::codes::TASK_NOT_FOUND,
+            Some("tasks")
+        )
     );
 }
 

@@ -1,8 +1,8 @@
 //! R-005 — Heure locale sans fuseau ni heure d'été : chaque jour dure 1 440
 //! minutes, en temps civil comme sur le calendrier 24 heures.
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
 
 #[test]
 fn r005_dst_day_lasts_1440_minutes() {
@@ -27,8 +27,8 @@ fn r005_autumn_change_day_lasts_1440_minutes() {
 fn r005_dst_day_on_24_hours_calendar() {
     // Calendrier 24 heures : le 29/03/2026 compte 1 440 minutes ouvrées,
     // comme tout autre jour.
-    let c = planrs_tests::compile_one(planrs_core::calendar::twenty_four_hours(
-        planrs_core::CalendarUid::new(2),
+    let c = plannercraft_tests::compile_one(plannercraft_core::calendar::twenty_four_hours(
+        plannercraft_core::CalendarUid::new(2),
         "24 heures".to_owned(),
     ));
     assert_eq!(
