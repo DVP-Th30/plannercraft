@@ -1,8 +1,8 @@
 //! R-034 — Date d'état effective : sans date d'état (NA), la date courante
 //! injectée.
 
-use planrs_core::{BuiltinCalendarNames, Project, ProjectInit, ScheduleAnchor};
-use planrs_tests::moment;
+use plannercraft_core::{BuiltinCalendarNames, Project, ProjectInit, ScheduleAnchor};
+use plannercraft_tests::moment;
 
 fn project() -> Project {
     Project::new(ProjectInit {

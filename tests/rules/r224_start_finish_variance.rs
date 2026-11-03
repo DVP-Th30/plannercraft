@@ -6,15 +6,15 @@
 //! Finish - Baseline Finish », « contains "0 days" until… ») ; échelle :
 //! hypothèse.
 
-use planrs_core::baseline::{self, Rollup, Scope};
-use planrs_core::{CalendarSet, Constraint, Minutes, TaskBaseline, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::baseline::{self, Rollup, Scope};
+use plannercraft_core::{CalendarSet, Constraint, Minutes, TaskBaseline, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r220_baseline_values::{number, plan, set, spec};
 
 /// Écarts (début, fin) de la tâche `uid` à la ligne 0.
-fn start_finish(p: &planrs_core::Project, s: &planrs_core::Schedule, uid: TaskUid) -> (i64, i64) {
+fn start_finish(p: &plannercraft_core::Project, s: &plannercraft_core::Schedule, uid: TaskUid) -> (i64, i64) {
     let (cals, _) = CalendarSet::compile(p);
     let v = baseline::variance(p, s, &cals, number(0));
     let t = v.tasks.iter().find(|t| t.uid == uid).unwrap();
@@ -35,7 +35,7 @@ fn r224_start_variance_working_minutes() {
     p.tasks.get_mut(t).unwrap().constraint = Constraint::StartNoEarlierThan {
         date: moment("2026-10-20T13:00"),
     };
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     assert_eq!(s.scheduled(t).unwrap().start, moment("2026-10-20T13:00"));
     assert_eq!(start_finish(&p, &s, t), (720, 720));
 }

@@ -3,9 +3,9 @@
 //! 2 chiffres (84 à 99 → 19xx, 00 à 83 → 20xx) ; ISO toujours admis ; heure
 //! facultative, sinon l'heure par défaut du rôle (R-033).
 
-use planrs_automation::text::{DateRole, Language, TextContext, TextError, format_date, parse_date};
-use planrs_core::{Moment, ProjectOptions, TimeOfDay};
-use planrs_tests::moment;
+use plannercraft_automation::text::{DateRole, Language, TextContext, TextError, format_date, parse_date};
+use plannercraft_core::{Moment, ProjectOptions, TimeOfDay};
+use plannercraft_tests::moment;
 
 fn ctx(language: Language) -> TextContext {
     TextContext::for_options(&ProjectOptions::default(), language)

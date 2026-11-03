@@ -1,19 +1,19 @@
 //! R-152 — `task.add` : valeurs par défaut (« 1 jour? » estimé, ALAP à
 //! rebours) et les cinq placements.
 
-use planrs_automation::SideEffect;
-use planrs_automation::error::codes;
-use planrs_core::{
+use plannercraft_automation::SideEffect;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{
     BuiltinCalendarNames, Constraint, DurationUnit, Project, ProjectInit, ScheduleAnchor, TaskId, TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::session;
-use planrs_tests::task_edit::{apply, get, names, push_outline, try_apply};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::session;
+use plannercraft_tests::task_edit::{apply, get, names, push_outline, try_apply};
 use serde_json::json;
 
 /// [1 A (n1), 2 A1 (n2), 3 B (n1)].
-fn abc() -> planrs_automation::Session {
+fn abc() -> plannercraft_automation::Session {
     let mut p = new_project("2026-11-02T08:00");
     push_outline(&mut p, &[(1, 1), (2, 2), (3, 1)]);
     for (uid, name) in [(1, "A"), (2, "A1"), (3, "B")] {
@@ -116,7 +116,7 @@ fn r152_placements_all_five() {
         json!([{ "op": "task.add", "name": "X", "at": { "first_child_of": 3 } }]),
     );
     let summary = s.schedule().scheduled(TaskUid::new(3)).unwrap();
-    assert_eq!(summary.role, planrs_core::TaskRole::Summary);
+    assert_eq!(summary.role, plannercraft_core::TaskRole::Summary);
     // Placement par étiquette du même lot.
     let mut s = abc();
     apply(

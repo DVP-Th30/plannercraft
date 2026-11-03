@@ -6,7 +6,7 @@
 //! couleurs de la palette Okabe-Ito (lisibles par les daltoniens). Rendu
 //! en entiers seulement, sur-échantillonné 4 × 4 par pixel (bords lissés),
 //! encodé en PNG par le crate `image` : mêmes octets à chaque exécution.
-//! Écrit `assets/icon/planrs-<n>.png` pour n = 16, 32, 64, 128, 256, 512,
+//! Écrit `assets/icon/plannercraft-<n>.png` pour n = 16, 32, 64, 128, 256, 512,
 //! 1024 ; la CI en tire le `.icns` macOS (`iconutil`) et l'icône Linux.
 //!
 //! `--check` échoue si un fichier du dépôt diffère du dessin (même contrôle
@@ -161,7 +161,7 @@ fn png(size: u32) -> Result<Vec<u8>, String> {
 
 /// Nom du fichier d'un côté.
 fn file_name(size: u32) -> String {
-    format!("planrs-{size}.png")
+    format!("plannercraft-{size}.png")
 }
 
 pub fn run(args: &[String]) -> ExitCode {

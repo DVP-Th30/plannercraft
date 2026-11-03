@@ -1,13 +1,13 @@
 //! R-122 — Écriture : valeurs calculées et politique (`choose_computed`).
 
-use planrs_core::{
+use plannercraft_core::{
     Assignment, AssignmentUid, CalendarUid, Duration, DurationUnit, ExtraEntry, Extras, LevelingDelay, Link,
     Minutes, Percent, Resource, ResourceUid, ScheduleAnchor, SchedulingMode, Task, TaskUid, TimeBasis,
     schedule,
 };
-use planrs_mspdi::write::{Computed, WriteCode, WriteOptions, choose_computed, write};
-use planrs_tests::moment;
-use planrs_tests::mspdi::{compact, new_project, reread, text};
+use plannercraft_mspdi::write::{Computed, WriteCode, WriteOptions, choose_computed, write};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::{compact, new_project, reread, text};
 
 fn days(n: i64) -> Duration {
     Duration::new(
@@ -19,7 +19,7 @@ fn days(n: i64) -> Duration {
     .unwrap()
 }
 
-fn task(proj: &planrs_core::Project, uid: u32, d: i64) -> Task {
+fn task(proj: &plannercraft_core::Project, uid: u32, d: i64) -> Task {
     let mut t = Task::new(TaskUid::new(uid), format!("T{uid}"), &proj.options);
     t.duration = days(d);
     t
@@ -70,7 +70,7 @@ fn r122_schedule_values_are_written() {
     let back = reread(&out.xml);
     assert_eq!(
         back.project.tasks,
-        planrs_mspdi::normalize(&proj, &WriteOptions::default()).tasks
+        plannercraft_mspdi::normalize(&proj, &WriteOptions::default()).tasks
     );
     assert_eq!(
         back.project
@@ -79,10 +79,10 @@ fn r122_schedule_values_are_written() {
             .unwrap()
             .progress
             .remaining_duration,
-        planrs_core::Minutes::new(960)
+        plannercraft_core::Minutes::new(960)
     );
     let rec = &back.recorded.tasks[&TaskUid::new(1)];
-    assert_eq!(rec.total_slack, Some(planrs_mspdi::Tenths(0)));
+    assert_eq!(rec.total_slack, Some(plannercraft_mspdi::Tenths(0)));
     assert_eq!(back.recorded.project_finish, Some(moment("2026-10-21T17:00")));
 }
 

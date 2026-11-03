@@ -1,6 +1,6 @@
 //! R-070 — Durée ISO 8601 → minutes (import MSPDI).
 
-use planrs_mspdi::scalar::{IsoDuration, IsoDurationError, parse_iso_duration};
+use plannercraft_mspdi::scalar::{IsoDuration, IsoDurationError, parse_iso_duration};
 
 fn minutes(s: &str) -> i64 {
     parse_iso_duration(s).unwrap().minutes
@@ -58,11 +58,11 @@ fn r070_negative_is_read_signed() {
 }
 
 /// Tâches de la fixture `tasks.xml`.
-fn tasks_fixture() -> planrs_mspdi::MspdiDocument {
-    let bytes = std::fs::read(planrs_tests::tests_path("fixtures/mspdi/tasks.xml")).unwrap();
-    planrs_mspdi::read(
+fn tasks_fixture() -> plannercraft_mspdi::MspdiDocument {
+    let bytes = std::fs::read(plannercraft_tests::tests_path("fixtures/mspdi/tasks.xml")).unwrap();
+    plannercraft_mspdi::read(
         &bytes,
-        &planrs_mspdi::ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+        &plannercraft_mspdi::ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
     )
     .unwrap()
 }
@@ -72,13 +72,19 @@ fn r070_task_duration_refusals() {
     // UID 6 : `-PT8H0M0S` → durée 0, signalée ; UID 8 : `P1M` → 0, signalée.
     let doc = tasks_fixture();
     for uid in [6, 8] {
-        let t = doc.project.tasks.get(planrs_core::TaskUid::new(uid)).unwrap();
+        let t = doc
+            .project
+            .tasks
+            .get(plannercraft_core::TaskUid::new(uid))
+            .unwrap();
         assert!(t.duration.is_zero(), "{uid}");
     }
     let invalid: Vec<Option<&str>> = doc
         .diagnostics
         .iter()
-        .filter(|d| d.code == planrs_mspdi::ImportCode::InvalidValue && d.element == "Tasks/Task/Duration")
+        .filter(|d| {
+            d.code == plannercraft_mspdi::ImportCode::InvalidValue && d.element == "Tasks/Task/Duration"
+        })
         .map(|d| d.value.as_deref())
         .collect();
     assert_eq!(invalid, [Some("-PT8H0M0S"), Some("P1M")]);

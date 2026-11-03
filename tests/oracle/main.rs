@@ -71,7 +71,7 @@ fn discover_cases(oracle_dir: &Path) -> Result<Vec<OracleCase>, String> {
 
 #[test]
 fn oracle_cases_are_compared() {
-    let cases = discover_cases(&planrs_tests::tests_path("oracle")).expect("découverte des cas");
+    let cases = discover_cases(&plannercraft_tests::tests_path("oracle")).expect("découverte des cas");
     if cases.is_empty() {
         println!("oracle : aucun cas (pas de licence MS Project pour l'instant)");
         return;

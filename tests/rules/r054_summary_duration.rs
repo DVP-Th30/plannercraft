@@ -2,9 +2,9 @@
 //! fin sur le calendrier de la récapitulative, sinon du projet ; jamais la
 //! somme des durées des enfants. Source : Q4, S8.
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r054_duration_is_working_time_between_dates() {
@@ -16,7 +16,7 @@ fn r054_duration_is_working_time_between_dates() {
         .level("A", 2)
         .task("B", 480)
         .level("B", 2)
-        .link("A", "B", planrs_core::LinkType::FinishToStart, lag_w(960))
+        .link("A", "B", plannercraft_core::LinkType::FinishToStart, lag_w(960))
         .run();
     assert_eq!(run.at("B").early.start, moment("2026-10-22T08:00"));
     assert_eq!(run.at("S").early.finish, moment("2026-10-22T17:00"));

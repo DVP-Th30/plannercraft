@@ -1,11 +1,11 @@
 //! R-088 — Lecture : ressources, affectations, lignes de base, travail des
 //! tâches (fixture `resources.xml`).
 
-use planrs_core::{
+use plannercraft_core::{
     AssignmentUid, BaselineNumber, Minutes, ResourceKind, ResourceUid, TaskUid, Units, WorkContour,
 };
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path};
 
 pub(crate) fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/resources.xml")).unwrap();
@@ -36,7 +36,7 @@ fn r088_resources_are_read() {
     assert_eq!(ana.kind, ResourceKind::Work);
     // `MaxUnits` « 1.00 » → 10 000 (1/10 000, R-001).
     assert_eq!(ana.max_units, Units::FULL);
-    assert_eq!(ana.calendar, Some(planrs_core::CalendarUid::new(2)));
+    assert_eq!(ana.calendar, Some(plannercraft_core::CalendarUid::new(2)));
     assert!(!ana.is_generic && !ana.is_inactive);
     assert_eq!(
         r(2).kind,
@@ -130,9 +130,9 @@ fn r088_computed_values_are_dropped_and_counted() {
     assert_eq!(d("Work"), None);
     assert_eq!(d("Cost"), Some(2));
     assert_eq!(d("Start"), None);
-    let r1 = doc.recorded.resources[&planrs_core::ResourceUid::new(1)];
+    let r1 = doc.recorded.resources[&plannercraft_core::ResourceUid::new(1)];
     assert_eq!(r1.work.unwrap().minutes(), Minutes::new(12_000));
-    let a1 = doc.recorded.assignments[&planrs_core::AssignmentUid::new(1)];
+    let a1 = doc.recorded.assignments[&plannercraft_core::AssignmentUid::new(1)];
     assert_eq!(a1.start, Some(moment("2026-10-19T15:00")));
     assert_eq!(d("BCWS"), Some(2));
     assert_eq!(d("TimephasedData"), Some(2));

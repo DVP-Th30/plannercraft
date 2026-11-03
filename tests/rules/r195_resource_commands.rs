@@ -5,12 +5,12 @@
 //! affectée. Repère : calendrier Standard (UID 1, calendrier du projet),
 //! calendriers fournis UID 1 à 3, début lun 19/10/2026 08:00.
 
-use planrs_automation::error::codes;
-use planrs_automation::{CommandErrorKind, SideEffect};
-use planrs_core::calendar::CalendarKind;
-use planrs_core::{AssignmentUid, CalendarUid, Money, Rate, RateUnit, ResourceKind, ResourceUid};
-use planrs_tests::resource_edit::{duration, fresh, resource, units_work, with_tasks};
-use planrs_tests::task_edit::{apply, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{CommandErrorKind, SideEffect};
+use plannercraft_core::calendar::CalendarKind;
+use plannercraft_core::{AssignmentUid, CalendarUid, Money, Rate, RateUnit, ResourceKind, ResourceUid};
+use plannercraft_tests::resource_edit::{duration, fresh, resource, units_work, with_tasks};
+use plannercraft_tests::task_edit::{apply, try_apply};
 use serde_json::json;
 
 #[test]
@@ -356,9 +356,9 @@ fn r195_rates_stored_not_computed() {
     );
     assert_eq!(resource(&s, 2).standard_rate.per, RateUnit::MaterialUnit);
     // Écrit puis relu : mêmes taux, même format.
-    let w = s.save_bytes(&planrs_mspdi::write::WriteOptions::default());
+    let w = s.save_bytes(&plannercraft_mspdi::write::WriteOptions::default());
     assert!(String::from_utf8_lossy(&w.xml).contains("<StandardRateFormat>3</StandardRateFormat>"));
-    let doc = planrs_tests::mspdi::reread(&w.xml);
+    let doc = plannercraft_tests::mspdi::reread(&w.xml);
     let back = doc.project.resources.get(ResourceUid::new(1)).unwrap();
     assert_eq!(
         (back.standard_rate, back.overtime_rate, back.cost_per_use),
@@ -409,7 +409,7 @@ fn r195_rates_stored_not_computed() {
     }
 }
 
-fn r_rates(s: &planrs_automation::Session, uid: u32) -> (Rate, Rate, Money) {
+fn r_rates(s: &plannercraft_automation::Session, uid: u32) -> (Rate, Rate, Money) {
     let r = resource(s, uid);
     (r.standard_rate, r.overtime_rate, r.cost_per_use)
 }

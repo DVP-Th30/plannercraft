@@ -4,7 +4,7 @@
 //! du paquet `lucide-static@1.55.0`, licences dans le même dossier) avec
 //! `roxmltree` et les aplatit en polylignes avec `kurbo` (tolérance
 //! [`TOLERANCE`] unité de grille). Écrit
-//! `crates/planrs-ui-egui/src/ribbon/icon_data.rs` : `enum Icon` (un variant
+//! `crates/plannercraft-ui-egui/src/ribbon/icon_data.rs` : `enum Icon` (un variant
 //! par fichier, nom en CamelCase, ordre des noms de fichiers) et, pour chaque
 //! icône, ses polylignes en 1/64 d'unité de la grille 24 (drapeau « fermée »)
 //! et ses points isolés (sous-chemins de longueur < [`DOT_LENGTH`], comme le
@@ -32,7 +32,7 @@ use kurbo::{BezPath, PathEl, Point, Shape as _};
 const SOURCE: &str = "assets/icons/lucide";
 
 /// Fichier écrit, relatif à la racine du dépôt.
-const OUTPUT: &str = "crates/planrs-ui-egui/src/ribbon/icon_data.rs";
+const OUTPUT: &str = "crates/plannercraft-ui-egui/src/ribbon/icon_data.rs";
 
 /// Version du paquet Lucide vendorisé (rappel écrit dans le fichier).
 const LUCIDE_VERSION: &str = "1.55.0";

@@ -2,12 +2,12 @@
 //! utilisé (ADR-0016 D14).
 //!
 //! Lit la liste `text_ids! { Variante => "clé", … }` de
-//! `crates/planrs-ui-egui/src/i18n.rs` et échoue si :
+//! `crates/plannercraft-ui-egui/src/i18n.rs` et échoue si :
 //! - une clé manque dans `locales/fr.ftl` ou `locales/en.ftl` (ou si un
 //!   message de ces fichiers n'est pas dans la liste) ;
 //! - une variante n'est écrite `TextId::Variante` nulle part dans le code
-//!   livré de l'interface (`crates/planrs-ui-egui/src`, `apps/planrs/src`,
-//!   `apps/planrs-web/src`), hors de la liste elle-même.
+//!   livré de l'interface (`crates/plannercraft-ui-egui/src`, `apps/plannercraft/src`,
+//!   `apps/plannercraft-web/src`), hors de la liste elle-même.
 //!
 //! Exception : les clés `error-*` sont lues par leur code de refus
 //! (`error_text_id`, clé construite à l'exécution) ; leur couverture est
@@ -27,26 +27,26 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 /// Liste des identifiants, relative à la racine du dépôt.
-const I18N: &str = "crates/planrs-ui-egui/src/i18n.rs";
+const I18N: &str = "crates/plannercraft-ui-egui/src/i18n.rs";
 /// Fichiers de traduction, relatifs à la racine.
 const LOCALES: [&str; 2] = [
-    "crates/planrs-ui-egui/locales/fr.ftl",
-    "crates/planrs-ui-egui/locales/en.ftl",
+    "crates/plannercraft-ui-egui/locales/fr.ftl",
+    "crates/plannercraft-ui-egui/locales/en.ftl",
 ];
 /// Code livré parcouru, relatif à la racine.
 const SOURCE_DIRS: [&str; 3] = [
-    "crates/planrs-ui-egui/src",
-    "apps/planrs/src",
-    "apps/planrs-web/src",
+    "crates/plannercraft-ui-egui/src",
+    "apps/plannercraft/src",
+    "apps/plannercraft-web/src",
 ];
 /// Préfixe des clés lues par leur code de refus.
 const DYNAMIC_PREFIX: &str = "error-";
 /// Fichiers dont la fonction `code()` énumère des codes de diagnostic
 /// traduits par une clé `diag-<code>` (relatifs à la racine).
 const DIAG_SOURCES: [&str; 3] = [
-    "crates/planrs-core/src/diagnostic.rs",
-    "crates/planrs-mspdi/src/diag.rs",
-    "crates/planrs-mspdi/src/error.rs",
+    "crates/plannercraft-core/src/diagnostic.rs",
+    "crates/plannercraft-mspdi/src/diag.rs",
+    "crates/plannercraft-mspdi/src/error.rs",
 ];
 
 pub fn run() -> ExitCode {

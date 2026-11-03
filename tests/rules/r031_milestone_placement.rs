@@ -5,9 +5,9 @@
 //! Hypothèse concurrente (Q3) : aucun recalage ; le corpus tranchera.
 //! Calendrier Standard.
 
-use planrs_core::calendar::CompiledCalendar;
-use planrs_core::{Minutes, Moment, TimeScale};
-use planrs_tests::{compile_one, moment, standard};
+use plannercraft_core::calendar::CompiledCalendar;
+use plannercraft_core::{Minutes, Moment, TimeScale};
+use plannercraft_tests::{compile_one, moment, standard};
 
 fn cal() -> CompiledCalendar {
     compile_one(standard())

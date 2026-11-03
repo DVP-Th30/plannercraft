@@ -3,10 +3,10 @@
 //! inutilisable → Standard intégré + `project.calendar_fallback`. Source :
 //! S8 ; replis : hypothèse.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{CalendarUid, Diagnostic, Week};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{CalendarUid, Diagnostic, Week};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r066_unknown_task_calendar() {

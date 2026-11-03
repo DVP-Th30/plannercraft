@@ -5,10 +5,10 @@
 //! début (SNET, SNLT, MSO) : sur le début au plus tôt ; ALAP épinglée comme
 //! R-092. Étend R-090 à R-111. Hypothèse.
 
-use planrs_core::resource::{Granularity, usage};
-use planrs_core::{Constraint, Minutes, ResourceUid};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, Run};
+use plannercraft_core::resource::{Granularity, usage};
+use plannercraft_core::{Constraint, Minutes, ResourceUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, Run};
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 use crate::r184_work_rollups::work;

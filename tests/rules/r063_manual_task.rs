@@ -7,9 +7,9 @@
 //! (informatives) ; dans les agrégats et la fin du projet ; sans date :
 //! `ManualUndated`. Source : S8 ; observé O9 ; reste : hypothèse.
 
-use planrs_core::{Diagnostic, Driver, Exclusion, Minutes, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Driver, Exclusion, Minutes, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r063_manual_dates_drive_successors() {

@@ -1,6 +1,6 @@
 //! R-001 — Arrondi unique : au plus proche, la moitié loin de zéro, en `i128`.
 
-use planrs_core::{Decimal, round_div};
+use plannercraft_core::{Decimal, round_div};
 
 fn dec(mantissa: i64, scale: u8) -> Decimal {
     Decimal::new(mantissa, scale).unwrap()

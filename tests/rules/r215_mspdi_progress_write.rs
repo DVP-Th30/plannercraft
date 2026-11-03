@@ -2,14 +2,14 @@
 //! calculé des feuilles, des récapitulatives et de l'UID 0, `Stop`/`Resume`,
 //! réels des affectations, répartitions de réel gardées ou jetées.
 
-use planrs_core::{
+use plannercraft_core::{
     Assignment, AssignmentUid, Duration, DurationUnit, ExtraEntry, Extras, Minutes, OutlineLevel, Percent,
     Project, Resource, ResourceUid, Task, TaskUid, TimeBasis, Work, schedule,
 };
-use planrs_mspdi::write::{Computed, WriteCode, WriteOptions, Written, schedule_image, write};
-use planrs_mspdi::{ReadOptions, normalize, read};
-use planrs_tests::mspdi::{compact, new_project, reread, text};
-use planrs_tests::{moment, tests_path};
+use plannercraft_mspdi::write::{Computed, WriteCode, WriteOptions, Written, schedule_image, write};
+use plannercraft_mspdi::{ReadOptions, normalize, read};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text};
+use plannercraft_tests::{moment, tests_path};
 
 fn task(p: &Project, uid: u32, minutes: i64) -> Task {
     let mut t = Task::new(TaskUid::new(uid), format!("T{uid}"), &p.options);
@@ -222,7 +222,7 @@ fn r215_assignment_actuals_written() {
     let actual = placed.actual.unwrap();
     let (xml, _) = by_engine(&p);
     let a = entity(&xml, "Assignment", 1);
-    let date = |m: planrs_core::Moment| planrs_mspdi::scalar::format_datetime(m);
+    let date = |m: plannercraft_core::Moment| plannercraft_mspdi::scalar::format_datetime(m);
     assert!(
         a.contains(&format!("<ActualStart>{}</ActualStart>", date(placed.span.start))),
         "{a}"
@@ -335,7 +335,8 @@ fn r215_a7_written_by_engine() {
     }
     for (uid, rec) in &doc.recorded.assignments {
         let w = &back.recorded.assignments[uid];
-        let key = |r: &planrs_mspdi::RecordedAssignment| (r.actual_start, r.actual_finish, r.stop, r.resume);
+        let key =
+            |r: &plannercraft_mspdi::RecordedAssignment| (r.actual_start, r.actual_finish, r.stop, r.resume);
         if key(w) != key(rec) {
             differ.push(format!("affectation {}", uid.get()));
         }
@@ -357,10 +358,10 @@ fn r215_resume_round_trip_keeps_plan_behaviour() {
         t.progress.actual_start = Some(moment("2026-10-19T08:00"));
         t.progress.actual_duration = Minutes::new(480);
         t.progress.resume = entered;
-        t.predecessors.push(planrs_core::Link {
+        t.predecessors.push(plannercraft_core::Link {
             predecessor: TaskUid::new(1),
-            kind: planrs_core::LinkType::FinishToStart,
-            lag: planrs_core::Lag::ZERO,
+            kind: plannercraft_core::LinkType::FinishToStart,
+            lag: plannercraft_core::Lag::ZERO,
         });
         p.tasks.push(t).unwrap();
         let resume_of = |p: &Project| {

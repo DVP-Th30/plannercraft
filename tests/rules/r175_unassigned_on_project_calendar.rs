@@ -8,11 +8,11 @@
 //! are assigned »), S1 ; O24 (A6 UID 24). Garde : A4 reste à 42 cas
 //! identiques sur 42.
 
-use planrs_core::CalendarUid;
-use planrs_tests::corpus::verdict::FileStatus;
-use planrs_tests::corpus::{manifest, run_file};
-use planrs_tests::net::Net;
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::CalendarUid;
+use plannercraft_tests::corpus::verdict::FileStatus;
+use plannercraft_tests::corpus::{manifest, run_file};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, tests_path};
 
 use crate::r113_derived_project_calendar::{net, staffed};
 use crate::r171_assignment_effective_calendar::{L6, with_l6};

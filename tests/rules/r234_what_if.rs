@@ -9,9 +9,9 @@
     reason = "tests : noms des tâches des exemples (A, B, C…)"
 )]
 
-use planrs_automation::Workspace;
-use planrs_automation::text::Language;
-use planrs_tests::moment;
+use plannercraft_automation::Workspace;
+use plannercraft_automation::text::Language;
+use plannercraft_tests::moment;
 use serde_json::{Value, json};
 
 /// Exemple de R-234 : A 5 j (lun 02/11/2026) → B 1 j (FS), ligne 0 posée.
@@ -181,7 +181,7 @@ fn r234_explain_after() {
 fn r234_finish_variance() {
     let (mut ws, a, _) = ab_with_baseline();
     // Exemple : fin du projet +960 (2 j) contre la ligne 0 (fin de base
-    // lun 09/11 17:00), ligne déduite des tâches (projet créé par planrs).
+    // lun 09/11 17:00), ligne déduite des tâches (projet créé par PlannerCraft).
     let v = ws
         .call("analysis.what_if", json!({ "ops": seven_days(a), "baseline": 0 }))
         .unwrap();

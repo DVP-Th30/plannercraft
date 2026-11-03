@@ -5,12 +5,12 @@
 //! `constraint.not_honored` signale la contrainte non tenue — c'est le seul
 //! cas où ce diagnostic apparaît. Sources : S8, S24, S34, Q13 ; O15.
 
-use planrs_core::{Constraint, Diagnostic, Minutes, ProjectOptions};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Diagnostic, Minutes, ProjectOptions};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 /// P 2 j FS → A 1 j de contrainte `c`.
-fn run(c: Constraint, honor: bool) -> planrs_tests::net::Run {
+fn run(c: Constraint, honor: bool) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .task("P", 960)
         .task("A", 480)
@@ -20,7 +20,7 @@ fn run(c: Constraint, honor: bool) -> planrs_tests::net::Run {
         .run()
 }
 
-fn codes(r: &planrs_tests::net::Run) -> Vec<&'static str> {
+fn codes(r: &plannercraft_tests::net::Run) -> Vec<&'static str> {
     r.schedule.diagnostics.iter().map(Diagnostic::code).collect()
 }
 

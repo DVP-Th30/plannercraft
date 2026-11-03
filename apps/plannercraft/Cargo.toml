@@ -1,0 +1,42 @@
+[package]
+name = "plannercraft"
+description = "Application desktop de PlannerCraft (eframe, rendu wgpu)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Binaire nommé `plannercraft-desktop` : le nom `plannercraft` est pris par la CLI
+# (apps/plannercraft-cli) et deux binaires homonymes entrent en collision dans
+# target/. Voir ADR-0006 et docs/rename.md.
+[[bin]]
+name = "plannercraft-desktop"
+path = "src/main.rs"
+
+[dependencies]
+plannercraft-core.workspace = true
+plannercraft-ui-egui.workspace = true
+# Canal de contrôle (ADR-0002, ADR-0012 D9) : rendez-vous publié après
+# l'ouverture d'un fichier par chemin, écouteur `hello`/`query`.
+plannercraft-automation.workspace = true
+# `persistence` : l'état d'interface (JSON) est relu et sauvegardé par le
+# stockage d'eframe ; la crate d'interface n'en a pas besoin (ADR-0011).
+eframe = { workspace = true, features = ["persistence"] }
+# `clock` : « maintenant » est lu ici seulement, puis injecté (Env::now).
+chrono = { workspace = true, features = ["clock"] }
+# Journal des touches (`PLANNERCRAFT_LOG_KEYS=1`, H-UI-108) : écrit sur la sortie
+# d'erreur par un journaliseur minimal installé ici seulement.
+log.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Menu applicatif par défaut retiré (Cmd+Q passe par le garde de fermeture,
+# docs/features/ui.md § 1.14).
+winit.workspace = true
+# Menu applicatif natif minimal (ADR-0019 D4) : « Quitter PlannerCraft ⌘Q » est un
+# élément personnalisé qui passe par la garde des modifications, jamais
+# `terminate:`. Sans GTK ni Windows (cible macOS seulement).
+muda = { version = "0.21.2", default-features = false }
+
+[lints]
+workspace = true

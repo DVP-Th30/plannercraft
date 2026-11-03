@@ -2,11 +2,11 @@
 //! (convention de début, R-022). Source : S15 (S21 inverse le signe : erreur
 //! de la page, consignée).
 
-use planrs_core::LinkType;
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::LinkType;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
-fn run(lag: i64) -> planrs_tests::net::Run {
+fn run(lag: i64) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .task("A", 960)
         .task("B", 480)

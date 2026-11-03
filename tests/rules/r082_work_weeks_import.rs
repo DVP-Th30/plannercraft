@@ -1,7 +1,7 @@
 //! R-082 — Semaines de travail datées (`WorkWeeks`, import MSPDI).
 
-use planrs_mspdi::{MspdiDocument, ReadOptions, read};
-use planrs_tests::{day_minutes, moment, tests_path};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{day_minutes, moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/calendars.xml")).unwrap();
@@ -22,7 +22,7 @@ fn r082_work_week_with_inherited_day() {
     // Avant et après la période : semaine par défaut.
     assert_eq!(day_minutes(cals, 8, "2026-12-21"), 480);
     assert_eq!(day_minutes(cals, 8, "2026-12-28"), 480);
-    let calendar = cals.get(planrs_core::CalendarUid::new(8)).unwrap();
+    let calendar = cals.get(plannercraft_core::CalendarUid::new(8)).unwrap();
     assert_eq!(calendar.work_weeks().len(), 1);
     assert_eq!(calendar.work_weeks()[0].name, "Winter Break");
 }
@@ -39,24 +39,26 @@ fn r082_pj15_work_week_form() {
                </TimePeriod><Name>Hiver</Name><WeekDay><DayType>6</DayType><DayWorking>0</DayWorking></WeekDay>\
                <WeekDay><DayType>1</DayType><DayWorking>1</DayWorking></WeekDay></WorkWeek></WorkWeeks></Calendar>\
                </Calendars></Project>";
-    let doc = planrs_mspdi::read(
+    let doc = plannercraft_mspdi::read(
         xml.as_bytes(),
-        &planrs_mspdi::ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+        &plannercraft_mspdi::ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
     )
     .unwrap();
     let cal = doc.project.calendars.at(0).unwrap();
     let ww = &cal.work_weeks()[0];
     assert_eq!(ww.name, "Hiver");
     assert_eq!(
-        *ww.days.get(planrs_core::Weekday::Friday),
-        planrs_core::calendar::DayRule::NonWorking
+        *ww.days.get(plannercraft_core::Weekday::Friday),
+        plannercraft_core::calendar::DayRule::NonWorking
     );
-    match ww.days.get(planrs_core::Weekday::Sunday) {
-        planrs_core::calendar::DayRule::Working(h) => assert_eq!(h.total(), planrs_core::Minutes::new(480)),
+    match ww.days.get(plannercraft_core::Weekday::Sunday) {
+        plannercraft_core::calendar::DayRule::Working(h) => {
+            assert_eq!(h.total(), plannercraft_core::Minutes::new(480));
+        }
         other => panic!("{other:?}"),
     }
     assert_eq!(
-        *ww.days.get(planrs_core::Weekday::Monday),
-        planrs_core::calendar::DayRule::Inherit
+        *ww.days.get(plannercraft_core::Weekday::Monday),
+        plannercraft_core::calendar::DayRule::Inherit
     );
 }

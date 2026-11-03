@@ -2,9 +2,9 @@
 
 use std::fmt::Write as _;
 
-use planrs_core::{Link, LinkType, TaskUid};
-use planrs_mspdi::{ImportCode, LinkIgnoredReason, MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Link, LinkType, TaskUid};
+use plannercraft_mspdi::{ImportCode, LinkIgnoredReason, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/tasks.xml")).unwrap();

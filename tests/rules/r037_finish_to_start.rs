@@ -1,8 +1,8 @@
 //! R-037 — Fin à début (FS) : borne de début `g(EF_p)`. Sources : S8, S15.
 
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r037_fs_without_lag() {

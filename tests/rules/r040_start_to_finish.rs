@@ -1,11 +1,11 @@
 //! R-040 — Début à fin (SF) : borne de fin `b = g(ES_p)`, convertie comme
 //! R-039. Source : S8.
 
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
-fn run(lag: i64) -> planrs_tests::net::Run {
+fn run(lag: i64) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .task("A", 960)
         .task("B", 480)

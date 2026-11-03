@@ -1,9 +1,9 @@
 //! R-059 — Lien entre une récapitulative et sa descendante : ignoré,
 //! `link.summary_descendant` (erreur), dans les deux sens. Source : Q7.
 
-use planrs_core::{Diagnostic, Driver};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Driver};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r059_link_from_subtask_to_its_summary_ignored() {

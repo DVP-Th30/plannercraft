@@ -5,15 +5,15 @@
 //! `Resume`, `ResumeValid` jetés). Repère : calendrier Standard, début du
 //! projet lun 19/10/2026 08:00 (1 j = 480 min).
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, ApplyOptions, Session};
-use planrs_core::{
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, ApplyOptions, Session};
+use plannercraft_core::{
     Diagnostic, ExtraEntry, Minutes, Percent, Subject, TaskOutcome, TaskSchedule, TaskUid, Work,
 };
-use planrs_tests::moment;
-use planrs_tests::resource_edit::{assignment, duration, with_tasks};
-use planrs_tests::session::edit;
-use planrs_tests::task_edit::{apply, batch, get, try_apply};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::{assignment, duration, with_tasks};
+use plannercraft_tests::session::edit;
+use plannercraft_tests::task_edit::{apply, batch, get, try_apply};
 use serde_json::json;
 
 /// Planning de la tâche `uid`.
@@ -177,7 +177,7 @@ fn r216_drops_stop_resume_extras() {
     );
     assert!(
         out.side_effects
-            .contains(&planrs_automation::SideEffect::ExtrasDropped {
+            .contains(&plannercraft_automation::SideEffect::ExtrasDropped {
                 subject: Subject::Task(TaskUid::new(1)),
                 keys: vec!["Resume".to_owned(), "ResumeValid".to_owned(), "Stop".to_owned()],
             })
@@ -272,7 +272,7 @@ fn work(m: i64) -> Work {
 /// `limit.exceeded`, session intacte.
 #[test]
 fn r216_batch_schedule_recomputes_cached_and_bounded() {
-    use planrs_automation::SessionLimits;
+    use plannercraft_automation::SessionLimits;
     let mut s = chain();
     // Avancement de B mis sous sa forme écrite (restes dérivés) : la même
     // saisie ne le change plus.

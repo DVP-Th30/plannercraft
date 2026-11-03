@@ -1,8 +1,8 @@
 //! R-130 — Éléments obligatoires à l'écriture.
 
-use planrs_mspdi::ReadOptions;
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
-use planrs_tests::{moment, tests_path};
+use plannercraft_mspdi::ReadOptions;
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_tests::{moment, tests_path};
 
 #[test]
 fn r130_new_project_save_version_and_currency() {
@@ -27,7 +27,7 @@ fn r130_currency_code_read_back_is_kept() {
     let Ok(bytes) = std::fs::read(&path) else {
         return;
     };
-    let doc = planrs_mspdi::read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
+    let doc = plannercraft_mspdi::read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
     let xml = text(&written(&doc.project));
     assert!(xml.contains("<CurrencyCode>CNY</CurrencyCode>"));
     assert!(!xml.contains("<CurrencyCode>EUR</CurrencyCode>"));

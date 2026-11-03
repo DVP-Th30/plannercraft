@@ -2,8 +2,8 @@
 //! L4) : lots JSON appliqués par `Session::apply`, projets hiérarchiques,
 //! lecture de l'ordre et des niveaux.
 
-use planrs_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session};
-use planrs_core::{OutlineLevel, Project, TaskUid};
+use plannercraft_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session};
+use plannercraft_core::{OutlineLevel, Project, TaskUid};
 
 use crate::session::task;
 
@@ -88,7 +88,7 @@ pub fn names(s: &Session) -> Vec<(String, u16)> {
 ///
 /// Si la tâche est absente.
 #[must_use]
-pub fn get(s: &Session, uid: u32) -> &planrs_core::Task {
+pub fn get(s: &Session, uid: u32) -> &plannercraft_core::Task {
     match s.project().tasks.get(TaskUid::new(uid)) {
         Some(t) => t,
         None => panic!("tâche {uid} absente"),

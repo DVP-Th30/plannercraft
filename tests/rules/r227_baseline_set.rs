@@ -5,13 +5,13 @@
 //! Standard, début du projet lun 19/10/2026 08:00 ; A7 relu pour l'exemple
 //! du cahier (`baseline.exists { number: 0, count: 26 }`).
 
-use planrs_automation::error::{CommandErrorKind, codes};
-use planrs_automation::text::Language;
-use planrs_automation::{ApplyMode, DocOrigin, Session, SideEffect};
-use planrs_core::{BaselineNumber, Diagnostic, Money, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, batch, get, try_apply};
+use plannercraft_automation::error::{CommandErrorKind, codes};
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{ApplyMode, DocOrigin, Session, SideEffect};
+use plannercraft_core::{BaselineNumber, Diagnostic, Money, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, batch, get, try_apply};
 use serde_json::json;
 
 /// A 2 j → B 3 j (FS), R affectée à A.
@@ -182,7 +182,7 @@ fn r227_corpus_a7_exists() {
     // sur 26 tâches, 36 affectations, 4 ressources. `baseline.set` 0 refusé,
     // `count` = entités de la portée projet qui l'ont déjà (R-223) ; avec
     // `overwrite`, accepté, coût recopié (information).
-    let Ok(bytes) = std::fs::read(planrs_tests::tests_path("corpus/files/projinteg.xml")) else {
+    let Ok(bytes) = std::fs::read(plannercraft_tests::tests_path("corpus/files/projinteg.xml")) else {
         return;
     };
     let (mut s, _) =

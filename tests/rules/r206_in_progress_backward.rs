@@ -7,9 +7,9 @@
 //! plafonne ses prédécesseurs que par la partie restante (FS : borne sur
 //! `Resume`). Hypothèse (aucun cas au corpus).
 
-use planrs_core::{LateDriver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{LateDriver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r204_in_progress_leaf::started;
 
@@ -67,8 +67,8 @@ fn r206_critical_in_progress() {
         .fs("T", "U")
         .build();
     assert_eq!(
-        planrs_core::schedule(&project),
-        planrs_core::schedule::schedule_reference(&project)
+        plannercraft_core::schedule(&project),
+        plannercraft_core::schedule::schedule_reference(&project)
     );
     // Sous-tâche en cours (durée réelle saisie, sans début réel) : la
     // récapitulative l'enveloppe.

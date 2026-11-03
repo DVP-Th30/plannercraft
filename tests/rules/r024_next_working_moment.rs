@@ -2,10 +2,10 @@
 //! u >= t dont la minute [u, u+1) est ouvrée ; idempotent. Calendrier
 //! Standard.
 
-use planrs_core::calendar::DaySetting;
-use planrs_tests::{compile_one, exception, moment, standard};
+use plannercraft_core::calendar::DaySetting;
+use plannercraft_tests::{compile_one, exception, moment, standard};
 
-fn next(t: &str) -> planrs_core::Moment {
+fn next(t: &str) -> plannercraft_core::Moment {
     compile_one(standard()).next_working_moment(moment(t)).unwrap()
 }
 

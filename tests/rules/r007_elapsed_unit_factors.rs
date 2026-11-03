@@ -1,7 +1,7 @@
 //! R-007 — Unités écoulées : em = 1 ; eh = 60 ; ej = 1 440 ; esem = 10 080 ;
 //! emois = 43 200 (30 jours), indépendants des options.
 
-use planrs_core::{ConversionFactors, Decimal, DurationUnit, TimeBasis};
+use plannercraft_core::{ConversionFactors, Decimal, DurationUnit, TimeBasis};
 
 const E: TimeBasis = TimeBasis::Elapsed;
 

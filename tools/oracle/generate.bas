@@ -1,6 +1,6 @@
-Attribute VB_Name = "PlanrsOracle"
+Attribute VB_Name = "PlannerCraftOracle"
 ' =============================================================================
-' planrs - generateur de l'oracle MS Project (ADR-0004)
+' PlannerCraft - generateur de l'oracle MS Project (ADR-0004)
 '
 ' A executer dans Microsoft Project Desktop (module VBA importe via
 ' Visual Basic Editor > Fichier > Importer un fichier...).
@@ -33,9 +33,9 @@ Public Sub GenerateOracle()
     Dim inputDir As String
     Dim outputDir As String
 
-    inputDir = InputBox("Dossier des fichiers MSPDI d'entree (tests/oracle/input) :", "planrs - oracle")
+    inputDir = InputBox("Dossier des fichiers MSPDI d'entree (tests/oracle/input) :", "PlannerCraft - oracle")
     If Len(inputDir) = 0 Then Exit Sub
-    outputDir = InputBox("Dossier de sortie (tests/oracle/msproject) :", "planrs - oracle")
+    outputDir = InputBox("Dossier de sortie (tests/oracle/msproject) :", "PlannerCraft - oracle")
     If Len(outputDir) = 0 Then Exit Sub
 
     RunOracle inputDir, outputDir
@@ -43,7 +43,7 @@ End Sub
 
 ' Traite tous les fichiers *.xml de inputDir et ecrit les resultats dans outputDir.
 ' Utilisable directement depuis la fenetre Execution :
-'   RunOracle "C:\planrs\tests\oracle\input", "C:\planrs\tests\oracle\msproject"
+'   RunOracle "C:\plannercraft\tests\oracle\input", "C:\plannercraft\tests\oracle\msproject"
 Public Sub RunOracle(ByVal inputDir As String, ByVal outputDir As String)
     Dim files As Collection
     Dim item As Variant
@@ -57,7 +57,7 @@ Public Sub RunOracle(ByVal inputDir As String, ByVal outputDir As String)
     outputDir = WithTrailingSeparator(outputDir)
 
     If Len(Dir(inputDir, vbDirectory)) = 0 Then
-        MsgBox "Dossier d'entree introuvable : " & inputDir, vbCritical, "planrs - oracle"
+        MsgBox "Dossier d'entree introuvable : " & inputDir, vbCritical, "PlannerCraft - oracle"
         Exit Sub
     End If
     If Len(Dir(outputDir, vbDirectory)) = 0 Then MkDir outputDir
@@ -92,7 +92,7 @@ Public Sub RunOracle(ByVal inputDir As String, ByVal outputDir As String)
     Close #logNumber
 
     MsgBox okCount & " fichier(s) exporte(s), " & failedCount & " en erreur." & vbCrLf & _
-           "Journal : " & outputDir & LOG_FILE_NAME, vbInformation, "planrs - oracle"
+           "Journal : " & outputDir & LOG_FILE_NAME, vbInformation, "PlannerCraft - oracle"
 End Sub
 
 ' Ouvre, recalcule, exporte et ferme un fichier. Renvoie "" en cas de succes,

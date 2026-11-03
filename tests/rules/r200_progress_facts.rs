@@ -4,8 +4,8 @@
 //! D − réel (≥ 0) ; % dérivé = `round_div(réel × 10 000, D)`. Calendrier
 //! Standard, % en 1/10 000.
 
-use planrs_core::progress::{facts, percent_of_duration, remaining_duration};
-use planrs_core::{
+use plannercraft_core::progress::{facts, percent_of_duration, remaining_duration};
+use plannercraft_core::{
     Duration, DurationUnit, Minutes, Moment, Percent, ProgressState, ProjectOptions, Task, TaskUid, TimeBasis,
 };
 
@@ -105,7 +105,7 @@ fn r200_equation_round_trip() {
     // L2 : toute saisie rend un avancement cohérent ; relu par `facts`, il
     // redonne réel, reste = D − réel et % dérivé. T 5 j (2 400) lun-ven.
     use crate::r201_percent_input::{FRI, MON, calendar, ctx, write};
-    use planrs_core::progress::edit::{Input, apply};
+    use plannercraft_core::progress::edit::{Input, apply};
     let cal = calendar();
     let cx = ctx(&cal, MON, FRI);
     let inputs = [

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Fixture planrs écrite à la main (licence du dépôt) : lignes vides (IsNull) et identité des tâches (R-084) : 11 lignes, 5 vides. -->
+<!-- Fixture plannercraft écrite à la main (licence du dépôt) : lignes vides (IsNull) et identité des tâches (R-084) : 11 lignes, 5 vides. -->
 <Project xmlns="http://schemas.microsoft.com/project">
 	<SaveVersion>14</SaveVersion>
 	<Name>null_rows.xml</Name>

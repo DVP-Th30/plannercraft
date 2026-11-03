@@ -7,7 +7,7 @@
 //!    échec ;
 //! 3. global : Σ identiques (présents) ≥ `CORPUS_FLOOR` − Σ `floor`
 //!    (absents) : un absent ne compte ni pour ni contre ;
-//! 4. `PLANRS_CORPUS=required`, manifeste non vide et tous les fichiers
+//! 4. `PLANNERCRAFT_CORPUS=required`, manifeste non vide et tous les fichiers
 //!    absents : échec ; sinon un absent n'est qu'un avertissement ;
 //! 5. identiques > `floor` : « plancher relevable », succès ;
 //! 6. fichier enregistré par MS Project (`producer = msproject`) : tout cas
@@ -170,7 +170,7 @@ pub fn decide(results: &[FileResult], corpus_floor: u32, required: bool) -> Verd
     if all_absent {
         let msg = "aucun fichier du corpus n'est présent (cargo xtask corpus fetch)".to_owned();
         if required {
-            v.failures.push(format!("PLANRS_CORPUS=required : {msg}"));
+            v.failures.push(format!("PLANNERCRAFT_CORPUS=required : {msg}"));
         } else {
             v.warnings.push(msg);
         }

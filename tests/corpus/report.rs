@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use planrs_core::TaskUid;
+use plannercraft_core::TaskUid;
 use serde::Serialize;
 
 use crate::corpus::FileRun;
@@ -43,11 +43,11 @@ pub struct Report {
 /// Planchers.
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Floors {
-    /// `planrs_core::parity::CORPUS_FLOOR`.
+    /// `plannercraft_core::parity::CORPUS_FLOOR`.
     pub corpus: u32,
-    /// `planrs_core::parity::ORACLE_FLOOR`.
+    /// `plannercraft_core::parity::ORACLE_FLOOR`.
     pub oracle: u32,
-    /// `planrs_core::parity::FLOOR`.
+    /// `plannercraft_core::parity::FLOOR`.
     pub total: u32,
 }
 
@@ -170,9 +170,9 @@ pub struct DivergenceRow {
     pub field: Field,
     /// Valeur MS Project.
     pub msproject: String,
-    /// Valeur planrs.
-    pub planrs: String,
-    /// Écart en minutes (planrs − MS Project).
+    /// Valeur PlannerCraft.
+    pub plannercraft: String,
+    /// Écart en minutes (PlannerCraft − MS Project).
     pub delta_minutes: Option<i64>,
     /// Causes probables du cas.
     pub causes: Vec<&'static str>,
@@ -336,7 +336,7 @@ fn row(case: &Case, d: &crate::corpus::compare::Divergence) -> DivergenceRow {
         kind: case.kind,
         field: d.field,
         msproject: d.recorded.clone(),
-        planrs: d.computed.clone(),
+        plannercraft: d.computed.clone(),
         delta_minutes: d.delta_minutes,
         causes: case.causes.iter().map(|c| c.as_str()).collect(),
     }
@@ -503,7 +503,7 @@ fn file_markdown(s: &mut String, f: &FileReport) {
     }
     let _ = writeln!(
         s,
-        "\n| UID | ID | Nature | Champ | MS Project | planrs | Écart (min) | Causes probables |\n|---|---|---|---|---|---|---|---|"
+        "\n| UID | ID | Nature | Champ | MS Project | PlannerCraft | Écart (min) | Causes probables |\n|---|---|---|---|---|---|---|---|"
     );
     for d in f.divergences.iter().take(MARKDOWN_DIVERGENCES) {
         let _ = writeln!(
@@ -514,7 +514,7 @@ fn file_markdown(s: &mut String, f: &FileReport) {
             d.kind.as_str(),
             d.field.as_str(),
             d.msproject,
-            d.planrs,
+            d.plannercraft,
             d.delta_minutes
                 .map_or_else(|| "–".to_owned(), |m| format!("{m:+}")),
             if d.causes.is_empty() {

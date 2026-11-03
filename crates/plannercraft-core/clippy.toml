@@ -1,0 +1,64 @@
+# Configuration clippy propre à plannercraft-core.
+#
+# Clippy lit le `clippy.toml` le plus proche du manifeste de la crate et ne
+# fusionne pas les fichiers : si un `clippy.toml` racine apparaît un jour, ses
+# réglages devront être recopiés ici.
+#
+# Ces listes imposent les règles 5 et 6 de CLAUDE.md dans un build du
+# workspace, où les features de chrono sont unifiées (rmcp active
+# `chrono/now`) : `cargo check -p plannercraft-core` ne suffit pas à les garantir.
+
+disallowed-methods = [
+    # Règle 5 : aucune horloge système, « maintenant » est injecté.
+    { path = "chrono::Utc::now", reason = "règle 5 : aucune horloge dans plannercraft-core, « maintenant » est injecté" },
+    { path = "chrono::Local::now", reason = "règle 5 : aucune horloge dans plannercraft-core, « maintenant » est injecté", allow-invalid = true },
+    { path = "std::time::SystemTime::now", reason = "règle 5 : aucune horloge dans plannercraft-core (et panique en wasm32)" },
+    { path = "std::time::Instant::now", reason = "règle 5 : aucune horloge dans plannercraft-core (et panique en wasm32)" },
+    # Règle 5 : pas d'entrée cachée qui rendrait le calcul non déterministe.
+    { path = "std::env::var", reason = "règle 5 : déterminisme, toute entrée est passée par l'appelant" },
+    { path = "std::env::var_os", reason = "règle 5 : déterminisme, toute entrée est passée par l'appelant" },
+    { path = "std::env::vars", reason = "règle 5 : déterminisme, toute entrée est passée par l'appelant" },
+    { path = "std::env::current_dir", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    # Règle 6 : aucun accès au système de fichiers.
+    { path = "std::fs::read", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::read_to_string", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::read_dir", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::read_link", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::write", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::copy", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::rename", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::create_dir", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::create_dir_all", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::remove_file", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::remove_dir", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::remove_dir_all", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::metadata", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::symlink_metadata", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::canonicalize", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::exists", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::hard_link", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::set_permissions", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::File::open", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::File::create", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::File::create_new", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    { path = "std::fs::OpenOptions::open", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+    # Règle 10 : pas de sortie brutale du processus.
+    { path = "std::process::exit", reason = "règle 10 : toute erreur remonte à l'appelant" },
+]
+
+disallowed-types = [
+    # Règle 5 et ADR-0005 : aucun flottant dans le moteur (point fixe entier).
+    { path = "f32", reason = "règle 5 : pas de flottant dans plannercraft-core, point fixe entier (ADR-0005)" },
+    { path = "f64", reason = "règle 5 : pas de flottant dans plannercraft-core, point fixe entier (ADR-0005)" },
+    # Règle 5 : ordre d'itération non déterministe.
+    { path = "std::collections::HashMap", reason = "règle 5 : itération non déterministe, utiliser BTreeMap ou un Vec indexé" },
+    { path = "std::collections::HashSet", reason = "règle 5 : itération non déterministe, utiliser BTreeSet ou un Vec indexé" },
+    # Règles 5 et 6 : ni horloge ni fichier, même en type.
+    { path = "std::time::SystemTime", reason = "règle 5 : aucune horloge dans plannercraft-core" },
+    { path = "std::time::Instant", reason = "règle 5 : aucune horloge dans plannercraft-core" },
+    { path = "std::fs::File", reason = "règle 6 : plannercraft-core ne connaît pas le système de fichiers" },
+]
+
+# Recopié du `clippy.toml` racine : nom du produit (ADR-0020) sans
+# backticks dans la documentation ; `..` garde la liste par défaut.
+doc-valid-idents = ["PlannerCraft", ".."]

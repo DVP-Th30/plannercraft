@@ -3,9 +3,9 @@
 //! `link.ignored_in_cycle` par lien coupé ; jamais de panique. Hypothèse
 //! (MS Project refuse les relations circulaires à la saisie).
 
-use planrs_core::{Diagnostic, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r065_cycle_cut_on_backward_link() {

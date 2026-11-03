@@ -5,9 +5,9 @@
 //! celui de la récapitulative (ADR-0009 A11). Source : S24 ; observé O6
 //! (A6 UID 11 et 25) ; restriction SS/SF : hypothèse.
 
-use planrs_core::{LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_pct, lag_w};
+use plannercraft_core::{LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_pct, lag_w};
 
 #[test]
 fn r057_finish_to_start_from_summary() {

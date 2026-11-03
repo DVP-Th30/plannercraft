@@ -1,8 +1,8 @@
 //! R-014 — Calendrier Équipe de nuit : la plage de 23:00 appartient au jour
 //! qui commence.
 
-use planrs_core::calendar::{CalendarKind, DaySetting, night_shift};
-use planrs_core::{CalendarUid, Weekday};
+use plannercraft_core::calendar::{CalendarKind, DaySetting, night_shift};
+use plannercraft_core::{CalendarUid, Weekday};
 
 fn ranges(setting: &DaySetting) -> Vec<(u16, u16)> {
     match setting {
@@ -40,15 +40,15 @@ fn r014_night_shift_week() {
     assert_eq!(total, 2_400);
 }
 
-fn night(from: &str, d: i64) -> planrs_core::Moment {
-    planrs_tests::compile_one(night_shift(CalendarUid::new(3), "Équipe de nuit".to_owned()))
-        .add_working(planrs_tests::moment(from), planrs_tests::mins(d))
+fn night(from: &str, d: i64) -> plannercraft_core::Moment {
+    plannercraft_tests::compile_one(night_shift(CalendarUid::new(3), "Équipe de nuit".to_owned()))
+        .add_working(plannercraft_tests::moment(from), plannercraft_tests::mins(d))
         .unwrap()
 }
 
 #[test]
 fn r014_night_shift_one_night() {
-    use planrs_tests::moment;
+    use plannercraft_tests::moment;
     // Lun 19/10 23:00 + 480 : lun 23-24 (60), mar 00-03 (180), mar 04-08
     // (240) → mar 20/10 08:00.
     assert_eq!(night("2026-10-19T23:00", 480), moment("2026-10-20T08:00"));
@@ -58,7 +58,7 @@ fn r014_night_shift_one_night() {
 
 #[test]
 fn r014_night_shift_break() {
-    use planrs_tests::{compile_one, moment};
+    use plannercraft_tests::{compile_one, moment};
     let c = compile_one(night_shift(CalendarUid::new(3), "Équipe de nuit".to_owned()));
     // Mar 03:00 : pause jusqu'à 04:00.
     assert_eq!(
@@ -71,7 +71,7 @@ fn r014_night_shift_break() {
 
 #[test]
 fn r014_night_shift_weekend() {
-    use planrs_tests::moment;
+    use plannercraft_tests::moment;
     // Ven 23/10 23:00 + 480 : ven 23-24 (60), sam 00-03 (180), sam 04-08
     // (240) → sam 24/10 08:00.
     assert_eq!(night("2026-10-23T23:00", 480), moment("2026-10-24T08:00"));

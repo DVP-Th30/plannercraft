@@ -11,10 +11,10 @@
 //! amendée) : sa durée est celle de l'avancement. Source : O39 (A7
 //! affectations 38 à 45) ; partie en cours : hypothèse.
 
-use planrs_core::schedule::{placed_by_assignments, sync_assigned_durations};
-use planrs_core::{Minutes, Percent, Span, Units, Work};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::schedule::{placed_by_assignments, sync_assigned_durations};
+use plannercraft_core::{Minutes, Percent, Span, Units, Work};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource};
 
@@ -76,15 +76,15 @@ fn r209_excluded_from_sync() {
     // affectations (960) ne remplace pas la durée de l'avancement (480).
     let net = resource(resource(completed_b(), 1, None), 2, None);
     let mut project = assign_full(assign(net, 1, "B", 1, 480), 2, "B", Some(2), (480, 10_000, 960)).build();
-    let s = planrs_core::schedule(&project);
-    let b = s.scheduled(planrs_core::TaskUid::new(1)).unwrap();
+    let s = plannercraft_core::schedule(&project);
+    let b = s.scheduled(plannercraft_core::TaskUid::new(1)).unwrap();
     assert_eq!(b.duration, Minutes::new(480));
     assert_eq!(placed_by_assignments(&project, &s).len(), 0);
     assert_eq!(sync_assigned_durations(&mut project, &s), Vec::new());
     assert_eq!(
         project
             .tasks
-            .get(planrs_core::TaskUid::new(1))
+            .get(plannercraft_core::TaskUid::new(1))
             .unwrap()
             .duration
             .minutes(),
@@ -97,7 +97,7 @@ fn r209_excluded_from_sync() {
         None,
     );
     let project = assign_full(assign(net, 1, "B", 1, 480), 2, "B", Some(2), (480, 10_000, 960)).build();
-    let s = planrs_core::schedule(&project);
+    let s = plannercraft_core::schedule(&project);
     assert_eq!(placed_by_assignments(&project, &s).len(), 1);
 }
 
@@ -114,7 +114,7 @@ fn actual_work(net: Net, uid: u32, aw: i64) -> Net {
     net.project(|p| {
         let a = p
             .assignments
-            .get_mut(planrs_core::AssignmentUid::new(uid))
+            .get_mut(plannercraft_core::AssignmentUid::new(uid))
             .unwrap();
         a.actual_work = Work::new(Minutes::new(aw)).unwrap();
     })
@@ -192,7 +192,7 @@ fn r209_two_part_assignments() {
     assert_eq!(run.at("T").finish, moment("2026-10-21T17:00"));
     // Exclue de la synchronisation des durées (R-173 amendée).
     let mut project = three().build();
-    let s = planrs_core::schedule(&project);
+    let s = plannercraft_core::schedule(&project);
     assert_eq!(placed_by_assignments(&project, &s).len(), 0);
     assert_eq!(sync_assigned_durations(&mut project, &s), Vec::new());
 }
@@ -202,7 +202,10 @@ fn r209_zero_units_in_progress() {
     // Unités nulles (R-181) : durées de la tâche, partie réelle 480, reste
     // 960 : mêmes dates que la tâche.
     let net = assign(resource(running_t(), 1, None), 1, "T", 1, 1_440).project(|p| {
-        let a = p.assignments.get_mut(planrs_core::AssignmentUid::new(1)).unwrap();
+        let a = p
+            .assignments
+            .get_mut(plannercraft_core::AssignmentUid::new(1))
+            .unwrap();
         a.units = Units::ZERO;
     });
     let run = net.run();

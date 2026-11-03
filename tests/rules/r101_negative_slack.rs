@@ -5,9 +5,9 @@
 //! Sources : S16 (« Negative slack … is usually caused by constraint dates
 //! or task dependencies »), S31, Q10.
 
-use planrs_core::{Constraint, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r101_negative_total_slack_and_bounded_free_slack() {

@@ -4,8 +4,8 @@
 //! Retrait de la dernière : D gardée, W = 0.
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, uid};
-use planrs_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
-use planrs_core::resource::{Edit, Recalculated};
+use plannercraft_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
+use plannercraft_core::resource::{Edit, Recalculated};
 
 #[test]
 fn r191_fu_remove() {

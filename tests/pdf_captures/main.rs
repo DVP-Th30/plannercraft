@@ -1,5 +1,5 @@
 //! Captures PDF des modèles de mise en page (J8, lot L16, vérification 4 de
-//! `docs/plans/j8.md`) : `project.export_pdf` (`planrs_automation::pdf`,
+//! `docs/plans/j8.md`) : `project.export_pdf` (`plannercraft_automation::pdf`,
 //! même chemin que la CLI et le MCP) sur le plan de suivi de J6
 //! (`tests/mcp/expected/tracking_j6.xml`) pour chacun des six modèles, et
 //! sur le réseau généré de 5 000 tâches en Sobre, A3 paysage.
@@ -14,7 +14,7 @@
 //! - `pdf_captures_network_5000` (ignoré, release) : 5 000 tâches, Sobre,
 //!   A3 paysage, 1 page en largeur ; au plus `MAX_PAGES` pages.
 //!
-//! Avec `PLANRS_PDF_CAPTURES=<dossier>`, chaque PDF est écrit dans ce
+//! Avec `PLANNERCRAFT_PDF_CAPTURES=<dossier>`, chaque PDF est écrit dans ce
 //! dossier (`tracking_j6_<modèle>.pdf`, `network_5000_sobre_a3.pdf`) : le
 //! job CI `pdf-captures` les rend en PNG par `pdftoppm` et publie le tout en
 //! artefact, pour la relecture visuelle (aucune référence d'image versionnée).
@@ -29,13 +29,13 @@
 
 use std::path::PathBuf;
 
-use planrs_automation::command::params::ExportPdfParams;
-use planrs_automation::pdf::{PdfExport, export};
-use planrs_automation::session::DocOrigin;
-use planrs_automation::text::Language;
-use planrs_automation::{CallEnv, Session, call_with};
-use planrs_tests::generate::ui_network;
-use planrs_tests::{moment, tests_path};
+use plannercraft_automation::command::params::ExportPdfParams;
+use plannercraft_automation::pdf::{PdfExport, export};
+use plannercraft_automation::session::DocOrigin;
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{CallEnv, Session, call_with};
+use plannercraft_tests::generate::ui_network;
+use plannercraft_tests::{moment, tests_path};
 use serde_json::json;
 
 /// Clés des six modèles intégrés (ordre de la galerie).
@@ -50,7 +50,7 @@ const TEMPLATES: [&str; 6] = [
 
 /// Dossier de sortie demandé, s'il y en a un.
 fn out_dir() -> Option<PathBuf> {
-    let dir = PathBuf::from(std::env::var_os("PLANRS_PDF_CAPTURES")?);
+    let dir = PathBuf::from(std::env::var_os("PLANNERCRAFT_PDF_CAPTURES")?);
     std::fs::create_dir_all(&dir).unwrap();
     Some(dir)
 }

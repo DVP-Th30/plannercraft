@@ -7,24 +7,24 @@ use cargo_metadata::{CargoOpt, Metadata, MetadataCommand};
 
 /// Crates du workspace autorisées à dépendre d'une bibliothèque d'interface.
 ///
-/// La CLI (`planrs-cli`) n'y figure pas exprès : c'est un binaire headless,
-/// et `planrs mcp` parle à l'application ouverte par un canal (ADR-0002),
+/// La CLI (`plannercraft-cli`) n'y figure pas exprès : c'est un binaire headless,
+/// et `plannercraft mcp` parle à l'application ouverte par un canal (ADR-0002),
 /// pas en liant egui.
-const GUI_ALLOWED: &[&str] = &["planrs-ui-egui", "planrs", "planrs-web"];
+const GUI_ALLOWED: &[&str] = &["plannercraft-ui-egui", "plannercraft", "plannercraft-web"];
 
-/// Paquets d'interface interdits sous `planrs-ui-egui` (règle 9).
+/// Paquets d'interface interdits sous `plannercraft-ui-egui` (règle 9).
 const GUI_PACKAGES: &[&str] = &["egui", "eframe", "winit", "rfd"];
 
 /// Préfixes de la famille egui (`egui-winit`, `egui_kittest`…), interdits aussi.
 const GUI_PREFIXES: &[&str] = &["egui-", "egui_"];
 
-/// Couche du rendu (J8, ADR-0016 : `planrs-render`, `planrs-pdf`) : en plus
-/// des paquets d'interface, elle ne dépend pas de `planrs-automation` (les
+/// Couche du rendu (J8, ADR-0016 : `plannercraft-render`, `plannercraft-pdf`) : en plus
+/// des paquets d'interface, elle ne dépend pas de `plannercraft-automation` (les
 /// textes viennent de `BarTextSource`, implémenté au-dessus).
-const RENDER_LAYER: &[&str] = &["planrs-render", "planrs-pdf"];
+const RENDER_LAYER: &[&str] = &["plannercraft-render", "plannercraft-pdf"];
 
 /// Paquets interdits à la couche du rendu, en plus des paquets d'interface.
-const RENDER_FORBIDDEN: &[&str] = &["planrs-automation"];
+const RENDER_FORBIDDEN: &[&str] = &["plannercraft-automation"];
 
 pub fn run() -> ExitCode {
     // Toutes les features : une dépendance optionnelle (`dep:egui` derrière une
@@ -217,10 +217,10 @@ mod tests {
     #[test]
     fn clean_graph_has_no_violation() {
         let graph = graph(
-            &["planrs-core", "planrs-ui-egui"],
+            &["plannercraft-core", "plannercraft-ui-egui"],
             &[
-                ("planrs-core", &["chrono"]),
-                ("planrs-ui-egui", &["planrs-core", "egui"]),
+                ("plannercraft-core", &["chrono"]),
+                ("plannercraft-ui-egui", &["plannercraft-core", "egui"]),
             ],
         );
         assert_eq!(graph.violations(), Vec::new());
@@ -229,9 +229,9 @@ mod tests {
     #[test]
     fn transitive_gui_dependency_is_reported_with_its_path() {
         let graph = graph(
-            &["planrs-core", "planrs-render"],
+            &["plannercraft-core", "plannercraft-render"],
             &[
-                ("planrs-render", &["planrs-core", "helper"]),
+                ("plannercraft-render", &["plannercraft-core", "helper"]),
                 ("helper", &["egui-winit"]),
                 ("egui-winit", &["winit"]),
             ],
@@ -239,9 +239,9 @@ mod tests {
         assert_eq!(
             graph.violations(),
             vec![Violation {
-                member: "planrs-render".to_owned(),
+                member: "plannercraft-render".to_owned(),
                 forbidden: "egui-winit".to_owned(),
-                path: names(&["planrs-render", "helper", "egui-winit"]),
+                path: names(&["plannercraft-render", "helper", "egui-winit"]),
             }]
         );
     }
@@ -249,10 +249,10 @@ mod tests {
     #[test]
     fn non_exempt_member_depending_on_ui_crate_is_reported() {
         let graph = graph(
-            &["planrs-automation", "planrs-ui-egui"],
+            &["plannercraft-automation", "plannercraft-ui-egui"],
             &[
-                ("planrs-automation", &["planrs-ui-egui"]),
-                ("planrs-ui-egui", &["rfd"]),
+                ("plannercraft-automation", &["plannercraft-ui-egui"]),
+                ("plannercraft-ui-egui", &["rfd"]),
             ],
         );
         let violations = graph.violations();
@@ -266,27 +266,38 @@ mod tests {
     #[test]
     fn render_layer_must_not_reach_automation() {
         let graph = graph(
-            &["planrs-pdf", "planrs-render", "planrs-automation", "planrs-mcp"],
             &[
-                ("planrs-pdf", &["planrs-render", "planrs-automation"]),
-                ("planrs-render", &["planrs-core"]),
-                ("planrs-automation", &["planrs-render", "planrs-pdf"]),
-                ("planrs-mcp", &["planrs-automation"]),
+                "plannercraft-pdf",
+                "plannercraft-render",
+                "plannercraft-automation",
+                "plannercraft-mcp",
+            ],
+            &[
+                (
+                    "plannercraft-pdf",
+                    &["plannercraft-render", "plannercraft-automation"],
+                ),
+                ("plannercraft-render", &["plannercraft-core"]),
+                (
+                    "plannercraft-automation",
+                    &["plannercraft-render", "plannercraft-pdf"],
+                ),
+                ("plannercraft-mcp", &["plannercraft-automation"]),
             ],
         );
         let violations = graph.violations();
         assert_eq!(violations.len(), 1, "{violations:?}");
-        assert_eq!(violations[0].member, "planrs-pdf");
-        assert_eq!(violations[0].forbidden, "planrs-automation");
+        assert_eq!(violations[0].member, "plannercraft-pdf");
+        assert_eq!(violations[0].forbidden, "plannercraft-automation");
     }
 
     #[test]
     fn duplicate_versions_keep_their_own_edges() {
         let graph = graph(
-            &["planrs-render", "planrs-mspdi"],
+            &["plannercraft-render", "plannercraft-mspdi"],
             &[
-                ("planrs-render", &["helper@2"]),
-                ("planrs-mspdi", &["helper@1"]),
+                ("plannercraft-render", &["helper@2"]),
+                ("plannercraft-mspdi", &["helper@1"]),
                 ("helper@2", &["winit"]),
                 ("helper@1", &["smallvec"]),
             ],
@@ -294,9 +305,9 @@ mod tests {
         assert_eq!(
             graph.violations(),
             vec![Violation {
-                member: "planrs-render".to_owned(),
+                member: "plannercraft-render".to_owned(),
                 forbidden: "winit".to_owned(),
-                path: names(&["planrs-render", "helper", "winit"]),
+                path: names(&["plannercraft-render", "helper", "winit"]),
             }]
         );
     }

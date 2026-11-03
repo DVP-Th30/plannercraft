@@ -17,12 +17,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use planrs_core::calendar::CalendarKind;
-use planrs_core::{
+use plannercraft_core::calendar::CalendarKind;
+use plannercraft_core::{
     Constraint, ConstraintKind, Driver, Exclusion, LagValue, LinkType, Minutes, Moment, Project, Schedule,
     SchedulingMode, Task, TaskOutcome, TaskRole, TaskSchedule, TaskUid, TimeBasis,
 };
-use planrs_mspdi::{MspdiDocument, RecordedTask, Tenths};
+use plannercraft_mspdi::{MspdiDocument, RecordedTask, Tenths};
 use serde::Serialize;
 
 /// Champ comparé.
@@ -222,9 +222,9 @@ pub struct Divergence {
     pub field: Field,
     /// Valeur enregistrée par MS Project.
     pub recorded: String,
-    /// Valeur de planrs.
+    /// Valeur de PlannerCraft.
     pub computed: String,
-    /// planrs − MS Project, en minutes (temps civil pour une date, minutes
+    /// PlannerCraft − MS Project, en minutes (temps civil pour une date, minutes
     /// de marge tronquées vers zéro pour une marge) ; absent pour un booléen.
     pub delta_minutes: Option<i64>,
 }
@@ -447,7 +447,7 @@ fn case_for(
     let id = if kind == CaseKind::ProjectSummary {
         Some(0)
     } else {
-        project.task_id(uid).map(planrs_core::TaskId::get)
+        project.task_id(uid).map(plannercraft_core::TaskId::get)
     };
     Ok(Case {
         uid: uid.get(),

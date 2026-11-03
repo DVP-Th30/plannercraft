@@ -4,9 +4,9 @@
 //! ferait commencer avant est tronquée. Sources : S8, S22, S24 ; troncature :
 //! hypothèse.
 
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r036_start_realigned_on_calendar() {

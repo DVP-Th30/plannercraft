@@ -13,13 +13,13 @@
     reason = "tests : noms des tâches des exemples (A, B, C…)"
 )]
 
-use planrs_core::schedule::explain::{ResumeCause, Side, Step, explain};
-use planrs_core::{
+use plannercraft_core::schedule::explain::{ResumeCause, Side, Step, explain};
+use plannercraft_core::{
     CalendarUid, Constraint, ConstraintKind, Driver, LevelingDelay, LinkType, Minutes, Project, Schedule,
     TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r204_in_progress_leaf::started;
 
@@ -27,7 +27,7 @@ use crate::r204_in_progress_leaf::started;
 pub(crate) fn plan<const N: usize>(net: Net, names: [&str; N]) -> (Project, Schedule, [TaskUid; N]) {
     let uids = names.map(|n| net.uid(n));
     let p = net.build();
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     (p, s, uids)
 }
 
@@ -101,7 +101,7 @@ fn r230_leveling_delay_step() {
             .with_task("L", |t| {
                 t.leveling_delay = Some(LevelingDelay {
                     minutes: Minutes::new(480),
-                    unit: planrs_core::DurationUnit::Day,
+                    unit: plannercraft_core::DurationUnit::Day,
                     elapsed: false,
                 });
             }),
@@ -189,7 +189,7 @@ fn r230_actual_and_resume() {
             },
         ]
     );
-    let resume_cause = |x: &planrs_core::schedule::explain::Explanation| {
+    let resume_cause = |x: &plannercraft_core::schedule::explain::Explanation| {
         x.steps.iter().find_map(|s| match s {
             Step::Resume { cause, .. } => Some(*cause),
             _ => None,
@@ -238,9 +238,12 @@ fn r230_actual_and_resume() {
     assert_eq!(resume_cause(&x), Some(ResumeCause::NextWorking));
     // FF : P 5 j FF → T, le reste finit avec P : reprise jeu 08:00.
     let (p, s, [pp, t]) = plan(
-        started(3_333)
-            .task("P", 2_400)
-            .link("P", "T", LinkType::FinishToFinish, planrs_core::Lag::ZERO),
+        started(3_333).task("P", 2_400).link(
+            "P",
+            "T",
+            LinkType::FinishToFinish,
+            plannercraft_core::Lag::ZERO,
+        ),
         ["P", "T"],
     );
     let x = explain(&p, &s, t, Side::Start, 5).unwrap();
@@ -264,7 +267,7 @@ fn r230_actual_and_resume() {
             .fs("P", "S")
             .with_task("T", |t| {
                 t.progress.actual_start = Some(moment("2026-10-19T08:00"));
-                t.progress.percent_complete = planrs_core::Percent::new(3_333).unwrap();
+                t.progress.percent_complete = plannercraft_core::Percent::new(3_333).unwrap();
             })
     };
     let (p, s, [sum, t]) = plan(in_summary(), ["S", "T"]);
@@ -295,7 +298,7 @@ fn r230_actual_and_resume() {
             .fs("P", "S0")
             .with_task("T", |t| {
                 t.progress.actual_start = Some(moment("2026-10-19T08:00"));
-                t.progress.percent_complete = planrs_core::Percent::new(3_333).unwrap();
+                t.progress.percent_complete = plannercraft_core::Percent::new(3_333).unwrap();
             }),
         ["S", "T"],
     );
@@ -313,10 +316,10 @@ fn r230_actual_and_resume() {
             .task("S", 0)
             .task("T", 1_440)
             .level("T", 2)
-            .link("P", "S", LinkType::FinishToFinish, planrs_core::Lag::ZERO)
+            .link("P", "S", LinkType::FinishToFinish, plannercraft_core::Lag::ZERO)
             .with_task("T", |t| {
                 t.progress.actual_start = Some(moment("2026-10-19T08:00"));
-                t.progress.percent_complete = planrs_core::Percent::new(3_333).unwrap();
+                t.progress.percent_complete = plannercraft_core::Percent::new(3_333).unwrap();
             }),
         ["P", "T"],
     );
@@ -332,7 +335,7 @@ fn r230_actual_and_resume() {
     // reprise.
     let (p, s, [t]) = plan(
         started(3_333).project(|p| {
-            p.anchor = planrs_core::ScheduleAnchor::FromStart(moment("2026-10-20T13:00"));
+            p.anchor = plannercraft_core::ScheduleAnchor::FromStart(moment("2026-10-20T13:00"));
         }),
         ["T"],
     );

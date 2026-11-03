@@ -4,11 +4,11 @@
 //! à l'import la première (par date de début, puis ordre de stockage)
 //! l'emporte avec un avertissement.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{
     BuiltinCalendarNames, CalendarModelError, CalendarUid, Diagnostic, Project, ProjectInit, ScheduleAnchor,
 };
-use planrs_tests::{calendars, day_minutes, exception, moment, standard, working};
+use plannercraft_tests::{calendars, day_minutes, exception, moment, standard, working};
 
 #[test]
 fn r017_exception_replaces_whole_day() {
@@ -101,7 +101,7 @@ fn r017_overlap_on_import_first_wins_with_warning() {
 
 #[test]
 fn r017_working_saturday_conversions() {
-    use planrs_tests::{compile_one, mins};
+    use plannercraft_tests::{compile_one, mins};
     // Samedi 24/10/2026 ouvré [08:00,12:00).
     let mut c = standard();
     c.add_exception(exception(
@@ -125,7 +125,7 @@ fn r017_working_saturday_conversions() {
 
 #[test]
 fn r017_christmas_eve_conversions() {
-    use planrs_tests::{compile_one, mins};
+    use plannercraft_tests::{compile_one, mins};
     // Jeu 24/12 ouvré [08:00,12:00) : 08:00 + 480 → jeu 08-12 (240), ven
     // 25/12 08-12 (240) → ven 25/12 12:00.
     let mut c = standard();
@@ -151,7 +151,7 @@ fn r017_christmas_eve_conversions() {
 
 #[test]
 fn r017_year_end_closure_conversions() {
-    use planrs_tests::{compile_one, mins};
+    use plannercraft_tests::{compile_one, mins};
     // Fermeture du 24/12/2026 au 31/12/2026 : mer 23/12 16:00 + 480 → mer
     // 16-17 (60), fermeture puis ven 01/01/2027 08-12 (240) + 13-16 (180) →
     // ven 01/01/2027 16:00.
@@ -190,9 +190,9 @@ fn r017_storage_order_differs_from_start_order() {
     assert_eq!(day_minutes(&a, 1, "2026-11-16"), 480);
     // Forme compilée : semaine du 09/11 entièrement chômée (0, et non 240).
     assert_eq!(
-        planrs_tests::compile_one(c.clone())
+        plannercraft_tests::compile_one(c.clone())
             .working_between(moment("2026-11-09T00:00"), moment("2026-11-14T00:00")),
-        Ok(planrs_tests::mins(0))
+        Ok(plannercraft_tests::mins(0))
     );
     // Diagnostic : la n° 1 retenue, la n° 0 ignorée.
     let mut p = Project::new(ProjectInit {

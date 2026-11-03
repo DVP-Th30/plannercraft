@@ -2,9 +2,9 @@
 //! s'applique comme plancher de début à toutes ses sous-tâches, à tout
 //! niveau. Source : S24 ; observé O6 (A6 UID 9).
 
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 #[test]
 fn r056_finish_to_start_gates_all_subtasks() {

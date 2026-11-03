@@ -1,9 +1,9 @@
-planrs
-Copyright (c) les auteurs de planrs.
+PlannerCraft
+Copyright (c) les auteurs de PlannerCraft.
 Code sous licence MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE).
 
-Composants tiers distribués avec planrs
----------------------------------------
+Composants tiers distribués avec PlannerCraft
+---------------------------------------------
 
 Police Inter (assets/fonts/Inter-Regular.ttf, assets/fonts/Inter-SemiBold.ttf)
   Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
@@ -34,4 +34,4 @@ Icônes Lucide (assets/icons/lucide/*.svg, 54 fichiers)
   (https://registry.npmjs.org/lucide-static/-/lucide-static-1.55.0.tgz,
   sha1 12e5674d15cb258ca10e5ec8ff039ed602886d44), fichiers icons/<nom>.svg
   copiés sans modification. Convertis en polylignes au build par
-  `cargo xtask icons` (crates/planrs-ui-egui/src/ribbon/icon_data.rs).
+  `cargo xtask icons` (crates/plannercraft-ui-egui/src/ribbon/icon_data.rs).

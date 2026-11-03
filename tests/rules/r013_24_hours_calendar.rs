@@ -1,7 +1,7 @@
 //! R-013 — Calendrier 24 heures : tous les jours 00:00-24:00.
 
-use planrs_core::calendar::{CalendarKind, twenty_four_hours};
-use planrs_core::{CalendarUid, Weekday};
+use plannercraft_core::calendar::{CalendarKind, twenty_four_hours};
+use plannercraft_core::{CalendarUid, Weekday};
 
 #[test]
 fn r013_24_hours_week() {
@@ -19,8 +19,8 @@ fn r013_24_hours_week() {
 
 #[test]
 fn r013_24_hours_conversions() {
-    use planrs_core::{ConversionFactors, Decimal, DurationUnit, TimeBasis};
-    use planrs_tests::{compile_one, mins, moment};
+    use plannercraft_core::{ConversionFactors, Decimal, DurationUnit, TimeBasis};
+    use plannercraft_tests::{compile_one, mins, moment};
     let c = compile_one(twenty_four_hours(CalendarUid::new(2), "24 heures".to_owned()));
     // Sam 24/10 10:00 → dim 25/10 10:00 : 24 h ouvrées = 1 440.
     assert_eq!(

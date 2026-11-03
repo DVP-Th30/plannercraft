@@ -2,11 +2,11 @@
 //! calendrier : une durée en jours est convertie en minutes par R-006, puis
 //! consommée sur le calendrier.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{
     CalendarUid, ConversionFactors, Decimal, DurationUnit, Minutes, Moment, TimeBasis, Week, Weekday,
 };
-use planrs_tests::{compile_one, moment, standard, working};
+use plannercraft_tests::{compile_one, moment, standard, working};
 
 /// Calendrier lun-ven avec ces plages.
 fn weekdays(ranges: &[(&str, &str)]) -> Calendar {

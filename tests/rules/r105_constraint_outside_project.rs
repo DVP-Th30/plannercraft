@@ -4,9 +4,9 @@
 //! `project_start` reste l'ancre. Option inactive : le plancher R-036
 //! l'emporte, `constraint.not_honored`. Source : S24 ; hypothèse.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, Minutes, OverriddenBound};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, Diagnostic, Minutes, OverriddenBound};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn net(honor: bool) -> Net {
     // A 1 j SNLT ven 16/10 08:00, début du projet lun 19/10 08:00.

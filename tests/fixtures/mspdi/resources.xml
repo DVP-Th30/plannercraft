@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Fixture planrs écrite à la main (licence du dépôt) : ressources, affectations, lignes de base,
+<!-- Fixture plannercraft écrite à la main (licence du dépôt) : ressources, affectations, lignes de base,
      travail des tâches (R-087, R-088, R-124 à R-126). Le taux de la ressource 1 (4.15875 par heure,
      affiché par jour) et son coût reprennent les seules valeurs numériques de l'observation O18. -->
 <Project xmlns="http://schemas.microsoft.com/project">

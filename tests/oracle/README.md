@@ -10,7 +10,7 @@ tests/oracle/
 └── msproject/<cas>.xml   # le même planning recalculé et exporté par MS Project
 ```
 
-Les fichiers d'entrée sont écrits pour planrs (versionnables) ; les sorties sont produites par MS Project et versionnées avec eux, avec la version de MS Project relevée dans `msproject/oracle.log`.
+Les fichiers d'entrée sont écrits pour PlannerCraft (versionnables) ; les sorties sont produites par MS Project et versionnées avec eux, avec la version de MS Project relevée dans `msproject/oracle.log`.
 
 ## Générer les sorties
 
@@ -21,4 +21,4 @@ Les fichiers d'entrée sont écrits pour planrs (versionnables) ; les sorties so
 
 ## Harnais
 
-`cargo test -p planrs-tests --test oracle` découvre les paires `input/` ↔ `msproject/`. En J1 il passe sans cas et **échoue s'il trouve un cas**, tant que la comparaison n'existe pas (lecture MSPDI en J3) : un cas déposé ne doit jamais passer en silence. Le harnais complet recalculera chaque entrée avec le moteur, comparera les dates champ par champ et produira un rapport par cas.
+`cargo test -p plannercraft-tests --test oracle` découvre les paires `input/` ↔ `msproject/`. En J1 il passe sans cas et **échoue s'il trouve un cas**, tant que la comparaison n'existe pas (lecture MSPDI en J3) : un cas déposé ne doit jamais passer en silence. Le harnais complet recalculera chaque entrée avec le moteur, comparera les dates champ par champ et produira un rapport par cas.

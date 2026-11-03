@@ -3,9 +3,9 @@
 //! celui du prédécesseur, jamais l'échelle écoulée d'une durée écoulée) ;
 //! décalage écoulé : temps civil. Source : S21.
 
-use planrs_core::LinkType;
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_e, lag_w};
+use plannercraft_core::LinkType;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_e, lag_w};
 
 #[test]
 fn r041_lag_on_successor_task_calendar() {

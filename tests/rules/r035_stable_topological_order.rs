@@ -3,9 +3,9 @@
 //! identité si l'ordre des ID est déjà topologique. Indépendant de l'ordre de
 //! stockage des liens et de toute table de hachage. Hypothèse (règle 5).
 
-use planrs_core::TaskUid;
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::TaskUid;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn uids(v: &[u32]) -> Vec<TaskUid> {
     v.iter().map(|u| TaskUid::new(*u)).collect()

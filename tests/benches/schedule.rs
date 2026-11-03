@@ -1,6 +1,6 @@
 //! Benchmark informatif du moteur (spécification J2 § 6), exécuté en CI
 //! (job `perf`) sans seuil : le seuil bloquant est le test `tests/perf`.
-//! `cargo bench -p planrs-tests --bench schedule`. Comprend l'utilisation
+//! `cargo bench -p plannercraft-tests --bench schedule`. Comprend l'utilisation
 //! des ressources par blocs de 64 semaines (J7, lot L4).
 
 #![allow(
@@ -12,9 +12,9 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use planrs_core::resource::{Granularity, usage_by_assignment, usage_with};
-use planrs_core::{CalendarSet, HasUid, Moment, ResourceUid, schedule};
-use planrs_tests::generate::{
+use plannercraft_core::resource::{Granularity, usage_by_assignment, usage_with};
+use plannercraft_core::{CalendarSet, HasUid, Moment, ResourceUid, schedule};
+use plannercraft_tests::generate::{
     assigned_network, assigned_progress_network, chain, fan_in, large_network, progress_network,
 };
 
@@ -47,7 +47,7 @@ fn bench(c: &mut Criterion) {
     let resources: Vec<ResourceUid> = assigned.resources.iter().map(HasUid::uid).collect();
     let from: Moment = sched.project_start;
     let to = from
-        .checked_add(planrs_core::Minutes::new(64 * 7 * 1_440))
+        .checked_add(plannercraft_core::Minutes::new(64 * 7 * 1_440))
         .unwrap();
     c.bench_function("usage/5000_assigned_64_weeks", |b| {
         b.iter(|| {

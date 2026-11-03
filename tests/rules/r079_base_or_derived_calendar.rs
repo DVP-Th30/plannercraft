@@ -1,10 +1,10 @@
 //! R-079 — Calendrier de base ou dérivé (import MSPDI), dont les
 //! `BaseCalendarUID` négatifs.
 
-use planrs_core::calendar::CalendarKind;
-use planrs_core::{CalendarUid, Diagnostic};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{day_minutes, moment, tests_path};
+use plannercraft_core::calendar::CalendarKind;
+use plannercraft_core::{CalendarUid, Diagnostic};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{day_minutes, moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/calendars.xml")).unwrap();

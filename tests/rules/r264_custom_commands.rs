@@ -7,14 +7,14 @@
 //! Rename to permanently rename the field in this project. ») ; forme des
 //! commandes : hypothèse.
 
-use planrs_automation::error::codes;
-use planrs_automation::text::Language;
-use planrs_automation::{ApplyMode, Session, Workspace};
-use planrs_core::{CustomFieldId, CustomKind, CustomValue, TaskUid};
-use planrs_tests::daily::plan_p;
-use planrs_tests::moment;
-use planrs_tests::session::session;
-use planrs_tests::task_edit::{apply, batch, get, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{ApplyMode, Session, Workspace};
+use plannercraft_core::{CustomFieldId, CustomKind, CustomValue, TaskUid};
+use plannercraft_tests::daily::plan_p;
+use plannercraft_tests::moment;
+use plannercraft_tests::session::session;
+use plannercraft_tests::task_edit::{apply, batch, get, try_apply};
 use serde_json::json;
 
 fn id(kind: CustomKind, n: u8) -> CustomFieldId {
@@ -117,7 +117,7 @@ fn r264_errors() {
         );
         assert_eq!(e.code, codes::CUSTOM_UNKNOWN_FIELD, "{key}");
         assert_eq!(e.field.as_deref(), Some(format!("custom.{key}").as_str()));
-        assert_eq!(e.subject, Some(planrs_core::Subject::Task(TaskUid::new(2))));
+        assert_eq!(e.subject, Some(plannercraft_core::Subject::Task(TaskUid::new(2))));
     }
     let e = refused(
         &mut s,
@@ -162,7 +162,7 @@ fn r264_errors() {
         let mut v = serde_json::Map::new();
         v.insert("format_version".to_owned(), json!(1));
         v.insert("ops".to_owned(), ops);
-        let e = planrs_automation::Batch::from_json(serde_json::Value::Object(v)).unwrap_err();
+        let e = plannercraft_automation::Batch::from_json(serde_json::Value::Object(v)).unwrap_err();
         assert_eq!(e.code, codes::PARAM_INVALID);
     }
     // Atomicité : rien n'a changé.
@@ -175,7 +175,7 @@ fn r264_read_only_foreign_field() {
     // alias modifiables.
     let mut s = plan_p();
     let mut p = s.project().clone();
-    p.extras.0.push(planrs_core::ExtraEntry {
+    p.extras.0.push(plannercraft_core::ExtraEntry {
         origin: "mspdi".to_owned(),
         key: "ExtendedAttributes".to_owned(),
         payload: "<ExtendedAttributes><ExtendedAttribute><FieldID>188743734</FieldID>\
@@ -249,7 +249,7 @@ fn r264_mcp_same_ops() {
         )
         .unwrap();
     let a = out["labels"]["$a"].as_u64().unwrap();
-    let spec = planrs_automation::registry::lookup("custom_field.rename").unwrap();
+    let spec = plannercraft_automation::registry::lookup("custom_field.rename").unwrap();
     assert_eq!(spec.mcp_name, "rename_custom_field");
     assert!(spec.is_listed() && spec.dry_run && spec.undoable);
     ws.call(
@@ -297,7 +297,7 @@ fn r264_value_replaces_unreadable_file_value() {
         "<ExtendedAttribute><FieldID>188743767</FieldID><Value>abc</Value></ExtendedAttribute>",
         "<ExtendedAttribute><FieldID>188743786</FieldID><Value>12</Value></ExtendedAttribute>",
     ] {
-        t.extras.0.push(planrs_core::ExtraEntry {
+        t.extras.0.push(plannercraft_core::ExtraEntry {
             origin: "mspdi".to_owned(),
             key: "ExtendedAttribute".to_owned(),
             payload: payload.to_owned(),

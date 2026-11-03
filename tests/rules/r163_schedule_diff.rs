@@ -1,10 +1,10 @@
 //! R-163 — Diff de planning d'un lot (définition, tri, N).
 
-use planrs_automation::{ApplyMode, ApplyOptions};
-use planrs_core::{TaskId, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{add_task, commit, delete_task, link, push_tasks, session, set_days};
+use plannercraft_automation::{ApplyMode, ApplyOptions};
+use plannercraft_core::{TaskId, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{add_task, commit, delete_task, link, push_tasks, session, set_days};
 
 #[test]
 fn r163_diff_example() {

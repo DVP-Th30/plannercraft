@@ -4,10 +4,10 @@
 //! admise. Repère : calendrier Standard, début du projet lun 19/10/2026
 //! 08:00, date courante injectée sam 17/10/2026 08:00.
 
-use planrs_core::{Constraint, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_core::{Constraint, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 #[test]
@@ -55,7 +55,7 @@ fn r219_default_after_is_effective_status_date() {
             date: moment("2026-10-21T08:00")
         }
     );
-    let Some(planrs_core::TaskOutcome::Scheduled(w)) = s.schedule().get(TaskUid::new(1)) else {
+    let Some(plannercraft_core::TaskOutcome::Scheduled(w)) = s.schedule().get(TaskUid::new(1)) else {
         panic!("W non planifiée");
     };
     assert_eq!(w.start, moment("2026-10-21T08:00"));

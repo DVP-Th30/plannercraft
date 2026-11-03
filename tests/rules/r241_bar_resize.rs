@@ -5,12 +5,12 @@
 //! (unité courante gardée). Feuille non jalon, non commencée. Repère :
 //! Standard, début lun 19/10/2026 08:00.
 
-use planrs_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
-use planrs_automation::{ApplyMode, Session};
-use planrs_core::{CalendarSet, DurationUnit, Minutes, TaskUid, TimeBasis};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::get;
+use plannercraft_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
+use plannercraft_automation::{ApplyMode, Session};
+use plannercraft_core::{CalendarSet, DurationUnit, Minutes, TaskUid, TimeBasis};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::get;
 
 const T: TaskUid = TaskUid::new(1);
 
@@ -84,7 +84,7 @@ fn r241_elapsed_duration() {
 #[test]
 fn r241_started_not_draggable() {
     let mut s = with_tasks(&[("T", "2j")]);
-    planrs_tests::task_edit::apply(
+    plannercraft_tests::task_edit::apply(
         &mut s,
         serde_json::json!([{ "op": "progress.update", "task": 1, "percent_complete": { "value": 1000 } }]),
     );

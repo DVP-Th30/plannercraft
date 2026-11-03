@@ -1,9 +1,9 @@
 //! R-084 — Récapitulative du projet, ordre et identité des tâches (import
 //! MSPDI).
 
-use planrs_core::{Minutes, OutlineLevel, TaskId, TaskUid};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{Minutes, OutlineLevel, TaskId, TaskUid};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/null_rows.xml")).unwrap();

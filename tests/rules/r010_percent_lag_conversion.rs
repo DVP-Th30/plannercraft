@@ -1,7 +1,7 @@
 //! R-010 — Décalage en pourcentage : minutes = `round_div(durée du
 //! prédécesseur × pct, 10 000)`. L'application aux liens arrive en J2.
 
-use planrs_core::{Minutes, SignedPercent, percent_of};
+use plannercraft_core::{Minutes, SignedPercent, percent_of};
 
 fn pct(v: i64) -> SignedPercent {
     SignedPercent::new(v).unwrap()

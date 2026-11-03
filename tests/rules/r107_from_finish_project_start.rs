@@ -5,9 +5,9 @@
 //! inchangées). `Schedule::project_start` = `S*`, `project_finish` = `F`.
 //! Source : miroir de R-036, R-045, R-046 (hypothèse).
 
-use planrs_core::{Driver, Minutes, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Driver, Minutes, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r107_computed_start_and_secondary_forward_pass() {

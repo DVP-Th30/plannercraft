@@ -1,9 +1,9 @@
 //! R-132 — Contraintes, échéance, option des contraintes et sens à
 //! l'écriture.
 
-use planrs_core::{Constraint, ScheduleAnchor, Task, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_core::{Constraint, ScheduleAnchor, Task, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
 
 #[test]
 fn r132_constraint_type_and_date() {

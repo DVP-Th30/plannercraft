@@ -8,12 +8,12 @@
 //! calendriers fournis 1 (Standard, du projet), 2 (24 heures), 3 (Équipe de
 //! nuit), début lun 19/10/2026 08:00.
 
-use planrs_automation::error::codes;
-use planrs_automation::{CommandErrorKind, Session, SideEffect};
-use planrs_core::calendar::{Calendar, CalendarKind, DayRule, DaySetting};
-use planrs_core::{CalendarUid, ResourceUid, Subject, TaskUid, Weekday};
-use planrs_tests::resource_edit::{fresh, with_tasks};
-use planrs_tests::task_edit::{apply, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{CommandErrorKind, Session, SideEffect};
+use plannercraft_core::calendar::{Calendar, CalendarKind, DayRule, DaySetting};
+use plannercraft_core::{CalendarUid, ResourceUid, Subject, TaskUid, Weekday};
+use plannercraft_tests::resource_edit::{fresh, with_tasks};
+use plannercraft_tests::task_edit::{apply, try_apply};
 use serde_json::json;
 
 fn cal(s: &Session, uid: u32) -> &Calendar {
@@ -229,7 +229,7 @@ fn r248_delete_in_use() {
     );
     let mut p = s.project().clone();
     p.tasks.get_mut(TaskUid::new(2)).unwrap().calendar = Some(CalendarUid::new(2));
-    let mut s = planrs_tests::session::session(p);
+    let mut s = plannercraft_tests::session::session(p);
     // Cahier : `delete 1` (calendrier du projet) ⇒ `calendar.in_use`.
     let err = try_apply(&mut s, json!([{ "op": "calendar.delete", "uid": 1 }])).unwrap_err();
     assert_eq!(err.code, codes::CALENDAR_IN_USE);
@@ -277,5 +277,8 @@ fn r248_delete_in_use() {
         panic!("calendar.in_use attendu");
     };
     assert_eq!((users.len(), *total), (20, 26));
-    assert!(err.message(planrs_automation::text::Language::Fr).contains(", …"));
+    assert!(
+        err.message(plannercraft_automation::text::Language::Fr)
+            .contains(", …")
+    );
 }

@@ -6,11 +6,11 @@
 //! `mspdi.custom_unreadable` (info). Source : S90 (table des `FieldID`),
 //! S91 (éléments de la définition et de la valeur).
 
-use planrs_core::{CustomFieldId, CustomKind, CustomValue, Severity, TaskUid};
-use planrs_mspdi::custom::{field_id, from_field_id};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::moment;
-use planrs_tests::mspdi::{reread, text, written};
+use plannercraft_core::{CustomFieldId, CustomKind, CustomValue, Severity, TaskUid};
+use plannercraft_mspdi::custom::{field_id, from_field_id};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::{reread, text, written};
 
 fn id(kind: CustomKind, n: u8) -> CustomFieldId {
     CustomFieldId::new(kind, n).unwrap()
@@ -283,7 +283,7 @@ fn r265_unreadable_value_diagnostic() {
         assert_eq!(x.code.code(), "mspdi.custom_unreadable");
         assert_eq!(x.severity, Severity::Info);
         assert_eq!(x.element, "Tasks/Task/ExtendedAttribute");
-        assert_eq!(x.subject, Some(planrs_core::Subject::Task(TaskUid::new(1))));
+        assert_eq!(x.subject, Some(plannercraft_core::Subject::Task(TaskUid::new(1))));
     }
     // Relue après écriture : mêmes valeurs gardées, mêmes diagnostics.
     let back = reread(text(&written(&d.project)).as_bytes());

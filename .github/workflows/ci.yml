@@ -1,4 +1,4 @@
-# Intégration continue de planrs : mêmes checks que ceux exigés avant tout
+# Intégration continue de PlannerCraft : mêmes checks que ceux exigés avant tout
 # commit (CLAUDE.md), plus les contrôles xtask, la compilation WebAssembly,
 # les tests sur macOS et Windows, la MSRV, le budget du moteur, la parité
 # sur le corpus public et la conformité au schéma MSPDI.
@@ -83,21 +83,21 @@ jobs:
       - name: Icônes du ruban (icons --check)
         run: cargo xtask icons --check
 
-      - name: planrs-core en WebAssembly
-        run: cargo check -p planrs-core --target wasm32-unknown-unknown
+      - name: plannercraft-core en WebAssembly
+        run: cargo check -p plannercraft-core --target wasm32-unknown-unknown
 
-      - name: planrs-pdf en WebAssembly
-        run: cargo check -p planrs-pdf --target wasm32-unknown-unknown
+      - name: plannercraft-pdf en WebAssembly
+        run: cargo check -p plannercraft-pdf --target wasm32-unknown-unknown
 
-      # Version web (et planrs-ui-egui) en WebAssembly : seule la compilation
+      # Version web (et plannercraft-ui-egui) en WebAssembly : seule la compilation
       # est vérifiée, `trunk build` viendra avec le packaging web.
-      - name: planrs-web en WebAssembly
-        run: cargo clippy -p planrs-web --target wasm32-unknown-unknown -- -D warnings
+      - name: plannercraft-web en WebAssembly
+        run: cargo clippy -p plannercraft-web --target wasm32-unknown-unknown -- -D warnings
 
   # Critère de fin J4 (lot L18, ADR-0012) : « un agent construit un planning
   # de 30 tâches via MCP », sans LLM. Le scénario écrit à la main
   # `tests/mcp/scenarios/build_30.jsonl` est rejoué en mémoire, en HTTP et
-  # sur le vrai binaire `planrs mcp` en stdio : résultats égaux aux attendus,
+  # sur le vrai binaire `plannercraft mcp` en stdio : résultats égaux aux attendus,
   # journal produit égal au scénario octet pour octet, MSPDI enregistré égal
   # à `tests/mcp/expected/build_30.xml` (par `normalize`), undo complet
   # jusqu'au projet vide, rejeu en mémoire < 2 s en debug. Détail :
@@ -116,10 +116,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Rejeu en mémoire et en HTTP
-        run: cargo test -p planrs-mcp --features http --test replay --test replay_http
+        run: cargo test -p plannercraft-mcp --features http --test replay --test replay_http
+        env:
+          PLANNERCRAFT_REPLAY_BUDGET: "1"
 
       - name: Rejeu sur le binaire (stdio)
-        run: cargo test -p planrs-cli --test mcp_replay
+        run: cargo test -p plannercraft-cli --test mcp_replay
 
   tests-matrix:
     name: cargo test (${{ matrix.os }})
@@ -143,28 +145,28 @@ jobs:
   # comparées au pixel (tests/snapshots/*.png, seuils dans kittest.toml),
   # rendues par lavapipe (Vulkan logiciel de Mesa) ; le harnais refuse tout
   # adaptateur qui n'est pas un CPU. Les autres jobs exécutent les mêmes tests
-  # sans rendu ni comparaison (PLANRS_UI_SNAPSHOTS absent).
+  # sans rendu ni comparaison (PLANNERCRAFT_UI_SNAPSHOTS absent).
   #
   # La CI fait foi : si Mesa du runner rend autrement que le poste local,
   # télécharger l'artefact `ui-snapshots-diff`, vérifier les `*.new.png` à
   # l'œil et les adopter comme références. En local (Linux, mesa-vulkan-drivers) :
-  #   PLANRS_UI_SNAPSHOTS=1 UPDATE_SNAPSHOTS=1 WGPU_BACKEND=vulkan \
-  #     cargo test -p planrs-ui-egui --test ui
+  #   PLANNERCRAFT_UI_SNAPSHOTS=1 UPDATE_SNAPSHOTS=1 WGPU_BACKEND=vulkan \
+  #     cargo test -p plannercraft-ui-egui --test ui
   # réécrit les captures en écart (UPDATE_SNAPSHOTS=force : toutes).
   ui:
     name: interface (captures egui_kittest)
     runs-on: ubuntu-24.04
     env:
-      PLANRS_UI_SNAPSHOTS: "1"
+      PLANNERCRAFT_UI_SNAPSHOTS: "1"
       # lavapipe par Vulkan : un seul chemin de rendu, pas de repli GL.
       WGPU_BACKEND: vulkan
       # Sonde des polices de repli du système (J7 lot L14) : une police CJK
       # est installée, son absence fait échouer `fonts_system_fallback_probe`.
-      PLANRS_FONTS: required
-      # Relais avec le vrai binaire `planrs mcp` (J7 lot L16,
+      PLANNERCRAFT_FONTS: required
+      # Relais avec le vrai binaire `plannercraft mcp` (J7 lot L16,
       # `relay_app_real_mcp`) : le binaire est construit juste avant, son
       # absence fait échouer le test au lieu de le passer.
-      PLANRS_RELAY: required
+      PLANNERCRAFT_RELAY: required
     steps:
       - uses: actions/checkout@v7
 
@@ -180,12 +182,12 @@ jobs:
       - name: Adaptateur disponible (diagnostic)
         run: vulkaninfo --summary
 
-      # `planrs` à côté de `deps/` : trouvé par `relay_app_real_mcp`.
-      - name: Binaire planrs (relais réel)
-        run: cargo build -p planrs-cli
+      # `plannercraft` à côté de `deps/` : trouvé par `relay_app_real_mcp`.
+      - name: Binaire PlannerCraft (relais réel)
+        run: cargo build -p plannercraft-cli
 
       - name: Tests de l'interface (captures comparées, relais réel)
-        run: cargo test -p planrs-ui-egui --test ui
+        run: cargo test -p plannercraft-ui-egui --test ui
 
       - name: Captures en échec
         if: failure()
@@ -193,8 +195,8 @@ jobs:
         with:
           name: ui-snapshots-diff
           path: |
-            crates/planrs-ui-egui/tests/snapshots/*.new.png
-            crates/planrs-ui-egui/tests/snapshots/*.diff.png
+            crates/plannercraft-ui-egui/tests/snapshots/*.new.png
+            crates/plannercraft-ui-egui/tests/snapshots/*.diff.png
           if-no-files-found: ignore
           retention-days: 14
 
@@ -215,16 +217,16 @@ jobs:
       # § 9.2), mesurés l'un après l'autre : en parallèle, ils se
       # perturberaient.
       - name: Budget 50 ms
-        run: cargo test -p planrs-tests --release --test perf -- --ignored --nocapture --test-threads=1
+        run: cargo test -p plannercraft-tests --release --test perf -- --ignored --nocapture --test-threads=1
 
       # Lecture MSPDI : coût linéaire des liens (surcoût < 1 s pour une tâche
       # à 199 999 prédécesseurs) ; médiane de 5 000 tâches, informative.
       - name: Lecture MSPDI
-        run: cargo test -p planrs-mspdi --release --test perf -- --ignored --nocapture
+        run: cargo test -p plannercraft-mspdi --release --test perf -- --ignored --nocapture
 
       # Fluidité de l'interface (ADR-0011, décision 12 ; ADR-0015 D12, J7
       # lot L16) : 5 000 tâches et 10 000 liens dessinés par
-      # `planrs_ui_egui::ui` sur un contexte egui nu ; images statiques,
+      # `plannercraft_ui_egui::ui` sur un contexte egui nu ; images statiques,
       # navigation, glisser d'une barre, bandeau, utilisation des ressources :
       # médiane < 16 ms et p95 < 32 ms par image ; latence d'édition
       # (`edit_latency`) : médiane < 100 ms, p95 < 150 ms (porte). Les
@@ -234,22 +236,22 @@ jobs:
       # d'échec. J8 (lot L16, vérification 3) : tous les scénarios en Sobre
       # (défaut de l'application) **et** en Classique (apparence de J7).
       - name: Fluidité de l'interface, Sobre (release)
-        run: cargo test -p planrs-ui-egui --release --test perf -- --ignored --nocapture --test-threads=1
+        run: cargo test -p plannercraft-ui-egui --release --test perf -- --ignored --nocapture --test-threads=1
         env:
-          PLANRS_PERF_TEMPLATE: sobre
-          PLANRS_PERF_REPORT_DIR: ${{ github.workspace }}/target/tmp/ui-perf/sobre
+          PLANNERCRAFT_PERF_TEMPLATE: sobre
+          PLANNERCRAFT_PERF_REPORT_DIR: ${{ github.workspace }}/target/tmp/ui-perf/sobre
 
       - name: Fluidité de l'interface, Classique (release)
         if: success() || failure()
-        run: cargo test -p planrs-ui-egui --release --test perf -- --ignored --nocapture --test-threads=1
+        run: cargo test -p plannercraft-ui-egui --release --test perf -- --ignored --nocapture --test-threads=1
         env:
-          PLANRS_PERF_TEMPLATE: classique
-          PLANRS_PERF_REPORT_DIR: ${{ github.workspace }}/target/tmp/ui-perf/classique
+          PLANNERCRAFT_PERF_TEMPLATE: classique
+          PLANNERCRAFT_PERF_REPORT_DIR: ${{ github.workspace }}/target/tmp/ui-perf/classique
 
       # Budget du PDF (§ 2.8, `pdf_5000`) : Sobre, A3 paysage, 1 page en
       # largeur, < 10 s.
       - name: PDF de 5 000 tâches (release)
-        run: cargo test -p planrs-pdf --release --test perf -- --ignored --nocapture
+        run: cargo test -p plannercraft-pdf --release --test perf -- --ignored --nocapture
 
       - name: Rapport de fluidité
         uses: actions/upload-artifact@v4
@@ -261,7 +263,7 @@ jobs:
           retention-days: 30
 
       - name: Benchmark (informatif)
-        run: cargo bench -p planrs-tests --bench schedule -- --warm-up-time 1 --measurement-time 5 --noplot
+        run: cargo bench -p plannercraft-tests --bench schedule -- --warm-up-time 1 --measurement-time 5 --noplot
 
   # Captures PDF des modèles de mise en page (J8, lot L16, vérification 4) :
   # `project.export_pdf` sur le plan de suivi de J6 pour les six modèles et
@@ -274,7 +276,7 @@ jobs:
     name: captures PDF (six modèles, 5 000 tâches)
     runs-on: ubuntu-24.04
     env:
-      PLANRS_PDF_CAPTURES: ${{ github.workspace }}/target/tmp/pdf-captures
+      PLANNERCRAFT_PDF_CAPTURES: ${{ github.workspace }}/target/tmp/pdf-captures
     steps:
       - uses: actions/checkout@v7
 
@@ -288,13 +290,13 @@ jobs:
           sudo apt-get install -y poppler-utils
 
       - name: PDF (release)
-        run: cargo test -p planrs-tests --release --test pdf_captures -- --include-ignored --nocapture --test-threads=1
+        run: cargo test -p plannercraft-tests --release --test pdf_captures -- --include-ignored --nocapture --test-threads=1
 
       # Plan de suivi : toutes les pages ; réseau : les trois premières et
       # la dernière (le PDF entier reste dans l'artefact).
       - name: Pages en PNG
         run: |
-          cd "$PLANRS_PDF_CAPTURES"
+          cd "$PLANNERCRAFT_PDF_CAPTURES"
           for f in tracking_j6_*.pdf; do
             pdftoppm -r 72 -png "$f" "${f%.pdf}"
           done
@@ -336,9 +338,9 @@ jobs:
         run: cargo xtask corpus fetch
 
       - name: Parité
-        run: cargo test -p planrs-tests --test corpus -- --nocapture
+        run: cargo test -p plannercraft-tests --test corpus -- --nocapture
         env:
-          PLANRS_CORPUS: required
+          PLANNERCRAFT_CORPUS: required
 
       - name: Rapport
         uses: actions/upload-artifact@v4
@@ -375,9 +377,9 @@ jobs:
         run: cargo xtask schema fetch
 
       - name: Conformité
-        run: cargo test -p planrs-tests --test schema
+        run: cargo test -p plannercraft-tests --test schema
         env:
-          PLANRS_SCHEMA: required
+          PLANNERCRAFT_SCHEMA: required
 
   msrv:
     name: MSRV (Rust 1.95)

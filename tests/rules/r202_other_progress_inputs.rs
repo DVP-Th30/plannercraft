@@ -3,8 +3,8 @@
 //! (2 400 min) planifiée lun 19/10/2026 08:00 – ven 23/10 17:00.
 
 use crate::r201_percent_input::{FRI, MON, at, calendar, ctx, pct, task, write};
-use planrs_core::progress::edit::{EditError, Input, apply};
-use planrs_core::{Minutes, Percent};
+use plannercraft_core::progress::edit::{EditError, Input, apply};
+use plannercraft_core::{Minutes, Percent};
 
 #[test]
 fn r202_actual_start_only() {

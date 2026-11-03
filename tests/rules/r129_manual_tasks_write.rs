@@ -1,8 +1,8 @@
 //! R-129 — Tâches manuelles à l'écriture.
 
-use planrs_core::{Duration, DurationUnit, Minutes, SchedulingMode, Task, TaskUid, TimeBasis};
-use planrs_tests::moment;
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_core::{Duration, DurationUnit, Minutes, SchedulingMode, Task, TaskUid, TimeBasis};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
 
 #[test]
 fn r129_manual_fields_always_written() {

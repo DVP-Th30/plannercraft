@@ -4,9 +4,9 @@
 //! effet sur les dates ni la durée de la récapitulative ; ressource
 //! matérielle : span = celui de la récapitulative. Source : O28.
 
-use planrs_core::{AssignmentRole, Minutes, ResourceKind, TaskType};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{AssignmentRole, Minutes, ResourceKind, TaskType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, placed, resource, resource_kind};
 
@@ -42,7 +42,8 @@ fn r179_fixed_duration_summary_assignment_own_duration() {
     let net = summary().with_task("S", |t| {
         t.task_type = TaskType::FixedDuration;
         t.duration =
-            planrs_core::Duration::new(Minutes::ZERO, t.duration.unit(), t.duration.basis(), false).unwrap();
+            plannercraft_core::Duration::new(Minutes::ZERO, t.duration.unit(), t.duration.basis(), false)
+                .unwrap();
     });
     let run = assign(resource(net, 1, None), 1, "S", 1, 2_400).run();
     assert_eq!(run.at("S").finish, moment("2026-10-30T17:00"));
@@ -55,9 +56,9 @@ fn r179_fixed_duration_summary_assignment_own_duration() {
     assert_eq!(
         run.schedule
             .resources
-            .get(&planrs_core::ResourceUid::new(1))
+            .get(&plannercraft_core::ResourceUid::new(1))
             .map(|r| r.peak),
-        Some(planrs_core::Units::FULL)
+        Some(plannercraft_core::Units::FULL)
     );
 }
 

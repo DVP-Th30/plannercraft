@@ -3,11 +3,16 @@
 //! la grandeur recalculée et le résultat attendu.
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, uid, units, work};
-use planrs_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
-use planrs_core::resource::{Edit, Recalculated};
-use planrs_core::{Minutes, TaskType};
+use plannercraft_core::TaskType::{FixedDuration, FixedUnits, FixedWork};
+use plannercraft_core::resource::{Edit, Recalculated};
+use plannercraft_core::{Minutes, TaskType};
 
-fn one(t: TaskType) -> (planrs_core::resource::TaskSide, [planrs_core::resource::Part; 1]) {
+fn one(
+    t: TaskType,
+) -> (
+    plannercraft_core::resource::TaskSide,
+    [plannercraft_core::resource::Part; 1],
+) {
     let parts = [part(1, 10_000, 16 * HOUR)];
     (task(t, false, 2 * DAY, &parts), parts)
 }

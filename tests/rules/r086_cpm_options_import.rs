@@ -1,8 +1,8 @@
 //! R-086 — Options du chemin critique (`CriticalSlackLimit`,
 //! `MultipleCriticalPaths`) à l'import MSPDI.
 
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::moment;
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::moment;
 
 fn project(body: &str) -> MspdiDocument {
     let xml = format!(

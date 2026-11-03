@@ -4,8 +4,8 @@
 //! 115 %) ; inactive : aucune `AssignmentSchedule`. Source : R-063, R-062 ;
 //! O31.
 
-use planrs_core::{AssignmentRole, AssignmentUid, Units};
-use planrs_tests::net::Net;
+use plannercraft_core::{AssignmentRole, AssignmentUid, Units};
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, placed, resource};
 

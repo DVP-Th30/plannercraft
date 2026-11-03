@@ -1,9 +1,9 @@
 //! R-023 — Durée nulle : `add_working(t, 0) = t`, sans recalage, quel que soit
 //! t (le placement d'un jalon relève de R-031). Calendrier Standard.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{CalendarUid, Week};
-use planrs_tests::{compile_one, mins, moment, standard};
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{CalendarUid, Week};
+use plannercraft_tests::{compile_one, mins, moment, standard};
 
 #[test]
 fn r023_zero_is_identity() {

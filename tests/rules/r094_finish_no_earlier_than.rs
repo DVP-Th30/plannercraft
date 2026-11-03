@@ -3,10 +3,10 @@
 //! passe arrière depuis le début. Sources : S27 (« EF=CD »), S28, S30, O14,
 //! O17.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{CalendarUid, Constraint, ConstraintKind, Driver, Minutes, Week, Weekday};
-use planrs_tests::net::Net;
-use planrs_tests::{moment, working};
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{CalendarUid, Constraint, ConstraintKind, Driver, Minutes, Week, Weekday};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, working};
 
 fn fnet(d: &str) -> Constraint {
     Constraint::FinishNoEarlierThan { date: moment(d) }

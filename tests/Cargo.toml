@@ -1,6 +1,6 @@
 [package]
-name = "planrs-tests"
-description = "Harnais de tests transverses de planrs : règles R-xxx, fixtures, oracle MS Project, corpus public."
+name = "plannercraft-tests"
+description = "Harnais de tests transverses de PlannerCraft : règles R-xxx, fixtures, oracle MS Project, corpus public."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -30,7 +30,7 @@ name = "corpus"
 path = "corpus/main.rs"
 
 # Conformité au schéma MSPDI pj15 (P26, P27) ; sautée si le XSD est absent,
-# sauf sous `PLANRS_SCHEMA=required` (job CI `schema`).
+# sauf sous `PLANNERCRAFT_SCHEMA=required` (job CI `schema`).
 [[test]]
 name = "schema"
 path = "schema/main.rs"
@@ -41,7 +41,7 @@ name = "perf"
 path = "perf/main.rs"
 
 # Captures PDF des six modèles et du réseau de 5 000 tâches (J8, lot L16,
-# vérification 4) ; PDF écrits sous `PLANRS_PDF_CAPTURES` (job CI
+# vérification 4) ; PDF écrits sous `PLANNERCRAFT_PDF_CAPTURES` (job CI
 # `pdf-captures`, rendus en PNG par pdftoppm).
 [[test]]
 name = "pdf_captures"
@@ -55,9 +55,9 @@ harness = false
 
 [dependencies]
 chrono.workspace = true
-planrs-automation.workspace = true
-planrs-core.workspace = true
-planrs-mspdi.workspace = true
+plannercraft-automation.workspace = true
+plannercraft-core.workspace = true
+plannercraft-mspdi.workspace = true
 quick-xml.workspace = true
 serde.workspace = true
 serde_json.workspace = true

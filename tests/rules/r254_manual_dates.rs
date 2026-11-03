@@ -7,12 +7,12 @@
 //! jeu 12/11 17:00. Source : S73 (les dates ne bougent pas seules) ; calcul
 //! de la fin : hypothèse.
 
-use planrs_automation::Session;
-use planrs_automation::error::codes;
-use planrs_core::{Constraint, Moment, SchedulingMode};
-use planrs_tests::daily::{dates, plan_p};
-use planrs_tests::moment;
-use planrs_tests::task_edit::{apply, get, try_apply};
+use plannercraft_automation::Session;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{Constraint, Moment, SchedulingMode};
+use plannercraft_tests::daily::{dates, plan_p};
+use plannercraft_tests::moment;
+use plannercraft_tests::task_edit::{apply, get, try_apply};
 use serde_json::json;
 
 fn manual_6() -> Session {

@@ -7,11 +7,11 @@
 //! projet « P ». Source : S76 (« Update work on a project » : boutons 0 à
 //! 100 % sur une sélection) ; récapitulatives, inactives : hypothèse.
 
-use planrs_automation::helpers::{self, HelperError, PercentStep};
-use planrs_automation::{ApplyMode, Batch, Session};
-use planrs_core::{Percent, TaskUid};
-use planrs_tests::daily::{plan_p, uids};
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_automation::helpers::{self, HelperError, PercentStep};
+use plannercraft_automation::{ApplyMode, Batch, Session};
+use plannercraft_core::{Percent, TaskUid};
+use plannercraft_tests::daily::{plan_p, uids};
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 fn commit(s: &mut Session, b: &Batch) {

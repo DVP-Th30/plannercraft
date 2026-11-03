@@ -5,9 +5,9 @@
 //! dates de repli (`degraded`, propagé vers l'amont). Source : hypothèse
 //! (règle 10).
 
-use planrs_core::{Constraint, Diagnostic, Exclusion, Pass, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, Diagnostic, Exclusion, Pass, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r111_out_of_domain_from_finish() {

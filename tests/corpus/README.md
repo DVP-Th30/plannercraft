@@ -6,8 +6,8 @@ Fichiers MSPDI réels enregistrés par MS Project : chacun contient les valeurs 
 
 ```sh
 cargo xtask corpus fetch                              # télécharge les fichiers (curl, taille et sha256 vérifiés)
-cargo test -p planrs-tests --test corpus -- --nocapture
-PLANRS_CORPUS=required cargo test -p planrs-tests --test corpus   # échec si tous les fichiers sont absents (job CI `corpus`)
+cargo test -p plannercraft-tests --test corpus -- --nocapture
+PLANNERCRAFT_CORPUS=required cargo test -p plannercraft-tests --test corpus   # échec si tous les fichiers sont absents (job CI `corpus`)
 ```
 
 Le rapport est écrit dans `target/tmp/corpus-report.md` et `target/tmp/corpus-report.json` (déterministe, **aucun nom de tâche ni texte du fichier** : UID, ID, champs et valeurs seulement). Le job CI `corpus` le publie en artefact ; les fichiers eux-mêmes ne le sont jamais.
@@ -33,7 +33,7 @@ Le rapport est écrit dans `target/tmp/corpus-report.md` et `target/tmp/corpus-r
 | `note` | remarque (peut être vide) : contenu du fichier, divergences connues et jalon qui les traitera ; recopiée dans la section du fichier du rapport |
 | `floor` | plancher : nombre minimal de cas identiques sur ce fichier (≥ 0) |
 
-- Le manifeste est **figé** : on ajoute des lignes ; un retrait passe par un ADR et garde le nom. `planrs_core::parity::CORPUS_FLOOR` vaut la somme des `floor` (testé) et `FLOOR = CORPUS_FLOOR + ORACLE_FLOOR`.
+- Le manifeste est **figé** : on ajoute des lignes ; un retrait passe par un ADR et garde le nom. `plannercraft_core::parity::CORPUS_FLOOR` vaut la somme des `floor` (testé) et `FLOOR = CORPUS_FLOOR + ORACLE_FLOOR`.
 - Critère « enregistré par MS Project » (signature vérifiée et affichée par le rapport) : `SaveVersion` conforme, tâche UID 0, `EarlyStart`/`LateFinish`/`TotalSlack`/`FreeSlack` sur toutes les tâches, sections d'interface (`Views` … `VBAProjects`). Exclus : composants Gantt dotés d'un moteur, visionneuses et clones (règle 1), exports d'autres outils, fichiers sans valeurs calculées.
 - Un `.mpp` peut être converti en MSPDI avec MPXJ **comme outil externe uniquement** ; son code et sa documentation ne sont jamais lus (règle 1). Le noter dans `note`.
 
@@ -47,11 +47,11 @@ Le rapport est écrit dans `target/tmp/corpus-report.md` et `target/tmp/corpus-r
 
 ## Aller-retour MSPDI (P25)
 
-Le harnais relit aussi chaque fichier présent après une écriture par planrs (profil observé, R-121) : lecture → écriture → relecture. Le projet relu doit égaler `planrs_mspdi::normalize(projet lu)` (R-133) avec les valeurs relues écrites (`Computed::Recorded`) comme avec celles du moteur (`Computed::Schedule`), le planning enregistré relu doit égaler celui du fichier, et les éléments réécrits de chaque entité doivent suivre l'ordre source. Le rapport publie, par fichier, ces quatre verdicts, le nombre d'`Extras` par entité, les calculés non recalculés écartés (par nom), les enfants perdus et les diagnostics d'écriture. Un fichier `producer = msproject` qui n'est pas identique fait échouer le verdict. « Relu identique » par planrs n'est pas une vérification par MS Project.
+Le harnais relit aussi chaque fichier présent après une écriture par PlannerCraft (profil observé, R-121) : lecture → écriture → relecture. Le projet relu doit égaler `plannercraft_mspdi::normalize(projet lu)` (R-133) avec les valeurs relues écrites (`Computed::Recorded`) comme avec celles du moteur (`Computed::Schedule`), le planning enregistré relu doit égaler celui du fichier, et les éléments réécrits de chaque entité doivent suivre l'ordre source. Le rapport publie, par fichier, ces quatre verdicts, le nombre d'`Extras` par entité, les calculés non recalculés écartés (par nom), les enfants perdus et les diagnostics d'écriture. Un fichier `producer = msproject` qui n'est pas identique fait échouer le verdict. « Relu identique » par PlannerCraft n'est pas une vérification par MS Project.
 
 ## Ressources (J5)
 
-`corpus_resource_floor` compare, à compteur séparé des cas de tâches (`planrs_core::parity::CORPUS_RESOURCE_FLOOR`, hors `FLOOR`, planchers par fichier dans `resources.rs`) :
+`corpus_resource_floor` compare, à compteur séparé des cas de tâches (`plannercraft_core::parity::CORPUS_RESOURCE_FLOOR`, hors `FLOOR`, planchers par fichier dans `resources.rs`) :
 
 - **cas de tâche** : tâche automatique, active, planifiée, qui porte du travail ou une affectation à une vraie ressource ; `Work` de la tâche (R-184) et `Start`/`Finish` de chaque affectation hors fictive −65 535 (R-173 pour une feuille ; R-179 pour une récapitulative, comparées depuis la correction de la durée des affectations de récapitulatives à durée fixe : A4 et A6 identiques, cas et planchers inchangés) ;
 - **cas de ressource** : ressource (UID 0 exclu) dont le fichier enregistre `Work` ou `OverAllocated` (R-184, R-186) ; `OverAllocated` de A7 indicatif (O31).

@@ -3,16 +3,16 @@
 //! `TimephasedData` gardée ou jetée. R-125 amendée (`Start`/`Finish`
 //! d'affectation écrits).
 
-use planrs_core::{
+use plannercraft_core::{
     Assignment, AssignmentUid, Constraint, Duration, DurationUnit, ExtraEntry, Extras, Link, Minutes,
     OutlineLevel, Project, Resource, ResourceUid, ScheduleAnchor, Subject, Task, TaskType, TaskUid,
     TimeBasis, Work, WorkContour, schedule,
 };
-use planrs_mspdi::write::{Computed, WriteCode, WriteOptions, choose_computed, schedule_image, write};
-use planrs_mspdi::{ReadOptions, normalize, read};
-use planrs_tests::mspdi::{compact, new_project, reread, text};
-use planrs_tests::session::{commit, session, set_days};
-use planrs_tests::{moment, tests_path};
+use plannercraft_mspdi::write::{Computed, WriteCode, WriteOptions, choose_computed, schedule_image, write};
+use plannercraft_mspdi::{ReadOptions, normalize, read};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text};
+use plannercraft_tests::session::{commit, session, set_days};
+use plannercraft_tests::{moment, tests_path};
 
 fn duration(minutes: i64) -> Duration {
     Duration::new(
@@ -68,7 +68,7 @@ fn entity_xml(xml: &str, element: &str, uid: u32) -> String {
 
 /// Écrit avec les valeurs du moteur, vérifie que la relecture redonne
 /// `normalize(schedule_image(p))` et rend le texte compact et le document.
-fn written_by_engine(p: &Project) -> (String, planrs_mspdi::write::Written) {
+fn written_by_engine(p: &Project) -> (String, plannercraft_mspdi::write::Written) {
     let sched = schedule(p);
     let (computed, diags) = choose_computed(p, &sched, None);
     assert!(matches!(computed, Computed::Schedule(_)), "{diags:?}");
@@ -172,7 +172,7 @@ fn r199_zero_units_keeps_model_duration() {
     assign(&mut p, 1, 1, 1, 960);
     let a2 = assign(&mut p, 2, 1, 2, 180);
     let a = p.assignments.get_mut(a2).unwrap();
-    a.units = planrs_core::Units::ZERO;
+    a.units = plannercraft_core::Units::ZERO;
     a.delay = Minutes::new(480);
     let (xml, _) = written_by_engine(&p);
     let t1 = entity_xml(&xml, "Task", 1);

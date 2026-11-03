@@ -12,12 +12,12 @@
 //! projet et sa base passent d'abord ; au-delà, `calendar.too_many_segments`
 //! et repli R-066.
 
-use planrs_core::calendar::{
+use plannercraft_core::calendar::{
     Calendar, CalendarException, CalendarSet, CompiledCalendar, DaySetting, Recurrence, TimeRange,
 };
-use planrs_core::{CalendarError, CalendarUid, Day, DayRange, Diagnostic, Limits, Week, Weekday};
-use planrs_tests::net::Net;
-use planrs_tests::{calendars, compiled, day, exception, mins, moment, standard, time, working};
+use plannercraft_core::{CalendarError, CalendarUid, Day, DayRange, Diagnostic, Limits, Week, Weekday};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{calendars, compiled, day, exception, mins, moment, standard, time, working};
 
 /// Base lun-sam 09:00-18:00, UID 2.
 fn mon_sat() -> Calendar {

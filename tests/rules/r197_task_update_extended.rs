@@ -5,14 +5,14 @@
 //! feuille affectée équilibrée (R-189 « durée »), défauts pris par les seules
 //! tâches créées ensuite. Repère : calendrier Standard (1 j = 480 min).
 
-use planrs_automation::error::codes;
-use planrs_core::TaskType;
-use planrs_tests::resource_edit::{duration, units_work, with_tasks, work};
-use planrs_tests::task_edit::{apply, get, try_apply};
+use plannercraft_automation::error::codes;
+use plannercraft_core::TaskType;
+use plannercraft_tests::resource_edit::{duration, units_work, with_tasks, work};
+use plannercraft_tests::task_edit::{apply, get, try_apply};
 use serde_json::json;
 
 /// Tâche A de 2 j, une ressource R affectée à 100 % (16 h).
-fn assigned(task_type: &str) -> planrs_automation::Session {
+fn assigned(task_type: &str) -> plannercraft_automation::Session {
     let mut s = with_tasks(&[("A", "2j")]);
     apply(
         &mut s,

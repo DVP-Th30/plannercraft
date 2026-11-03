@@ -1,7 +1,7 @@
 //! R-009 — Durée stockée en minutes ; les options n'agissent qu'aux
 //! conversions (affichage à 2 décimales, R-001).
 
-use planrs_core::{ConversionFactors, Decimal, Duration, DurationUnit, Minutes, TimeBasis};
+use plannercraft_core::{ConversionFactors, Decimal, Duration, DurationUnit, Minutes, TimeBasis};
 
 const W: TimeBasis = TimeBasis::Working;
 

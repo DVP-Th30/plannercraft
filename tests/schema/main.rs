@@ -3,10 +3,10 @@
 //! Le schéma est un fichier public de Microsoft, jamais commité : `cargo
 //! xtask schema fetch` l'extrait du SDK de Project 2013 dans
 //! `tests/schema/mspdi_pj15.xsd` (ignoré par git, sha256 vérifié). Absent :
-//! les tests passent avec un message, sauf sous `PLANRS_SCHEMA=required`
+//! les tests passent avec un message, sauf sous `PLANNERCRAFT_SCHEMA=required`
 //! (job CI `schema`), où ils échouent.
 //!
-//! - P27 : la table `planrs_mspdi::schema` égale le XSD analysé (noms et
+//! - P27 : la table `plannercraft_mspdi::schema` égale le XSD analysé (noms et
 //!   ordre des séquences, `minOccurs`, `maxOccurs`, `maxLength`) ;
 //! - P26 : les sorties du profil strict (projets générés de P24, fichiers
 //!   du corpus relus) sont valides contre pj15 (validateur `uppsala`,
@@ -25,24 +25,24 @@
 )]
 
 mod doc;
-#[path = "../../crates/planrs-mspdi/tests/support/generate.rs"]
+#[path = "../../crates/plannercraft-mspdi/tests/support/generate.rs"]
 mod generate;
 mod xsd;
 
-use planrs_mspdi::schema::{Parent, Profile, sequence};
+use plannercraft_mspdi::schema::{Parent, Profile, sequence};
 
 /// Empreinte SHA-256 du XSD (révision 2012-07-18).
 const XSD_SHA256: &str = "1c208a9732d6ba16f677a9f2fb9d5a629f0c200346b1851998a44765c502eb85";
 
 /// Texte du XSD, empreinte vérifiée ; `None` s'il est absent et que
-/// `PLANRS_SCHEMA` ne vaut pas `required`.
+/// `PLANNERCRAFT_SCHEMA` ne vaut pas `required`.
 fn schema_text() -> Option<String> {
-    let path = planrs_tests::tests_path("schema/mspdi_pj15.xsd");
-    let required = std::env::var("PLANRS_SCHEMA").is_ok_and(|v| v == "required");
+    let path = plannercraft_tests::tests_path("schema/mspdi_pj15.xsd");
+    let required = std::env::var("PLANNERCRAFT_SCHEMA").is_ok_and(|v| v == "required");
     let Ok(bytes) = std::fs::read(&path) else {
         assert!(
             !required,
-            "PLANRS_SCHEMA=required et {} absent : lancer `cargo xtask schema fetch`",
+            "PLANNERCRAFT_SCHEMA=required et {} absent : lancer `cargo xtask schema fetch`",
             path.display()
         );
         eprintln!(
@@ -52,7 +52,7 @@ fn schema_text() -> Option<String> {
         return None;
     };
     assert_eq!(
-        planrs_tests::corpus::manifest::sha256_hex(&bytes),
+        plannercraft_tests::corpus::manifest::sha256_hex(&bytes),
         XSD_SHA256,
         "{} : empreinte inattendue",
         path.display()
@@ -134,7 +134,7 @@ struct Written {
 }
 
 /// Charges des `Extras` d'un projet.
-fn payloads(p: &planrs_core::Project) -> Vec<String> {
+fn payloads(p: &plannercraft_core::Project) -> Vec<String> {
     let mut out: Vec<String> = p.extras.0.iter().map(|e| e.payload.clone()).collect();
     for t in p.summary_task.iter().chain(p.tasks.iter()) {
         out.extend(t.extras.0.iter().map(|e| e.payload.clone()));
@@ -174,8 +174,8 @@ fn payload_lines(text: &str, payloads: &[String]) -> Vec<(usize, usize)> {
 
 /// Documents écrits pour P26 : projets générés, puis fichiers du corpus.
 fn documents() -> Vec<Written> {
-    use planrs_core::{Severity, schedule};
-    use planrs_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
+    use plannercraft_core::{Severity, schedule};
+    use plannercraft_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
     let strict = WriteOptions {
         profile: OrderProfile::Strict,
         ..WriteOptions::default()
@@ -201,7 +201,7 @@ fn documents() -> Vec<Written> {
             payloads: payloads(&p),
         });
     }
-    let dir = planrs_tests::tests_path("corpus/files");
+    let dir = plannercraft_tests::tests_path("corpus/files");
     let mut files: Vec<_> = std::fs::read_dir(dir)
         .map(|d| d.filter_map(Result::ok).map(|e| e.path()).collect())
         .unwrap_or_default();
@@ -211,9 +211,9 @@ fn documents() -> Vec<Written> {
         .filter(|p| p.extension().is_some_and(|e| e == "xml"))
     {
         let bytes = std::fs::read(&path).unwrap();
-        let read = planrs_mspdi::read(
+        let read = plannercraft_mspdi::read(
             &bytes,
-            &planrs_mspdi::ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+            &plannercraft_mspdi::ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
         )
         .unwrap();
         let rec = Computed::Recorded(&read.recorded);
@@ -296,11 +296,11 @@ fn p26_observed_reordered_equals_strict() {
     }
 }
 
-/// H-R12 (J8, lot L6) : l'instruction `<?planrs-style?>` ne change rien à
+/// H-R12 (J8, lot L6) : l'instruction `<?plannercraft-style?>` ne change rien à
 /// la conformité pj15 de la sortie stricte.
 #[test]
 fn style_xsd_strict_with_pi() {
-    use planrs_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
+    use plannercraft_mspdi::write::{Computed, OrderProfile, WriteOptions, write};
     let Some(text) = schema_text() else {
         return;
     };
@@ -310,13 +310,13 @@ fn style_xsd_strict_with_pi() {
         ..WriteOptions::default()
     };
     let mut p = generate::project(3);
-    planrs_mspdi::style_pi::set(
+    plannercraft_mspdi::style_pi::set(
         &mut p.extras,
         Some(r#"{"base":"presentation","over":{"density":"airy"},"v":1}"#.to_owned()),
     );
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     let xml = String::from_utf8(write(&p, Computed::Schedule(&s), &strict).xml).expect("UTF-8");
-    assert!(xml.contains("?>\n<?planrs-style {"), "instruction écrite");
+    assert!(xml.contains("?>\n<?plannercraft-style {"), "instruction écrite");
     let errs: Vec<String> = errors(&validator, &xml)
         .into_iter()
         .filter(|e| !e.contains("exceeds maxLength"))

@@ -2,9 +2,9 @@
 //! boucle, jamais de panique ; `NoWorkingTime` ou `OutOfDomain` avec sa
 //! direction.
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{CalendarError, CalendarUid, Direction, Week};
-use planrs_tests::{compile_one, exception, mins, moment, standard, working};
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{CalendarError, CalendarUid, Direction, Week};
+use plannercraft_tests::{compile_one, exception, mins, moment, standard, working};
 
 fn uid(v: u32) -> CalendarUid {
     CalendarUid::new(v)

@@ -5,13 +5,15 @@
 //! qui commence le jour donné. R-161 (calendriers) : la répartition des
 //! affectations planifiées par ce calendrier est jetée.
 
-use planrs_automation::error::codes;
-use planrs_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session, SideEffect};
-use planrs_core::calendar::DaySetting;
-use planrs_core::{Assignment, AssignmentUid, Constraint, ExtraEntry, Moment, Project, Subject, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{push_tasks, session};
+use plannercraft_automation::error::codes;
+use plannercraft_automation::{ApplyMode, ApplyOutcome, Batch, CommandError, Session, SideEffect};
+use plannercraft_core::calendar::DaySetting;
+use plannercraft_core::{
+    Assignment, AssignmentUid, Constraint, ExtraEntry, Moment, Project, Subject, TaskUid,
+};
+use plannercraft_tests::moment;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{push_tasks, session};
 
 fn run(s: &mut Session, ops: &str) -> Result<ApplyOutcome, CommandError> {
     let batch = Batch::from_json_str(&format!(r#"{{"format_version":1,"ops":[{ops}]}}"#)).unwrap();
@@ -221,14 +223,14 @@ fn r165_exception_name_round_trip() {
     .unwrap();
     assert_eq!(name(&s), "11 novembre");
     // Écrit puis relu : même nom, même période.
-    let w = s.save_bytes(&planrs_mspdi::write::WriteOptions::default());
+    let w = s.save_bytes(&plannercraft_mspdi::write::WriteOptions::default());
     assert!(String::from_utf8_lossy(&w.xml).contains("<Name>11 novembre</Name>"));
-    let doc = planrs_tests::mspdi::reread(&w.xml);
+    let doc = plannercraft_tests::mspdi::reread(&w.xml);
     let p = &doc.project;
     let e = &p.calendars.get(p.calendar).unwrap().exceptions()[0];
     assert_eq!(
         (e.name.as_str(), e.period.first()),
-        ("11 novembre", planrs_tests::day("2026-11-11"))
+        ("11 novembre", plannercraft_tests::day("2026-11-11"))
     );
     // Trop long : refusé.
     let long = "x".repeat(513);

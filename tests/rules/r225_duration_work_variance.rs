@@ -5,11 +5,11 @@
 //! base. Source : S59 (« Work Variance = Work - Baseline Work », « Duration
 //! Variance = Duration - Baseline Duration ») ; O43 (A4, A6).
 
-use planrs_core::baseline::{self, Rollup, Scope};
-use planrs_core::{AssignmentUid, CalendarSet, Minutes, ResourceUid, TaskBaseline, TaskUid};
-use planrs_mspdi::{ReadOptions, read};
-use planrs_tests::net::Net;
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::baseline::{self, Rollup, Scope};
+use plannercraft_core::{AssignmentUid, CalendarSet, Minutes, ResourceUid, TaskBaseline, TaskUid};
+use plannercraft_mspdi::{ReadOptions, read};
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, tests_path};
 
 use crate::r171_assignment_effective_calendar::{assign, assign_full, resource};
 use crate::r220_baseline_values::{number, plan, set, spec, with_root, work};
@@ -46,7 +46,7 @@ fn r225_work_and_duration_variance() {
     let (mut p, s) = plan(net);
     let _ = set(&mut p, &s, &spec(0, Scope::Project, Rollup::None, false));
     p.assignments.get_mut(AssignmentUid::new(1)).unwrap().work = work(2_880);
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     let (cals, _) = CalendarSet::compile(&p);
     let v = baseline::variance(&p, &s, &cals, number(0));
     let tv = v.tasks.iter().find(|x| x.uid == t).unwrap();
@@ -84,7 +84,7 @@ fn r225_corpus_a4_without_baseline() {
         return;
     };
     let d = read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
-    let s = planrs_core::schedule(&d.project);
+    let s = plannercraft_core::schedule(&d.project);
     let (cals, _) = CalendarSet::compile(&d.project);
     let v = baseline::variance(&d.project, &s, &cals, number(0));
     let u1 = v.tasks.iter().find(|x| x.uid == TaskUid::new(1)).unwrap();
@@ -104,7 +104,7 @@ fn r225_corpus_a7_recorded_baseline_matches() {
         return;
     };
     let d = read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
-    let s = planrs_core::schedule(&d.project);
+    let s = plannercraft_core::schedule(&d.project);
     let (cals, _) = CalendarSet::compile(&d.project);
     let v = baseline::variance(&d.project, &s, &cals, number(0));
     for t in v.tasks.iter().chain([&v.project]) {

@@ -1,8 +1,8 @@
 //! R-027 — Week-ends et jours fériés sautés : le temps chômé ne consomme pas
 //! de durée (conséquence de R-020 et R-021, testée à part).
 
-use planrs_core::calendar::DaySetting;
-use planrs_tests::{compile_one, exception, mins, moment, standard};
+use plannercraft_core::calendar::DaySetting;
+use plannercraft_tests::{compile_one, exception, mins, moment, standard};
 
 #[test]
 fn r027_holiday_wednesday() {

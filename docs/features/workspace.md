@@ -1,4 +1,4 @@
-# Espace de travail et vues JSON (`planrs_automation::{workspace, view, files, journal}`)
+# Espace de travail et vues JSON (`plannercraft_automation::{workspace, view, files, journal}`)
 
 État au 2026-10-19 (lot L6 de J4, ADR-0012 D1, D6, D8). Couche commune à la CLI (`--json`), au serveur MCP et au canal de contrôle, au-dessus de `Session`. Aucune règle de calcul ici (règle 3) : des contrats de surface `C-MCP-01` à `C-MCP-03`.
 
@@ -48,17 +48,17 @@ Routeur unique : un id du registre (`REGISTRY`), des paramètres JSON, une valeu
 ## 4. Fichiers (`files`, hors wasm)
 
 - `read_path(p, max)` : lecture arrêtée à `max + 1` octets (`file.too_large`), un dossier est refusé (`file.read`). Bornes : 256 Mio en MSPDI, 64 Mio en CSV.
-- `write_atomic(p, bytes)` : temporaire `.<nom>.planrs-tmp-<pid>-<n>` du même dossier (création exclusive), écriture, `fsync`, renommage, `fsync` du dossier au mieux ; droits d'un fichier existant repris ; le temporaire est retiré en cas d'échec. Si `p` est un lien symbolique (CLI, MCP stdio : sans `--root`, le chemin n'est pas canonicalisé), c'est sa cible qui est remplacée, temporaire dans le dossier de la cible, et le lien reste un lien ; un lien sans cible → `file.write` (test `files_write_atomic_follows_symlink`).
+- `write_atomic(p, bytes)` : temporaire `.<nom>.plannercraft-tmp-<pid>-<n>` du même dossier (création exclusive), écriture, `fsync`, renommage, `fsync` du dossier au mieux ; droits d'un fichier existant repris ; le temporaire est retiré en cas d'échec. Si `p` est un lien symbolique (CLI, MCP stdio : sans `--root`, le chemin n'est pas canonicalisé), c'est sa cible qui est remplacée, temporaire dans le dossier de la cible, et le lien reste un lien ; un lien sans cible → `file.write` (test `files_write_atomic_follows_symlink`).
 - `confine(root, p)` : chemins canoniques (liens résolus) ; relatif lu depuis la racine ; fichier à créer accepté si son dossier existe dans la racine et que son nom est simple ; sinon `file.outside_root`.
 
 ## 5. Journal (`journal`)
 
 Une ligne JSON compacte par entrée `{v, seq, tool, params, result?}` (`deny_unknown_fields`) ; `to_line` ne renvoie jamais de fin de ligne, `parse_line` refuse une forme inattendue. Écriture et `fsync` : lot L8 (`journal_file.rs`).
 
-## 6. Contrats et tests (`crates/planrs-automation/tests/workspace.rs`)
+## 6. Contrats et tests (`crates/plannercraft-automation/tests/workspace.rs`)
 
 - **C-MCP-01** (dates du moteur) : `view_task_dates_from_engine` compare chaque date et marge de `task.list`/`task.get` à `Schedule::scheduled`, et les dates du résumé et du chemin critique.
-- **C-MCP-02** (forme figée) : `tests/golden/views/*.json` (`view_golden_summary_house`, `view_golden_outcome_add_task` ; J6 : `views_golden` de `views_j6.rs` pour `task_get_progress`, `task_list_progress`, `summary_tracking`, `baseline_variance`, `what_if`), régénérés par `PLANRS_BLESS=1`.
+- **C-MCP-02** (forme figée) : `tests/golden/views/*.json` (`view_golden_summary_house`, `view_golden_outcome_add_task` ; J6 : `views_golden` de `views_j6.rs` pour `task_get_progress`, `task_list_progress`, `summary_tracking`, `baseline_variance`, `what_if`), régénérés par `PLANNERCRAFT_BLESS=1`.
 - **C-MCP-03** (sortie bornée) : 500 tâches par page (`list_limit_over_500_refused`), 1 000 tâches de diff, 100 diagnostics par vue, 100 affectations par ressource et 100 ressources par tâche (J5, totaux `assignments_total`, `resources_total`), messages ≤ 2 000 caractères, 200 lignes de rendu.
 - J6 (lot L10) : les vues de suivi (`task.get` avec `progress` et `baselines`, `project.summary` avec `status_date` et `percent_complete`, `analysis.baseline_variance`, `analysis.explain_date`, `analysis.what_if`) sont aussi figées de bout en bout par le rejeu `tracking_j6` (`docs/features/mcp.md` § 5), réouverture du MSPDI exporté comprise (mêmes écarts, mêmes `task.list`).
 - Critère de fin du lot : `workspace_open_save_reopen_equal` (`house.xml` ouvert, modifié, enregistré, relu : projets égaux par `normalize`, R-133).

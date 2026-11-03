@@ -1,16 +1,18 @@
 //! R-223 — Ligne de base : remplacement. Une entité de la portée déjà dotée
 //! de la ligne n ⇒ `Exists { number, count }` sauf `overwrite` ; remplacée :
-//! coût et coût fixe de l'ancienne ligne recopiés tels quels (planrs ne
+//! coût et coût fixe de l'ancienne ligne recopiés tels quels (PlannerCraft ne
 //! calcule pas les coûts : `cost_copied`, d'où `baseline.cost_not_computed` ;
 //! arbitrage du 2026-10-20 de l'ADR-0014, qui remplace l'effacement du
 //! cahier), `Extras` MSPDI de portée `Baseline#n/` de l'entité jetés
 //! (extension de R-161). Source : S58 (« When prompted to overwrite the
 //! existing saved data, click Yes. ») ; reste : hypothèse.
 
-use planrs_core::baseline::{self, BaselineError, Rollup, Scope};
-use planrs_core::{AssignmentUid, ExtraEntry, Money, ResourceBaseline, ResourceUid, Subject, TaskBaseline};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::baseline::{self, BaselineError, Rollup, Scope};
+use plannercraft_core::{
+    AssignmentUid, ExtraEntry, Money, ResourceBaseline, ResourceUid, Subject, TaskBaseline,
+};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r220_baseline_values::{number, plan, set, spec};

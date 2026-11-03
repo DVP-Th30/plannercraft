@@ -6,11 +6,11 @@
 //! planifiée précède l'ancrage) ; MSO, MFO épinglées (option active) ou
 //! fenêtres. Source : miroir de S27, Q13 ; hypothèse.
 
-use planrs_core::{
+use plannercraft_core::{
     Constraint, ConstraintKind, Diagnostic, LateDriver, LinkType, Minutes, OverriddenBound, TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r109_finish_no_later_than_caps() {
@@ -63,7 +63,7 @@ fn r109_start_no_later_than_caps() {
 }
 
 /// A 1 j `c` FS → B 2 j ; F ven 23/10 17:00.
-fn clamped(c: Constraint, honor: bool) -> planrs_tests::net::Run {
+fn clamped(c: Constraint, honor: bool) -> plannercraft_tests::net::Run {
     Net::new("2026-10-19T08:00")
         .from_finish("2026-10-23T17:00")
         .honor(honor)

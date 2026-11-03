@@ -1,0 +1,9 @@
+# Configuration clippy commune (crates sans `clippy.toml` propre).
+#
+# Clippy lit le `clippy.toml` le plus proche du manifeste de la crate et ne
+# fusionne pas les fichiers : ces réglages sont recopiés dans
+# `crates/plannercraft-core/clippy.toml` et `crates/plannercraft-ui-egui/clippy.toml`.
+
+# Nom du produit (ADR-0020) écrit sans backticks dans la documentation ;
+# `..` garde la liste par défaut de clippy.
+doc-valid-idents = ["PlannerCraft", ".."]

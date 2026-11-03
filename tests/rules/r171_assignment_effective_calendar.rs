@@ -8,13 +8,13 @@
 //! Le module porte aussi les aides des tests J5 du moteur (R-170 à R-177) :
 //! ressources, affectations, calendrier « L6 » (lun-sam).
 
-use planrs_core::calendar::{Calendar, DaySetting};
-use planrs_core::{
+use plannercraft_core::calendar::{Calendar, DaySetting};
+use plannercraft_core::{
     Assignment, AssignmentSchedule, AssignmentUid, CalendarUid, EffectiveCalendar, Minutes, Resource,
     ResourceKind, ResourceUid, Units, Week, Weekday, Work,
 };
-use planrs_tests::net::{Net, Run};
-use planrs_tests::{moment, working};
+use plannercraft_tests::net::{Net, Run};
+use plannercraft_tests::{moment, working};
 
 /// UID du calendrier « L6 » : lun-sam 08:00-12:00, 13:00-17:00 (comme A6
 /// UID 9).
@@ -211,9 +211,9 @@ fn r171_combined_segment_budget_falls_back_to_task_calendar() {
             .calendar("A", L6);
         assign(resource(net, 1, Some(STANDARD)), 1, "A", 1, 1_440)
     };
-    let run = build().run_with(planrs_core::Limits {
+    let run = build().run_with(plannercraft_core::Limits {
         combined_segments: 0,
-        ..planrs_core::Limits::default()
+        ..plannercraft_core::Limits::default()
     });
     assert_eq!(run.at("A").finish, moment("2026-10-24T17:00"));
     assert_eq!(

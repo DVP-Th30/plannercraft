@@ -1,4 +1,4 @@
-# Politique cargo-deny de planrs (règle 2 : licence MIT OR Apache-2.0 et
+# Politique cargo-deny de PlannerCraft (règle 2 : licence MIT OR Apache-2.0 et
 # dépendances compatibles). Exécuté en CI ; doit passer avant tout commit.
 
 [graph]
@@ -52,7 +52,7 @@ exceptions = [
 unused-allowed-license = "allow"
 
 [licenses.private]
-# Les crates internes non publiées (xtask, planrs-tests, planrs-web) héritent
+# Les crates internes non publiées (xtask, plannercraft-tests, plannercraft-web) héritent
 # de la licence du workspace ; elles sont vérifiées comme les autres.
 ignore = false
 

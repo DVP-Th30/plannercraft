@@ -6,10 +6,10 @@
 //! Oracles : A4 et A6 sans surutilisation (aucun faux positif). Source :
 //! S47, S49 ; O31.
 
-use planrs_core::{ExtraEntry, ResourceKind, ResourceUid, Severity, Units, schedule};
-use planrs_mspdi::ReadOptions;
-use planrs_tests::net::Net;
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{ExtraEntry, ResourceKind, ResourceUid, Severity, Units, schedule};
+use plannercraft_mspdi::ReadOptions;
+use plannercraft_tests::net::Net;
+use plannercraft_tests::{moment, tests_path};
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r184_work_rollups::work;
@@ -81,7 +81,7 @@ fn r187_corpus_no_false_positive() {
         let Ok(bytes) = std::fs::read(tests_path(&format!("corpus/files/{name}"))) else {
             continue;
         };
-        let doc = planrs_mspdi::read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
+        let doc = plannercraft_mspdi::read(&bytes, &ReadOptions::new(moment("2026-01-01T00:00"))).unwrap();
         let s = schedule(&doc.project);
         let over: Vec<_> = s
             .resources

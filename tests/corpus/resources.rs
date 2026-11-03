@@ -1,6 +1,6 @@
 //! Comparaison des valeurs de ressources du corpus (J5, lot L9), à compteur
 //! séparé des cas de tâches ([`super::compare`]) : plancher
-//! `planrs_core::parity::CORPUS_RESOURCE_FLOOR`, hors `FLOOR`.
+//! `plannercraft_core::parity::CORPUS_RESOURCE_FLOOR`, hors `FLOOR`.
 //!
 //! - **Cas de tâche** : une tâche automatique, active, planifiée (feuille ou
 //!   récapitulative, UID 0 exclu) qui porte du travail enregistré ou une
@@ -21,8 +21,8 @@
 
 use std::collections::BTreeMap;
 
-use planrs_core::{Assignment, Schedule, SchedulingMode, TaskOutcome, TaskRole, TaskUid};
-use planrs_mspdi::MspdiDocument;
+use plannercraft_core::{Assignment, Schedule, SchedulingMode, TaskOutcome, TaskRole, TaskUid};
+use plannercraft_mspdi::MspdiDocument;
 use serde::Serialize;
 
 /// Champ comparé.
@@ -76,7 +76,7 @@ pub struct ResourceDivergence {
     pub assignment: Option<u32>,
     /// Valeur enregistrée par MS Project.
     pub recorded: String,
-    /// Valeur de planrs.
+    /// Valeur de PlannerCraft.
     pub computed: String,
 }
 
@@ -287,7 +287,7 @@ fn resource_cases(doc: &MspdiDocument, schedule: &Schedule, out: &mut ResourceCo
 
 /// Planchers par fichier : nombre minimal de cas identiques (tâches et
 /// ressources) ; relevés au mesuré, jamais baissés sans ADR. Leur somme
-/// vaut `planrs_core::parity::CORPUS_RESOURCE_FLOOR` (testé).
+/// vaut `plannercraft_core::parity::CORPUS_RESOURCE_FLOOR` (testé).
 pub const FLOORS: [(&str, u32); 5] = [
     // A1 et A2 : aucune ressource, seulement des affectations fictives (O24).
     ("cogito-advanced-sample-msp2010.xml", 0),

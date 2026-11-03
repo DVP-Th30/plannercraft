@@ -3,9 +3,9 @@
 //! fin = instant ouvré précédant la date au plus tard, début = fin − durée
 //! (R-022). Calendrier Standard.
 
-use planrs_core::calendar::CompiledCalendar;
-use planrs_core::{Moment, TimeScale};
-use planrs_tests::{compile_one, mins, moment, standard};
+use plannercraft_core::calendar::CompiledCalendar;
+use plannercraft_core::{Moment, TimeScale};
+use plannercraft_tests::{compile_one, mins, moment, standard};
 
 fn cal() -> CompiledCalendar {
     compile_one(standard())
@@ -58,7 +58,7 @@ fn r030_backward_span_aligns_finish() {
 
 #[test]
 fn r030_elapsed_span_out_of_domain() {
-    use planrs_core::{CalendarError, Direction};
+    use plannercraft_core::{CalendarError, Direction};
     // Temps écoulé : fin au-delà de 2150-01-01 00:00 (passe avant) ou début
     // avant 1984-01-01 00:00 (passe arrière) → `ElapsedOutOfDomain`.
     let e = TimeScale::Elapsed;

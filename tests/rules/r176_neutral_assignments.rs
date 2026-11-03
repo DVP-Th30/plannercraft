@@ -5,9 +5,9 @@
 //! travail exclu des cumuls (R-184). Source : O24 (A6 UID 24 : affectation
 //! −65 535 de 8 h, `Work` de la tâche 0).
 
-use planrs_core::{AssignmentRole, CalendarUid, EffectiveCalendar, ResourceKind, Work};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{AssignmentRole, CalendarUid, EffectiveCalendar, ResourceKind, Work};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign_full, placed, resource_kind};
 

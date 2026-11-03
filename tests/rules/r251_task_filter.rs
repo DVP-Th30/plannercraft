@@ -7,12 +7,12 @@
 //! faux pour `task.list`). Repère : projet « P » de `docs/plans/j8.md` § 2.
 //! Hypothèse (S79 relue : rien sur les récapitulatives liées).
 
-use planrs_automation::Session;
-use planrs_automation::command::params::TaskListParams;
-use planrs_automation::filter::{FilterCtx, FilterHits, FilterPreset, TaskFilter, fold_text};
-use planrs_automation::view;
-use planrs_tests::daily::plan_p;
-use planrs_tests::task_edit::apply;
+use plannercraft_automation::Session;
+use plannercraft_automation::command::params::TaskListParams;
+use plannercraft_automation::filter::{FilterCtx, FilterHits, FilterPreset, TaskFilter, fold_text};
+use plannercraft_automation::view;
+use plannercraft_tests::daily::plan_p;
+use plannercraft_tests::task_edit::apply;
 use serde_json::json;
 
 fn hits(s: &Session, f: &TaskFilter) -> FilterHits {
@@ -117,9 +117,9 @@ fn r251_name_contains_folds_accents() {
         };
         assert_eq!(shown(&s, &f), [6], "{needle}");
     }
-    let mut ws = planrs_automation::Workspace::new(
-        planrs_tests::moment("2026-10-19T08:00"),
-        planrs_automation::text::Language::Fr,
+    let mut ws = plannercraft_automation::Workspace::new(
+        plannercraft_tests::moment("2026-10-19T08:00"),
+        plannercraft_automation::text::Language::Fr,
     );
     ws.call("project.new", json!({ "name": "P", "start": "2026-10-19T08:00" }))
         .unwrap();
@@ -140,7 +140,7 @@ fn r251_name_contains_folds_accents() {
     let err = ws
         .call("task.list", json!({ "name_contains": "a".repeat(257) }))
         .unwrap_err();
-    assert_eq!(err.code, planrs_automation::error::codes::LIMIT_EXCEEDED);
+    assert_eq!(err.code, plannercraft_automation::error::codes::LIMIT_EXCEEDED);
 }
 
 #[test]
@@ -236,8 +236,8 @@ fn r251_conjunction() {
     };
     assert_eq!(shown(&s, &f), [7]);
     let f = TaskFilter::from_preset(&FilterPreset::DateRange {
-        from: planrs_tests::day("2026-11-09"),
-        to: planrs_tests::day("2026-11-13"),
+        from: plannercraft_tests::day("2026-11-09"),
+        to: plannercraft_tests::day("2026-11-13"),
     });
     assert_eq!(shown(&s, &f), [5, 6]);
     let p = TaskListParams {

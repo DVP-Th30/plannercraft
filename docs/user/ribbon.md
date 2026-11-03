@@ -1,10 +1,10 @@
 # Le ruban et la chronologie : où est… ?
 
-Guide pour l'utilisateur occasionnel de MS Project qui ouvre planrs. Référence technique : ADR-0017 (`docs/decisions.md`) et `docs/features/ui.md` § 1.32 et § 1.33.
+Guide pour l'utilisateur occasionnel de MS Project qui ouvre PlannerCraft. Référence technique : ADR-0017 (`docs/decisions.md`) et `docs/features/ui.md` § 1.32 et § 1.33.
 
 ## 1. Ce qui ressemble à MS Project
 
-- **Cinq onglets** sous la barre de menus, dans l'ordre de MS Project : **Tâche, Ressource, Projet, Affichage, Format** (en anglais : Task, Resource, Project, View, Format ; page Microsoft « Learn the Project 2010 Ribbon »). L'onglet Tâche est ouvert au premier lancement, puis planrs rouvre le dernier choisi.
+- **Cinq onglets** sous la barre de menus, dans l'ordre de MS Project : **Tâche, Ressource, Projet, Affichage, Format** (en anglais : Task, Resource, Project, View, Format ; page Microsoft « Learn the Project 2010 Ribbon »). L'onglet Tâche est ouvert au premier lancement, puis PlannerCraft rouvre le dernier choisi.
 - **Groupes nommés** sous chaque onglet (Presse-papiers, Planification, Insérer, Propriétés, Édition…), grands boutons à icône et libellé, petits boutons empilés, listes déroulantes (▾), cases à cocher.
 - **Info-bulles** : survoler un bouton affiche son nom, une phrase d'aide et le raccourci clavier (« Lier les tâches (Ctrl+F2) ») ; un bouton grisé dit pourquoi (« Sélectionnez au moins une tâche », « Retirez le tri ou le filtre »).
 - **Barre d'accès rapide** à gauche des onglets : Enregistrer, Annuler, Rétablir.
@@ -29,7 +29,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 
 ## 3. Où est… ?
 
-| Je cherche… | Dans planrs |
+| Je cherche… | Dans PlannerCraft |
 |---|---|
 | Insérer une tâche | Tâche → Insérer → **Tâche** (Inser) |
 | Insérer un jalon | Tâche → Insérer → **Jalon** (avant la tâche sélectionnée, en fin de projet sans sélection) |

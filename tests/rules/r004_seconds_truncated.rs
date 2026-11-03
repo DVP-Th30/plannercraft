@@ -1,8 +1,8 @@
 //! R-004 — Secondes tronquées à l'import, refusées à la saisie stricte.
 
 use chrono::NaiveDateTime;
-use planrs_core::{Moment, TimeError};
-use planrs_tests::moment;
+use plannercraft_core::{Moment, TimeError};
+use plannercraft_tests::moment;
 
 fn naive(s: &str) -> NaiveDateTime {
     NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").unwrap()

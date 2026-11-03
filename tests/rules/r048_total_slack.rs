@@ -2,8 +2,8 @@
 //! calendrier effectif, temps civil pour une durée écoulée. Sources : S16,
 //! S18, Q5 ; dixièmes de minute dans MSPDI : O2.
 
-use planrs_core::Minutes;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r048_total_slack_n1() {

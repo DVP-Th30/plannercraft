@@ -342,9 +342,9 @@ dependencies = [
 
 [[package]]
 name = "async-executor"
-version = "1.14.0"
+version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c96bf972d85afc50bf5ab8fe2d54d1586b4e0b46c97c50a0c9e71e2f7bcd812a"
+checksum = "f426a31126c735126297bc5ea7a521263c9faff4f63ca415267ee625651c4f37"
 dependencies = [
  "async-task",
  "concurrent-queue",
@@ -3445,31 +3445,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
-name = "planrs"
+name = "plannercraft"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
  "eframe",
  "log",
  "muda",
- "planrs-automation",
- "planrs-core",
- "planrs-ui-egui",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-ui-egui",
  "winit",
 ]
 
 [[package]]
-name = "planrs-automation"
+name = "plannercraft-automation"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
  "csv",
  "encoding_rs",
  "getrandom 0.3.4",
- "planrs-core",
- "planrs-mspdi",
- "planrs-pdf",
- "planrs-render",
+ "plannercraft-core",
+ "plannercraft-mspdi",
+ "plannercraft-pdf",
+ "plannercraft-render",
  "proptest",
  "schemars",
  "serde",
@@ -3479,23 +3479,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-cli"
+name = "plannercraft-cli"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
  "clap",
- "planrs-automation",
- "planrs-core",
- "planrs-mcp",
- "planrs-mspdi",
- "planrs-render",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-mcp",
+ "plannercraft-mspdi",
+ "plannercraft-render",
  "rmcp",
  "serde_json",
  "tokio",
 ]
 
 [[package]]
-name = "planrs-core"
+name = "plannercraft-core"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
@@ -3507,17 +3507,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-mcp"
+name = "plannercraft-mcp"
 version = "1.0.0-rc.1"
 dependencies = [
  "bytes",
  "http-body-util",
  "hyper",
  "hyper-util",
- "planrs-automation",
- "planrs-core",
- "planrs-mspdi",
- "planrs-render",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-mspdi",
+ "plannercraft-render",
  "rmcp",
  "serde_json",
  "thiserror 2.0.21",
@@ -3525,11 +3525,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-mspdi"
+name = "plannercraft-mspdi"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
- "planrs-core",
+ "plannercraft-core",
  "proptest",
  "quick-xml 0.42.0",
  "serde",
@@ -3537,23 +3537,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-pdf"
+name = "plannercraft-pdf"
 version = "1.0.0-rc.1"
 dependencies = [
  "krilla",
  "miniz_oxide 0.8.9",
- "planrs-core",
- "planrs-render",
+ "plannercraft-core",
+ "plannercraft-render",
  "proptest",
  "skrifa 0.42.1",
 ]
 
 [[package]]
-name = "planrs-render"
+name = "plannercraft-render"
 version = "1.0.0-rc.1"
 dependencies = [
- "planrs-core",
- "planrs-mspdi",
+ "plannercraft-core",
+ "plannercraft-mspdi",
  "proptest",
  "quick-xml 0.42.0",
  "serde",
@@ -3561,14 +3561,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-tests"
+name = "plannercraft-tests"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
  "criterion",
- "planrs-automation",
- "planrs-core",
- "planrs-mspdi",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-mspdi",
  "quick-xml 0.42.0",
  "serde",
  "serde_json",
@@ -3578,7 +3578,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-ui-egui"
+name = "plannercraft-ui-egui"
 version = "1.0.0-rc.1"
 dependencies = [
  "base64 0.23.1",
@@ -3592,11 +3592,11 @@ dependencies = [
  "image",
  "js-sys",
  "log",
- "planrs-automation",
- "planrs-core",
- "planrs-mspdi",
- "planrs-render",
- "planrs-tests",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-mspdi",
+ "plannercraft-render",
+ "plannercraft-tests",
  "pollster 1.0.1",
  "proptest",
  "rfd",
@@ -3610,16 +3610,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "planrs-web"
+name = "plannercraft-web"
 version = "1.0.0-rc.1"
 dependencies = [
  "chrono",
  "eframe",
  "js-sys",
  "log",
- "planrs-automation",
- "planrs-core",
- "planrs-ui-egui",
+ "plannercraft-automation",
+ "plannercraft-core",
+ "plannercraft-ui-egui",
  "wasm-bindgen-futures",
  "web-sys",
 ]

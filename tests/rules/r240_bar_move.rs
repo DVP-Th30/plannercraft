@@ -5,17 +5,17 @@
 //! `gesture.not_draggable` ; une date chômée passe telle quelle, normalisée
 //! par le moteur (R-090). Repère : Standard, début lun 19/10/2026 08:00.
 
-use planrs_automation::error::codes;
-use planrs_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
-use planrs_automation::{ApplyMode, Batch, Session};
-use planrs_core::{
+use plannercraft_automation::error::codes;
+use plannercraft_automation::gesture::{self, GestureError, GestureKind, NotDraggable};
+use plannercraft_automation::{ApplyMode, Batch, Session};
+use plannercraft_core::{
     BuiltinCalendarNames, CalendarSet, Constraint, Project, ProjectInit, ScheduleAnchor, SchedulingMode,
     TaskUid,
 };
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::session::{push_tasks, session};
-use planrs_tests::task_edit::{apply, get};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::session::{push_tasks, session};
+use plannercraft_tests::task_edit::{apply, get};
 use serde_json::json;
 
 const T: TaskUid = TaskUid::new(1);
@@ -24,7 +24,7 @@ fn commit(s: &mut Session, b: &Batch) {
     s.apply(b, ApplyMode::Commit).unwrap();
 }
 
-fn dates(s: &Session, uid: TaskUid) -> (planrs_core::Moment, planrs_core::Moment) {
+fn dates(s: &Session, uid: TaskUid) -> (plannercraft_core::Moment, plannercraft_core::Moment) {
     let t = s.schedule().scheduled(uid).unwrap();
     (t.start, t.finish)
 }

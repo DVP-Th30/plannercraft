@@ -15,8 +15,8 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use planrs_mspdi::write::{Computed, WriteCode, WriteOptions, schedule_image, write};
-use planrs_mspdi::{MspdiDocument, ReadOptions, normalize};
+use plannercraft_mspdi::write::{Computed, WriteCode, WriteOptions, schedule_image, write};
+use plannercraft_mspdi::{MspdiDocument, ReadOptions, normalize};
 use serde::Serialize;
 
 use crate::corpus::manifest::{Entry, Producer};
@@ -51,7 +51,7 @@ pub struct RoundTrip {
     /// `Extras` par entité (`project`, `calendar`, `task`, `resource`,
     /// `assignment`).
     pub extras: BTreeMap<&'static str, usize>,
-    /// Calculés non recalculés par planrs, écartés à la lecture, par nom.
+    /// Calculés non recalculés par PlannerCraft, écartés à la lecture, par nom.
     pub dropped_computed: BTreeMap<String, u64>,
     /// Enfants perdus (jour, exception, semaine, plage, lien).
     pub not_preserved: u64,
@@ -77,14 +77,14 @@ impl RoundTrip {
 pub fn round_trip(entry: &Entry, doc: &MspdiDocument, source: &str) -> RoundTrip {
     let options = WriteOptions::default();
     let read_options = ReadOptions::new(crate::moment(crate::corpus::CURRENT_DATE));
-    let reread = |xml: &[u8]| match planrs_mspdi::read(xml, &read_options) {
+    let reread = |xml: &[u8]| match plannercraft_mspdi::read(xml, &read_options) {
         Ok(d) => d,
         Err(e) => panic!("{} : document écrit illisible : {e}", entry.name),
     };
     let expected = normalize(&doc.project, &options);
     let written = write(&doc.project, Computed::Recorded(&doc.recorded), &options);
     let back = reread(&written.xml);
-    let schedule = planrs_core::schedule(&doc.project);
+    let schedule = plannercraft_core::schedule(&doc.project);
     let by_engine = write(&doc.project, Computed::Schedule(&schedule), &options);
     let with_schedule = reread(&by_engine.xml);
     let image = schedule_image(&doc.project, &schedule);
@@ -97,7 +97,7 @@ pub fn round_trip(entry: &Entry, doc: &MspdiDocument, source: &str) -> RoundTrip
             .is_some_and(|r| r.start == Some(a.span.start) && r.finish == Some(a.span.finish))
     });
     let mut schedule_overrides = BTreeMap::new();
-    let changed_tasks = |f: &dyn Fn(&planrs_core::Task, &planrs_core::Task) -> bool| {
+    let changed_tasks = |f: &dyn Fn(&plannercraft_core::Task, &plannercraft_core::Task) -> bool| {
         doc.project
             .tasks
             .iter()
@@ -176,7 +176,7 @@ pub fn round_trip(entry: &Entry, doc: &MspdiDocument, source: &str) -> RoundTrip
 /// R-215 : tâches (UID 0 compris) dont l'avancement écrit par le moteur
 /// diffère du modèle relu (% dérivé, durée réelle effective, début réel
 /// implicite, agrégats des récapitulatives, reprise calculée).
-fn progress_overrides(read: &planrs_core::Project, image: &planrs_core::Project) -> usize {
+fn progress_overrides(read: &plannercraft_core::Project, image: &plannercraft_core::Project) -> usize {
     read.summary_task
         .iter()
         .chain(read.tasks.iter())
@@ -207,7 +207,7 @@ pub fn markdown(rows: &[RoundTrip]) -> String {
     let _ = writeln!(s, "\n## Aller-retour MSPDI\n");
     let _ = writeln!(
         s,
-        "Lecture → écriture (profil observé) → relecture (P25, R-133). « Projet » : projet relu = `normalize(projet lu)` (valeurs du moteur : `normalize(schedule_image(projet lu))`, dates des affectations relues = placement du moteur, R-199) ; « planning » : planning enregistré relu identique ; « ordre » : éléments réécrits dans l'ordre source ; « moteur » : valeurs du moteur écrites à la place de celles du fichier (travail de récapitulatives, durée de feuilles affectées, affectations dont la répartition est jetée, tâches dont l'avancement écrit diffère du modèle relu, R-215). Relu identique par planrs n'est pas une vérification par MS Project.\n"
+        "Lecture → écriture (profil observé) → relecture (P25, R-133). « Projet » : projet relu = `normalize(projet lu)` (valeurs du moteur : `normalize(schedule_image(projet lu))`, dates des affectations relues = placement du moteur, R-199) ; « planning » : planning enregistré relu identique ; « ordre » : éléments réécrits dans l'ordre source ; « moteur » : valeurs du moteur écrites à la place de celles du fichier (travail de récapitulatives, durée de feuilles affectées, affectations dont la répartition est jetée, tâches dont l'avancement écrit diffère du modèle relu, R-215). Relu identique par PlannerCraft n'est pas une vérification par MS Project.\n"
     );
     let _ = writeln!(
         s,
@@ -258,7 +258,7 @@ pub fn markdown(rows: &[RoundTrip]) -> String {
     }
     let _ = writeln!(
         s,
-        "\nPerdu à l'aller-retour (doc utilisateur) : calculés non recalculés par planrs (recalculés par MS Project) ; ancienne forme des exceptions (régénérée par MS Project) ; `Occurrences` d'une exception non saisie par occurrences ; enfants inconnus de `WeekDay`, `Exception`, `WorkWeek` et d'un `PredecessorLink` modélisé ; valeurs illisibles (remplacées par leur défaut, signalées à la lecture) ; liens invalides ; textes au-delà du `maxLength` ; pourcentages non entiers ; `Period` réécrite en quotidienne (mêmes jours)."
+        "\nPerdu à l'aller-retour (doc utilisateur) : calculés non recalculés par PlannerCraft (recalculés par MS Project) ; ancienne forme des exceptions (régénérée par MS Project) ; `Occurrences` d'une exception non saisie par occurrences ; enfants inconnus de `WeekDay`, `Exception`, `WorkWeek` et d'un `PredecessorLink` modélisé ; valeurs illisibles (remplacées par leur défaut, signalées à la lecture) ; liens invalides ; textes au-delà du `maxLength` ; pourcentages non entiers ; `Period` réécrite en quotidienne (mêmes jours)."
     );
     s
 }

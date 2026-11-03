@@ -1,8 +1,8 @@
 //! R-127 — Travail et avancement d'une tâche à l'écriture.
 
-use planrs_core::{Minutes, Percent, Task, TaskUid, Work};
-use planrs_mspdi::write::WriteCode;
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_core::{Minutes, Percent, Task, TaskUid, Work};
+use plannercraft_mspdi::write::WriteCode;
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
 
 #[test]
 fn r127_percentages_are_whole_and_work_is_iso() {
@@ -53,13 +53,13 @@ fn r127_percentages_are_whole_and_work_is_iso() {
 #[test]
 fn r127_remaining_of_a_task_without_progress_is_duration_minus_actual() {
     // Tâche de 5 j non commencée importée d'un CSV (avancement par défaut) :
-    // MS Project écrit toujours reste = durée − réel ; planrs aussi, au lieu
+    // MS Project écrit toujours reste = durée − réel ; PlannerCraft aussi, au lieu
     // de 0. Le travail restant suit le travail. Relu : valeurs gardées,
     // image décrite par `normalize` (R-133).
-    use planrs_automation::csv::{CsvImportOptions, import};
-    use planrs_core::ScheduleAnchor;
-    use planrs_mspdi::write::WriteOptions;
-    use planrs_tests::moment;
+    use plannercraft_automation::csv::{CsvImportOptions, import};
+    use plannercraft_core::ScheduleAnchor;
+    use plannercraft_mspdi::write::WriteOptions;
+    use plannercraft_tests::moment;
     let options = CsvImportOptions::new(
         ScheduleAnchor::FromStart(moment("2026-10-19T08:00")),
         moment("2026-10-17T08:00"),
@@ -82,6 +82,9 @@ fn r127_remaining_of_a_task_without_progress_is_duration_minus_actual() {
     let back = reread(&out.xml).project;
     let a = back.tasks.get(TaskUid::new(1)).unwrap();
     assert_eq!(a.progress.remaining_duration, Minutes::new(2_400));
-    assert_eq!(back, planrs_mspdi::normalize(&proj, &WriteOptions::default()));
+    assert_eq!(
+        back,
+        plannercraft_mspdi::normalize(&proj, &WriteOptions::default())
+    );
     // Avancement saisi : valeurs écrites telles quelles (premier test).
 }

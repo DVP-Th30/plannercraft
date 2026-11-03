@@ -9,9 +9,9 @@
 //! to be split, the resume date could be scheduled for a later date ») ;
 //! O36 ; reste : hypothèse.
 
-use planrs_core::{Constraint, ConstraintKind, Diagnostic, Driver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{Constraint, ConstraintKind, Diagnostic, Driver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 use crate::r204_in_progress_leaf::started;
 
@@ -44,7 +44,7 @@ fn r205_out_of_sequence_split() {
     // 17:00, reprise jeu 08:00.
     let run = started(3_333)
         .task("P", 2_400)
-        .link("P", "T", LinkType::FinishToFinish, planrs_core::Lag::ZERO)
+        .link("P", "T", LinkType::FinishToFinish, plannercraft_core::Lag::ZERO)
         .run();
     assert_eq!(run.at("T").progress.unwrap().resume, moment("2026-10-22T08:00"));
     assert_eq!(run.at("T").finish, moment("2026-10-23T17:00"));

@@ -8,9 +8,9 @@
 //! retardé. Affectation : retard ajouté au `Delay`, sur son échelle.
 //! Source : S46 ; O10, O26, O27.
 
-use planrs_core::{DurationUnit, LevelingDelay, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, lag_w};
+use plannercraft_core::{DurationUnit, LevelingDelay, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, lag_w};
 
 use crate::r171_assignment_effective_calendar::{assign, placed, resource};
 
@@ -98,7 +98,10 @@ fn r178_assignment_delay_working() {
     let net = Net::new("2026-10-19T08:00").task("A", 960);
     let net = resource(resource(net, 1, None), 2, None);
     let net = assign(assign(net, 1, "A", 1, 480), 2, "A", 2, 480).project(|p| {
-        let a = p.assignments.get_mut(planrs_core::AssignmentUid::new(1)).unwrap();
+        let a = p
+            .assignments
+            .get_mut(plannercraft_core::AssignmentUid::new(1))
+            .unwrap();
         a.leveling_delay = delay(480, false);
     });
     let run = net.run();
@@ -122,7 +125,10 @@ fn r178_assignment_delay_elapsed_adds_to_delay() {
         (480, 10_000, 480),
     )
     .project(|p| {
-        let a = p.assignments.get_mut(planrs_core::AssignmentUid::new(1)).unwrap();
+        let a = p
+            .assignments
+            .get_mut(plannercraft_core::AssignmentUid::new(1))
+            .unwrap();
         a.leveling_delay = delay(2_880, true);
     });
     let run = net.run();

@@ -1,8 +1,8 @@
 //! R-012 — Calendrier Standard : lun-ven 08:00-12:00 et 13:00-17:00, sam et
 //! dim chômés.
 
-use planrs_core::calendar::{CalendarKind, DaySetting, standard};
-use planrs_core::{CalendarUid, Weekday};
+use plannercraft_core::calendar::{CalendarKind, DaySetting, standard};
+use plannercraft_core::{CalendarUid, Weekday};
 
 #[test]
 fn r012_standard_week() {
@@ -29,7 +29,7 @@ fn r012_standard_week() {
 
 #[test]
 fn r012_standard_conversions() {
-    use planrs_tests::{compile_one, mins, moment, standard};
+    use plannercraft_tests::{compile_one, mins, moment, standard};
     let c = compile_one(standard());
     // Lun 19/10 08:00 → ven 23/10 17:00 : 5 × 480 = 2 400.
     assert_eq!(

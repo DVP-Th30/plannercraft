@@ -13,10 +13,10 @@
     reason = "tests : noms des tâches des exemples (A, B, C…)"
 )]
 
-use planrs_core::schedule::explain::{ExplainError, Side, explain};
-use planrs_core::{Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::schedule::explain::{ExplainError, Side, explain};
+use plannercraft_core::{Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r230_explain_start::{abc, plan};
 
@@ -86,7 +86,7 @@ fn r232_chain_depth_and_truncated() {
             .task("F", 480)
             .level("F", 2)
             .task("B", 480)
-            .link("S", "B", LinkType::FinishToStart, planrs_core::Lag::ZERO),
+            .link("S", "B", LinkType::FinishToStart, plannercraft_core::Lag::ZERO),
         ["S", "F", "B"],
     );
     let x = explain(&p, &s, b, Side::Start, 5).unwrap();

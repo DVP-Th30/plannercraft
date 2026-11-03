@@ -3,11 +3,11 @@
 //! en passe avant (le début ne dépasse pas `s*`), chaque borne violée
 //! signalée (R-100). Sources : S27 (« LS=CD »), S8, S31, Q13.
 
-use planrs_core::{
+use plannercraft_core::{
     Constraint, ConstraintKind, Diagnostic, Driver, LateDriver, LinkType, Minutes, OverriddenBound,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 fn net(honor: bool) -> Net {
     // P 2 j FS → A 1 j SNLT mar 20/10 08:00.

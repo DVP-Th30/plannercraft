@@ -1,8 +1,8 @@
 //! R-080 — Exceptions de calendrier, forme `Exceptions/Exception` (import
 //! MSPDI).
 
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::{day_minutes, moment, tests_path};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::{day_minutes, moment, tests_path};
 
 fn fixture() -> MspdiDocument {
     let bytes = std::fs::read(tests_path("fixtures/mspdi/calendars.xml")).unwrap();

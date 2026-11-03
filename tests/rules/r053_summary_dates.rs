@@ -2,9 +2,9 @@
 //! enfants actifs planifiés (manuels compris) ; aucun enfant planifié →
 //! `EmptySummary`. Source : S23, S8 ; observé O3 (A1 UID 108).
 
-use planrs_core::{Driver, Exclusion, TaskOutcome, TaskRole};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Driver, Exclusion, TaskOutcome, TaskRole};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r053_summary_spans_its_children() {

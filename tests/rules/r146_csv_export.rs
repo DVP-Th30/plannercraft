@@ -3,10 +3,12 @@
 //! planning), dates du planning par R-143, prédécesseurs par R-142, garde
 //! de formule. Projet depuis lun 19/10/2026 08:00, Standard, 480 / 2 400 / 20.
 
-use planrs_automation::csv::{CsvColumn, CsvExportOptions, CsvImportOptions, CsvLocale, export, import};
-use planrs_core::{Project, ScheduleAnchor, TaskUid, schedule};
-use planrs_mspdi::write::Newline;
-use planrs_tests::moment;
+use plannercraft_automation::csv::{
+    CsvColumn, CsvExportOptions, CsvImportOptions, CsvLocale, export, import,
+};
+use plannercraft_core::{Project, ScheduleAnchor, TaskUid, schedule};
+use plannercraft_mspdi::write::Newline;
+use plannercraft_tests::moment;
 
 fn imported(csv: &str) -> Project {
     let o = CsvImportOptions::new(
@@ -42,7 +44,7 @@ fn r146_english_export_other_columns_and_options() {
     let mut p = imported(R145);
     let b = p.tasks.get_mut(TaskUid::new(3)).unwrap();
     b.wbs = Some("1.2".to_owned());
-    b.progress.percent_complete = planrs_core::Percent::new(3_350).unwrap();
+    b.progress.percent_complete = plannercraft_core::Percent::new(3_350).unwrap();
     let options = CsvExportOptions {
         locale: CsvLocale::En,
         columns: vec![

@@ -12,10 +12,10 @@
     reason = "tests : noms des tâches des exemples (A, B, C…)"
 )]
 
-use planrs_core::schedule::explain::{Side, Step, explain};
-use planrs_core::{AssignmentUid, CalendarUid, LateDriver, LinkType, Minutes};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::schedule::explain::{Side, Step, explain};
+use plannercraft_core::{AssignmentUid, CalendarUid, LateDriver, LinkType, Minutes};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r204_in_progress_leaf::started;

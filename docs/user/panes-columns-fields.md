@@ -1,6 +1,6 @@
 # Volets, colonnes et champs personnalisés
 
-Ce guide s'adresse à l'utilisateur de MS Project : il dit où planrs range la chronologie, le formulaire de la tâche, les colonnes et les champs personnalisés, et ce qui diffère. Ctrl désigne Cmd sur macOS. Les conventions sont celles des pages d'aide de Microsoft quand elles en parlent, des hypothèses de planrs sinon (ADR-0019) ; rien n'a été vérifié dans MS Project.
+Ce guide s'adresse à l'utilisateur de MS Project : il dit où PlannerCraft range la chronologie, le formulaire de la tâche, les colonnes et les champs personnalisés, et ce qui diffère. Ctrl désigne Cmd sur macOS. Les conventions sont celles des pages d'aide de Microsoft quand elles en parlent, des hypothèses de PlannerCraft sinon (ADR-0019) ; rien n'a été vérifié dans MS Project.
 
 ## 1. Les volets de la vue Gantt
 
@@ -39,17 +39,17 @@ Comme dans MS Project, rien n'est écrit avant **OK** (ou Entrée dans un champ 
 | Clic droit → **Paramètres de champ…** (Alt+F3) | Champ, titre, alignements du titre et des données, largeur |
 | Clic sur un titre pour sélectionner la colonne, puis glisser ce titre | Déplace la colonne (un trait montre la place ; Échap annule) ; la colonne N° reste en tête |
 
-La liste des champs s'ouvre sur une **zone de recherche** : tapez quelques lettres, sans vous soucier des accents ni des majuscules (« trav » trouve Travail, Travail réel, Travail restant…) ; ↑ / ↓ puis Entrée insère, Échap ferme. Les champs sont rangés par catégorie : Général, Planification, Avancement, Ligne de base (0 à 10), Écarts, Marges, Ressources, Coûts, Personnalisés. Un champ déjà affiché est marqué : le choisir le déplace. Les **coûts** sont listés mais grisés : planrs ne les calcule pas encore. Les champs calculés (marges, dates au plus tôt et au plus tard, écarts, lignes de base) se lisent mais ne se saisissent pas (« Ce champ est calculé. »).
+La liste des champs s'ouvre sur une **zone de recherche** : tapez quelques lettres, sans vous soucier des accents ni des majuscules (« trav » trouve Travail, Travail réel, Travail restant…) ; ↑ / ↓ puis Entrée insère, Échap ferme. Les champs sont rangés par catégorie : Général, Planification, Avancement, Ligne de base (0 à 10), Écarts, Marges, Ressources, Coûts, Personnalisés. Un champ déjà affiché est marqué : le choisir le déplace. Les **coûts** sont listés mais grisés : PlannerCraft ne les calcule pas encore. Les champs calculés (marges, dates au plus tôt et au plus tard, écarts, lignes de base) se lisent mais ne se saisissent pas (« Ce champ est calculé. »).
 
 Ces réglages de colonnes sont des préférences d'affichage : ils ne créent aucune entrée d'annulation et ne changent pas le fichier.
 
 ## 4. Champs personnalisés
 
-planrs connaît les champs personnalisés simples de MS Project : **Texte1 à Texte30**, **Nombre1 à Nombre20**, **Date1 à Date10** et **Indicateur1 à Indicateur20** (catégorie Personnalisés de la liste des champs). Ils se saisissent comme les autres cellules (copier, coller, Ctrl+D compris) : un texte de 255 caractères au plus, un nombre écrit dans la langue de l'interface (« 12,5 » en français), une date comme le Début, Oui ou Non pour un indicateur. Vider la cellule efface la valeur.
+PlannerCraft connaît les champs personnalisés simples de MS Project : **Texte1 à Texte30**, **Nombre1 à Nombre20**, **Date1 à Date10** et **Indicateur1 à Indicateur20** (catégorie Personnalisés de la liste des champs). Ils se saisissent comme les autres cellules (copier, coller, Ctrl+D compris) : un texte de 255 caractères au plus, un nombre écrit dans la langue de l'interface (« 12,5 » en français), une date comme le Début, Oui ou Non pour un indicateur. Vider la cellule efface la valeur.
 
 **Projet → Champs personnalisés…** (ou le bouton du groupe Propriétés de l'onglet Projet) les renomme : le nouveau nom (50 caractères au plus) devient le titre de la colonne, par exemple « Lot (Texte1) ». Tous les renommages d'un OK forment une seule modification.
 
-Noms et valeurs sont lus et écrits dans le fichier MSPDI (XML) de MS Project. Un champ défini par une **formule** ou une **table de choix** est gardé tel quel dans le fichier mais n'est pas proposé : planrs ne sait pas encore les calculer.
+Noms et valeurs sont lus et écrits dans le fichier MSPDI (XML) de MS Project. Un champ défini par une **formule** ou une **table de choix** est gardé tel quel dans le fichier mais n'est pas proposé : PlannerCraft ne sait pas encore les calculer.
 
 ## 5. Messages
 

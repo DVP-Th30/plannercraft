@@ -9,20 +9,20 @@
 //! Le module porte aussi les aides des tests des lignes de base (R-220 à
 //! R-225).
 
-use planrs_core::baseline::{self, BaselineEdit, BaselineSpec, Rollup, Scope};
-use planrs_core::{
+use plannercraft_core::baseline::{self, BaselineEdit, BaselineSpec, Rollup, Scope};
+use plannercraft_core::{
     AssignmentBaseline, AssignmentRole, AssignmentUid, BaselineNumber, Duration, DurationUnit, Minutes,
     Project, ResourceBaseline, ResourceUid, Schedule, Task, TaskBaseline, TaskUid, TimeBasis, Work,
 };
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 
 /// Projet et planning d'un réseau de test.
 pub(crate) fn plan(net: Net) -> (Project, Schedule) {
     let p = net.build();
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     (p, s)
 }
 
@@ -178,16 +178,16 @@ fn r220_corpus_a7_capture_matches_recorded() {
     // redonne (début, fin, durée, travail des tâches et de l'UID 0 ; dates
     // et travail des affectations de ressource, sans travail pour les
     // fictives ; travail des ressources), coûts recopiés.
-    let Ok(bytes) = std::fs::read(planrs_tests::tests_path("corpus/files/projinteg.xml")) else {
+    let Ok(bytes) = std::fs::read(plannercraft_tests::tests_path("corpus/files/projinteg.xml")) else {
         return;
     };
-    let doc = planrs_mspdi::read(
+    let doc = plannercraft_mspdi::read(
         &bytes,
-        &planrs_mspdi::ReadOptions::new(moment("2026-01-01T00:00")),
+        &plannercraft_mspdi::ReadOptions::new(moment("2026-01-01T00:00")),
     )
     .unwrap();
     let p = doc.project;
-    let s = planrs_core::schedule(&p);
+    let s = plannercraft_core::schedule(&p);
     let edit = baseline::capture(&p, &s, &spec(0, Scope::Project, Rollup::None, true)).unwrap();
     assert!(edit.cost_copied);
     let tasks = p.summary_task.iter().chain(p.tasks.iter());

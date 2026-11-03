@@ -4,9 +4,9 @@
 //! fixed-work tasks »). Unités nulles refusées en travail fixe.
 
 use crate::r170_work_equals_duration_times_units::{DAY, part, task, uid, units, work};
-use planrs_core::Minutes;
-use planrs_core::TaskType::{FixedUnits, FixedWork};
-use planrs_core::resource::{Edit, EditError, Recalculated, apply, edit::effective_effort_driven};
+use plannercraft_core::Minutes;
+use plannercraft_core::TaskType::{FixedUnits, FixedWork};
+use plannercraft_core::resource::{Edit, EditError, Recalculated, apply, edit::effective_effort_driven};
 
 #[test]
 fn r193_fw_effort_driven_refused() {
@@ -84,8 +84,8 @@ fn r193_import_fixed_work_forced_effort_driven() {
     // `EffortDriven` 0 → pilotée, `task.fixed_work_effort_driven` ; une
     // récapitulative à travail fixe n'est jamais pilotée (gardée telle
     // quelle) ; une feuille à unités fixes non pilotée reste non pilotée.
-    use planrs_core::{Diagnostic, TaskUid};
-    use planrs_mspdi::{ImportCode, ReadOptions, read};
+    use plannercraft_core::{Diagnostic, TaskUid};
+    use plannercraft_mspdi::{ImportCode, ReadOptions, read};
     let xml = "<Project><StartDate>2026-10-19T08:00:00</StartDate><Tasks>\
         <Task><UID>1</UID><ID>1</ID><OutlineLevel>1</OutlineLevel><Type>2</Type><EffortDriven>0</EffortDriven><Duration>PT16H0M0S</Duration></Task>\
         <Task><UID>2</UID><ID>2</ID><OutlineLevel>2</OutlineLevel><Type>2</Type><EffortDriven>0</EffortDriven><Duration>PT16H0M0S</Duration></Task>\
@@ -93,7 +93,7 @@ fn r193_import_fixed_work_forced_effort_driven() {
         </Tasks></Project>";
     let doc = read(
         xml.as_bytes(),
-        &ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+        &ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
     )
     .unwrap();
     let driven = |uid: u32| doc.project.tasks.get(TaskUid::new(uid)).unwrap().effort_driven;

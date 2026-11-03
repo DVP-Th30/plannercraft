@@ -260,7 +260,7 @@ mod r266_mspdi_custom_write;
 /// (sinon ses tests ne tourneraient jamais).
 #[test]
 fn rule_files_follow_naming_convention_and_are_declared() {
-    let dir = planrs_tests::tests_path("rules");
+    let dir = plannercraft_tests::tests_path("rules");
     let main = std::fs::read_to_string(dir.join("main.rs")).expect("lecture de rules/main.rs");
     for entry in std::fs::read_dir(&dir).expect("lecture de tests/rules") {
         let path = entry.expect("entrée de dossier").path();

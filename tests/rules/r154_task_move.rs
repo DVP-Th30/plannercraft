@@ -1,15 +1,15 @@
 //! R-154 — `task.move` : déplacement d'un sous-arbre entier, niveaux
 //! décalés, cible dans le bloc refusée.
 
-use planrs_automation::SideEffect;
-use planrs_automation::error::codes;
-use planrs_core::TaskId;
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::session;
-use planrs_tests::task_edit::{apply, push_outline, rows, try_apply};
+use plannercraft_automation::SideEffect;
+use plannercraft_automation::error::codes;
+use plannercraft_core::TaskId;
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::session;
+use plannercraft_tests::task_edit::{apply, push_outline, rows, try_apply};
 use serde_json::json;
 
-fn outline(spec: &[(u32, u16)]) -> planrs_automation::Session {
+fn outline(spec: &[(u32, u16)]) -> plannercraft_automation::Session {
     let mut p = new_project("2026-11-02T08:00");
     push_outline(&mut p, spec);
     session(p)

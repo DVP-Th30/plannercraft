@@ -2,11 +2,11 @@
 //! opérations de test passées au pipeline par `Session::apply_edits`, en
 //! attendant les commandes réelles (L4, L5).
 
-use planrs_automation::error::CommandError;
-use planrs_automation::session::{Edit, EditCtx};
-use planrs_automation::text::Language;
-use planrs_automation::{ApplyMode, ApplyOptions, ApplyOutcome, DocOrigin, Session};
-use planrs_core::{Duration, DurationUnit, Link, Minutes, Project, Subject, Task, TaskUid, TimeBasis};
+use plannercraft_automation::error::CommandError;
+use plannercraft_automation::session::{Edit, EditCtx};
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{ApplyMode, ApplyOptions, ApplyOutcome, DocOrigin, Session};
+use plannercraft_core::{Duration, DurationUnit, Link, Minutes, Project, Subject, Task, TaskUid, TimeBasis};
 
 use crate::moment;
 
@@ -80,8 +80,8 @@ pub fn edit(f: impl Fn(&mut EditCtx<'_, '_>) -> Result<(), CommandError> + 'stat
 /// Erreur « tâche inconnue » d'une opération de test.
 fn not_found(uid: u32) -> CommandError {
     CommandError::new(
-        planrs_automation::error::codes::TASK_NOT_FOUND,
-        planrs_automation::CommandErrorKind::UnknownTask(TaskUid::new(uid)),
+        plannercraft_automation::error::codes::TASK_NOT_FOUND,
+        plannercraft_automation::CommandErrorKind::UnknownTask(TaskUid::new(uid)),
     )
 }
 
@@ -178,8 +178,8 @@ pub fn delete_task(uid: u32) -> Edit {
 pub fn fail() -> Edit {
     edit(|_| {
         Err(CommandError::new(
-            planrs_automation::error::codes::PARAM_INVALID,
-            planrs_automation::CommandErrorKind::InvalidParam("test".to_owned()),
+            plannercraft_automation::error::codes::PARAM_INVALID,
+            plannercraft_automation::CommandErrorKind::InvalidParam("test".to_owned()),
         ))
     })
 }

@@ -3,9 +3,9 @@
 //! parent, liens dans l'ordre de stockage. Source : S22 ; départage :
 //! hypothèse.
 
-use planrs_core::{Constraint, ConstraintKind, Driver, LinkType};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Constraint, ConstraintKind, Driver, LinkType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r044_latest_predecessor_drives() {
@@ -39,7 +39,7 @@ fn r044_tie_keeps_first_stored_link() {
     };
     let ab = net().fs("A", "C").fs("B", "C").run();
     let ba = net().fs("B", "C").fs("A", "C").run();
-    let driver = |r: &planrs_tests::net::Run, n: &str| Driver::Link {
+    let driver = |r: &plannercraft_tests::net::Run, n: &str| Driver::Link {
         predecessor: r.uid(n),
         link: LinkType::FinishToStart,
     };

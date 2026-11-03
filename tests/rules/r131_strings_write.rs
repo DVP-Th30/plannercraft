@@ -1,9 +1,9 @@
 //! R-131 — Chaînes à l'écriture : échappement, caractères interdits,
 //! longueur maximale.
 
-use planrs_core::{Task, TaskUid};
-use planrs_mspdi::write::WriteCode;
-use planrs_tests::mspdi::{new_project, reread, text, written};
+use plannercraft_core::{Task, TaskUid};
+use plannercraft_mspdi::write::WriteCode;
+use plannercraft_tests::mspdi::{new_project, reread, text, written};
 
 #[test]
 fn r131_escaping_and_carriage_returns() {

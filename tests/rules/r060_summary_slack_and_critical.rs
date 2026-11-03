@@ -5,9 +5,9 @@
 //! hérité : FS = TF) ; critique par R-050, jamais « parce qu'un enfant
 //! l'est ». Source : observé O3 (A1 UID 108), O4, O5 ; reste : hypothèse.
 
-use planrs_core::Minutes;
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r060_summary_slack_on_aggregated_dates() {

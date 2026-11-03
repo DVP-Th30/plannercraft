@@ -286,7 +286,7 @@ members = []
 
 [workspace.package]
 version = "1.0.0-rc.1"
-repository = "https://github.com/exemple/planrs"
+repository = "https://github.com/exemple/plannercraft"
 "#;
 
     const CHANGELOG: &str = "# Journal des modifications
@@ -303,7 +303,7 @@ repository = "https://github.com/exemple/planrs"
 ### Ajouté
 - Moteur.
 
-[1.0.0-rc.1]: https://github.com/exemple/planrs/releases/tag/v1.0.0-rc.1
+[1.0.0-rc.1]: https://github.com/exemple/plannercraft/releases/tag/v1.0.0-rc.1
 ";
 
     fn errors(tag: &str, cargo: &str, changelog: &str) -> Vec<String> {
@@ -416,7 +416,7 @@ repository = "https://github.com/exemple/planrs"
             "référence de lien incluse : {notes}"
         );
         assert!(
-            notes.contains("https://github.com/exemple/planrs/blob/v1.0.0-rc.1/docs/user/install.md"),
+            notes.contains("https://github.com/exemple/plannercraft/blob/v1.0.0-rc.1/docs/user/install.md"),
             "{notes}"
         );
         // Section plus ancienne : trouvée aussi ; section absente : erreur.

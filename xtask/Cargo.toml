@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Tâches de maintenance du dépôt planrs (motif cargo-xtask)."
+description = "Tâches de maintenance du dépôt PlannerCraft (motif cargo-xtask)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

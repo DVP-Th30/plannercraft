@@ -17,7 +17,7 @@
 //! moitié hors séquence), budget bloquant de 50 ms ; `5000_assigned_progress`
 //! journalisé (garde-fou de 250 ms).
 //! Mesure seulement en release, par le job CI `perf` :
-//! `cargo test -p planrs-tests --release --test perf -- --ignored --nocapture`.
+//! `cargo test -p plannercraft-tests --release --test perf -- --ignored --nocapture`.
 
 #![allow(
     clippy::unwrap_used,
@@ -31,14 +31,14 @@
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-use planrs_core::calendar::BuiltinCalendarNames;
-use planrs_core::schedule::schedule_reference;
-use planrs_core::{
+use plannercraft_core::calendar::BuiltinCalendarNames;
+use plannercraft_core::schedule::schedule_reference;
+use plannercraft_core::{
     Diagnostic, Duration as TaskDuration, DurationUnit, Lag, LagValue, Link, LinkType, Minutes, Moment,
     OutlineLevel, Percent, Project, ProjectInit, ScheduleAnchor, Severity, Task, TaskOutcome, TaskRole,
     TaskUid, TimeBasis, schedule,
 };
-use planrs_tests::generate::{
+use plannercraft_tests::generate::{
     assigned_leaves_network, assigned_network, assigned_progress_network, constrained_network,
     from_finish_network, hostile_combined_calendars, hostile_parts, large_network, progress_network,
 };
@@ -220,8 +220,8 @@ fn progress_network_shape() {
         let TaskOutcome::Scheduled(ts) = o else { continue };
         if ts.role == TaskRole::Leaf {
             match ts.progress.map(|p| p.state) {
-                Some(planrs_core::ProgressState::Complete) => done += 1,
-                Some(planrs_core::ProgressState::Started) => running += 1,
+                Some(plannercraft_core::ProgressState::Complete) => done += 1,
+                Some(plannercraft_core::ProgressState::Started) => running += 1,
                 _ => {}
             }
         }
@@ -309,7 +309,7 @@ fn perf_5000_assigned_leaves() {
 }
 
 /// Un calcul chronométré ; échec au-delà de `limit`.
-fn once(name: &str, p: &Project, limit: Duration) -> planrs_core::Schedule {
+fn once(name: &str, p: &Project, limit: Duration) -> plannercraft_core::Schedule {
     let t = Instant::now();
     let s = schedule(p);
     let took = t.elapsed();
@@ -365,8 +365,8 @@ fn peak_memory() -> String {
 /// tout le domaine (environ 60 000 segments, 2 Mo compilés : 2 Go sans
 /// budget) ; 1 000 tâches d'un jour, chacune sur l'un d'eux.
 fn hostile_model_calendars() -> Project {
-    use planrs_core::calendar::{Calendar, CalendarException, DaySetting, Recurrence};
-    use planrs_core::{CalendarUid, Day, DayRange};
+    use plannercraft_core::calendar::{Calendar, CalendarException, DaySetting, Recurrence};
+    use plannercraft_core::{CalendarUid, Day, DayRange};
     let start: Moment = "2026-10-19T08:00".parse().unwrap();
     let mut p = Project::new(ProjectInit {
         name: "Calendriers du modèle hostiles".to_owned(),
@@ -627,7 +627,7 @@ fn deep_hierarchy_shape() {
             .values()
             .filter(|o| {
                 matches!(o, TaskOutcome::Scheduled(ts)
-                    if ts.progress.is_some_and(|p| p.state == planrs_core::ProgressState::Started))
+                    if ts.progress.is_some_and(|p| p.state == plannercraft_core::ProgressState::Started))
             })
             .count();
         if progress {
@@ -673,18 +673,18 @@ fn perf_deep_hierarchy_progress_256_5000() {
 #[test]
 #[ignore = "mesuré en release, job CI perf"]
 fn perf_batch_progress_updates() {
-    use planrs_automation::error::codes;
-    use planrs_automation::{ApplyMode, Batch};
+    use plannercraft_automation::error::codes;
+    use plannercraft_automation::{ApplyMode, Batch};
     let p = large_network(2026);
     let plan = schedule(&p);
     let uids: Vec<u32> = p
         .tasks
         .iter()
-        .map(planrs_core::Task::uid)
+        .map(plannercraft_core::Task::uid)
         .filter(|u| matches!(plan.get(*u), Some(TaskOutcome::Scheduled(ts)) if ts.role == TaskRole::Leaf))
         .map(TaskUid::get)
         .collect();
-    let mut s = planrs_tests::session::session(p);
+    let mut s = plannercraft_tests::session::session(p);
     let batch = |n: usize| -> Batch {
         let ops: Vec<serde_json::Value> = uids
             .iter()
@@ -692,7 +692,7 @@ fn perf_batch_progress_updates() {
             .take(n)
             .map(|u| serde_json::json!({ "op": "progress.update", "task": u, "percent_complete": { "text": "10%" } }))
             .collect();
-        planrs_tests::task_edit::batch(serde_json::Value::Array(ops))
+        plannercraft_tests::task_edit::batch(serde_json::Value::Array(ops))
     };
     let t = Instant::now();
     let out = s.apply(&batch(200), ApplyMode::DryRun);
@@ -717,9 +717,9 @@ fn perf_batch_progress_updates() {
 #[test]
 #[ignore = "mesuré en release, job CI perf"]
 fn perf_baseline_variance_page() {
-    use planrs_automation::ApplyMode;
-    use planrs_automation::analysis::baseline_variance;
-    use planrs_automation::command::params::VarianceParams;
+    use plannercraft_automation::ApplyMode;
+    use plannercraft_automation::analysis::baseline_variance;
+    use plannercraft_automation::command::params::VarianceParams;
     let start: Moment = "2026-11-02T08:00".parse().unwrap();
     let mut p = Project::new(ProjectInit {
         name: "Variance".to_owned(),
@@ -745,9 +745,9 @@ fn perf_baseline_variance_page() {
         })
         .collect();
     p.tasks.push(hub).unwrap();
-    let mut s = planrs_tests::session::session(p);
+    let mut s = plannercraft_tests::session::session(p);
     s.apply(
-        &planrs_tests::task_edit::batch(serde_json::json!([{ "op": "baseline.set", "number": 0 }])),
+        &plannercraft_tests::task_edit::batch(serde_json::json!([{ "op": "baseline.set", "number": 0 }])),
         ApplyMode::Commit,
     )
     .unwrap();

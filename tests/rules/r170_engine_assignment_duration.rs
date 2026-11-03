@@ -6,15 +6,15 @@
 //! (ADR-0013 D3) : la durée enregistrée de la tâche ne place plus une
 //! feuille affectée.
 
-use planrs_core::{AssignmentRole, Exclusion, Minutes, TaskOutcome, TaskType};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{AssignmentRole, Exclusion, Minutes, TaskOutcome, TaskType};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 use crate::r171_assignment_effective_calendar::{assign_full, placed, resource};
 
 /// Tâche « A » de 2 j enregistrés (960 min), de type `ty`, affectée à R1
 /// pour `work` minutes à `units`.
-fn run(ty: TaskType, work: i64, units: i64) -> planrs_tests::net::Run {
+fn run(ty: TaskType, work: i64, units: i64) -> plannercraft_tests::net::Run {
     let net = Net::new("2026-10-19T08:00")
         .task("A", 960)
         .with_task("A", |t| t.task_type = ty);

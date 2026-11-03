@@ -3,10 +3,10 @@
 //! « par tâche finale » : hypothèse ; hypothèse concurrente consignée :
 //! « par réseau indépendant ».
 
-use planrs_core::Minutes;
-use planrs_tests::net::Net;
+use plannercraft_core::Minutes;
+use plannercraft_tests::net::Net;
 
-fn run(multiple: bool) -> planrs_tests::net::Run {
+fn run(multiple: bool) -> plannercraft_tests::net::Run {
     // A 1 j → B 1 j (FS) ; C 3 j seul : fin du projet mer 21/10 17:00.
     Net::new("2026-10-19T08:00")
         .task("A", 480)

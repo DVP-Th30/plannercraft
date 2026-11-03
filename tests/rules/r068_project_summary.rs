@@ -3,9 +3,9 @@
 //! calendrier du projet ; présente si une tâche est planifiée. Source : S8,
 //! S23 ; observé A1 à A7 (UID 0).
 
-use planrs_core::{Driver, Minutes, Percent, TaskRole, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Driver, Minutes, Percent, TaskRole, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r068_project_summary_of_n1() {

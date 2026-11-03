@@ -3,8 +3,8 @@
 //! du cahier J5 (calendrier Standard, début lun 19/10/2026 08:00), lecture
 //! des ressources, des affectations, des durées et du travail.
 
-use planrs_automation::Session;
-use planrs_core::{Assignment, Resource, ResourceUid, TaskUid};
+use plannercraft_automation::Session;
+use plannercraft_core::{Assignment, Resource, ResourceUid, TaskUid};
 
 use crate::mspdi::new_project;
 use crate::session::session;

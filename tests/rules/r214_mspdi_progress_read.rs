@@ -2,11 +2,11 @@
 //! cours dans le modèle, options de la date d'état dans `ProgressOptions`,
 //! restes relus remplacés par la dérivation (`mspdi.progress_inconsistent`).
 
-use planrs_core::{AssignmentUid, Minutes, Percent, ProgressOptions, TaskUid, Work};
-use planrs_mspdi::write::{Computed, WriteOptions, write};
-use planrs_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
-use planrs_tests::mspdi::{compact, text};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{AssignmentUid, Minutes, Percent, ProgressOptions, TaskUid, Work};
+use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+use plannercraft_mspdi::{ImportCode, MspdiDocument, ReadOptions, read};
+use plannercraft_tests::mspdi::{compact, text};
+use plannercraft_tests::{moment, tests_path};
 
 /// Document : options `options` du projet, tâches `tasks` (éléments
 /// `Task` complets), une ressource UID 1 et les affectations `assignments`.
@@ -175,7 +175,7 @@ fn r214_inconsistent_remaining_replaced() {
         .unwrap();
     assert_eq!(x.code.code(), "mspdi.progress_inconsistent");
     assert_eq!(x.element, "Tasks/Task/RemainingDuration");
-    assert_eq!(x.severity, planrs_core::Severity::Info);
+    assert_eq!(x.severity, plannercraft_core::Severity::Info);
     // Cohérent : aucun signalement.
     let consistent = doc(
         "",

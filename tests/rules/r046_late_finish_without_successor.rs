@@ -2,8 +2,8 @@
 //! projet ; une tâche sans successeur effectif a LF = fin du projet.
 //! Sources : S22, Q9 ; observé O2 (A2 UID 2).
 
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r046_final_task_late_finish_is_project_finish() {

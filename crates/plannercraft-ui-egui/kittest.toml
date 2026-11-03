@@ -1,0 +1,23 @@
+# Configuration d'egui_kittest pour plannercraft-ui-egui, cherchée en remontant depuis
+# le répertoire courant (la racine de la crate sous `cargo test`). Clés vérifiées
+# dans egui_kittest 0.37 (`config.rs`, `deny_unknown_fields` : une clé inconnue
+# fait échouer le chargement). Sections d'OS : `[windows]`, `[mac]`, `[linux]`
+# (jamais `[macos]`).
+#
+# Les références sont rendues par lavapipe (Vulkan logiciel de Mesa), seulement
+# quand PLANNERCRAFT_UI_SNAPSHOTS=1 ; en cas d'écart entre Mesa local et CI, la CI fait
+# foi (artefacts `*.new.png` du job `ui`).
+output_path = "tests/snapshots"
+
+# Distance YIQ pondérée maximale par pixel (défaut de la crate) : absorbe un
+# arrondi d'anticrénelage, pas un trait déplacé.
+threshold = 0.6
+# Aucun pixel au-delà du seuil : un séparateur décalé d'1 px doit échouer.
+max_failed_pixels = 0
+
+# Seul OS où les captures sont comparées (job CI `ui`, ubuntu-24.04). En cas de
+# dérive de Mesa, régler d'abord `max_failed_pixels` (≤ 10) à partir du balayage
+# de seuils affiché par l'échec ; jamais `threshold` au-delà de 1,0.
+[linux]
+threshold = 0.6
+max_failed_pixels = 0

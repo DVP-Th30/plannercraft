@@ -1,12 +1,12 @@
 //! R-157 — Champs calculés d'une récapitulative ; durée nulle ⇒ jalon ;
 //! dates d'une tâche manuelle refusées.
 
-use planrs_automation::CommandErrorKind;
-use planrs_automation::error::codes;
-use planrs_core::{SchedulingMode, Subject, TaskUid};
-use planrs_tests::mspdi::new_project;
-use planrs_tests::session::{push_tasks, session};
-use planrs_tests::task_edit::{apply, get, push_outline, try_apply};
+use plannercraft_automation::CommandErrorKind;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{SchedulingMode, Subject, TaskUid};
+use plannercraft_tests::mspdi::new_project;
+use plannercraft_tests::session::{push_tasks, session};
+use plannercraft_tests::task_edit::{apply, get, push_outline, try_apply};
 use serde_json::json;
 
 #[test]
@@ -98,9 +98,12 @@ fn r157_manual_dates_entered_by_r254() {
     let SchedulingMode::Manual { start, finish, .. } = get(&s, 1).mode else {
         panic!("1 devrait rester manuelle");
     };
-    assert_eq!(start, Some(planrs_tests::moment("2026-11-04T08:00")));
-    assert_eq!(finish, Some(planrs_tests::moment("2026-11-04T17:00")));
-    assert_eq!(get(&s, 1).constraint, planrs_core::Constraint::AsSoonAsPossible);
+    assert_eq!(start, Some(plannercraft_tests::moment("2026-11-04T08:00")));
+    assert_eq!(finish, Some(plannercraft_tests::moment("2026-11-04T17:00")));
+    assert_eq!(
+        get(&s, 1).constraint,
+        plannercraft_core::Constraint::AsSoonAsPossible
+    );
     // Le nom reste modifiable.
     apply(&mut s, json!([{ "op": "task.update", "uid": 1, "name": "M" }]));
     assert_eq!(get(&s, 1).name, "M");

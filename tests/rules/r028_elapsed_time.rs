@@ -1,8 +1,8 @@
 //! R-028 — Temps écoulé : temps civil pur, 24 h sur 24 et 7 j sur 7, sans
 //! calendrier, sans exception, sans recalage du début.
 
-use planrs_core::{ConversionFactors, Decimal, DurationUnit, Minutes, Moment, TimeBasis};
-use planrs_tests::moment;
+use plannercraft_core::{ConversionFactors, Decimal, DurationUnit, Minutes, Moment, TimeBasis};
+use plannercraft_tests::moment;
 
 fn elapsed(n: i64, unit: DurationUnit) -> Minutes {
     ConversionFactors::default()
@@ -45,7 +45,7 @@ fn r028_elapsed_month_is_30_days() {
 
 #[test]
 fn r028_elapsed_span_not_aligned() {
-    use planrs_core::TimeScale;
+    use plannercraft_core::TimeScale;
     // Sam 24/10 10:00, 1 ej : pas de recalage sur un jour ouvré, sam 10:00 →
     // dim 10:00.
     let span = TimeScale::Elapsed
@@ -59,7 +59,7 @@ fn r028_elapsed_span_not_aligned() {
 
 #[test]
 fn r028_elapsed_out_of_domain() {
-    use planrs_core::{CalendarError, Direction, TimeScale};
+    use plannercraft_core::{CalendarError, Direction, TimeScale};
     // Sans calendrier : l'erreur de domaine n'a pas d'UID et porte son sens.
     let e = TimeScale::Elapsed;
     // Mer 2149-12-31 23:00 + 60 = 2150-01-01 00:00 (dernier instant) ; + 61

@@ -4,9 +4,9 @@
 //! (transitif) ; en passe arrière → `late = early`, `degraded`. Hypothèse
 //! (règle 10).
 
-use planrs_core::{Diagnostic, Exclusion, Pass, TaskOutcome};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Diagnostic, Exclusion, Pass, TaskOutcome};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r069_out_of_domain_task_excluded_and_successors_degraded() {
@@ -58,8 +58,8 @@ fn r069_failed_link_into_summary_is_dropped_not_the_summary() {
         .link(
             "X",
             "S",
-            planrs_core::LinkType::FinishToStart,
-            planrs_tests::net::lag_w(4_800),
+            plannercraft_core::LinkType::FinishToStart,
+            plannercraft_tests::net::lag_w(4_800),
         )
         .fs("Y", "S")
         .run();

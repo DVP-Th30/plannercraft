@@ -2,8 +2,8 @@
 //! défaut, une fin l'heure de fin par défaut. L'alignement sur le calendrier
 //! se fait ensuite par le placement (R-030).
 
-use planrs_core::{ProjectOptions, TimeOfDay};
-use planrs_tests::{day, moment};
+use plannercraft_core::{ProjectOptions, TimeOfDay};
+use plannercraft_tests::{day, moment};
 
 #[test]
 fn r033_default_start_and_finish_times() {
@@ -38,8 +38,8 @@ fn r033_end_of_day_finish_is_next_midnight() {
 
 #[test]
 fn r033_default_start_then_aligned_by_span() {
-    use planrs_core::TimeScale;
-    use planrs_tests::{compile_one, mins, standard};
+    use plannercraft_core::TimeScale;
+    use plannercraft_tests::{compile_one, mins, standard};
     // Exemple de S9 : début par défaut 07:00 sur un calendrier à 08:00. La
     // date saisie devient 07:00, puis le placement d'une journée la recale :
     // 08:00 → 17:00.

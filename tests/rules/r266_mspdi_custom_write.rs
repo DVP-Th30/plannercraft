@@ -8,11 +8,11 @@
 //! <FieldName>Text1</FieldName><Alias>Information</Alias>`) ; forme écrite
 //! du nombre et de la date : hypothèse (R-120).
 
-use planrs_core::{CustomFieldDef, CustomFieldId, CustomKind, CustomValue, Project, Task, TaskUid};
-use planrs_mspdi::write::{Computed, WriteOptions, write};
-use planrs_mspdi::{ReadOptions, normalize, read};
-use planrs_tests::mspdi::{compact, new_project, reread, text, written};
-use planrs_tests::{moment, tests_path};
+use plannercraft_core::{CustomFieldDef, CustomFieldId, CustomKind, CustomValue, Project, Task, TaskUid};
+use plannercraft_mspdi::write::{Computed, WriteOptions, write};
+use plannercraft_mspdi::{ReadOptions, normalize, read};
+use plannercraft_tests::mspdi::{compact, new_project, reread, text, written};
+use plannercraft_tests::{moment, tests_path};
 
 fn id(kind: CustomKind, n: u8) -> CustomFieldId {
     CustomFieldId::new(kind, n).unwrap()
@@ -168,7 +168,7 @@ fn r266_roundtrip_corpus() {
         assert!(
             doc.diagnostics
                 .iter()
-                .all(|d| d.code != planrs_mspdi::ImportCode::CustomUnreadable),
+                .all(|d| d.code != plannercraft_mspdi::ImportCode::CustomUnreadable),
             "{name}"
         );
         // Plus aucun `ExtendedAttribute` du champ modélisé en `Extras`.

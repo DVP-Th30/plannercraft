@@ -3,12 +3,12 @@
 //! refusé ; recalcul complet, R-113 comprise. Repère : début lun
 //! 19/10/2026 08:00, calendriers fournis 1 (Standard), 2 (24 heures).
 
-use planrs_automation::Session;
-use planrs_automation::error::codes;
-use planrs_core::{CalendarUid, Moment, TaskUid};
-use planrs_tests::moment;
-use planrs_tests::resource_edit::with_tasks;
-use planrs_tests::task_edit::{apply, try_apply};
+use plannercraft_automation::Session;
+use plannercraft_automation::error::codes;
+use plannercraft_core::{CalendarUid, Moment, TaskUid};
+use plannercraft_tests::moment;
+use plannercraft_tests::resource_edit::with_tasks;
+use plannercraft_tests::task_edit::{apply, try_apply};
 use serde_json::json;
 
 fn dates(s: &Session, uid: u32) -> (Moment, Moment) {

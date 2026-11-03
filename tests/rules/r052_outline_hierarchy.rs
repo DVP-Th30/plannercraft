@@ -3,9 +3,9 @@
 //! supérieur ; lignes vides ignorées ; drapeau MSPDI `Summary` non lu.
 //! Source : S4 ; hypothèse.
 
-use planrs_core::{Driver, TaskOutcome, TaskRole};
-use planrs_tests::moment;
-use planrs_tests::net::Net;
+use plannercraft_core::{Driver, TaskOutcome, TaskRole};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::Net;
 
 #[test]
 fn r052_parents_and_summaries() {

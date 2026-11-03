@@ -5,11 +5,11 @@
 //! la coupe ; au plus `MAX_PERIODS` périodes et `MAX_RESOURCES` ressources,
 //! sinon `usage.limit`. Hypothèse.
 
-use planrs_core::resource::usage::{MAX_PERIODS, MAX_RESOURCES};
-use planrs_core::resource::{Granularity, UsageError, usage};
-use planrs_core::{ResourceUid, Weekday};
-use planrs_tests::moment;
-use planrs_tests::net::{Net, Run};
+use plannercraft_core::resource::usage::{MAX_PERIODS, MAX_RESOURCES};
+use plannercraft_core::resource::{Granularity, UsageError, usage};
+use plannercraft_core::{ResourceUid, Weekday};
+use plannercraft_tests::moment;
+use plannercraft_tests::net::{Net, Run};
 
 use crate::r171_assignment_effective_calendar::{assign, resource};
 use crate::r184_work_rollups::work;

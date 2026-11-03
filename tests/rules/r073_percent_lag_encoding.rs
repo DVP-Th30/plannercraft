@@ -1,7 +1,7 @@
 //! R-073 — Décalage en pourcentage : `LinkLag` = pourcentage × 10 (hypothèse
 //! pure, import MSPDI).
 
-use planrs_mspdi::scalar::percent_lag_from_link_lag;
+use plannercraft_mspdi::scalar::percent_lag_from_link_lag;
 
 #[test]
 fn r073_percent_lag_is_link_lag_times_ten() {
@@ -15,11 +15,11 @@ fn r073_percent_lag_is_link_lag_times_ten() {
 
 #[test]
 fn r073_percent_lag_import() {
-    use planrs_core::{LagValue, SignedPercent, TaskUid, TimeBasis};
-    let bytes = std::fs::read(planrs_tests::tests_path("fixtures/mspdi/tasks.xml")).unwrap();
-    let doc = planrs_mspdi::read(
+    use plannercraft_core::{LagValue, SignedPercent, TaskUid, TimeBasis};
+    let bytes = std::fs::read(plannercraft_tests::tests_path("fixtures/mspdi/tasks.xml")).unwrap();
+    let doc = plannercraft_mspdi::read(
         &bytes,
-        &planrs_mspdi::ReadOptions::new(planrs_tests::moment("2026-01-01T00:00")),
+        &plannercraft_mspdi::ReadOptions::new(plannercraft_tests::moment("2026-01-01T00:00")),
     )
     .unwrap();
     let percent = |uid: u32| {
@@ -51,7 +51,7 @@ fn r073_percent_lag_import() {
         .iter()
         .filter(|d| {
             d.code
-                == planrs_mspdi::ImportCode::Unsupported {
+                == plannercraft_mspdi::ImportCode::Unsupported {
                     what: "percent_lag_encoding".to_owned(),
                 }
         })

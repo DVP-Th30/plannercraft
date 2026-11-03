@@ -10,4 +10,4 @@ Chaque règle `R-xxx` de [`docs/scheduling-rules.md`](../../docs/scheduling-rule
 - Les valeurs attendues sont **calculées à la main et commentées** dans le test (calendrier utilisé, détail du calcul). Jamais de valeur recopiée depuis la sortie du moteur.
 - Une règle au statut `hypothèse` le reste tant qu'aucun fichier recalculé par MS Project (oracle ou corpus) ne la confirme.
 
-Lancer : `cargo test -p planrs-tests --test rules`.
+Lancer : `cargo test -p plannercraft-tests --test rules`.

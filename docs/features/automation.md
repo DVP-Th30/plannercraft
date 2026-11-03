@@ -1,4 +1,4 @@
-# Automatisation : session, lots de commandes, historique (`crates/planrs-automation`)
+# Automatisation : session, lots de commandes, historique (`crates/plannercraft-automation`)
 
 État au 2026-10-19 (fin de J4, lots L0 à L6, ADR-0012). Vue d'ensemble de la couche que partagent l'interface, la CLI, le serveur MCP et le canal de contrôle. Les règles de calcul sont dans `docs/scheduling-rules.md` (R-150 à R-165, statut `hypothèse`) ; les vues JSON et le routeur dans `docs/features/workspace.md` ; les surfaces dans `docs/features/{cli,mcp,control,ui}.md`.
 
@@ -12,7 +12,7 @@
 
 ## 2. Lot de commandes (`Batch`)
 
-Format versionné unique pour la CLI (`planrs apply`), le MCP (`apply_batch` et chaque outil d'écriture, lot d'une commande), le canal et le journal : `{"format_version":1,"lang":"fr","ops":[{"op":"task.add",…}],"label":…}`, `deny_unknown_fields`, schémas `schemars` publiés par le registre.
+Format versionné unique pour la CLI (`plannercraft apply`), le MCP (`apply_batch` et chaque outil d'écriture, lot d'une commande), le canal et le journal : `{"format_version":1,"lang":"fr","ops":[{"op":"task.add",…}],"label":…}`, `deny_unknown_fields`, schémas `schemars` publiés par le registre.
 
 - Commandes (`Command`, `#[serde(tag = "op")]`) : `task.add`, `task.update`, `task.delete`, `task.move`, `task.indent`, `task.outdent`, `link.add`, `link.update`, `link.remove`, `task.set_constraint`, `task.set_deadline`, `project.set_info`, `project.set_anchor`, `project.set_status_date`, `calendar.set_exception`, `calendar.remove_exception` ; J5 : `resource.*`, `assignment.*` ; J6 : `progress.update`, `progress.reschedule`, `baseline.set`.
 - Désignation (R-150) : UID (entier) ou étiquette `"$x"` posée par `"as":"$x"` sur un `task.add` plus tôt dans le même lot ; l'ID de ligne n'est jamais accepté (la CLI le convertit seule). UID alloués par `max + 1`, jamais réutilisés dans la session (R-151).
@@ -21,7 +21,7 @@ Format versionné unique pour la CLI (`planrs apply`), le MCP (`apply_batch` et 
 ## 3. Pipeline d'un lot (ADR-0012 D2 à D4)
 
 1. Le lot s'applique à un **clone** du projet, commande par commande (validation de chaque commande, `op_index` de la première refusée) ; au plus 10 000 opérations. Les commandes qui lisent le planning (`progress.*`, `baseline.set`) partagent le dernier recalcul du clone tant qu'il ne change pas ; le travail de recalcul d'un lot est borné (`SessionLimits::max_batch_schedule_work`, 1 000 000 tâches et affectations recalculées, `limit.exceeded` `schedule_recomputes`, R-216, ADR-0014 relecture finale (10)).
-2. **Un recalcul** (`planrs_core::schedule`) en fin de lot.
+2. **Un recalcul** (`plannercraft_core::schedule`) en fin de lot.
 3. **Refus sur nouvelle erreur** (R-160) : le lot est refusé (`batch.would_create_errors`, avec `op_index` et les diagnostics) si une erreur absente avant apparaît (comparée par code et sujet ; un `link.cycle` n'est nouveau que si sa composante n'était contenue dans aucune d'avant). Les avertissements sont rendus sans bloquer.
 4. `Commit` : échange du clone et du projet, **delta par entité** (pré- et post-images des seules entités changées, R-164) poussé dans l'historique, `Extras` des entités modifiées invalidés (R-161), valeurs relues du fichier jetées au premier commit (R-162). `DryRun` : clone jeté, session intacte, aucune entrée d'historique.
 5. Réponse (`ApplyOutcome`, vue `OutcomeView`) : diff du planning (R-163 : fin avant/après, tâches entrées ou sorties du chemin critique, 10 tâches les plus décalées, `detail` jusqu'à 1 000), UID créés, table des étiquettes, effets de bord, longueur de l'historique.
@@ -42,9 +42,9 @@ Le rejeu `build_30` (`docs/features/mcp.md` § 5) traverse toute la couche : 30 
 
 ## 7. Tests
 
-- Règles : `tests/rules/r150_*.rs` à `r165_*.rs` (`cargo test -p planrs-tests --test rules`).
-- Propriétés : `session_properties.rs` (P30 : undo restaure exactement, undo + redo identique), `session_properties_l5.rs`, `session_properties_l8.rs` (P40 : `what_if` laisse la session identique, diff de `dry_run`), `task_commands_properties.rs` ; contrats et registre : `contract.rs`, `registry.rs`, `commands.rs`, `project_commands.rs`, `workspace.rs` (`crates/planrs-automation/tests/`).
-- Surfaces : `crates/planrs-mcp/tests/{memory,guard,http,replay,replay_http}.rs`, `apps/planrs-cli/tests/{cli,mcp_replay}.rs`.
+- Règles : `tests/rules/r150_*.rs` à `r165_*.rs` (`cargo test -p plannercraft-tests --test rules`).
+- Propriétés : `session_properties.rs` (P30 : undo restaure exactement, undo + redo identique), `session_properties_l5.rs`, `session_properties_l8.rs` (P40 : `what_if` laisse la session identique, diff de `dry_run`), `task_commands_properties.rs` ; contrats et registre : `contract.rs`, `registry.rs`, `commands.rs`, `project_commands.rs`, `workspace.rs` (`crates/plannercraft-automation/tests/`).
+- Surfaces : `crates/plannercraft-mcp/tests/{memory,guard,http,replay,replay_http}.rs`, `apps/plannercraft-cli/tests/{cli,mcp_replay}.rs`.
 
 ## 8. Limites
 
@@ -59,4 +59,4 @@ Le rejeu `build_30` (`docs/features/mcp.md` § 5) traverse toute la couche : 30 
 - `csv::recognize(intitulé)` (public depuis L3) : sort d'un en-tête (R-144), partagé par l'import, l'aperçu et le collage. `csv::preview(octets, options)` : en-têtes et leur sort (lue, non prise en charge, inconnue, en double), 20 lignes de données au plus (cellules brutes), séparateur, langue et encodage retenus, diagnostics de l'import du **seul début du fichier** (mêmes codes et numéros de ligne que l'import ; le fichier entier n'est jamais importé pour un aperçu, le nombre de lignes n'y est donc pas contrôlé).
 - Interface : `io::load_csv(octets, options, now)` ouvre un nouveau document par `document::load_project` (même chemin que l'ouverture MSPDI) et rend les diagnostics de l'import et les réglages retenus (`CsvLoaded`).
 - Limites : priorité et calendrier d'une tâche copiés mais pas recollés (aucune commande ne les écrit en J8) ; collage cellule par cellule reporté ; chaque tâche manuelle collée recalcule le planning du clone (budget de recalcul du lot, comme R-253).
-- Tests : `tests/rules/r244_paste_rows.rs`, `tests/rules/r256_external_paste.rs`, P52 `crates/planrs-automation/tests/clip_properties.rs` (1 024 cas), aperçu `csv::preview::tests` (`csv_preview_20_rows`, `csv_preview_detects_fr_semicolon`), interface `io::tests::load_csv_opens_a_new_document_with_diagnostics`.
+- Tests : `tests/rules/r244_paste_rows.rs`, `tests/rules/r256_external_paste.rs`, P52 `crates/plannercraft-automation/tests/clip_properties.rs` (1 024 cas), aperçu `csv::preview::tests` (`csv_preview_20_rows`, `csv_preview_detects_fr_semicolon`), interface `io::tests::load_csv_opens_a_new_document_with_diagnostics`.

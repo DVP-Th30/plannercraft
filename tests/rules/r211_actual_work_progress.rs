@@ -5,9 +5,9 @@
 //! R1 100 % (W 960), R2 50 % (W 480).
 
 use crate::r201_percent_input::{MON, at, calendar, ctx, part, pct, task, work, write};
-use planrs_core::progress::edit::{EditError, Input, apply, remaining_work_entered};
-use planrs_core::progress::remaining_work;
-use planrs_core::{Assignment, AssignmentUid, Percent, TaskUid, Work};
+use plannercraft_core::progress::edit::{EditError, Input, apply, remaining_work_entered};
+use plannercraft_core::progress::remaining_work;
+use plannercraft_core::{Assignment, AssignmentUid, Percent, TaskUid, Work};
 
 const TUE: &str = "2026-10-20T17:00";
 
@@ -35,24 +35,24 @@ fn r211_prorata_and_largest_remainder() {
     assert_eq!(e.parts[0].actual_work, work(360));
     assert_eq!(e.parts[1].actual_work, work(180));
     assert_eq!(e.progress.percent_work_complete, pct(3_750));
-    assert_eq!(e.progress.actual_duration, planrs_core::Minutes::new(360));
+    assert_eq!(e.progress.actual_duration, plannercraft_core::Minutes::new(360));
     assert_eq!(e.progress.percent_complete, pct(3_750));
     assert_eq!(e.progress.actual_start, Some(at(MON)));
     // % travail 25 % saisi seul : AW 240 et 120, durée réelle 240.
     let e = apply(&task(960), &parts, &[Input::PercentWork(pct(2_500))], &c).unwrap();
-    assert_eq!(e.progress.actual_duration, planrs_core::Minutes::new(240));
+    assert_eq!(e.progress.actual_duration, plannercraft_core::Minutes::new(240));
     // Avec un champ de durée, la durée réelle saisie l'emporte.
     let e = apply(
         &task(960),
         &parts,
         &[
             Input::ActualWork(work(540)),
-            Input::ActualDuration(planrs_core::Minutes::new(480)),
+            Input::ActualDuration(plannercraft_core::Minutes::new(480)),
         ],
         &c,
     )
     .unwrap();
-    assert_eq!(e.progress.actual_duration, planrs_core::Minutes::new(480));
+    assert_eq!(e.progress.actual_duration, plannercraft_core::Minutes::new(480));
 
     // 7 min sur trois W égaux : 2 chacune, la minute restante au plus petit
     // UID ⇒ 3, 2, 2.
@@ -99,7 +99,7 @@ fn r211_remaining_work_changes_work() {
 
     // Reste saisi 720 sur cette affectation : W = AW + reste = 1 200 ; le
     // travail réel ne bouge pas (R-189 « travail » suit, côté commande).
-    let p = planrs_core::progress::edit::Part {
+    let p = plannercraft_core::progress::edit::Part {
         actual_work: work(480),
         ..part(1, 960)
     };
@@ -117,8 +117,8 @@ fn r211_remaining_work_changes_work() {
 /// (8 h) part de la reprise, sans chevauchement.
 #[test]
 fn r211_actual_work_alone_sets_actual_duration() {
-    use planrs_tests::resource_edit::with_tasks;
-    use planrs_tests::task_edit::apply as apply_ops;
+    use plannercraft_tests::resource_edit::with_tasks;
+    use plannercraft_tests::task_edit::apply as apply_ops;
     use serde_json::json;
 
     let mut s = with_tasks(&[("T", "3j")]);
@@ -131,8 +131,8 @@ fn r211_actual_work_alone_sets_actual_duration() {
         ]),
     );
     let t = s.project().tasks.get(TaskUid::new(1)).unwrap();
-    assert_eq!(t.progress.actual_duration, planrs_core::Minutes::new(960));
-    let Some(planrs_core::TaskOutcome::Scheduled(ts)) = s.schedule().get(TaskUid::new(1)) else {
+    assert_eq!(t.progress.actual_duration, plannercraft_core::Minutes::new(960));
+    let Some(plannercraft_core::TaskOutcome::Scheduled(ts)) = s.schedule().get(TaskUid::new(1)) else {
         panic!("T non planifiée");
     };
     let g = ts.progress.unwrap();
