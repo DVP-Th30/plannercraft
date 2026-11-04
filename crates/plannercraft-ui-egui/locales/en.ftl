@@ -1414,6 +1414,7 @@ refusal-duration-below-actual = The duration cannot be less than the actual dura
 refusal-link-not-found = Task { $successor } does not have task { $predecessor } as a predecessor.
 refusal-baseline-exists = This baseline is already saved: choose to replace it to save it again.
 refusal-computed-field = This field of a summary task is calculated from its subtasks: it cannot be entered.
+refusal-work-needs-resources = % Work Complete is calculated from the hours of assigned resources, and this task has none: enter % Complete instead, or assign a resource.
 refusal-calendar-in-use = Calendar used by { $detail }: it cannot be deleted.
 refusal-user-project = the project
 refusal-user-task = task { $id }

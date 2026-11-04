@@ -34,7 +34,7 @@ use crate::i18n::{Arg, TextId, Texts};
 /// Codes du registre qu'un lot de l'interface peut produire et qui ont
 /// leur phrase dédiée (H-UI-105, test `h_ui_105_every_ui_code_has_sentence`).
 /// Les codes `text.*` et `custom.*` sont couverts par préfixe.
-pub const UI_CODES: [&str; 27] = [
+pub const UI_CODES: [&str; 28] = [
     codes::LINK_DUPLICATE,
     codes::CALENDAR_IN_USE,
     codes::CALENDAR_NAME_TAKEN,
@@ -61,6 +61,7 @@ pub const UI_CODES: [&str; 27] = [
     codes::BATCH_WOULD_CREATE_ERRORS,
     codes::PARAM_INVALID,
     codes::LIMIT_EXCEEDED,
+    codes::PARAM_CONFLICT,
     "text.bad_number",
 ];
 
@@ -201,6 +202,7 @@ fn sentence(error: &CommandError, project: Option<&Project>, texts: &Texts) -> O
                 &[("id", Arg::Str(id.get().to_string().into()))],
             ))
         }
+        codes::PARAM_CONFLICT => conflict_sentence(&error.kind, texts),
         codes::BATCH_WOULD_CREATE_ERRORS => {
             let CommandErrorKind::WouldCreateErrors(diags) = &error.kind else {
                 return None;
@@ -209,6 +211,18 @@ fn sentence(error: &CommandError, project: Option<&Project>, texts: &Texts) -> O
             Some(diagnostic_sentence(first, project, texts))
         }
         _ => fixed_sentence(code).map(|id| texts.get(id)),
+    }
+}
+
+/// Conflit de champs : seul celui qu'une saisie de cellule peut produire a
+/// sa phrase, % travail achevé ou travail réel sur une tâche sans
+/// affectation (R-211) ; les autres gardent la phrase générique.
+fn conflict_sentence(kind: &CommandErrorKind, texts: &Texts) -> Option<String> {
+    match kind {
+        CommandErrorKind::ParamConflict(_, "assignments") => {
+            Some(texts.get(TextId::RefusalWorkNeedsResources))
+        }
+        _ => None,
     }
 }
 
@@ -380,6 +394,7 @@ mod tests {
                 }])
             }
             codes::LIMIT_EXCEEDED => CommandErrorKind::Limit { what: "ops", max: 5 },
+            codes::PARAM_CONFLICT => CommandErrorKind::ParamConflict("percent_work_complete", "assignments"),
             "text.bad_number" => CommandErrorKind::Text(TextError::BadNumber { at: 2 }),
             _ => CommandErrorKind::InvalidParam("x".to_owned()),
         };

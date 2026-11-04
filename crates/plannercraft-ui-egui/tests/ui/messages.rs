@@ -423,6 +423,9 @@ fn h_ui_105_every_ui_code_has_sentence() {
                     }])
                 }
                 codes::LIMIT_EXCEEDED => CommandErrorKind::Limit { what: "ops", max: 10 },
+                codes::PARAM_CONFLICT => {
+                    CommandErrorKind::ParamConflict("percent_work_complete", "assignments")
+                }
                 codes::CALENDAR_IN_USE => CommandErrorKind::CalendarInUse {
                     calendar: plannercraft_core::CalendarUid::new(1),
                     users: vec![Subject::Project, Subject::Task(TaskUid::new(2))],
