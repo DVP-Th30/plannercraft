@@ -3,9 +3,9 @@
 //!
 //! Dessin (ADR-0021) : carré arrondi noir (gabarit des icônes macOS : marge
 //! de 100/1024, rayon 185/1024) sur lequel une grille de 16 × 16 cellules
-//! (51,5/1024 chacune) porte un point blanc en bas à gauche et trois barres
-//! de Gantt en escalier violet `OneNote` (`#7719AA`), même grammaire que le
-//! logo `BatiScope`. Rendu
+//! (51,5/1024 chacune) porte un point blanc en bas à gauche et un bloc
+//! violet `OneNote` (`#7719AA`) à droite : la composition du logo
+//! `BatiScope`, couleur changée. Rendu
 //! en entiers seulement, sur-échantillonné 4 × 4 par pixel (bords lissés),
 //! encodé en PNG par le crate `image` : mêmes octets à chaque exécution.
 //! Écrit `assets/icon/plannercraft-<n>.png` pour n = 16, 32, 64, 128, 256, 512,
@@ -47,7 +47,7 @@ struct Shape {
 }
 
 /// Formes, de l'arrière vers l'avant.
-const SHAPES: [Shape; 5] = [
+const SHAPES: [Shape; 3] = [
     // Fond : noir.
     Shape {
         left: 100,
@@ -66,27 +66,10 @@ const SHAPES: [Shape; 5] = [
         radius: 0,
         color: (0xFF, 0xFF, 0xFF),
     },
-    // Barres de Gantt en escalier, violet OneNote (cellules 6..11 × 2..5,
-    // 8..13 × 6,5..9,5, 10..14 × 11..14).
+    // Bloc violet OneNote (cellules 6..14 × 2..14), comme le bloc de BatiScope.
     Shape {
         left: 409,
         top: 203,
-        right: 667,
-        bottom: 358,
-        radius: 0,
-        color: (0x77, 0x19, 0xAA),
-    },
-    Shape {
-        left: 512,
-        top: 435,
-        right: 770,
-        bottom: 589,
-        radius: 0,
-        color: (0x77, 0x19, 0xAA),
-    },
-    Shape {
-        left: 615,
-        top: 667,
         right: 821,
         bottom: 821,
         radius: 0,
@@ -247,7 +230,7 @@ mod tests {
     }
 
     /// Deux rendus donnent les mêmes octets ; coin transparent, fond noir,
-    /// point blanc, barre violette au centre.
+    /// point blanc, bloc violet au centre.
     #[test]
     fn icon_deterministic_render() {
         assert_eq!(png(64).unwrap(), png(64).unwrap());
@@ -263,7 +246,7 @@ mod tests {
         assert_eq!(
             pixel(&pixels, 1024, 640, 512),
             [0x77, 0x19, 0xAA, 255],
-            "barre violette"
+            "bloc violet"
         );
         // Bord lissé : opacité intermédiaire sur l'arrondi du fond.
         let small = render(16);

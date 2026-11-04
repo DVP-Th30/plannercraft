@@ -1161,11 +1161,11 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 
 ## ADR-0021 — 2026-11-03 — Icône de l'application
 
-**Décision.** Icône dans la grammaire du logo BatiScope (choix du propriétaire, 2026-11-03) : fond noir, grille de 16 × 16 cellules, point blanc en bas à gauche, et à droite trois barres de Gantt en escalier (« composition 2 ») en **violet OneNote `#7719AA`** à la place du vert BatiScope. Arêtes nettes, comme BatiScope. Sur le gabarit macOS (carré arrondi, marge 100/1024, rayon 185/1024), une cellule vaut 51,5/1024.
+**Décision.** Icône dans la grammaire du logo BatiScope (choix du propriétaire, 2026-11-03) : fond noir, grille de 16 × 16 cellules, point blanc en bas à gauche, et à droite le même bloc que BatiScope (« composition 1 », cellules 6 à 14 × 2 à 14) en **violet OneNote `#7719AA`** à la place du vert. Arêtes nettes, comme BatiScope. Sur le gabarit macOS (carré arrondi, marge 100/1024, rayon 185/1024), une cellule vaut 51,5/1024.
 
 **Où.** `cargo xtask icon` dessine les PNG `assets/icon/` (16 à 1 024 px, test de fraîcheur) ; la CI en tire le `.icns` macOS et l'icône Linux comme avant. Nouveau : icône de fenêtre du desktop (`ViewportBuilder::with_icon`, PNG 256 px embarqué, barre des tâches Windows et Linux) ; favicon web en SVG inline dans `index.html` (aucune requête de plus).
 
-**Choix laissés à la session (carte blanche).** Le propriétaire a donné la nuance, pas la composition : la 2 (barres de Gantt) est retenue parce qu'elle seule dit « planning » ; la 1 reprend le bloc de BatiScope à l'identique (confusion entre les deux apps dans le Dock), la 3 se lit mal à 16 px.
+**Composition.** Première version (PR #14) en trois barres de Gantt (« composition 2 »), choisie par la session faute de consigne ; le propriétaire a ensuite précisé la composition 1 (2026-11-04) : les deux apps forment une famille reconnaissable, la couleur les distingue.
 
 **Limites.** Le violet `#7719AA` sur noir est peu contrasté (rapport ≈ 2,5:1) : lisible pour des aplats de cette taille, à revoir si l'icône paraît terne sur le Dock. Le `.exe` Windows ne porte toujours pas d'icône dans l'Explorateur (ressource Windows non embarquée, dette connue).
 
