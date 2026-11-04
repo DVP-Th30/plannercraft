@@ -1314,6 +1314,7 @@ text_ids! {
     RefusalLinkNotFound => "refusal-link-not-found",
     RefusalBaselineExists => "refusal-baseline-exists",
     RefusalComputedField => "refusal-computed-field",
+    RefusalWorkNeedsResources => "refusal-work-needs-resources",
     RefusalCalendarInUse => "refusal-calendar-in-use",
     RefusalUserProject => "refusal-user-project",
     RefusalUserTask => "refusal-user-task",
