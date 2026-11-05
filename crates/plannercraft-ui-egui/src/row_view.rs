@@ -16,6 +16,13 @@
 //! la construction ([`RowView::compose`]) est pur, sans document, pour les
 //! propriétés P51 et P53.
 //!
+//! Regroupement (finitions P3, ADR-0022 D4, H-UI-129, [`RowView::from_groups`]) :
+//! une ligne d'en-tête par groupe ([`GroupHeader`], aucune ligne du modèle :
+//! [`RowView::model_row`] y rend `None`), puis ses tâches en ordre des ID
+//! (une tâche à plusieurs ressources sous chacune : `display_of` rend sa
+//! première ligne), aucun lien. Les groupes et leurs bornes viennent de
+//! `plannercraft_render::group` (lus du planning du moteur).
+//!
 //! [`VisibleRows`] réunit le `RowModel` et sa vue : c'est par lui que la
 //! table, le Gantt, la navigation et la sélection lisent une ligne
 //! affichée. Rien n'est écrit dans le document (P50) ; aucune date n'est
@@ -92,6 +99,25 @@ impl DisplayLink {
     }
 }
 
+/// Ligne d'en-tête d'un groupe (finitions P3, H-UI-129) : textes prêts à
+/// dessiner, bornes du groupe lues du planning, état de repli.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GroupHeader {
+    /// Identité du groupe (clé de repli).
+    pub key: plannercraft_render::group::GroupKey,
+    /// Texte du Nom : valeur et nombre de tâches (« Lot A (3 tâches) »).
+    pub name: String,
+    /// Texte du Début : celui de la tâche qui porte le plus petit début.
+    pub start: String,
+    /// Texte de la Fin : celui de la tâche qui porte la plus grande fin.
+    pub finish: String,
+    /// Barre récapitulative du groupe (plus petit début, plus grande fin du
+    /// planning du moteur).
+    pub bar: Option<(Moment, Moment)>,
+    /// Groupe replié (ses tâches masquées).
+    pub collapsed: bool,
+}
+
 /// Marque « ligne masquée » de `display_of`.
 pub const HIDDEN: u32 = u32::MAX;
 
@@ -163,6 +189,13 @@ pub struct RowView {
     links: Vec<DisplayLink>,
     /// Plus grand écart entre les deux bouts d'un lien visible.
     max_span: u32,
+    /// En-têtes de groupe par ligne affichée, triés (finitions P3) ; vide
+    /// hors regroupement.
+    headers: Vec<(u32, GroupHeader)>,
+    /// Vue regroupée.
+    grouped: bool,
+    /// Tâches des groupes, repliés compris (impression regroupée).
+    members: Vec<ModelRow>,
 }
 
 impl RowView {
@@ -182,6 +215,7 @@ impl RowView {
             display_of: (0..n).collect(),
             links: Vec::new(),
             max_span: 0,
+            ..Self::default()
         }
     }
 
@@ -340,7 +374,80 @@ impl RowView {
             display_of,
             links,
             max_span,
+            ..Self::default()
         }
+    }
+
+    /// Vue regroupée (finitions P3, H-UI-129) de `model_len` lignes du
+    /// modèle : pour chaque groupe, sa ligne d'en-tête puis, s'il n'est pas
+    /// replié, ses tâches dans l'ordre donné (ordre des ID). Une ligne du
+    /// modèle présente sous plusieurs groupes garde sa première ligne
+    /// affichée dans `display_of` ; aucun lien. Lignes hors du modèle
+    /// ignorées ; au-delà de `u32::MAX - 1` lignes affichées, le reste est
+    /// coupé (jamais atteint).
+    #[must_use]
+    pub fn from_groups(model_len: usize, groups: Vec<(GroupHeader, Vec<ModelRow>)>) -> Self {
+        let mut view = Self {
+            display_of: vec![HIDDEN; model_len],
+            grouped: true,
+            ..Self::default()
+        };
+        for (header, rows) in groups {
+            let Ok(d) = u32::try_from(view.order.len()) else {
+                break;
+            };
+            if d == HIDDEN {
+                break;
+            }
+            let collapsed = header.collapsed;
+            view.headers.push((d, header));
+            view.order.push(ModelRow(HIDDEN));
+            for m in rows {
+                if m.index() >= model_len {
+                    continue;
+                }
+                view.members.push(m);
+                if collapsed {
+                    continue;
+                }
+                let Ok(d) = u32::try_from(view.order.len()) else {
+                    break;
+                };
+                if d == HIDDEN {
+                    break;
+                }
+                if let Some(slot) = view.display_of.get_mut(m.index())
+                    && *slot == HIDDEN
+                {
+                    *slot = d;
+                }
+                view.order.push(m);
+            }
+        }
+        view
+    }
+
+    /// Vue regroupée (finitions P3).
+    #[must_use]
+    pub const fn is_grouped(&self) -> bool {
+        self.grouped
+    }
+
+    /// En-tête de groupe de la ligne affichée `d` (`None` : ligne d'une
+    /// tâche, ou hors vue).
+    #[must_use]
+    pub fn header(&self, d: DisplayRow) -> Option<&GroupHeader> {
+        self.headers
+            .binary_search_by_key(&d.0, |(at, _)| *at)
+            .ok()
+            .and_then(|k| self.headers.get(k))
+            .map(|(_, h)| h)
+    }
+
+    /// Tâches des groupes, repliés compris (vue regroupée seulement).
+    #[must_use]
+    pub fn members(&self) -> &[ModelRow] {
+        &self.members
     }
 
     /// Nombre de lignes affichées.
@@ -375,7 +482,11 @@ impl RowView {
     /// Ligne du modèle d'une ligne affichée.
     #[must_use]
     pub fn model_row(&self, d: DisplayRow) -> Option<ModelRow> {
-        usize::try_from(d.0).ok().and_then(|i| self.order.get(i)).copied()
+        usize::try_from(d.0)
+            .ok()
+            .and_then(|i| self.order.get(i))
+            .copied()
+            .filter(|m| m.0 != HIDDEN)
     }
 
     /// Ligne affichée d'une ligne du modèle (`None` : masquée ou hors vue).
@@ -689,6 +800,46 @@ impl<'a> VisibleRows<'a> {
         self.model_row(d).map_or("", |m| self.model.text(m.index(), c))
     }
 
+    /// En-tête de groupe de la ligne affichée `d` (finitions P3).
+    #[must_use]
+    pub fn header(&self, d: DisplayRow) -> Option<&'a GroupHeader> {
+        self.view.header(d)
+    }
+
+    /// Ligne à dessiner dans le Gantt pour l'en-tête de groupe `d`
+    /// (finitions P3, H-UI-129) : une récapitulative sans tâche (UID 0,
+    /// jamais celui d'une ligne du projet), barre du plus petit début à la
+    /// plus grande fin du groupe ; `None` hors en-tête ou sans barre.
+    #[must_use]
+    pub fn header_bar_row(&self, d: DisplayRow) -> Option<Row> {
+        let h = self.header(d)?;
+        let bar = h.bar?;
+        Some(Row {
+            uid: TaskUid::new(0),
+            id: 0,
+            level: 1,
+            kind: RowKind::Summary,
+            critical: false,
+            bar: Some(bar),
+            percent: Percent::ZERO,
+            baseline: None,
+            finish_variance: None,
+            stop: None,
+            manual: false,
+            active: true,
+        })
+    }
+
+    /// Ligne affichée de `uid` la plus proche de `hint` : `hint` lui-même
+    /// s'il montre `uid` (tâche répétée sous plusieurs groupes : la
+    /// navigation part de la ligne où est le curseur), sinon sa première
+    /// ligne affichée.
+    #[must_use]
+    pub fn display_near(&self, uid: TaskUid, hint: Option<DisplayRow>) -> Option<DisplayRow> {
+        hint.filter(|d| self.uid(*d) == Some(uid))
+            .or_else(|| self.display_of(uid))
+    }
+
     /// Ligne affichée d'une tâche (`None` : absente ou masquée).
     #[must_use]
     pub fn display_of(&self, uid: TaskUid) -> Option<DisplayRow> {
@@ -883,6 +1034,48 @@ mod tests {
             });
             assert_eq!(uids(&v, &rows).last(), Some(&3), "{descending}");
         }
+    }
+
+    /// H-UI-129 : vue regroupée — en-têtes sans ligne du modèle, tâche
+    /// répétée sous deux groupes (première ligne dans `display_of`),
+    /// groupe replié sans ses tâches mais compté dans `members`.
+    #[test]
+    fn h_ui_129_from_groups_headers_and_repeats() {
+        use plannercraft_render::group::GroupKey;
+        let header = |name: &str, collapsed: bool| GroupHeader {
+            key: GroupKey::Text(name.to_owned()),
+            name: name.to_owned(),
+            start: String::new(),
+            finish: String::new(),
+            bar: None,
+            collapsed,
+        };
+        let v = RowView::from_groups(
+            7,
+            vec![
+                (header("A", false), vec![ModelRow(1), ModelRow(2)]),
+                (header("B", false), vec![ModelRow(2), ModelRow(5)]),
+                (header("C", true), vec![ModelRow(6)]),
+                (header("D", false), vec![ModelRow(99)]),
+            ],
+        );
+        assert!(v.is_grouped());
+        assert!(!v.is_identity());
+        assert_eq!(v.len(), 8);
+        let at = |d: u32| v.model_row(DisplayRow(d)).map(|m| m.0);
+        assert_eq!(
+            (0..8).map(at).collect::<Vec<_>>(),
+            [None, Some(1), Some(2), None, Some(2), Some(5), None, None]
+        );
+        assert_eq!(v.header(DisplayRow(3)).map(|h| h.name.as_str()), Some("B"));
+        assert!(v.header(DisplayRow(1)).is_none());
+        assert_eq!(v.display_row(ModelRow(2)), Some(DisplayRow(2)));
+        assert_eq!(v.display_row(ModelRow(6)), None, "groupe replié");
+        assert_eq!(
+            v.members(),
+            &[ModelRow(1), ModelRow(2), ModelRow(2), ModelRow(5), ModelRow(6)]
+        );
+        assert_eq!(v.links(), &[]);
     }
 
     #[test]

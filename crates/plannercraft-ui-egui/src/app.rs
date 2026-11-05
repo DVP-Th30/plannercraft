@@ -293,6 +293,46 @@ struct RowViewKey {
     reapply_version: u64,
 }
 
+/// Vue regroupée des lignes (finitions P3, H-UI-129) : groupes de
+/// `plannercraft_render::group` sur les tâches retenues par le filtre
+/// (`shown`, par position ; `None` : toutes), libellés dans la langue de
+/// l'interface, Début et Fin d'un groupe aux textes des tâches qui portent
+/// ses bornes (même format que leur ligne).
+fn grouped_view(
+    model: &RowModel,
+    document: &OpenDocument,
+    by: plannercraft_render::style::GroupBy,
+    shown: Option<&[bool]>,
+    collapsed: &BTreeSet<plannercraft_render::group::GroupKey>,
+    language: Language,
+) -> RowView {
+    use plannercraft_render::group::{group_label, group_tasks, header_text};
+    let lang = match language {
+        Language::Fr => plannercraft_render::Lang::Fr,
+        Language::En => plannercraft_render::Lang::En,
+    };
+    let keep = |i: usize| shown.is_none_or(|v| v.get(i).copied().unwrap_or(false));
+    let groups = group_tasks(document.project(), document.schedule(), by, &keep);
+    let entries = groups
+        .iter()
+        .map(|g| {
+            let text = |at: Option<usize>, column: crate::column::Column| {
+                at.map_or_else(String::new, |i| model.text(i, column).to_owned())
+            };
+            let header = crate::row_view::GroupHeader {
+                key: g.key.clone(),
+                name: header_text(&group_label(by, g, lang), g.tasks.len(), lang),
+                start: text(g.start.map(|(_, i)| i), crate::column::Column::Start),
+                finish: text(g.finish.map(|(_, i)| i), crate::column::Column::Finish),
+                bar: g.start.zip(g.finish).map(|((s, _), (f, _))| (s, f)),
+                collapsed: collapsed.contains(&g.key),
+            };
+            (header, g.tasks.iter().map(|&i| ModelRow::at(i)).collect())
+        })
+        .collect();
+    RowView::from_groups(model.len(), entries)
+}
+
 /// Application egui de PlannerCraft, indépendante d'eframe.
 #[allow(clippy::struct_excessive_bools, reason = "drapeaux indépendants de l'image")]
 pub struct App {
@@ -706,8 +746,28 @@ impl App {
                 self.view.reapply_version,
                 &mut shown,
             );
-            self.row_view =
-                RowView::build_with_shown(model, &ctx, task_view, &self.view.collapsed, shown.as_deref());
+            // Regroupement du style du document (finitions P3, H-UI-129) :
+            // le filtre d'abord, puis les groupes ; repliés oubliés quand le
+            // regroupement change.
+            let group_by = plannercraft_automation::command::group_by::group_by_of(project);
+            if group_by != self.view.group_by {
+                self.view.collapsed_groups.clear();
+                self.view.cursor_row = None;
+            }
+            self.view.group_by = group_by;
+            self.row_view = match group_by {
+                Some(by) => grouped_view(
+                    model,
+                    document,
+                    by,
+                    shown.as_deref(),
+                    &self.view.collapsed_groups,
+                    self.texts.language(),
+                ),
+                None => {
+                    RowView::build_with_shown(model, &ctx, task_view, &self.view.collapsed, shown.as_deref())
+                }
+            };
             self.row_view_key = Some(key);
         }
         self.drop_hidden_selection();
@@ -1394,6 +1454,17 @@ impl App {
     #[must_use]
     pub fn printed_rows(&self) -> Option<std::collections::BTreeSet<TaskUid>> {
         let model = self.rows.as_ref()?;
+        // Vue regroupée (finitions P3) : les tâches de tous les groupes,
+        // repliés compris ; le rendu les regroupe lui-même.
+        if self.row_view.is_grouped() {
+            return Some(
+                self.row_view
+                    .members()
+                    .iter()
+                    .filter_map(|m| model.row(m.index()).map(|row| row.uid))
+                    .collect(),
+            );
+        }
         if self.row_view.len() >= self.row_view.model_len() {
             return None;
         }
@@ -1891,7 +1962,7 @@ impl App {
             // H-UI-32 (J8, lot L9) : sous tri ou filtre, déplacer, hausser et
             // abaisser sont refusés, avec un message.
             Action::Structure(op) if self.structure_locked(op) => {
-                let text = self.texts.get(TextId::ViewReorderLocked);
+                let text = self.texts.get(self.structure_lock_text());
                 self.push_message(Severity::Info, text);
             }
             Action::Structure(op) => self.run_structure(op),
@@ -2017,6 +2088,7 @@ impl App {
             Action::ZoomToSelection => self.zoom_to_selection(),
             // Finitions P2 (H-UI-126 à H-UI-128).
             Action::TextStyle(op) => self.text_style_op(op),
+            Action::Group(op) => self.group_op(op),
             Action::ShowTaskNotes if self.state.view != ViewKind::Gantt => {}
             Action::ShowTaskNotes => {
                 if let Some(uid) = self.selection {

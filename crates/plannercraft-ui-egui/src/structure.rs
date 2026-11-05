@@ -617,6 +617,13 @@ impl App {
         let Some(document) = &self.document else {
             return;
         };
+        // Regroupement (finitions P3, H-UI-130) : aucun déplacement de
+        // lignes.
+        if self.view.group_by.is_some() {
+            let text = self.texts.get(TextId::ViewGroupLocked);
+            self.push_message(plannercraft_core::Severity::Info, text);
+            return;
+        }
         let plan = if self.view.task_view.reorder_locked() {
             Err(StructureRefusal::ViewReorderLocked)
         } else {
@@ -647,6 +654,13 @@ impl App {
             StructureOp::InsertSummary => self.texts.get(TextId::NewSummaryName),
             _ => String::new(),
         };
+        // Regroupement (finitions P3, H-UI-130) : insérer, indenter,
+        // déplacer refusés (le réducteur filtre déjà ; appel direct aussi).
+        if self.structure_locked(op) {
+            let text = self.texts.get(self.structure_lock_text());
+            self.push_message(plannercraft_core::Severity::Info, text);
+            return;
+        }
         // H-UI-83 : Jalon et Récapitulative grisés sous tri ou filtre, comme
         // Abaisser (H-UI-32) ; refus au bandeau si l'action arrive quand même.
         if matches!(op, StructureOp::InsertMilestone | StructureOp::InsertSummary)

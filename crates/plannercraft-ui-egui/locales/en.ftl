@@ -1606,3 +1606,16 @@ text-color-auto = Automatic
 text-highlight-none = No Highlight
 text-contrast-low = Contrast too low: { $ratio }:1 (4.5:1 at least for text).
 text-style-undo = Text formatting
+
+# --- Polish P3 (ADR-0022) ---
+menu-group-by = Group By
+ribbon-group-by = Group By
+ribbon-tip-group-by = Shows the tasks under one row per value of a field (Lot, resource, critical, milestone); printed as shown.
+group-by-none = No Group
+group-by-resource = Resources
+group-by-critical = Critical / not critical
+group-by-milestone = Milestones
+group-by-undo = Group By
+view-group-locked = Remove the grouping to insert, move or indent rows.
+group-expand = Expand group { $name }
+group-collapse = Collapse group { $name }

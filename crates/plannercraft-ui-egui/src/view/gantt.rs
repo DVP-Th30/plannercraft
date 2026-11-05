@@ -1275,6 +1275,16 @@ pub fn paint_body(
         let fill = |role: BarRole| color(c.bars.get(&role).map_or(c.text, |p| p.fill));
         let mut labels = Vec::new();
         for i in range.clone() {
+            // En-tête de groupe (finitions P3, H-UI-129) : barre
+            // récapitulative du groupe, sans texte ni infobulle.
+            if let Some(group) = rows.header_bar_row(DisplayRow::at(i)) {
+                if let Some(bar) = screen_bar(&group, axis, origin, i, &geo)
+                    && !bar.culled(clip)
+                {
+                    bar_shapes(&bar, &geo, None, &mut shapes);
+                }
+                continue;
+            }
             let Some(row) = rows.row(DisplayRow::at(i)) else {
                 continue;
             };

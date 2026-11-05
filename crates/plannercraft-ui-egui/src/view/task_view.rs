@@ -98,6 +98,10 @@ pub struct TaskViewFrame {
     /// Pinceau « Reproduire la mise en forme » armé (finitions P2,
     /// H-UI-128) : bouton enfoncé.
     pub painter: bool,
+    /// Regroupement de la vue (finitions P3, H-UI-129).
+    pub group_by: Option<plannercraft_render::style::GroupBy>,
+    /// Ligne affichée du curseur (tâche répétée sous plusieurs groupes).
+    pub cursor_row: Option<crate::row_view::DisplayRow>,
 }
 
 impl TaskViewFrame {
@@ -264,7 +268,19 @@ impl App {
     /// déplacer, hausser, abaisser sous tri ou filtre).
     #[must_use]
     pub fn structure_locked(&self, op: StructureOp) -> bool {
-        reorders(op) && self.view.task_view.reorder_locked()
+        (reorders(op) && self.view.task_view.reorder_locked())
+            || (self.view.group_by.is_some() && crate::group_view::group_locks(op))
+    }
+
+    /// Raison d'un refus de structure par la vue : regroupement (finitions
+    /// P3, H-UI-130) d'abord, sinon tri ou filtre.
+    #[must_use]
+    pub const fn structure_lock_text(&self) -> TextId {
+        if self.view.group_by.is_some() {
+            TextId::ViewGroupLocked
+        } else {
+            TextId::ViewReorderLocked
+        }
     }
 
     /// Applique (ou réapplique) un filtre : lignes gardées oubliées
@@ -628,6 +644,8 @@ impl App {
             // Posé par `App::show` (style effectif de l'image).
             style: crate::theme::ScreenStyle::default(),
             painter: self.view.painter.is_some(),
+            group_by: self.view.group_by,
+            cursor_row: self.view.cursor_row,
         }
     }
 

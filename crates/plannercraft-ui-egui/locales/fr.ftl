@@ -1605,3 +1605,16 @@ text-color-auto = Automatique
 text-highlight-none = Aucun surlignage
 text-contrast-low = Contraste insuffisant : { $ratio }:1 (4,5:1 au moins pour le texte).
 text-style-undo = Mise en forme du texte
+
+# --- Finitions P3 (ADR-0022) ---
+menu-group-by = Regrouper par
+ribbon-group-by = Regrouper par
+ribbon-tip-group-by = Range les tâches sous une ligne par valeur d'un champ (Lot, ressource, critique, jalon) ; imprimé tel quel.
+group-by-none = Aucun groupe
+group-by-resource = Ressources
+group-by-critical = Critique / non critique
+group-by-milestone = Jalons
+group-by-undo = Regrouper par
+view-group-locked = Retirez le regroupement pour insérer, déplacer ou indenter des lignes.
+group-expand = Déplier le groupe { $name }
+group-collapse = Replier le groupe { $name }

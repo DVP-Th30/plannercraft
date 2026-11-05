@@ -12,7 +12,7 @@
 //! posées par L0, plus `style.set_bar_role`, `style.reset_to_template`,
 //! `style.save_as_template`), et `custom_field.rename` (seconde passe UX,
 //! lot L8, R-264), `task.shift` (finitions P1, R-267) et `task.set_text_style`
-//! (finitions P2, H-UI-126). Une entrée réservée à un jalon futur
+//! (finitions P2, H-UI-126), `style.set_group_by` (finitions P3, H-UI-129). Une entrée réservée à un jalon futur
 //! (`Availability::Milestone`) n'est pas listée et est refusée
 //! `command.not_yet_available`. Les trois entrées `app.*` (genre [`Kind::Ui`]) ne sont servies que
 //! par une application rattachée (`Availability::Attached`, ADR-0015 D11) :
@@ -25,6 +25,7 @@
 use schemars::generate::SchemaSettings;
 use schemars::{JsonSchema, Schema};
 
+use crate::command::StyleSetGroupBy;
 use crate::command::params::{
     ApplyBatchParams, ExplainParams, ExportMspdiParams, ExportPdfParams, ImportCsvParams, NewProjectParams,
     NoParams, OpenProjectParams, RenderGanttParams, ResourceListParams, SaveProjectParams, ScreenshotParams,
@@ -582,6 +583,14 @@ pub static REGISTRY: &[CommandSpec] = &[
         schema_of::<StyleSetBarRole>,
         "Met en forme un type de barre : couleur, épaisseur, extrémités, textes à gauche, à droite, dedans.",
         "Format a bar type: color, thickness, ends, texts on the left, right, inside.",
+    ),
+    now(
+        "style.set_group_by",
+        "set_group_by",
+        Kind::Write,
+        schema_of::<StyleSetGroupBy>,
+        "Regroupe les tâches de la vue et de l'impression (render_gantt, export_pdf) : champ personnalisé texte ({\"custom\":\"text1\"}), \"resource\" (une tâche à plusieurs ressources sous chacune), \"critical\", \"milestone\" ; null : aucun groupe. Gardé dans le style du document (pas dans le MSPDI) ; lu par get_style (resolved.group_by).",
+        "Group the tasks of the view and of printing (render_gantt, export_pdf): text custom field ({\"custom\":\"text1\"}), \"resource\" (a task with several resources under each), \"critical\", \"milestone\"; null: no groups. Kept in the document style (not in the MSPDI); read by get_style (resolved.group_by).",
     ),
     now(
         "task.add",

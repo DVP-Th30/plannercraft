@@ -427,6 +427,63 @@ struct Kept<'a> {
     position: usize,
     task: &'a Task,
     critical: bool,
+    /// Ligne d'en-tête d'un groupe (finitions P3, H-R17) : `task` est alors
+    /// la première tâche du groupe, jamais dessinée sur cette ligne.
+    header: Option<HeaderRow>,
+}
+
+/// En-tête d'un groupe (H-R17) : texte du nom (valeur et nombre de
+/// tâches), bornes lues du planning et tâches qui les portent.
+struct HeaderRow {
+    /// « Gros œuvre (3 tâches) ».
+    text: String,
+    /// Plus petit début et sa tâche.
+    start: Option<(plannercraft_core::Moment, TaskUid)>,
+    /// Plus grande fin et sa tâche.
+    finish: Option<(plannercraft_core::Moment, TaskUid)>,
+}
+
+/// Lignes regroupées (H-R17) : pour chaque groupe de `group_tasks` sur les
+/// lignes `kept`, une ligne d'en-tête puis ses tâches feuilles en ordre des
+/// ID (une tâche à plusieurs ressources sous chacune).
+fn grouped_rows<'a>(
+    p: &'a Project,
+    s: &Schedule,
+    by: crate::style::GroupBy,
+    kept: &[Kept<'a>],
+    lang: Lang,
+) -> Vec<Kept<'a>> {
+    let critical: BTreeMap<usize, bool> = kept.iter().map(|k| (k.position, k.critical)).collect();
+    let groups = crate::group::group_tasks(p, s, by, &|i| critical.contains_key(&i));
+    let uid_at = |i: usize| p.tasks.at(i).map(Task::uid);
+    let mut out = Vec::new();
+    for g in &groups {
+        let Some((&first, first_task)) = g.tasks.first().and_then(|i| p.tasks.at(*i).map(|t| (i, t))) else {
+            continue;
+        };
+        let label = crate::group::group_label(by, g, lang);
+        out.push(Kept {
+            position: first,
+            task: first_task,
+            critical: false,
+            header: Some(HeaderRow {
+                text: crate::group::header_text(&label, g.tasks.len(), lang),
+                start: g.start.and_then(|(m, i)| uid_at(i).map(|u| (m, u))),
+                finish: g.finish.and_then(|(m, i)| uid_at(i).map(|u| (m, u))),
+            }),
+        });
+        for &i in &g.tasks {
+            if let Some(task) = p.tasks.at(i) {
+                out.push(Kept {
+                    position: i,
+                    task,
+                    critical: critical.get(&i).copied().unwrap_or(false),
+                    header: None,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// Primitives d'une barre.
@@ -617,6 +674,9 @@ fn label_room(
     let labels: Vec<(crate::geometry::RowGeomInput, i64, i64)> = kept
         .iter()
         .filter_map(|k| {
+            if k.header.is_some() {
+                return None;
+            }
             let input = row_geom_input(k.task, s.tasks.get(&k.task.uid()))?;
             let texts = resolve_texts(k.task, input.role, st, src, body);
             let need = |t: Option<String>| {
@@ -746,12 +806,27 @@ pub(crate) fn build(
             position,
             task,
             critical,
+            header: None,
         });
     }
+    // Regroupement (finitions P3, H-R17) : le filtre d'abord, puis les
+    // groupes ; récapitulatives et lignes vides écartées, aucun lien.
+    let grouped = st.group_by.is_some();
+    if let Some(by) = st.group_by {
+        kept = grouped_rows(p, s, by, &kept, vp.lang);
+    }
+    let tasks_shown = |kept: &[Kept<'_>]| {
+        kept.iter()
+            .filter(|k| k.header.is_none())
+            .map(|k| k.position)
+            .collect::<BTreeSet<usize>>()
+            .len()
+    };
     let max_rows = usize::try_from(vp.limits.max_rows).unwrap_or(usize::MAX);
     let shown = kept.len().min(max_rows);
     let cut = kept.len().saturating_sub(shown);
     let kept = kept.get(..shown).unwrap_or(&[]);
+    let shown_tasks = if grouped { tasks_shown(kept) } else { shown };
     // H-R3 (relecture finale de J8, F9) : impression ajustée, plage
     // automatique : la plage s'allonge pour que l'étiquette de droite des
     // barres de fin de projet tienne à droite.
@@ -768,8 +843,35 @@ pub(crate) fn build(
     let mut index: BTreeMap<TaskUid, usize> = BTreeMap::new();
     let clip_x = (axis.left16(), axis.right16());
     for (i, k) in kept.iter().enumerate() {
-        let uid = k.task.uid();
         let top = row_top(i);
+        if let Some(h) = &k.header {
+            // Barre récapitulative du groupe, du plus petit début à la plus
+            // grande fin (H-R17) ; aucun texte autour.
+            let bar = h.start.zip(h.finish).map(|((start, uid), (finish, _))| {
+                let input = crate::geometry::RowGeomInput {
+                    uid,
+                    role: BarRole::Summary,
+                    start: Some(start),
+                    finish: Some(finish),
+                    percent: 0,
+                    stop: None,
+                    baseline: None,
+                };
+                bar_geom(&input, &axis, st, top)
+            });
+            rows.push(SceneRow {
+                uid: None,
+                id: 0,
+                y16: top,
+                h16: row_h,
+                level: 1,
+                summary: true,
+                bar,
+                texts: PlacedTexts::default(),
+            });
+            continue;
+        }
+        let uid = k.task.uid();
         let outcome = s.tasks.get(&uid);
         let bar = row_geom_input(k.task, outcome).map(|input| bar_geom(&input, &axis, st, top));
         let texts = bar.map_or_else(PlacedTexts::default, |b| {
@@ -777,7 +879,9 @@ pub(crate) fn build(
             place_texts(&b, &resolved, &metrics, clip_x)
         });
         let summary = matches!(outcome, Some(TaskOutcome::Scheduled(t)) if t.role == TaskRole::Summary);
-        index.insert(uid, i);
+        if !grouped {
+            index.insert(uid, i);
+        }
         rows.push(SceneRow {
             uid: (!k.task.is_null).then_some(uid),
             id: u32::try_from(k.position)
@@ -786,7 +890,7 @@ pub(crate) fn build(
                 .unwrap_or(u32::MAX),
             y16: top,
             h16: row_h,
-            level: k.task.outline_level.get(),
+            level: if grouped { 2 } else { k.task.outline_level.get() },
             summary,
             bar,
             texts,
@@ -879,6 +983,21 @@ pub(crate) fn build(
                 Some(phase.unwrap_or(0) % 2)
             }
         };
+        // En-tête de groupe (H-R17) : fond de l'en-tête, table seulement.
+        if kept.get(i).is_some_and(|k| k.header.is_some()) {
+            items.rect(
+                Clip::Table,
+                part_of(i),
+                Class::HeaderBg,
+                Rect16 {
+                    x: 0,
+                    y: r.y16,
+                    w: table_w,
+                    h: row_h,
+                },
+            );
+            continue;
+        }
         // H-UI-62 : bandes dans la table seulement, jamais dans le Gantt.
         let own_phase = kept
             .get(i)
@@ -1196,7 +1315,12 @@ pub(crate) fn build(
     // Barres et leurs textes.
     for (i, (r, k)) in rows.iter().zip(kept).enumerate() {
         if let Some(b) = &r.bar {
-            let phase = phase_by_pos.get(k.position).copied().flatten().map(|(pi, _)| pi);
+            let phase = phase_by_pos
+                .get(k.position)
+                .copied()
+                .flatten()
+                .filter(|_| k.header.is_none())
+                .map(|(pi, _)| pi);
             bar_items(&mut items, part_of(i), b, st, phase);
         }
     }
@@ -1229,6 +1353,39 @@ pub(crate) fn build(
 
     // Table : colonnes du style (N° et Nom par défaut, H-UI-68).
     for (i, (r, k)) in rows.iter().zip(kept).enumerate() {
+        if let Some(h) = &k.header {
+            // En-tête de groupe (H-R17) : valeur et nombre dans le Nom,
+            // Début et Fin aux textes des tâches qui les portent.
+            let y = r.y16.saturating_add(baseline_dy);
+            let mut col_x = 0_i64;
+            for &c in &columns {
+                let w = column_w(c);
+                let x_here = col_x;
+                col_x = col_x.saturating_add(w);
+                let text = match c {
+                    TableColumn::Name => Some(h.text.clone()),
+                    TableColumn::Start => h.start.and_then(|(_, u)| src.bar_text(u, BarField::StartShort)),
+                    TableColumn::Finish => h.finish.and_then(|(_, u)| src.bar_text(u, BarField::FinishShort)),
+                    _ => None,
+                };
+                let Some(text) = text.filter(|t| !t.is_empty()) else {
+                    continue;
+                };
+                let (x, anchor) = column_anchor(c, x_here, w);
+                let text = fit_chars(&text, w.saturating_sub(2 * PAD), strong, &metrics);
+                items.text(
+                    Clip::Table,
+                    part_of(i),
+                    Class::TextStrong,
+                    x,
+                    y,
+                    text,
+                    strong,
+                    anchor,
+                );
+            }
+            continue;
+        }
         let outcome = s.tasks.get(&k.task.uid());
         let (class, font) = if r.summary {
             (Class::TextStrong, strong)
@@ -1356,7 +1513,7 @@ pub(crate) fn build(
     };
     let report = RenderReport {
         shown: u32::try_from(shown).unwrap_or(u32::MAX),
-        hidden: u32::try_from(p.tasks.len().saturating_sub(shown)).unwrap_or(u32::MAX),
+        hidden: u32::try_from(p.tasks.len().saturating_sub(shown_tasks)).unwrap_or(u32::MAX),
         truncated_days: axis.truncated_days(),
         truncated_bytes: false,
         bytes: 0,

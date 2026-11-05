@@ -1219,3 +1219,48 @@ fn snapshot_text_style_print_fr_light() {
     harness.run();
     snapshot(&mut harness, "text_style_print_fr_light");
 }
+
+/// Finitions P3 (H-UI-129, H-UI-131) : « P » regroupé par « Lot » (Texte1) :
+/// 2, 3 « Lot 10 », 4, 7 « Lot 2 », 6 sans valeur ; en-têtes (nombre de
+/// tâches, début et fin du groupe, barre récapitulative), 3 sélectionnée.
+fn group_capture() -> Harness<'static, App> {
+    let mut harness = p_capture(
+        LanguagePref::Fr,
+        ThemePref::Light,
+        egui::vec2(1280.0, 720.0),
+        1.0,
+        &[],
+    );
+    let base = harness.state().state.default_template.key();
+    let mut ops = vec![serde_json::json!({ "op": "custom_field.rename", "field": "text1", "alias": "Lot" })];
+    for (n, lot) in [(2, "Lot 10"), (3, "Lot 10"), (4, "Lot 2"), (7, "Lot 2")] {
+        ops.push(serde_json::json!({ "op": "task.update", "uid": n, "custom": { "text1": lot } }));
+    }
+    ops.push(
+        serde_json::json!({ "op": "style.set_group_by", "group_by": { "custom": "text1" }, "base": base }),
+    );
+    exec_ops(&mut harness, &serde_json::Value::Array(ops));
+    harness
+        .state_mut()
+        .dispatch(Action::Select(Some(plannercraft_core::TaskUid::new(3))));
+    harness.run();
+    assert!(harness.state().row_view().is_grouped());
+    harness
+}
+
+#[test]
+fn snapshot_group_lot_fr_light() {
+    let mut harness = group_capture();
+    snapshot(&mut harness, "group_lot_fr_light");
+}
+
+/// Finitions P3 : le même regroupement dans l'aperçu du mode impression.
+#[test]
+fn snapshot_group_lot_print_fr_light() {
+    let mut harness = group_capture();
+    harness.state_mut().dispatch(Action::ShowDialog(
+        plannercraft_ui_egui::action::DialogKind::PageSetup { print_mode: true },
+    ));
+    harness.run();
+    snapshot(&mut harness, "group_lot_print_fr_light");
+}

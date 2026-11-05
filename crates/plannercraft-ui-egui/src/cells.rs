@@ -531,6 +531,10 @@ pub fn copy_text(block: &Block, doc: &OpenDocument, rows: VisibleRows<'_>, lang:
 ///
 /// # Errors
 /// [`CellError`] : rien n'est écrit.
+#[allow(
+    clippy::too_many_lines,
+    reason = "suite d'étapes d'un collage, en-têtes de groupe sautés compris"
+)]
 pub fn paste_plan(
     block: &Block,
     visible: &[Column],
@@ -602,8 +606,15 @@ pub fn paste_plan(
         .unwrap_or(u32::MAX)
         .saturating_add(1);
     let mut widest = 0_usize;
-    for (i, line) in grid.iter().enumerate() {
-        let d = top.index().saturating_add(i);
+    // Vue regroupée (finitions P3) : les en-têtes de groupe sont sautés
+    // sans consommer de ligne collée.
+    let mut next_row = top.index();
+    for line in &grid {
+        while next_row < len && rows.header(DisplayRow::at(next_row)).is_some() {
+            next_row = next_row.saturating_add(1);
+        }
+        let d = next_row;
+        next_row = next_row.saturating_add(1);
         let cells: Vec<(Column, &str)> = line
             .iter()
             .enumerate()

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`style.set_group_by` (H-UI-129) : regroupe les tâches de la vue et de\nl'impression ; une entrée d'annulation par appel.",
+  "properties": {
+    "base": {
+      "anyOf": [
+        {
+          "description": "Modèle de mise en forme intégré, en JSON.",
+          "oneOf": [
+            {
+              "const": "classique",
+              "description": "Apparence de J7.",
+              "type": "string"
+            },
+            {
+              "const": "sobre",
+              "description": "Sobre.",
+              "type": "string"
+            },
+            {
+              "const": "contraste_eleve",
+              "description": "Contraste élevé.",
+              "type": "string"
+            },
+            {
+              "const": "presentation",
+              "description": "Présentation client.",
+              "type": "string"
+            },
+            {
+              "const": "chantier",
+              "description": "Chantier.",
+              "type": "string"
+            },
+            {
+              "const": "impression_nb",
+              "description": "Impression noir et blanc.",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Modèle de départ si le document n'a pas encore de style (défaut :\nClassique) ; ignoré sinon."
+    },
+    "group_by": {
+      "anyOf": [
+        {
+          "description": "Regroupement en JSON.",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Champ personnalisé texte, `\"text1\"` à `\"text30\"` (`{\"custom\":\"text1\"}`).",
+              "properties": {
+                "custom": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "custom"
+              ],
+              "type": "object"
+            },
+            {
+              "const": "resource",
+              "description": "Ressources affectées : une tâche à plusieurs ressources est sous\nchacune ; sans ressource, « (sans valeur) ».",
+              "type": "string"
+            },
+            {
+              "const": "critical",
+              "description": "Critique, puis non critique.",
+              "type": "string"
+            },
+            {
+              "const": "milestone",
+              "description": "Jalons, puis autres tâches.",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Regroupement ; `null` ou absent : aucun groupe."
+    }
+  },
+  "title": "StyleSetGroupBy",
+  "type": "object"
+}

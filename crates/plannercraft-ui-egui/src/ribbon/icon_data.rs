@@ -86,6 +86,8 @@ pub enum Icon {
     Flag,
     /// `focus.svg`.
     Focus,
+    /// `group.svg`.
+    Group,
     /// `highlighter.svg`.
     Highlighter,
     /// `indent-decrease.svg`.
@@ -164,7 +166,7 @@ pub enum Icon {
 
 impl Icon {
     /// Toutes les icônes, dans l'ordre des fichiers.
-    pub const ALL: [Self; 67] = [
+    pub const ALL: [Self; 68] = [
         Self::ArrowDownToLine,
         Self::ArrowUpDown,
         Self::Baseline,
@@ -195,6 +197,7 @@ impl Icon {
         Self::Filter,
         Self::Flag,
         Self::Focus,
+        Self::Group,
         Self::Highlighter,
         Self::IndentDecrease,
         Self::IndentIncrease,
@@ -268,6 +271,7 @@ impl Icon {
             Self::Filter => "filter",
             Self::Flag => "flag",
             Self::Focus => "focus",
+            Self::Group => "group",
             Self::Highlighter => "highlighter",
             Self::IndentDecrease => "indent-decrease",
             Self::IndentIncrease => "indent-increase",
@@ -342,6 +346,7 @@ impl Icon {
             Self::Filter => &FILTER,
             Self::Flag => &FLAG,
             Self::Focus => &FOCUS,
+            Self::Group => &GROUP,
             Self::Highlighter => &HIGHLIGHTER,
             Self::IndentDecrease => &INDENT_DECREASE,
             Self::IndentIncrease => &INDENT_INCREASE,
@@ -1046,6 +1051,35 @@ static FOCUS: IconData = IconData {
         ] },
         IconLine { closed: false, points: &[
             (448, 1344), (320, 1344), (286, 1339), (256, 1327), (229, 1307), (209, 1280), (197, 1250), (192, 1216), (192, 1088),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `group.svg`.
+static GROUP: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (192, 448), (192, 320), (197, 286), (209, 256), (230, 230), (256, 209), (286, 197), (320, 192), (448, 192),
+        ] },
+        IconLine { closed: false, points: &[
+            (1088, 192), (1216, 192), (1250, 197), (1280, 209), (1306, 230), (1327, 256), (1339, 286), (1344, 320), (1344, 448),
+        ] },
+        IconLine { closed: false, points: &[
+            (1344, 1088), (1344, 1216), (1339, 1250), (1327, 1280), (1306, 1306), (1280, 1327), (1250, 1339), (1216, 1344), (1088, 1344),
+        ] },
+        IconLine { closed: false, points: &[
+            (448, 1344), (320, 1344), (286, 1339), (256, 1327), (230, 1306), (209, 1280), (197, 1250), (192, 1216), (192, 1088),
+        ] },
+        IconLine { closed: true, points: &[
+            (448, 512), (451, 492), (460, 474), (474, 460), (492, 451), (512, 448), (832, 448), (852, 451), (870, 460), (884, 474),
+            (893, 492), (896, 512), (896, 704), (893, 724), (884, 742), (870, 756), (852, 765), (832, 768), (512, 768), (492, 765),
+            (474, 756), (460, 742), (451, 724), (448, 704),
+        ] },
+        IconLine { closed: true, points: &[
+            (640, 832), (643, 812), (652, 794), (666, 780), (684, 771), (704, 768), (1024, 768), (1044, 771), (1062, 780), (1076, 794),
+            (1085, 812), (1088, 832), (1088, 1024), (1085, 1044), (1076, 1062), (1062, 1076), (1044, 1085), (1024, 1088), (704, 1088), (684, 1085),
+            (666, 1076), (652, 1062), (643, 1044), (640, 1024),
         ] },
     ],
     dots: &[],

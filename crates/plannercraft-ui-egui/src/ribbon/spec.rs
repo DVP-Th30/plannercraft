@@ -242,6 +242,9 @@ pub enum RibbonCmd {
     FormatPainter,
     /// Effacer la mise en forme.
     ClearFormatting,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P3).
+    /// Liste Regrouper par ▾ (Affichage → Données, H-UI-129).
+    GroupByMenu,
 }
 
 /// Pas de « marquer n % », dans l'ordre de la rangée (H-UI-35).
@@ -285,7 +288,8 @@ impl RibbonCmd {
             | Self::ColumnsMenu
             | Self::ShiftMenu
             | Self::TextColorMenu
-            | Self::HighlightMenu => return None,
+            | Self::HighlightMenu
+            | Self::GroupByMenu => return None,
             Self::Bold => Action::TextStyle(TextStyleOp::ToggleBold),
             Self::Italic => Action::TextStyle(TextStyleOp::ToggleItalic),
             Self::FormatPainter => Action::TextStyle(TextStyleOp::Painter),
@@ -396,6 +400,16 @@ impl RibbonCmd {
         if self.needs_task_view() && fc.state.view != ViewKind::Gantt {
             return Enabled::no(TextId::RibbonReasonTaskView);
         }
+        // Regroupement (finitions P3, H-UI-130) : insérer et indenter
+        // grisés, avec la raison.
+        if fc.task_view.group_by.is_some()
+            && matches!(
+                self,
+                Self::Indent | Self::Outdent | Self::InsertTask | Self::InsertSummary | Self::InsertMilestone
+            )
+        {
+            return Enabled::no(TextId::ViewGroupLocked);
+        }
         let locked = fc.task_view.state.reorder_locked();
         if locked
             && matches!(
@@ -454,6 +468,7 @@ impl RibbonCmd {
                 | Self::HighlightMenu
                 | Self::FormatPainter
                 | Self::ClearFormatting
+                | Self::GroupByMenu
         )
     }
 
@@ -602,6 +617,7 @@ impl RibbonCmd {
             Self::HighlightMenu => TextId::RibbonHighlight,
             Self::FormatPainter => TextId::RibbonFormatPainter,
             Self::ClearFormatting => TextId::RibbonClearFormatting,
+            Self::GroupByMenu => TextId::MenuGroupBy,
         }
     }
 
@@ -650,7 +666,8 @@ impl RibbonCmd {
             | Self::CollapseRibbon
             | Self::CriticalTasks
             | Self::ChartOnly
-            | Self::DetailsPane => &[TextId::MenuView],
+            | Self::DetailsPane
+            | Self::GroupByMenu => &[TextId::MenuView],
             Self::MarkPercent(_)
             | Self::InsertSummary
             | Self::InsertMilestone
@@ -1509,6 +1526,14 @@ const VIEW_GROUPS: &[GroupSpec] = &[
                 TextId::RibbonFilter,
                 TextId::RibbonTipFilter,
                 RibbonCmd::FilterMenu,
+            ),
+            // Finitions P3 (H-UI-129) : Regrouper par ▾ après Filtre.
+            plain(
+                Dropdown,
+                Some(Icon::Group),
+                TextId::RibbonGroupBy,
+                TextId::RibbonTipGroupBy,
+                RibbonCmd::GroupByMenu,
             ),
         ],
         shrink_rank: 4,

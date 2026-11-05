@@ -18,6 +18,7 @@ mod constraint;
 mod custom;
 pub(crate) mod exec;
 mod extras_invalidation;
+pub mod group_by;
 mod link;
 pub(crate) mod outline;
 pub mod params;
@@ -43,6 +44,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use self::baseline::{BaselineClear, BaselineSet};
 pub use self::calendar::{CalendarAdd, CalendarDelete, CalendarSetWeek, CalendarUpdate};
 pub use self::custom::{CustomFieldRename, parse_custom_number};
+pub use self::group_by::StyleSetGroupBy;
 pub use self::progress::{ProgressReschedule, ProgressUpdate};
 use self::refs::label_refusal;
 pub use self::refs::{LABEL_PATTERN, define_label, is_valid_label, resolve_task};
@@ -244,6 +246,10 @@ pub enum Command {
     /// Mise en forme directe d'un type de barre (J8, H-UI-59, H-UI-60).
     #[serde(rename = "style.set_bar_role")]
     StyleSetBarRole(style::StyleSetBarRole),
+    /// Regroupe les tâches de la vue et de l'impression (finitions P3,
+    /// H-UI-129).
+    #[serde(rename = "style.set_group_by")]
+    StyleSetGroupBy(group_by::StyleSetGroupBy),
     /// Retire les surcharges du style (« Revenir au modèle », J8, H-UI-61).
     #[serde(rename = "style.reset_to_template")]
     StyleResetToTemplate(style::StyleResetToTemplate),
@@ -297,6 +303,7 @@ impl Command {
             Self::BaselineClear(_) => "baseline.clear",
             Self::StyleApply(_) => "style.apply",
             Self::StyleSetBarRole(_) => "style.set_bar_role",
+            Self::StyleSetGroupBy(_) => "style.set_group_by",
             Self::StyleResetToTemplate(_) => "style.reset_to_template",
             Self::CustomFieldRename(_) => "custom_field.rename",
             Self::TaskShift(_) => "task.shift",

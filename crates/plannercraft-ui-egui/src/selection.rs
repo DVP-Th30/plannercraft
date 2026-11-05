@@ -55,6 +55,13 @@ pub enum SelectMode {
     Range,
 }
 
+/// UID dans l'ordre, chacun une fois (vue regroupée, finitions P3 : une
+/// tâche peut être affichée sous plusieurs groupes).
+fn distinct(uids: impl Iterator<Item = TaskUid>) -> Vec<TaskUid> {
+    let mut seen = BTreeSet::new();
+    uids.filter(|uid| seen.insert(*uid)).collect()
+}
+
 /// Tâches sélectionnées.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
@@ -109,9 +116,7 @@ impl Selection {
     /// sans ligne : sélection vide.
     #[must_use]
     pub fn all(rows: VisibleRows<'_>) -> Self {
-        let order: Vec<TaskUid> = (0..rows.len())
-            .filter_map(|i| rows.uid(DisplayRow::at(i)))
-            .collect();
+        let order = distinct((0..rows.len()).filter_map(|i| rows.uid(DisplayRow::at(i))));
         let first = order.first().copied();
         Self {
             uids: order.iter().copied().collect(),
@@ -231,7 +236,7 @@ impl Selection {
             return;
         };
         let (low, high) = if a <= b { (a, b) } else { (b, a) };
-        let order: Vec<TaskUid> = (low.0..=high.0).filter_map(|d| rows.uid(DisplayRow(d))).collect();
+        let order = distinct((low.0..=high.0).filter_map(|d| rows.uid(DisplayRow(d))));
         self.uids = order.iter().copied().collect();
         self.order = order;
         self.anchor = Some(anchor);

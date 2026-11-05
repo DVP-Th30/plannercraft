@@ -112,7 +112,12 @@ pub fn export_rows(
     let sched = s.schedule();
     let mut st = p.style.map_or_else(
         || style::effective_style(project, style::HEADLESS_DEFAULT),
-        |t| template(t.into()),
+        |t| {
+            // Le regroupement du document est gardé (finitions P3, H-UI-129).
+            let mut st = template(t.into());
+            st.group_by = crate::command::group_by::group_by_of(project);
+            st
+        },
     );
     page_overrides(&mut st.page, p, lang)?;
     let mut vp = viewport(&st.page, p, lang)?;

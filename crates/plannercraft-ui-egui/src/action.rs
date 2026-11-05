@@ -259,6 +259,9 @@ pub enum Action {
     /// Mise en forme du texte des lignes sélectionnées (H-UI-126 à
     /// H-UI-128).
     TextStyle(TextStyleOp),
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P3).
+    /// Regrouper par, replier un groupe (H-UI-129 à H-UI-131).
+    Group(crate::group_view::GroupOp),
 }
 
 /// Opération sur les volets (seconde passe UX, ADR-0019 D5).
