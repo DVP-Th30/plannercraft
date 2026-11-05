@@ -427,6 +427,24 @@ pub struct ScreenStyle {
     /// tâche porte elle-même la couleur)` ; vide sans couleur de phase.
     /// Calculée une fois par génération du document.
     pub phase_colors: Arc<PhaseColors>,
+    /// Mise en forme du texte des tâches résolue pour la variante
+    /// (finitions P2, H-UI-126), par UID ; vide sans mise en forme.
+    /// Calculée une fois par style (cache), jamais pendant une image.
+    pub text_looks: Arc<TextLooks>,
+}
+
+/// Apparence du texte des tâches mises en forme (H-UI-126) : UID → aspect
+/// dans la variante de l'écran.
+pub type TextLooks = std::collections::BTreeMap<u32, plannercraft_render::style::TextLook>;
+
+/// Apparences du texte des tâches de `style` dans la variante `v`.
+#[must_use]
+pub fn text_looks(style: &PlanStyle, v: Variant) -> TextLooks {
+    style
+        .task_text
+        .iter()
+        .map(|(uid, t)| (*uid, plannercraft_render::style::task_text_look(style, v, t)))
+        .collect()
 }
 
 /// Couleurs de phase des tâches (H-UI-65) : UID → (couleur, couleur
@@ -457,6 +475,7 @@ impl Default for ScreenStyle {
             variant: Variant::Light,
             phases: Arc::new(Vec::new()),
             phase_colors: Arc::new(PhaseColors::new()),
+            text_looks: Arc::new(TextLooks::new()),
         }
     }
 }
@@ -487,6 +506,8 @@ pub struct StyleCache {
     style: Arc<PlanStyle>,
     /// Palettes claire et sombre du style gardé.
     palettes: Option<(Palette, Palette)>,
+    /// Apparences du texte des tâches, claire et sombre (finitions P2).
+    looks: (Arc<TextLooks>, Arc<TextLooks>),
     /// Phases gardées et leur clé (document).
     phases: (Option<(u64, u64)>, Arc<Vec<u8>>),
     /// Couleurs de phase gardées et leur clé (document, H-UI-65).
@@ -501,6 +522,7 @@ impl Default for StyleCache {
             key: None,
             style: ScreenStyle::default().style,
             palettes: None,
+            looks: (Arc::new(TextLooks::new()), Arc::new(TextLooks::new())),
             phases: (None, Arc::new(Vec::new())),
             phase_colors: (None, Arc::new(PhaseColors::new())),
             builds: 0,
@@ -525,6 +547,10 @@ impl StyleCache {
                 Palette::from_style(&style, Variant::Light),
                 Palette::from_style(&style, Variant::Dark),
             ));
+            self.looks = (
+                Arc::new(text_looks(&style, Variant::Light)),
+                Arc::new(text_looks(&style, Variant::Dark)),
+            );
             self.style = Arc::new(style);
             self.key = Some(key);
             self.builds = self.builds.saturating_add(1);
@@ -534,11 +560,18 @@ impl StyleCache {
             egui::Theme::Light => light,
             egui::Theme::Dark => dark,
         };
+        let variant = variant_for(theme);
+        let looks = if variant == Variant::Dark {
+            &self.looks.1
+        } else {
+            &self.looks.0
+        };
         let screen = ScreenStyle {
             style: Arc::clone(&self.style),
-            variant: variant_for(theme),
+            variant,
             phases: Arc::new(Vec::new()),
             phase_colors: Arc::new(PhaseColors::new()),
+            text_looks: Arc::clone(looks),
         };
         (screen, palette)
     }

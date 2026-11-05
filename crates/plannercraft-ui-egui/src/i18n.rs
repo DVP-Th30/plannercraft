@@ -1466,6 +1466,24 @@ text_ids! {
     IndicatorManual => "indicator-manual",
     IndicatorInactive => "indicator-inactive",
     IndicatorComplete => "indicator-complete",
+    // --- Finitions P2 (ADR-0022) ---
+    RibbonGroupText => "ribbon-group-text",
+    RibbonBold => "ribbon-bold",
+    RibbonTipBold => "ribbon-tip-bold",
+    RibbonItalic => "ribbon-italic",
+    RibbonTipItalic => "ribbon-tip-italic",
+    RibbonTextColor => "ribbon-text-color",
+    RibbonTipTextColor => "ribbon-tip-text-color",
+    RibbonHighlight => "ribbon-highlight",
+    RibbonTipHighlight => "ribbon-tip-highlight",
+    RibbonFormatPainter => "ribbon-format-painter",
+    RibbonTipFormatPainter => "ribbon-tip-format-painter",
+    RibbonClearFormatting => "ribbon-clear-formatting",
+    RibbonTipClearFormatting => "ribbon-tip-clear-formatting",
+    TextColorAuto => "text-color-auto",
+    TextHighlightNone => "text-highlight-none",
+    TextContrastLow => "text-contrast-low",
+    TextStyleUndo => "text-style-undo",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

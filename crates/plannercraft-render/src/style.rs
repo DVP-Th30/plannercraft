@@ -681,6 +681,55 @@ pub struct PhaseColor {
     pub children: bool,
 }
 
+/// Mises en forme du texte des tâches au plus dans un style (finitions
+/// P2, H-UI-126) : une entrée complète prend une cinquantaine d'octets, le
+/// style entier en a au plus [`MAX_DOC_STYLE_BYTES`].
+pub const MAX_TASK_TEXTS: usize = 1_000;
+
+/// Mise en forme du texte d'une tâche dans la table (finitions P2,
+/// ADR-0022 D3, H-UI-126) : gras, italique, couleur du texte, couleur de
+/// surlignage (fond des cellules de la ligne ; le Gantt n'est pas touché).
+/// Couleurs telles que choisies ; l'écran sombre les adapte
+/// ([`task_text_look`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskText {
+    /// Gras (Inter `SemiBold`, seule graisse appuyée du dépôt).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub bold: bool,
+    /// Italique (oblique simulé : aucune police italique dans le dépôt).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub italic: bool,
+    /// Couleur du texte.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<Rgb>,
+    /// Couleur de surlignage (fond des cellules de la ligne).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill: Option<Rgb>,
+}
+
+impl TaskText {
+    /// Vrai si la mise en forme ne change rien (entrée retirée).
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        !self.bold && !self.italic && self.color.is_none() && self.fill.is_none()
+    }
+}
+
+/// Apparence résolue du texte d'une tâche pour une variante
+/// ([`task_text_look`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextLook {
+    /// Gras.
+    pub bold: bool,
+    /// Italique.
+    pub italic: bool,
+    /// Couleur du texte à dessiner (`None` : celle de la ligne).
+    pub color: Option<Rgb>,
+    /// Fond des cellules à dessiner (`None` : celui de la ligne).
+    pub fill: Option<Rgb>,
+}
+
 /// Style complet du planning.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -716,6 +765,10 @@ pub struct PlanStyle {
     /// Tâches de la chronologie (ADR-0017 D7, H-UI-79).
     #[serde(default, skip_serializing_if = "TimelineSpec::is_empty")]
     pub timeline: TimelineSpec,
+    /// Mise en forme du texte par UID de tâche (finitions P2, H-UI-126),
+    /// au plus [`MAX_TASK_TEXTS`], entrées non vides.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub task_text: BTreeMap<u32, TaskText>,
 }
 
 /// Surcharge partielle des couleurs d'une variante.
@@ -851,6 +904,10 @@ pub struct StylePatch {
     /// Tâches de la chronologie (ADR-0017 D7), remplacées en entier.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
+    /// Mise en forme du texte des tâches (finitions P2, H-UI-126),
+    /// remplacée en entier.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_text: Option<BTreeMap<u32, TaskText>>,
 }
 
 impl StylePatch {
@@ -1023,6 +1080,10 @@ impl PlanStyle {
         }
         check(self.phases.len() <= MAX_PHASES, "phases")?;
         check(self.timeline.is_valid(), "timeline")?;
+        check(
+            self.task_text.len() <= MAX_TASK_TEXTS && self.task_text.values().all(|t| !t.is_empty()),
+            "task_text",
+        )?;
         Ok(())
     }
 
@@ -1129,6 +1190,7 @@ impl PlanStyle {
             },
             phases: BTreeMap::new(),
             timeline: TimelineSpec::default(),
+            task_text: BTreeMap::new(),
         }
     }
 
@@ -1183,6 +1245,9 @@ impl PlanStyle {
         }
         if let Some(v) = &over.timeline {
             self.timeline.clone_from(v);
+        }
+        if let Some(v) = &over.task_text {
+            self.task_text.clone_from(v);
         }
     }
 }
@@ -1388,6 +1453,88 @@ pub fn phase_row_tint(st: &PlanStyle, v: Variant, fill: Rgb) -> Rgb {
         &[c.text, c.text_strong, c.text_muted],
         min_text_contrast(st),
     )
+}
+
+/// Couleur la plus proche de `c` dont le contraste sur `bg` atteint `min`
+/// (millièmes) : mélange de `c` vers le noir ou vers le blanc, par pas de
+/// 1 %, le plus faible des deux (noir à égalité) ; `c` elle-même si elle
+/// suffit. `None` si aucun mélange ne suffit (H-UI-61 ; partagée par les
+/// barres, les phases et le texte des tâches, H-UI-126).
+#[must_use]
+pub fn nearest_compliant(c: Rgb, bg: Rgb, min: u32) -> Option<Rgb> {
+    for t in 0..=100_u8 {
+        for target in [Rgb(0, 0, 0), Rgb(u8::MAX, u8::MAX, u8::MAX)] {
+            let candidate = blend_floor(c, target, t);
+            if contrast_ratio(candidate, bg) >= min {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+/// Mélange de `a` vers `b` à `t` %, arrondi vers le bas (forme historique
+/// de [`nearest_compliant`], gardée pour ne changer aucune proposition).
+fn blend_floor(a: Rgb, b: Rgb, t: u8) -> Rgb {
+    let t = u16::from(t.min(100));
+    let keep = 100_u16.saturating_sub(t);
+    let mix = |x: u8, y: u8| {
+        let v = u16::from(x)
+            .saturating_mul(keep)
+            .saturating_add(u16::from(y).saturating_mul(t))
+            / 100;
+        u8::try_from(v).unwrap_or(u8::MAX)
+    };
+    Rgb(mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
+}
+
+/// Variante claire de la même teinte (thème sombre, H-UI-126) : `c` si son
+/// contraste sur `bg` atteint `min`, sinon `c` mélangée vers le blanc par
+/// pas de 5 % jusqu'à l'atteindre ; le blanc au pire.
+#[must_use]
+pub fn lighter_for(c: Rgb, bg: Rgb, min: u32) -> Rgb {
+    let white = Rgb(u8::MAX, u8::MAX, u8::MAX);
+    (0..=20_u8)
+        .map(|step| blend(c, white, step.saturating_mul(5)))
+        .find(|x| contrast_ratio(*x, bg) >= min)
+        .unwrap_or(white)
+}
+
+/// Apparence du texte d'une tâche dans la variante `v` (finitions P2,
+/// H-UI-126, hypothèse de design) : clair et impression, couleurs telles
+/// que choisies (le contraste est signalé au choix, avec une teinte
+/// corrigée proposée, comme pour les barres) ; sombre, couleur du texte
+/// gardée si elle atteint le seuil du style sur le fond, sinon sa variante
+/// claire ([`lighter_for`]), et surlignage ramené vers le fond jusqu'à ce
+/// que le texte courant, le texte appuyé et la couleur du texte y soient
+/// lisibles ([`readable_tint`]).
+#[must_use]
+pub fn task_text_look(st: &PlanStyle, v: Variant, t: &TaskText) -> TextLook {
+    if v != Variant::Dark {
+        return TextLook {
+            bold: t.bold,
+            italic: t.italic,
+            color: t.color,
+            fill: t.fill,
+        };
+    }
+    let c = st.tokens(v);
+    let min = min_text_contrast(st);
+    let color = t.color.map(|rgb| lighter_for(rgb, c.bg, min));
+    // Encres d'une ligne active (texte, appuyé) et couleur choisie : le
+    // texte atténué (ligne vide, exclue) n'est pas compté, sans quoi un
+    // surlignage clair disparaîtrait tout à fait sur le fond sombre.
+    let fill = t.fill.map(|f| {
+        let mut inks = vec![c.text, c.text_strong];
+        inks.extend(color);
+        readable_tint(f, c.bg, &inks, min)
+    });
+    TextLook {
+        bold: t.bold,
+        italic: t.italic,
+        color,
+        fill,
+    }
 }
 
 #[cfg(test)]

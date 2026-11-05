@@ -227,11 +227,15 @@ fn item_shapes(painter: &Painter, ink: &Ink<'_>, it: &Item, pr: &Projection, out
                 return;
             }
             let text_color = fill.unwrap_or(Color32::BLACK);
-            let galley = painter.layout_no_wrap(
-                text.clone(),
-                FontId::new(size, family(ink.family, font.weight, ink.inter)),
-                text_color,
-            );
+            let font_id = FontId::new(size, family(ink.family, font.weight, ink.inter));
+            // Italique d'une tâche (finitions P2, H-UI-126) : oblique d'egui.
+            let galley = if font.italic {
+                let mut format = egui::TextFormat::simple(font_id, text_color);
+                format.italics = true;
+                painter.layout_job(egui::text::LayoutJob::single_section(text.clone(), format))
+            } else {
+                painter.layout_no_wrap(text.clone(), font_id, text_color)
+            };
             let base = pr.at(*x16, *y16);
             let w = galley.size().x;
             let x = match anchor {

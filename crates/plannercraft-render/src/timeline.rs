@@ -38,12 +38,14 @@ pub const TIMELINE_HEIGHT16: i64 = 72 * 16;
 pub const TIMELINE_FONT: FontRef = FontRef {
     weight: FontWeight::Regular,
     size16: 160,
+    italic: false,
 };
 
 /// Police des étiquettes d'extrémité : Inter `SemiBold` 10 px.
 pub const TIMELINE_FONT_STRONG: FontRef = FontRef {
     weight: FontWeight::SemiBold,
     size16: 160,
+    italic: false,
 };
 
 /// Nombre de rangées de barres.

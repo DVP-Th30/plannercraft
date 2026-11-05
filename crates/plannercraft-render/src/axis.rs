@@ -743,6 +743,7 @@ mod tests {
     const BODY: FontRef = FontRef {
         weight: crate::metrics::FontWeight::Regular,
         size16: 192,
+        italic: false,
     };
 
     #[test]

@@ -24,6 +24,9 @@ pub struct FontRef {
     pub weight: FontWeight,
     /// Taille du corps en 1/16 px (12 px = 192).
     pub size16: u16,
+    /// Oblique simulé (texte des tâches en italique, finitions P2,
+    /// H-UI-126) : mêmes avances que le romain, aucune police italique.
+    pub italic: bool,
 }
 
 /// Mesure d'un texte (H-R11). Implémentée par [`InterMetrics`] ; un test
@@ -85,6 +88,7 @@ mod tests {
     const BODY: FontRef = FontRef {
         weight: FontWeight::Regular,
         size16: 12 * 16,
+        italic: false,
     };
 
     /// Exemple de H-R11 : « Murs » en 12 px = 173 + 113 + 72 + 101 = 459
@@ -116,6 +120,7 @@ mod tests {
         let huge = FontRef {
             weight: FontWeight::Regular,
             size16: u16::MAX,
+            italic: false,
         };
         assert!(InterMetrics.width16(&"W".repeat(10_000), huge) > 0);
     }

@@ -41,8 +41,9 @@ use crate::i18n::{Arg, TextId, Texts};
 const MIN_BAR: u32 = 3_000;
 
 /// Palette Okabe-Ito (jfly.uni-koeln.de/color) et couleurs des plannings
-/// de chantier (gris, rouge, jaune).
-const SWATCHES: [Rgb; 11] = [
+/// de chantier (gris, rouge, jaune) ; partagée avec la couleur du texte et
+/// le surlignage des tâches (finitions P2, H-UI-127).
+pub(crate) const SWATCHES: [Rgb; 11] = [
     Rgb(0xE6, 0x9F, 0x00),
     Rgb(0x56, 0xB4, 0xE9),
     Rgb(0x00, 0x9E, 0x73),
@@ -263,7 +264,7 @@ pub fn window_id() -> egui::Id {
 }
 
 /// Bouton d'une couleur du nuancier (nom accessible « Couleur #RRGGBB »).
-fn swatch(ui: &mut egui::Ui, texts: &Texts, label: TextId, rgb: Rgb, selected: bool) -> bool {
+pub(crate) fn swatch(ui: &mut egui::Ui, texts: &Texts, label: TextId, rgb: Rgb, selected: bool) -> bool {
     let size = egui::vec2(18.0, 18.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     let name = texts.get_args(label, &[("color", Arg::Str(rgb.hex().into()))]);

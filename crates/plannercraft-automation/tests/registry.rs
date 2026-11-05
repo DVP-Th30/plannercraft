@@ -223,8 +223,9 @@ fn registry_j7_tools_listed() {
 
 /// Outils listés : 49 en J7, plus les six `style.*` du lot L6 de J8,
 /// `export_pdf` (lot L7), `rename_custom_field` (seconde passe UX, lot
-/// L8, R-264) et `shift_tasks` (finitions P1, R-267).
-const LISTED: usize = 58;
+/// L8, R-264), `shift_tasks` (finitions P1, R-267) et
+/// `set_task_text_style` (finitions P2, H-UI-126).
+const LISTED: usize = 59;
 
 /// Lot L6 J8 (ADR-0016 D7, H-UI-59 à H-UI-61) : les six entrées `style.*`
 /// sont listées ; trois écritures annulables avec `dry_run`, trois lectures

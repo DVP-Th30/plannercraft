@@ -147,6 +147,11 @@ pub enum UiBinding {
     FocusNextPane,
     /// Maj+F6 : volet précédent.
     FocusPreviousPane,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P2, H-UI-127).
+    /// Ctrl/Cmd+B : gras du texte des tâches sélectionnées.
+    ToggleBold,
+    /// Ctrl/Cmd+Maj+I : italique (Ctrl/Cmd+I insère déjà une tâche).
+    ToggleItalic,
 }
 
 /// Liaison d'un raccourci.
@@ -235,6 +240,9 @@ pub const KEYMAP: &[(KeyContext, Shortcut, Binding)] = &[
         Shortcut::new(Modifiers::NONE, Key::Insert),
         Binding::Command("task.add"),
     ),
+    // Finitions P2 (H-UI-127) : italique en Ctrl/Cmd+Maj+I, avant Ctrl/Cmd+I
+    // (egui ignore Maj en trop) ; Ctrl/Cmd+I reste l'insertion d'une tâche.
+    doc_ui(COMMAND_SHIFT, Key::I, UiBinding::ToggleItalic),
     // Insérer sans touche Inser (clavier Mac, relecture finale J7, F6) :
     // Cmd+I (Ctrl+I ailleurs), affiché dans les menus sur macOS.
     (
@@ -410,6 +418,9 @@ pub const KEYMAP: &[(KeyContext, Shortcut, Binding)] = &[
     table_ui(COMMAND, Key::R, UiBinding::FillRight),
     doc_ui(SHIFT, Key::F6, UiBinding::FocusPreviousPane),
     doc_ui(NONE, Key::F6, UiBinding::FocusNextPane),
+    // --- Finitions P2 (ADR-0022, H-UI-127) : gras en Ctrl/Cmd+B
+    // (hypothèse : convention d'Office ; touche libre dans cette table).
+    doc_ui(COMMAND, Key::B, UiBinding::ToggleBold),
 ];
 
 /// Raccourcis que le navigateur ne rend jamais à la page (Ctrl/Cmd+N, W,
@@ -599,6 +610,8 @@ pub const fn ui_action(binding: UiBinding) -> Action {
         )),
         UiBinding::FocusNextPane => Action::Pane(crate::action::PaneOp::FocusNext { back: false }),
         UiBinding::FocusPreviousPane => Action::Pane(crate::action::PaneOp::FocusNext { back: true }),
+        UiBinding::ToggleBold => Action::TextStyle(crate::action::TextStyleOp::ToggleBold),
+        UiBinding::ToggleItalic => Action::TextStyle(crate::action::TextStyleOp::ToggleItalic),
     }
 }
 

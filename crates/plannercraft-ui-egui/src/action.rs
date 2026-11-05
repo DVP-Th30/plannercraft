@@ -255,6 +255,10 @@ pub enum Action {
     /// fine où les barres de la sélection tiennent dans la largeur du
     /// Gantt, puis défilement jusqu'à elles.
     ZoomToSelection,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P2).
+    /// Mise en forme du texte des lignes sélectionnées (H-UI-126 à
+    /// H-UI-128).
+    TextStyle(TextStyleOp),
 }
 
 /// Opération sur les volets (seconde passe UX, ADR-0019 D5).
@@ -500,6 +504,27 @@ impl ShiftStep {
             Self::MinusWeek => TextId::ShiftMinusWeek,
         }
     }
+}
+
+/// Mise en forme du texte des lignes (finitions P2, H-UI-126 à H-UI-128) :
+/// un geste = un lot `task.set_text_style` sur la sélection, ou rien s'il
+/// ne change rien.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TextStyleOp {
+    /// Gras : inverse l'état de la tâche active, appliqué à la sélection
+    /// (Ctrl/Cmd+B).
+    ToggleBold,
+    /// Italique : comme le gras (Ctrl/Cmd+Maj+I).
+    ToggleItalic,
+    /// Couleur du texte (`None` : automatique).
+    Color(Option<plannercraft_render::style::Rgb>),
+    /// Surlignage (`None` : aucun).
+    Fill(Option<plannercraft_render::style::Rgb>),
+    /// « Reproduire la mise en forme » : arme le pinceau avec la mise en
+    /// forme de la tâche active, ou le désarme.
+    Painter,
+    /// « Effacer la mise en forme » de la sélection.
+    Clear,
 }
 
 /// Opération de mise en forme (J8 lot L15).

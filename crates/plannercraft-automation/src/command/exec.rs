@@ -11,7 +11,7 @@ use plannercraft_core::{Arena, CalendarUid, Diagnostic, Project, ResourceUid, Sc
 
 use super::{
     Command, assignment, baseline, calendar, constraint, custom, link, progress, project, resource, shift,
-    style, task,
+    style, task, text_style,
 };
 use crate::error::{CommandError, CommandErrorKind, codes};
 use crate::outcome::SideEffect;
@@ -242,6 +242,7 @@ impl Exec for Command {
             Self::StyleResetToTemplate(op) => style::reset_to_template(op, ctx),
             Self::CustomFieldRename(op) => custom::rename(op, ctx),
             Self::TaskShift(op) => shift::shift(op, ctx),
+            Self::TaskSetTextStyle(op) => text_style::set_text_style(op, ctx),
         }
     }
 }

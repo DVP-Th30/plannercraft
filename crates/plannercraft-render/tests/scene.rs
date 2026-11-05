@@ -26,6 +26,7 @@ use proptest::prelude::*;
 const BODY: FontRef = FontRef {
     weight: FontWeight::Regular,
     size16: 192,
+    italic: false,
 };
 
 fn scene(p: &Project, s: &Schedule, id: TemplateId, variant: Variant, lang: Lang) -> Scene {
@@ -1027,4 +1028,87 @@ fn h_ui_61_inside_text_ink_on_bar() {
     let c = st.tokens(Variant::Print);
     let fill = c.bars[&BarRole::Critical].fill;
     assert!(contrast_ratio(ink_on(fill, c.text, c.bg), fill) >= 4_500);
+}
+
+/// H-UI-126 (finitions P2) : texte d'une tâche mis en forme dans la table
+/// (gras = Inter `SemiBold`, italique, couleur), surlignage qui prime sur la
+/// couleur de phase, N° jamais mis en forme, Gantt intact ; SVG en italique.
+#[test]
+fn h_ui_126_scene_task_text_and_fill() {
+    use plannercraft_render::style::{PhaseColor, Rgb, TaskText};
+    let p = project_p();
+    let s = plannercraft_core::schedule(&p);
+    let mut st = template(TemplateId::Classique);
+    let murs = sc_uid(&p, 3);
+    let summary = sc_uid(&p, 5);
+    let red = Rgb(0xC0, 0, 0);
+    let yellow = Rgb(0xFF, 0xF2, 0xCC);
+    st.task_text.insert(
+        murs,
+        TaskText {
+            bold: true,
+            italic: true,
+            color: Some(red),
+            fill: None,
+        },
+    );
+    st.task_text.insert(
+        summary,
+        TaskText {
+            fill: Some(yellow),
+            ..TaskText::default()
+        },
+    );
+    st.phases.insert(
+        summary,
+        PhaseColor {
+            fill: Rgb(0xE0, 0x10, 0x10),
+            children: false,
+        },
+    );
+    let plain = layout(
+        &p,
+        &s,
+        &template(TemplateId::Classique),
+        &NoTexts,
+        &Viewport::new(Variant::Light, Lang::Fr),
+    )
+    .0;
+    let sc = layout(&p, &s, &st, &NoTexts, &Viewport::new(Variant::Light, Lang::Fr)).0;
+    // Rangs : `murs` avant `summary` dans la table des UID.
+    let (rank_murs, rank_summary) = if murs < summary { (0, 1) } else { (1, 0) };
+    // Ligne 3 (indice 2) : texte rouge, gras, italique, sauf le N°.
+    let styled: Vec<(&str, FontRef)> = sc
+        .items
+        .iter()
+        .filter(|i| i.class == Class::TaskText(rank_murs))
+        .filter_map(|i| match &i.prim {
+            Prim::Text { text, font, .. } => Some((text.as_str(), *font)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(styled.len(), 1, "{styled:?}");
+    assert_eq!(styled[0].0, "Murs");
+    assert_eq!(styled[0].1.weight, FontWeight::SemiBold);
+    assert!(styled[0].1.italic);
+    assert_eq!(sc.paints[&Class::TaskText(rank_murs)].fill, Some(red));
+    assert!(texts_of(&sc, Class::Text).contains(&"3"), "N° non mis en forme");
+    // Ligne 5 (indice 4) : surlignage au lieu de la couleur de phase.
+    assert_eq!(band_rows(&sc, Class::TaskFill(rank_summary)), [4]);
+    assert_eq!(band_rows(&sc, Class::PhaseRow(0)), [] as [u32; 0]);
+    assert_eq!(sc.paints[&Class::TaskFill(rank_summary)].fill, Some(yellow));
+    // Gantt : mêmes primitives que sans mise en forme (barres de phase
+    // comprises, la phase colore toujours la barre).
+    let gantt = |sc: &Scene| -> usize { sc.items.iter().filter(|i| i.clip == Clip::Gantt).count() };
+    assert!(gantt(&sc) >= gantt(&plain));
+    // SVG : italique et couleur.
+    let (svg, _) = svg_styled(&p, &s, &request(Theme::Light, Lang::Fr), &st, &NoTexts);
+    assert!(svg.contains("font-style=\"italic\""), "{svg}");
+    assert!(svg.contains(&format!(".tx{rank_murs}{{fill:#C00000")), "{svg}");
+    assert!(svg.contains(&format!(".tf{rank_summary}{{")), "{svg}");
+}
+
+/// UID de la tâche d'ID `id` du projet P.
+fn sc_uid(p: &Project, id: usize) -> u32 {
+    p.tasks.iter().nth(id - 1).unwrap().uid().get()
 }

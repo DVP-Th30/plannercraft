@@ -22,18 +22,21 @@ use crate::fonts::{Fonts, to_f32};
 const SLOT_FONT: FontRef = FontRef {
     weight: FontWeight::Regular,
     size16: 192,
+    italic: false,
 };
 
 /// Police du titre du cartouche (H-UI-66) : Inter `SemiBold` 22 px.
 const TITLE_FONT: FontRef = FontRef {
     weight: FontWeight::SemiBold,
     size16: 352,
+    italic: false,
 };
 
 /// Police de la première ligne de la zone droite du cartouche.
 const STRONG_SLOT_FONT: FontRef = FontRef {
     weight: FontWeight::SemiBold,
     size16: 192,
+    italic: false,
 };
 
 /// Points par seizième de pixel à 100 % (3/64).
@@ -673,6 +676,19 @@ fn text(
         Anchor::Start => x16,
         Anchor::End => x16.saturating_sub(total),
     };
+    // Italique d'une tâche (finitions P2, H-UI-126) : oblique simulé par un
+    // cisaillement autour de la ligne de base (aucune police italique).
+    if font.italic {
+        let y0 = to_f32(y16);
+        surface.push_transform(&Transform::from_row(
+            1.0,
+            0.0,
+            -ITALIC_SKEW,
+            1.0,
+            ITALIC_SKEW * y0,
+            0.0,
+        ));
+    }
     surface.set_stroke(None);
     surface.set_fill(Some(fill_of(c)));
     let size = f32::from(font.size16.max(1));
@@ -687,7 +703,13 @@ fn text(
         );
         x = x.saturating_add(run.width16);
     }
+    if font.italic {
+        surface.pop();
+    }
 }
+
+/// Pente de l'oblique simulé (≈ 11°, hypothèse de design).
+const ITALIC_SKEW: f32 = 0.2;
 
 /// Trois zones d'en-tête ou de pied de page (gauche, centre, droite), une
 /// ligne tous les 12 pt, textes tronqués à leur tiers avec « … ». Avec un

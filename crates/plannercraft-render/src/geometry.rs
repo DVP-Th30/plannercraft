@@ -483,6 +483,7 @@ impl Default for ResolvedTexts {
             font: FontRef {
                 weight: FontWeight::Regular,
                 size16: 192,
+                italic: false,
             },
         }
     }
@@ -933,6 +934,11 @@ pub enum Class {
     /// contrastée sur le remplissage (`style::ink_on`, relecture finale de
     /// J8).
     TextOnBar(BarRole, Option<u16>),
+    /// Texte d'une tâche de couleur choisie dans la table (finitions P2,
+    /// H-UI-126), rang de la tâche dans `PlanStyle::task_text`.
+    TaskText(u16),
+    /// Surlignage d'une tâche dans la table (H-UI-126), même rang.
+    TaskFill(u16),
 }
 
 /// Peinture d'une classe.
@@ -1100,6 +1106,7 @@ impl Default for Scene {
             font: FontRef {
                 weight: FontWeight::Regular,
                 size16: 192,
+                italic: false,
             },
             rows: Vec::new(),
             links: Vec::new(),

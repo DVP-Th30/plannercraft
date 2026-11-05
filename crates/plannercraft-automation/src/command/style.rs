@@ -342,6 +342,14 @@ pub fn check_opened(project: &mut Project) -> Option<ImportDiagnostic> {
                     .tasks
                     .retain(|&uid| project.tasks.contains(plannercraft_core::TaskUid::new(uid)));
             }
+            // Même règle pour la mise en forme du texte des tâches
+            // (finitions P2, H-UI-126).
+            if let Some(texts) = doc.over.task_text.as_mut() {
+                texts.retain(|&uid, _| project.tasks.contains(plannercraft_core::TaskUid::new(uid)));
+                if texts.is_empty() {
+                    doc.over.task_text = None;
+                }
+            }
             style_pi::set(&mut project.extras, Some(doc.to_json()));
             None
         }
@@ -392,6 +400,11 @@ fn store(ctx: &mut Ctx<'_>, doc: &DocStyle, field: &str) -> Result<(), CommandEr
     Ok(())
 }
 
+/// [`store`] pour les commandes voisines (`task.set_text_style`).
+pub(super) fn store_doc(ctx: &mut Ctx<'_>, doc: &DocStyle, field: &str) -> Result<(), CommandError> {
+    store(ctx, doc, field)
+}
+
 /// Style courant du clone, sinon un style neuf sur `base`.
 fn current_or(project: &Project, base: TemplateId) -> DocStyle {
     doc_style(project).unwrap_or(DocStyle {
@@ -436,6 +449,11 @@ pub(super) fn apply(op: &StyleApply, ctx: &mut Ctx<'_>) -> Result<(), CommandErr
                 }
                 if over.phases.is_none() {
                     over.phases = current.over.phases;
+                }
+                // Mise en forme du texte des tâches (finitions P2,
+                // H-UI-126) : propre au projet aussi.
+                if over.task_text.is_none() {
+                    over.task_text = current.over.task_text;
                 }
             }
             DocStyle {
@@ -532,7 +550,14 @@ pub(super) fn reset_to_template(op: &StyleResetToTemplate, ctx: &mut Ctx<'_>) ->
         return Ok(());
     };
     match op.role {
-        None => doc.over = StylePatch::default(),
+        // La mise en forme du texte des tâches (finitions P2, H-UI-126)
+        // n'est pas une surcharge du modèle : gardée.
+        None => {
+            doc.over = StylePatch {
+                task_text: doc.over.task_text.take(),
+                ..StylePatch::default()
+            };
+        }
         Some(role) => {
             let role = BarRole::from(role);
             doc.over.bars.remove(&role);
@@ -743,9 +768,13 @@ pub fn save_as_template(
     if n == 0 || n > MAX_TEMPLATE_NAME_CHARS {
         return Err(param("name", "nom de 1 à 64 caractères attendu"));
     }
+    let mut style = current_or(project, default);
+    // Un modèle ne porte pas la mise en forme du texte des tâches : ses UID
+    // n'ont de sens que dans ce projet (finitions P2, H-UI-126).
+    style.over.task_text = None;
     Ok(NamedStyleView {
         name: name.to_owned(),
-        style: current_or(project, default),
+        style,
     })
 }
 
@@ -866,34 +895,9 @@ pub fn contrast_issues(style: &PlanStyle) -> Vec<ContrastIssue> {
     out
 }
 
-/// Couleur la plus proche de `c` dont le contraste sur `bg` atteint `min` :
-/// mélange de `c` vers le noir ou vers le blanc, par pas de 1 %, le plus
-/// faible des deux (noir à égalité). `None` si aucun ne suffit.
-#[must_use]
-pub fn nearest_compliant(c: Rgb, bg: Rgb, min: u32) -> Option<Rgb> {
-    let blend = |c: u8, target: u8, t: u16| -> u8 {
-        let (c, target) = (u16::from(c), u16::from(target));
-        let keep = 100_u16.saturating_sub(t);
-        let mixed = c.saturating_mul(keep).saturating_add(target.saturating_mul(t)) / 100;
-        u8::try_from(mixed).unwrap_or(u8::MAX)
-    };
-    let mix = |target: u8, t: u16| {
-        Rgb(
-            blend(c.0, target, t),
-            blend(c.1, target, t),
-            blend(c.2, target, t),
-        )
-    };
-    for t in 0..=100_u16 {
-        for target in [0_u8, u8::MAX] {
-            let candidate = mix(target, t);
-            if contrast_ratio(candidate, bg) >= min {
-                return Some(candidate);
-            }
-        }
-    }
-    None
-}
+/// Couleur conforme la plus proche (H-UI-61), définie par le rendu
+/// (partagée avec le texte des tâches, finitions P2).
+pub use plannercraft_render::style::nearest_compliant;
 
 #[cfg(test)]
 mod tests {

@@ -281,6 +281,13 @@ fn truncate_chars(s: &str, max: usize) -> String {
 pub(crate) fn paints_of(st: &PlanStyle, v: crate::style::Variant) -> impl Fn(Class) -> Paint + '_ {
     let c = st.tokens(v);
     let phase_fill = move |i: u16| -> Option<Rgb> { st.phases.values().nth(usize::from(i)).map(|p| p.fill) };
+    // Texte des tâches (finitions P2, H-UI-126) : rang dans `task_text`.
+    let task_look = move |i: u16| {
+        st.task_text
+            .values()
+            .nth(usize::from(i))
+            .map(|t| crate::style::task_text_look(st, v, t))
+    };
     move |class: Class| {
         let fill = |rgb| Paint {
             fill: Some(rgb),
@@ -362,6 +369,8 @@ pub(crate) fn paints_of(st: &PlanStyle, v: crate::style::Variant) -> impl Fn(Cla
                     .unwrap_or(c.bg);
                 fill(crate::style::ink_on(bar, c.text, c.bg))
             }
+            Class::TaskText(i) => fill(task_look(i).and_then(|l| l.color).unwrap_or(c.text)),
+            Class::TaskFill(i) => fill(task_look(i).and_then(|l| l.fill).unwrap_or(c.bg)),
         }
     }
 }
@@ -689,6 +698,7 @@ pub(crate) fn build(
     let body = FontRef {
         weight: FontWeight::Regular,
         size16: st.font.size16,
+        italic: false,
     };
     let strong = FontRef {
         weight: FontWeight::SemiBold,
@@ -702,6 +712,14 @@ pub(crate) fn build(
     let tier0 = if st.scale.relative_months { TIER_H } else { 0 };
     let header_h = HEADER_H.saturating_add(tier0);
     let phase_by_pos = crate::geometry::task_phases(p, &st.phases);
+    // Mise en forme du texte des tâches (finitions P2, H-UI-126) : rang de
+    // classe et mise en forme, par UID.
+    let text_ranks: BTreeMap<u32, (u16, crate::style::TaskText)> = st
+        .task_text
+        .iter()
+        .enumerate()
+        .map(|(rank, (uid, t))| (*uid, (u16::try_from(rank).unwrap_or(u16::MAX), *t)))
+        .collect();
     let name_chars = usize::from(vp.limits.name_chars);
     let baseline_dy = (row_h / 2).saturating_add(i64::from(body.size16) / 3);
 
@@ -866,6 +884,28 @@ pub(crate) fn build(
             .get(i)
             .and_then(|k| phase_by_pos.get(k.position).copied().flatten())
             .filter(|(_, own)| *own);
+        // Surlignage d'une tâche (finitions P2, H-UI-126) : prime sur la
+        // couleur de phase et les bandes ; table seulement.
+        if let Some(rank) = kept
+            .get(i)
+            .filter(|k| !k.task.is_null)
+            .and_then(|k| text_ranks.get(&k.task.uid().get()))
+            .filter(|(_, t)| t.fill.is_some())
+            .map(|(rank, _)| *rank)
+        {
+            items.rect(
+                Clip::Table,
+                part_of(i),
+                Class::TaskFill(rank),
+                Rect16 {
+                    x: 0,
+                    y: r.y16,
+                    w: table_w,
+                    h: row_h,
+                },
+            );
+            continue;
+        }
         if let Some((pi, _)) = own_phase {
             items.rect(
                 Clip::Table,
@@ -964,6 +1004,7 @@ pub(crate) fn build(
     let label_font = FontRef {
         weight: FontWeight::Regular,
         size16: 192,
+        italic: false,
     };
     // Étiquette de la date d'état (H-UI-54) : à droite du trait, à gauche
     // s'il n'y a pas la place ; les étiquettes du niveau bas qu'elle
@@ -1196,6 +1237,27 @@ pub(crate) fn build(
         } else {
             (Class::Text, body)
         };
+        // Texte d'une tâche mis en forme (finitions P2, H-UI-126) : toutes
+        // les colonnes sauf N° ; gras = Inter SemiBold, italique simulé.
+        let styled = (!k.task.is_null)
+            .then(|| text_ranks.get(&k.task.uid().get()))
+            .flatten()
+            .map(|(rank, t)| {
+                let class = if t.color.is_some() {
+                    Class::TaskText(*rank)
+                } else {
+                    class
+                };
+                let weight = if t.bold { FontWeight::SemiBold } else { font.weight };
+                (
+                    class,
+                    FontRef {
+                        weight,
+                        italic: t.italic,
+                        ..font
+                    },
+                )
+            });
         let y = r.y16.saturating_add(baseline_dy);
         let mut col_x = 0_i64;
         for &c in &columns {
@@ -1224,6 +1286,10 @@ pub(crate) fn build(
             // Nom compris (relecture finale de J8, F3) : coupé à la largeur
             // de sa colonne, retrait déduit, au lieu de déborder sur la
             // colonne suivante (le clip est la table entière).
+            let (class, font) = match styled {
+                Some(look) if c != TableColumn::Id => look,
+                _ => (class, font),
+            };
             let text = if c == TableColumn::Id {
                 text
             } else {

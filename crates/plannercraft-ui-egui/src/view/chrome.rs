@@ -550,6 +550,120 @@ fn format_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     ui.add_enabled_ui(has_doc, |ui| {
         ui.menu_button(texts.get(TextId::RibbonColumns), |ui| column_choices(ui, fc));
     });
+    // --- Finitions P2 (H-UI-127) : jumeaux du groupe Texte de l'onglet
+    // Tâche.
+    ui.separator();
+    twin_cmd(ui, fc, RibbonCmd::Bold);
+    twin_cmd(ui, fc, RibbonCmd::Italic);
+    for (cmd, fill) in [
+        (RibbonCmd::TextColorMenu, false),
+        (RibbonCmd::HighlightMenu, true),
+    ] {
+        let enabled = cmd.enabled(fc);
+        let label = fc.texts.get(cmd.menu_label());
+        let response = ui
+            .add_enabled_ui(enabled.yes, |ui| {
+                ui.menu_button(label, |ui| text_color_entries(ui, fc, fill))
+            })
+            .response;
+        if let Some(reason) = enabled.reason {
+            response.on_disabled_hover_text(fc.texts.get(reason));
+        }
+    }
+    twin_cmd(ui, fc, RibbonCmd::FormatPainter);
+    twin_cmd(ui, fc, RibbonCmd::ClearFormatting);
+}
+
+/// Entrées de « Couleur du texte ▾ » (`fill` faux) ou de « Surlignage ▾ »
+/// (finitions P2, H-UI-127) : « Automatique » / « Aucun surlignage », la
+/// palette des barres (une couleur par case, nom accessible « Couleur
+/// #RRGGBB »), puis, si la couleur de la tâche active manque de contraste
+/// sur le fond clair (texte à 4,5:1, 7:1 en Contraste élevé) ou rend le
+/// texte illisible (surlignage), l'avertissement et la teinte corrigée
+/// proposée, comme pour les barres (H-UI-61).
+fn text_color_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, fill: bool) {
+    use crate::action::TextStyleOp;
+    use plannercraft_render::style::{
+        Variant, contrast_ratio, min_text_contrast, nearest_compliant, readable_tint,
+    };
+    let texts = fc.texts;
+    let op = |c| {
+        if fill {
+            TextStyleOp::Fill(c)
+        } else {
+            TextStyleOp::Color(c)
+        }
+    };
+    let none = if fill {
+        TextId::TextHighlightNone
+    } else {
+        TextId::TextColorAuto
+    };
+    if ui.button(texts.get(none)).clicked() {
+        fc.actions.push(Action::TextStyle(op(None)));
+        ui.close();
+    }
+    let style = std::sync::Arc::clone(&fc.task_view.style.style);
+    let current = fc
+        .selection
+        .and_then(|uid| style.task_text.get(&uid.get()))
+        .and_then(|t| if fill { t.fill } else { t.color });
+    ui.horizontal_wrapped(|ui| {
+        ui.set_max_width(6.0 * 24.0);
+        for rgb in crate::view::format_panel::SWATCHES {
+            if crate::view::format_panel::swatch(ui, texts, TextId::FpSwatch, rgb, current == Some(rgb)) {
+                fc.actions.push(Action::TextStyle(op(Some(rgb))));
+                ui.close();
+            }
+        }
+    });
+    let Some(rgb) = current else {
+        return;
+    };
+    // Contraste sur le fond clair et à l'impression (le thème sombre
+    // adapte la couleur de lui-même).
+    let tokens = style.tokens(Variant::Light);
+    let min = min_text_contrast(&style);
+    let (ratio, better) = if fill {
+        let inks = [tokens.text, tokens.text_strong, tokens.text_muted];
+        let ratio = inks
+            .iter()
+            .map(|ink| contrast_ratio(*ink, rgb))
+            .min()
+            .unwrap_or(u32::MAX);
+        (ratio, Some(readable_tint(rgb, tokens.bg, &inks, min)))
+    } else {
+        (
+            contrast_ratio(rgb, tokens.bg),
+            nearest_compliant(rgb, tokens.bg, min),
+        )
+    };
+    if ratio >= min {
+        return;
+    }
+    let shown = format!("{},{}", ratio / 1000, (ratio % 1000) / 100);
+    let shown = if texts.language() == crate::i18n::Language::En {
+        shown.replace(',', ".")
+    } else {
+        shown
+    };
+    ui.colored_label(
+        ui.visuals().warn_fg_color,
+        texts.get_args(
+            TextId::TextContrastLow,
+            &[("ratio", crate::i18n::Arg::Str(shown.into()))],
+        ),
+    );
+    if let Some(better) = better.filter(|b| *b != rgb) {
+        let label = texts.get_args(
+            TextId::FpUseSuggestion,
+            &[("color", crate::i18n::Arg::Str(better.hex().into()))],
+        );
+        if ui.button(label).clicked() {
+            fc.actions.push(Action::TextStyle(op(Some(better))));
+            ui.close();
+        }
+    }
 }
 
 /// Contenu de la liste déroulante d'un élément du ruban : mêmes entrées
@@ -572,6 +686,10 @@ pub(crate) fn dropdown_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: R
         // Décaler ▾ (finitions P1, H-UI-121) : pas prédéfinis puis
         // « Personnalisé… », mêmes entrées qu'au menu Tâche → Décaler.
         RibbonCmd::ShiftMenu => shift_entries(ui, fc),
+        // Couleur du texte ▾, Surlignage ▾ (finitions P2, H-UI-127) : mêmes
+        // entrées qu'au menu Format.
+        RibbonCmd::TextColorMenu => text_color_entries(ui, fc, false),
+        RibbonCmd::HighlightMenu => text_color_entries(ui, fc, true),
         // Remplir ▾, Effacer ▾ (passe UX, lot L5) : une entrée, la commande
         // elle-même (même action, même prédicat, même raccourci).
         RibbonCmd::FillDown | RibbonCmd::ClearContents => {

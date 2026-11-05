@@ -4016,6 +4016,110 @@
               "by"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Met en forme le texte de tâches dans la table : gras, italique,\ncouleur, surlignage (finitions P2, H-UI-126).",
+            "properties": {
+              "base": {
+                "anyOf": [
+                  {
+                    "description": "Modèle de mise en forme intégré, en JSON.",
+                    "oneOf": [
+                      {
+                        "const": "classique",
+                        "description": "Apparence de J7.",
+                        "type": "string"
+                      },
+                      {
+                        "const": "sobre",
+                        "description": "Sobre.",
+                        "type": "string"
+                      },
+                      {
+                        "const": "contraste_eleve",
+                        "description": "Contraste élevé.",
+                        "type": "string"
+                      },
+                      {
+                        "const": "presentation",
+                        "description": "Présentation client.",
+                        "type": "string"
+                      },
+                      {
+                        "const": "chantier",
+                        "description": "Chantier.",
+                        "type": "string"
+                      },
+                      {
+                        "const": "impression_nb",
+                        "description": "Impression noir et blanc.",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Modèle de départ si le document n'a pas encore de style (défaut :\nClassique) ; ignoré sinon."
+              },
+              "bold": {
+                "description": "Gras : `true` pose, `false` ou `null` retire, absent : inchangé.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "color": {
+                "description": "Couleur du texte `#RRGGBB` ; `null` : couleur de la ligne.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fill": {
+                "description": "Couleur de surlignage `#RRGGBB` (fond des cellules de la ligne dans\nla table ; le Gantt n'est pas touché) ; `null` : aucun.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "italic": {
+                "description": "Italique : `true` pose, `false` ou `null` retire, absent : inchangé.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "op": {
+                "const": "task.set_text_style",
+                "type": "string"
+              },
+              "tasks": {
+                "description": "Tâches (UID ou étiquette `$x`) ; une récapitulative est mise en\nforme elle-même, pas ses sous-tâches.",
+                "items": {
+                  "description": "Tâche : UID (entier) ou étiquette \"$x\" d'une tâche créée plus tôt dans le même lot.",
+                  "oneOf": [
+                    {
+                      "maximum": 4294967295,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    {
+                      "pattern": "^\\$[A-Za-z0-9_-]{1,64}$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "op",
+              "tasks"
+            ],
+            "type": "object"
           }
         ]
       },

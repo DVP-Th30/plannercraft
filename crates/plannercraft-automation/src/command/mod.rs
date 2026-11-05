@@ -28,6 +28,7 @@ mod resource;
 pub mod shift;
 pub mod style;
 mod task;
+pub mod text_style;
 
 pub use outline::is_summary_at;
 
@@ -46,6 +47,7 @@ pub use self::progress::{ProgressReschedule, ProgressUpdate};
 use self::refs::label_refusal;
 pub use self::refs::{LABEL_PATTERN, define_label, is_valid_label, resolve_task};
 pub use self::shift::TaskShift;
+pub use self::text_style::TaskSetTextStyle;
 use crate::error::{CommandError, CommandErrorKind, codes};
 pub use crate::json::{
     ConstraintKindJson, DaySettingJson, DurationJson, DurationUnitJson, GranularityJson, LagJson,
@@ -252,6 +254,10 @@ pub enum Command {
     /// Décale des tâches d'une durée signée (R-267, finitions P1).
     #[serde(rename = "task.shift")]
     TaskShift(TaskShift),
+    /// Met en forme le texte de tâches dans la table : gras, italique,
+    /// couleur, surlignage (finitions P2, H-UI-126).
+    #[serde(rename = "task.set_text_style")]
+    TaskSetTextStyle(TaskSetTextStyle),
 }
 
 impl Command {
@@ -294,6 +300,7 @@ impl Command {
             Self::StyleResetToTemplate(_) => "style.reset_to_template",
             Self::CustomFieldRename(_) => "custom_field.rename",
             Self::TaskShift(_) => "task.shift",
+            Self::TaskSetTextStyle(_) => "task.set_text_style",
         }
     }
 }

@@ -83,6 +83,7 @@ mod snapshots;
 mod structure;
 mod styled;
 mod task_info;
+mod text_style;
 mod timeline;
 mod tracking;
 mod usage;

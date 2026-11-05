@@ -755,6 +755,7 @@ fn text_shapes(
             FontWeight::Regular
         },
         size16: geo.style.font.size16,
+        italic: false,
     };
     let field = |f: Option<plannercraft_render::style::BarField>| f.and_then(|f| tc.src.bar_text(uid, f));
     let texts = ResolvedTexts {

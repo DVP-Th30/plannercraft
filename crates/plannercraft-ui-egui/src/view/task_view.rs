@@ -95,6 +95,9 @@ pub struct TaskViewFrame {
     /// Style du planning à l'écran (J8, lot L11) : style effectif du
     /// document et variante du thème (Classique clair par défaut).
     pub style: crate::theme::ScreenStyle,
+    /// Pinceau « Reproduire la mise en forme » armé (finitions P2,
+    /// H-UI-128) : bouton enfoncé.
+    pub painter: bool,
 }
 
 impl TaskViewFrame {
@@ -624,6 +627,7 @@ impl App {
             },
             // Posé par `App::show` (style effectif de l'image).
             style: crate::theme::ScreenStyle::default(),
+            painter: self.view.painter.is_some(),
         }
     }
 

@@ -11,7 +11,8 @@
 //! entrées `style.*` du lot L6 (`style.apply`, `style.get`, `style.list`,
 //! posées par L0, plus `style.set_bar_role`, `style.reset_to_template`,
 //! `style.save_as_template`), et `custom_field.rename` (seconde passe UX,
-//! lot L8, R-264), et `task.shift` (finitions P1, R-267). Une entrée réservée à un jalon futur
+//! lot L8, R-264), `task.shift` (finitions P1, R-267) et `task.set_text_style`
+//! (finitions P2, H-UI-126). Une entrée réservée à un jalon futur
 //! (`Availability::Milestone`) n'est pas listée et est refusée
 //! `command.not_yet_available`. Les trois entrées `app.*` (genre [`Kind::Ui`]) ne sont servies que
 //! par une application rattachée (`Availability::Attached`, ADR-0015 D11) :
@@ -35,7 +36,7 @@ use crate::command::{
     CalendarDelete, CalendarException, CalendarExceptionKey, CalendarSetWeek, CalendarUpdate,
     CustomFieldRename, LinkKey, LinkSpec, ProgressReschedule, ProgressUpdate, ProjectInfoPatch, ResourceAdd,
     ResourceDelete, ResourceUpdate, SetConstraint, SetDeadline, SetStatusDate, TaskAdd, TaskDelete, TaskMove,
-    TaskOne, TaskShift, TaskUpdate,
+    TaskOne, TaskSetTextStyle, TaskShift, TaskUpdate,
 };
 use crate::text::Language;
 
@@ -653,6 +654,14 @@ pub static REGISTRY: &[CommandSpec] = &[
         schema_of::<SetDeadline>,
         "Pose ou retire l'échéance d'une tâche.",
         "Set or clear a task deadline.",
+    ),
+    now(
+        "task.set_text_style",
+        "set_task_text_style",
+        Kind::Write,
+        schema_of::<TaskSetTextStyle>,
+        "Met en forme le texte de tâches dans la table (pas le Gantt) : gras, italique, couleur du texte, surlignage #RRGGBB ; champ absent : inchangé, null : retiré. Gardé dans le style du document (pas dans le MSPDI) ; lu par get_style (resolved.task_text).",
+        "Format the text of tasks in the table (not the Gantt): bold, italic, text color, highlight #RRGGBB; missing field: unchanged, null: removed. Kept in the document style (not in the MSPDI); read by get_style (resolved.task_text).",
     ),
     now(
         "task.shift",

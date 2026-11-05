@@ -1587,3 +1587,22 @@ indicator-deadline = Deadline missed: { $date }.
 indicator-manual = Manually scheduled task.
 indicator-inactive = Inactive task.
 indicator-complete = Complete task (100%).
+
+# --- Finitions P2 (ADR-0022) ---
+ribbon-group-text = Text
+ribbon-bold = Bold
+ribbon-tip-bold = Makes the text of the selected tasks bold in the table (or removes it).
+ribbon-italic = Italic
+ribbon-tip-italic = Makes the text of the selected tasks italic in the table (or removes it).
+ribbon-text-color = Font Color
+ribbon-tip-text-color = Changes the text color of the selected tasks in the table.
+ribbon-highlight = Highlight
+ribbon-tip-highlight = Colors the background of the selected tasks in the table (the Gantt chart does not change).
+ribbon-format-painter = Format Painter
+ribbon-tip-format-painter = Copies the text formatting of the active task; then select the tasks that should receive it (Esc cancels).
+ribbon-clear-formatting = Clear Formatting
+ribbon-tip-clear-formatting = Removes bold, italic, color and highlight from the selected tasks.
+text-color-auto = Automatic
+text-highlight-none = No Highlight
+text-contrast-low = Contrast too low: { $ratio }:1 (4.5:1 at least for text).
+text-style-undo = Text formatting

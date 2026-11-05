@@ -45,6 +45,7 @@ pub mod shift;
 pub mod state;
 pub mod structure;
 pub mod task_form;
+pub mod text_style;
 pub mod theme;
 pub mod timeline_ops;
 pub mod timephased;

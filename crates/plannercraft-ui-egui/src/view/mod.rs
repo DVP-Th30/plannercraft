@@ -191,6 +191,9 @@ pub struct ViewTransient {
     /// Volets : relevé de la dernière image et passage au clavier demandé
     /// par F6 (H-UI-111, lot L4).
     pub panes: main_view::PanesView,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P2).
+    /// Pinceau « Reproduire la mise en forme » armé (H-UI-128).
+    pub painter: Option<crate::text_style::PainterState>,
 }
 
 /// Glisser de sélection en cours (ADR-0018, contrat L0).

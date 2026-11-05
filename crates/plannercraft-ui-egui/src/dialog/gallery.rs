@@ -336,6 +336,9 @@ impl crate::app::App {
                 phases: d.over.phases.clone(),
                 page: d.over.page.clone(),
                 timeline: d.over.timeline.clone(),
+                // Finitions P2 (H-UI-126) : mise en forme du texte des
+                // tâches, propre au projet.
+                task_text: d.over.task_text.clone(),
                 ..plannercraft_render::style::StylePatch::default()
             })
             .unwrap_or_default();
@@ -369,6 +372,7 @@ impl crate::app::App {
                     // Chronologie : UID du projet ouvert, jamais ceux du
                     // projet d'où vient le modèle (ADR-0017, lot L6).
                     over.timeline.clone_from(&kept.timeline);
+                    over.task_text.clone_from(&kept.task_text);
                     let patch = (!over.is_empty())
                         .then(|| serde_json::to_value(&over).ok())
                         .flatten();
@@ -407,6 +411,8 @@ impl crate::app::App {
         // Un modèle ne porte pas la chronologie : ses UID n'ont de sens que
         // dans ce projet (ADR-0017, lot L6).
         style.over.timeline = None;
+        // Ni la mise en forme du texte des tâches (finitions P2).
+        style.over.task_text = None;
         let trimmed = name.trim().to_owned();
         let result = self.state.save_user_template(name, style);
         saved_message(&self.texts, result.map(|()| trimmed.as_str()))

@@ -273,3 +273,41 @@ fn h_ui_66_title_block_pdf() {
     assert!(!sobre.title_block);
     assert_eq!(sobre.header_pt, SLOT_LINE_PT);
 }
+
+/// H-UI-126 (finitions P2) : une tâche en gras, italique, couleur et
+/// surlignage s'exporte (oblique simulé par une transformation) ; ses
+/// textes restent extractibles et le PDF diffère de celui sans mise en
+/// forme.
+#[test]
+fn h_ui_126_pdf_task_text_style() {
+    use plannercraft_render::geometry::{NoTexts, Viewport, layout};
+    use plannercraft_render::paginate::paginate;
+    use plannercraft_render::style::{Rgb, TaskText, Variant, template};
+    let p = project_p();
+    let s = plannercraft_core::schedule(&p);
+    let mut st = template(TemplateId::Classique);
+    let uid = p.tasks.iter().nth(2).unwrap().uid().get();
+    st.task_text.insert(
+        uid,
+        TaskText {
+            bold: true,
+            italic: true,
+            color: Some(Rgb(0xC0, 0, 0)),
+            fill: Some(Rgb(0xFF, 0xF2, 0xCC)),
+        },
+    );
+    let vp = Viewport::new(Variant::Print, Lang::Fr);
+    let styled = paginate(&layout(&p, &s, &st, &NoTexts, &vp).0, &st.page, &NoTexts).unwrap();
+    let (bytes, report) = write(&styled);
+    assert!(report.missing_glyphs.is_empty(), "{:?}", report.missing_glyphs);
+    let found: BTreeSet<String> = page_texts(&bytes).into_iter().flatten().collect();
+    assert!(found.contains("Murs"), "{found:?}");
+    let plain_st = template(TemplateId::Classique);
+    let plain = paginate(
+        &layout(&p, &s, &plain_st, &NoTexts, &vp).0,
+        &plain_st.page,
+        &NoTexts,
+    )
+    .unwrap();
+    assert_ne!(write(&plain).0, bytes);
+}

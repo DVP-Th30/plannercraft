@@ -99,6 +99,9 @@ pub struct TaskSheet<'a> {
     /// Alignements des données choisis dans « Paramètres de champ »
     /// (H-UI-115) ; vide le plus souvent.
     aligns: Vec<(Column, CellAlign)>,
+    /// Mise en forme du texte des tâches (finitions P2, H-UI-126), résolue
+    /// pour le thème de l'écran.
+    looks: std::sync::Arc<crate::theme::TextLooks>,
 }
 
 impl<'a> TaskSheet<'a> {
@@ -114,7 +117,15 @@ impl<'a> TaskSheet<'a> {
                 .visible_columns()
                 .filter_map(|c| c.align.map(|align| (c.column, align)))
                 .collect(),
+            looks: std::sync::Arc::default(),
         }
+    }
+
+    /// Avec la mise en forme du texte des tâches (H-UI-126).
+    #[must_use]
+    pub fn with_looks(mut self, looks: std::sync::Arc<crate::theme::TextLooks>) -> Self {
+        self.looks = looks;
+        self
     }
 
     /// Avec ou sans triangles de repli (H-UI-34, J8 lot L9).
@@ -169,9 +180,23 @@ impl Sheet for TaskSheet<'_> {
         let Some(r) = self.rows.row(DisplayRow::at(row)) else {
             return CellStyle::plain(palette.text);
         };
+        // Mise en forme du texte de la tâche (finitions P2, H-UI-126) :
+        // toutes les colonnes sauf N° et Indicateurs ; le rouge de la
+        // colonne Critique d'une tâche critique est gardé.
+        let look = (r.kind != RowKind::Null && !matches!(col, Column::Id | Column::Indicators))
+            .then(|| self.looks.get(&r.uid.get()).copied())
+            .flatten()
+            .unwrap_or_default();
+        let color = match look.color {
+            Some(rgb) if !(r.critical && col == Column::Critical) => {
+                egui::Color32::from_rgb(rgb.0, rgb.1, rgb.2)
+            }
+            _ => cell_text_color(r, col, palette),
+        };
         CellStyle {
-            color: cell_text_color(r, col, palette),
-            faux_bold: r.kind == RowKind::Summary,
+            color,
+            italic: look.italic,
+            faux_bold: r.kind == RowKind::Summary || look.bold,
             // Tâche inactive : grisée (exclue du calcul) et barrée (H-UI-37).
             strike: !r.active && r.kind != RowKind::Null,
             level: match col {
@@ -968,7 +993,9 @@ pub fn paint_body(
         return;
     };
     focus_widget(ui, fc, clip);
-    let sheet = TaskSheet::new(rows, fc.state, fc.texts).with_outline(fc.task_view.outline_triangles);
+    let sheet = TaskSheet::new(rows, fc.state, fc.texts)
+        .with_outline(fc.task_view.outline_triangles)
+        .with_looks(std::sync::Arc::clone(&fc.task_view.style.text_looks));
     open_from_keys(ui, fc, &sheet, edit, cursor);
     fc.stats.table_rows = range.clone();
     let left = clip.left();
@@ -1481,6 +1508,8 @@ struct RowFill {
     inks: [plannercraft_render::style::Rgb; 3],
     /// Contraste minimal du texte (H-UI-45 : 7:1 en Contraste élevé).
     min: u32,
+    /// Surlignage des tâches (finitions P2, H-UI-126).
+    looks: std::sync::Arc<crate::theme::TextLooks>,
 }
 
 impl RowFill {
@@ -1502,12 +1531,22 @@ impl RowFill {
             phase_colors: std::sync::Arc::clone(&screen.phase_colors),
             inks: [tokens.text, tokens.text_strong, tokens.text_muted],
             min: plannercraft_render::style::min_text_contrast(&screen.style),
+            looks: std::sync::Arc::clone(&screen.text_looks),
         };
         (font, fill)
     }
 
     /// Fond de la ligne affichée `i` (`None` : fond de la table).
     fn fill(&self, rows: VisibleRows<'_>, i: usize) -> Option<egui::Color32> {
+        // Surlignage d'une tâche (finitions P2, H-UI-126) : prime sur la
+        // couleur de phase et les bandes.
+        if !self.looks.is_empty()
+            && let Some(row) = rows.row(crate::row_view::DisplayRow::at(i))
+            && row.kind != RowKind::Null
+            && let Some(rgb) = self.looks.get(&row.uid.get()).and_then(|l| l.fill)
+        {
+            return Some(egui::Color32::from_rgb(rgb.0, rgb.1, rgb.2));
+        }
         // Ligne d'une tâche colorée (H-UI-65) : teinte lisible de sa couleur.
         if !self.phase_colors.is_empty()
             && let Some(row) = rows.row(crate::row_view::DisplayRow::at(i))
