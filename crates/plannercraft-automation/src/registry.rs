@@ -11,7 +11,7 @@
 //! entrées `style.*` du lot L6 (`style.apply`, `style.get`, `style.list`,
 //! posées par L0, plus `style.set_bar_role`, `style.reset_to_template`,
 //! `style.save_as_template`), et `custom_field.rename` (seconde passe UX,
-//! lot L8, R-264). Une entrée réservée à un jalon futur
+//! lot L8, R-264), et `task.shift` (finitions P1, R-267). Une entrée réservée à un jalon futur
 //! (`Availability::Milestone`) n'est pas listée et est refusée
 //! `command.not_yet_available`. Les trois entrées `app.*` (genre [`Kind::Ui`]) ne sont servies que
 //! par une application rattachée (`Availability::Attached`, ADR-0015 D11) :
@@ -35,7 +35,7 @@ use crate::command::{
     CalendarDelete, CalendarException, CalendarExceptionKey, CalendarSetWeek, CalendarUpdate,
     CustomFieldRename, LinkKey, LinkSpec, ProgressReschedule, ProgressUpdate, ProjectInfoPatch, ResourceAdd,
     ResourceDelete, ResourceUpdate, SetConstraint, SetDeadline, SetStatusDate, TaskAdd, TaskDelete, TaskMove,
-    TaskOne, TaskUpdate,
+    TaskOne, TaskShift, TaskUpdate,
 };
 use crate::text::Language;
 
@@ -653,6 +653,14 @@ pub static REGISTRY: &[CommandSpec] = &[
         schema_of::<SetDeadline>,
         "Pose ou retire l'échéance d'une tâche.",
         "Set or clear a task deadline.",
+    ),
+    now(
+        "task.shift",
+        "shift_tasks",
+        Kind::Write,
+        schema_of::<TaskShift>,
+        "Décale des tâches d'une durée signée sur leur calendrier (« 1j », « -1sem ») : contrainte « Début au plus tôt le » sur une tâche automatique, dates décalées sur une tâche manuelle ; récapitulative = ses feuilles ; tâches inactives ou achevées ignorées.",
+        "Shift tasks by a signed duration on their calendar (\"1d\", \"-1w\"): Start No Earlier Than constraint on an automatic task, dates moved on a manual task; summary = its leaves; inactive or complete tasks skipped.",
     ),
     now(
         "task.update",

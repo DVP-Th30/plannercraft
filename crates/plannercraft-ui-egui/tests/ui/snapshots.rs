@@ -990,7 +990,8 @@ fn snapshot_custom_columns_fr_light() {
     exec_ops(&mut harness, &serde_json::Value::Array(ops));
     let text1 = Column::Custom(CustomFieldId::new(CustomKind::Text, 1).unwrap());
     let number1 = Column::Custom(CustomFieldId::new(CustomKind::Number, 1).unwrap());
-    for (at, column) in [(2, text1), (3, number1)] {
+    // Après N°, Indicateurs (finitions P1) et Nom.
+    for (at, column) in [(3, text1), (4, number1)] {
         harness
             .state_mut()
             .dispatch(Action::Column(plannercraft_ui_egui::action::ColumnOp::Insert {
@@ -1007,7 +1008,10 @@ fn snapshot_custom_columns_fr_light() {
         .visible_columns()
         .map(|c| c.column)
         .collect();
-    assert_eq!(&shown[..4], &[Column::Id, Column::Name, text1, number1]);
+    assert_eq!(
+        &shown[..5],
+        &[Column::Id, Column::Indicators, Column::Name, text1, number1]
+    );
     let rows = harness.state().rows().unwrap();
     let index = rows.index_of(uid).unwrap();
     assert_eq!(rows.text(index, text1), "Lot 2");

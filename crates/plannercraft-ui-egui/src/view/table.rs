@@ -348,10 +348,19 @@ pub fn paint_header(
             .find(|(c, _, _)| *c == column)
             .map_or(CellAlign::Center, |(_, _, align)| *align)
     };
+    // Indicateurs (H-UI-122) : titre dessiné en icône ⓘ ; le titre texte
+    // reste le nom accessible de l'en-tête.
+    let painted_title = |column: Column| {
+        if column == Column::Indicators {
+            String::new()
+        } else {
+            title_of(column)
+        }
+    };
     let (edges, drawn) = grid::paint_titles_aligned(
         &painter,
         &columns,
-        title_of,
+        painted_title,
         align_of,
         palette,
         HeaderPlace {
@@ -362,6 +371,19 @@ pub fn paint_header(
         &font,
     );
     shapes = shapes.saturating_add(drawn);
+    for &(column, left, right) in &edges {
+        if column == Column::Indicators {
+            let size = INDICATOR_ICON.min(right - left - 2.0);
+            if size.is_finite() && size > 4.0 {
+                let icon = Rect::from_center_size(
+                    pos2(f32::midpoint(left, right), rect.center().y),
+                    vec2(size, size),
+                );
+                crate::ribbon::paint_icon(&painter, icon, crate::ribbon::Icon::Info, palette.text_strong);
+                shapes = shapes.saturating_add(1);
+            }
+        }
+    }
     let whole: Vec<Column> = ui
         .ctx()
         .data(|data| data.get_temp::<Vec<Column>>(whole_columns_id()))
@@ -989,6 +1011,13 @@ pub fn paint_body(
         hover,
         ..SelectionDrawn::default()
     };
+    // Colonne Indicateurs affichée : place (décalage, largeur) et échéances
+    // dépassées signalées par le moteur, lues une fois par image.
+    let indicator_cell = indicator_place(sheet.columns());
+    let missed = match (indicator_cell, fc.doc) {
+        (Some(_), Some(doc)) => crate::indicators::missed_deadlines(doc.session.diagnostics()),
+        _ => std::collections::BTreeMap::new(),
+    };
     for i in range.clone() {
         let top = origin.y + index_to_f32(i) * row_h;
         let row_rect = Rect::from_min_size(pos2(left, top), vec2(clip.width(), row_h));
@@ -1026,6 +1055,14 @@ pub fn paint_body(
         let hit = row_rect.intersect(clip);
         if hit.is_positive() {
             let response = row_widget(ui, fc, rows, hit, i, selected);
+            // Indicateurs (H-UI-122) : icônes, infobulle et clic sur la
+            // note, au-dessus de la ligne.
+            if let (Some(row), Some((offset, width))) = (row, indicator_cell)
+                && row.kind != RowKind::Null
+            {
+                let cell = Rect::from_min_size(pos2(cols_left + offset, top), vec2(width, row_h));
+                shapes = shapes.saturating_add(paint_indicators(ui, &painter, fc, row, cell, clip, &missed));
+            }
             let at = RowHit {
                 response: &response,
                 i,
@@ -1095,6 +1132,100 @@ pub fn paint_body(
     shapes = shapes.saturating_add(paint_cursor(ui, &painter, fc, &sheet, edit, cursor, &at));
     fc.stats.shapes = fc.stats.shapes.saturating_add(shapes);
     edit_cells(ui, fc, &sheet, edit, cursor, &at, clip, deferred);
+}
+
+/// Côté des icônes de la colonne Indicateurs, en points (H-UI-122).
+const INDICATOR_ICON: f32 = 14.0;
+
+/// Écart entre deux icônes de la colonne Indicateurs, en points.
+const INDICATOR_GAP: f32 = 2.0;
+
+/// Place de la colonne Indicateurs parmi les colonnes affichées :
+/// décalage depuis le bord gauche des colonnes et largeur.
+fn indicator_place(columns: &[(Column, u16)]) -> Option<(f32, f32)> {
+    let mut x = 0.0_f32;
+    for &(column, width) in columns {
+        let w = f32::from(width);
+        if column == Column::Indicators {
+            return Some((x, w));
+        }
+        x += w;
+    }
+    None
+}
+
+/// Icônes d'une ligne dans la cellule Indicateurs (H-UI-122) : autant
+/// qu'il en tient, dans l'ordre ; infobulle d'une ligne par indicateur sur
+/// toute la cellule ; clic sur l'icône de note ⇒ tâche sélectionnée et
+/// « Notes » ouvertes. Rend le nombre de formes.
+fn paint_indicators(
+    ui: &egui::Ui,
+    painter: &egui::Painter,
+    fc: &mut FrameCtx<'_>,
+    row: &Row,
+    cell: Rect,
+    clip: Rect,
+    missed: &std::collections::BTreeMap<TaskUid, plannercraft_core::Moment>,
+) -> usize {
+    let Some(doc) = fc.doc else {
+        return 0;
+    };
+    let project = doc.project();
+    let Some(task) = project.tasks.get(row.uid) else {
+        return 0;
+    };
+    let list = crate::indicators::of(task, row, project.anchor, missed);
+    let visible = cell.intersect(clip);
+    if list.is_empty() || !visible.is_positive() || !cell.is_finite() {
+        return 0;
+    }
+    let mut shapes = 0_usize;
+    // Autant d'icônes qu'il en tient, le groupe centré dans la cellule.
+    let room = cell.width() - 2.0;
+    let mut fit = 0_usize;
+    let mut used = 0.0_f32;
+    for _ in &list {
+        let next = used + INDICATOR_ICON + if fit == 0 { 0.0 } else { INDICATOR_GAP };
+        if next > room {
+            break;
+        }
+        used = next;
+        fit = fit.saturating_add(1);
+    }
+    let mut x = cell.center().x - used / 2.0;
+    let color = fc.palette.text;
+    let mut note_rect = None;
+    for indicator in list.iter().take(fit) {
+        let r = Rect::from_min_size(
+            pos2(x, cell.center().y - INDICATOR_ICON / 2.0),
+            vec2(INDICATOR_ICON, INDICATOR_ICON),
+        );
+        crate::ribbon::paint_icon(painter, r, indicator.icon(), color);
+        shapes = shapes.saturating_add(1);
+        if *indicator == crate::indicators::Indicator::Note {
+            note_rect = Some(r);
+        }
+        x += INDICATOR_ICON + INDICATOR_GAP;
+    }
+    let texts = fc.texts;
+    let id = Id::unique(("plannercraft.indicators", row.uid));
+    let hover = ui.interact(visible, id, Sense::hover());
+    let shown = hover.hovered();
+    if shown {
+        let fields = crate::field::field_labels(texts);
+        let text = crate::indicators::tooltip(&list, texts, &fields, texts.format_labels());
+        hover.on_hover_text(text);
+    }
+    if let Some(r) = note_rect.map(|r| r.intersect(clip)).filter(Rect::is_positive) {
+        let note = ui.interact(r, id.with("note"), Sense::click());
+        let name = texts.get(TextId::IndicatorNote);
+        note.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &name));
+        if note.clicked() {
+            fc.actions.push(Action::Select(Some(row.uid)));
+            fc.actions.push(Action::ShowTaskNotes);
+        }
+    }
+    shapes
 }
 
 /// Ce que la table a dessiné de la sélection à la dernière image

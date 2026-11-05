@@ -1146,8 +1146,8 @@ ribbon-insert-milestone = Jalon
 ribbon-information = Informations
 ribbon-notes = Notes
 ribbon-find = Rechercher
-ribbon-scroll-to-task = Défiler jusqu'à la tâche
-ribbon-set-baseline = Définir la référence
+ribbon-scroll-to-task = Atteindre la tâche
+ribbon-set-baseline = Définir le planning de référence
 ribbon-update-project = Mettre à jour le projet
 ribbon-export-pdf = Exporter en PDF…
 ribbon-sort = Trier
@@ -1550,3 +1550,39 @@ ribbon-tip-custom-fields = Renomme les champs personnalisés Texte, Nombre, Date
 diagnostics-show-all = Tout afficher
 
 # --- UX2 L11 ---
+
+# --- Finitions P1 (ADR-0022) ---
+col-indicators = Indicateurs
+shift-plus-day = +1 jour
+shift-plus-week = +1 semaine
+shift-plus-four-weeks = +4 semaines
+shift-minus-day = −1 jour
+shift-minus-week = −1 semaine
+shift-custom = Personnalisé…
+ribbon-shift = Décaler
+ribbon-tip-shift = Décale les tâches sélectionnées de quelques jours ouvrés : contrainte « Début au plus tôt le » sur une tâche automatique, dates déplacées sur une tâche manuelle.
+ribbon-inspect = Inspecter
+ribbon-tip-inspect = Montre ce qui fixe la date de la tâche active (« Pourquoi cette date ? »).
+ribbon-zoom-selected = Tâches sélectionnées
+ribbon-tip-zoom-selected = Ajuste l'échelle de temps pour que les barres des tâches sélectionnées tiennent dans le Gantt.
+shift-title = Décaler les tâches
+shift-by = Décalage
+shift-hint = Durée en jours ouvrés, négative pour avancer : « 3j », « -2sem », « +1j ».
+shift-empty = Saisissez un décalage, par exemple « 2j » ou « -1sem ».
+shift-no-percent = Un décalage se donne en durée (« 2j »), pas en pourcentage.
+shift-report-done =
+    { $count ->
+        [one] { $count } tâche décalée de { $by }.
+       *[other] { $count } tâches décalées de { $by }.
+    }
+shift-report-skipped = Non décalées (achevées, inactives ou sans date) : tâches { $tasks }.
+shift-report-replaced = Contrainte remplacée par « Début au plus tôt le » : tâches { $tasks }.
+shift-report-limited = Décalage limité par les prédécesseurs : tâches { $tasks }.
+shift-report-nothing = Rien à décaler : les tâches sélectionnées sont achevées, inactives ou sans date.
+indicator-note = Cette tâche a une note (cliquez pour l'ouvrir).
+indicator-constraint = Contrainte : « { $kind } { $date } ».
+indicator-constraint-undated = Contrainte : « { $kind } ».
+indicator-deadline = Échéance dépassée : { $date }.
+indicator-manual = Tâche planifiée manuellement.
+indicator-inactive = Tâche inactive.
+indicator-complete = Tâche achevée (100 %).

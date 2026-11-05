@@ -1169,3 +1169,27 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 
 **Limites.** Le violet `#7719AA` sur noir est peu contrasté (rapport ≈ 2,5:1) : lisible pour des aplats de cette taille, à revoir si l'icône paraît terne sur le Dock. Le `.exe` Windows ne porte toujours pas d'icône dans l'Explorateur (ressource Windows non embarquée, dette connue).
 
+## ADR-0022 — 2026-11-05 — Finitions avant v1.0.0 : les vrais manques, pas un clone
+
+**Contexte.** Le propriétaire a comparé les onglets Tâche, Projet et Affichage du ruban avec des captures de MS Project 2013 (vues seulement, non versionnées). Consigne : « pas du tout tout cloner, Pareto » ; garder ce qui sert à un utilisateur occasionnel qui fait des plannings de chantier, et faire un lifting du ruban jugé « cheap ».
+
+**Décisions** (cahier `docs/plans/polish.md`, lots séquentiels P1 à P4) :
+- **D1** Décaler des tâches de n jours ouvrés (`task.shift`, MCP `shift_tasks`) : contrainte « Début au plus tôt le » posée sur une tâche automatique, dates décalées sur une tâche manuelle (hypothèse, règle `R-xxx` du lot P1).
+- **D2** Colonne Indicateurs (note, contrainte, échéance dépassée, manuelle, inactive, achevée), présente par défaut après N°.
+- **D3** Mise en forme du texte par tâche (gras, italique, couleur, surlignage, pinceau), dans le style du document, pas dans le MSPDI (le format ne la porte pas).
+- **D4** Regrouper par un champ (champ personnalisé texte comme « Lot », ressource, critique, jalon), mémorisé et imprimé ; gestes de structure grisés pendant le groupement.
+- **D5** Petits gains : bouton Inspecter (ouvre « Pourquoi cette date ? »), Zoom sur les tâches sélectionnées, libellés « Atteindre la tâche » et « Définir le planning de référence ».
+- **D6** Lifting du ruban et de la chronologie : accent violet de la marque (ADR-0021) en touche seulement, onglet actif souligné, surface neutre, boutons à coins doux, clair et sombre.
+
+**Écartés (Pareto).** Groupe Police complet (police, taille : nuit à la lisibilité d'un planning), Avancement conforme et Respecter les liaisons (les boutons 0-100 % et « Mettre à jour le projet » couvrent le suivi), mode « manuel » des nouvelles tâches (piège pour le débutant ; on reste en automatique), Utilisation des tâches et Planificateur d'équipe (plannings en heures par ressource, hors usage visé), Tables ▾, ligne 0 du projet, Mettre en surbrillance, sous-projets, liaisons inter-projets, Réseau, Calendrier, fenêtres multiples, orthographe, Livrable, durée estimée « ? ».
+
+**Méthode.** Un agent à la fois (machine à mémoire partagée ; incident du 2026-11-04 : suite de tests de l'interface lancée en même temps que d'autres tâches lourdes), tests ciblés en local, suite complète par la CI de chaque PR.
+
+**Lot P1 (2026-11-05) — écarts au cahier et hypothèses.**
+- *R-267* : les remarques du décalage sont des **effets** du lot (`task_shifted`, `shift_skipped`, `shift_constraint_replaced`, `shift_limited`, avec `constraint_set`), pas des diagnostics du cœur : `plannercraft-core` n'est pas touché. Un début décalé est recalé au premier instant ouvré qui suit (+1 j depuis lun 08:00 = mar 08:00, et non lun 17:00, fin de la minute ouvrée) ; un jalon garde l'instant obtenu. Tâche manuelle sans date ou automatique non planifiée : ignorée (`undated`, cas non prévu par le cahier).
+- *Saisie « Personnalisé… »* : lue par le lecteur des décalages de `plannercraft-automation` (`parse_lag`, R-142 : signe, nombre, unité ; pourcentage refusé), le cahier disait « lue par `plannercraft-core` » : le lecteur des durées vit dans `plannercraft-automation` depuis J4.
+- *Geste sans effet* : aucune entrée d'annulation (lot simulé d'abord) ; si des tâches ont été écartées (achevées, inactives, sans date), une **information** le dit plutôt que le silence de R-260 (sinon le clic paraîtrait ignoré).
+- *Ruban* : Inspecter est un **petit** bouton (un grand élargissait encore l'onglet) ; Décaler ▾ et Inspecter font replier Propriétés à 1 280 px et retirer les libellés d'Insérer (1 280 px) et de Mise en forme (1 024 px) ; H-UI-75 tenue, tests `h_ui_75_*` et `h_ui_73_editing_lists_disabled_on_welcome` adaptés, scénario `e2e_ribbon` à 1 600 px. Le lot P4 reprendra la grille.
+- *Indicateurs* : titre ⓘ dessiné avec l'icône Lucide `info` (le glyphe U+24D8 n'a pas été vérifié dans Inter) ; état mémorisé migré une fois (`UiState.indicators_added`, version 2 gardée), la table élargie de 28 points ; largeur par défaut de la table 642 ⇒ 670 points. Les tests d'interface d'avant le lot ouvrent sans la colonne (`without_indicators` de `tests/ui/main.rs`) pour garder leur géométrie ; la colonne est vérifiée par `tests/ui/polish.rs` et par les captures.
+- *Icônes* : sept SVG ajoutés depuis `lucide-static` 1.55.0 (paquet téléchargé, sha1 vérifié, copie octet pour octet) : `move-horizontal`, `sticky-note`, `calendar-clock`, `flag`, `circle-check`, `scan-search`, `focus`.
+

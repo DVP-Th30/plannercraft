@@ -250,6 +250,11 @@ pub enum Action {
     /// Fermer le document, après confirmation s'il est modifié (Ctrl/Cmd+W,
     /// Ctrl+F4, H-UI-109) ; la fenêtre reste ouverte (écran d'accueil).
     CloseDocumentGuarded,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P1).
+    /// Affichage → Zoom → Tâches sélectionnées (H-UI-124) : échelle la plus
+    /// fine où les barres de la sélection tiennent dans la largeur du
+    /// Gantt, puis défilement jusqu'à elles.
+    ZoomToSelection,
 }
 
 /// Opération sur les volets (seconde passe UX, ADR-0019 D5).
@@ -440,6 +445,61 @@ pub enum TaskCmd {
     ToggleMode,
     /// Activer ou désactiver (R-255).
     ToggleActive,
+    /// Décaler la sélection d'un pas prédéfini (H-UI-121, R-267).
+    Shift(ShiftStep),
+}
+
+/// Pas prédéfini de « Décaler ▾ » (finitions P1, H-UI-121) : jours ou
+/// semaines ouvrés, signés.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ShiftStep {
+    /// +1 jour.
+    PlusDay,
+    /// +1 semaine.
+    PlusWeek,
+    /// +4 semaines.
+    PlusFourWeeks,
+    /// −1 jour.
+    MinusDay,
+    /// −1 semaine.
+    MinusWeek,
+}
+
+impl ShiftStep {
+    /// Pas, dans l'ordre de la liste (cahier `docs/plans/polish.md`, P1).
+    pub const ALL: [Self; 5] = [
+        Self::PlusDay,
+        Self::PlusWeek,
+        Self::PlusFourWeeks,
+        Self::MinusDay,
+        Self::MinusWeek,
+    ];
+
+    /// Nombre signé d'unités et unité (jour ou semaine).
+    #[must_use]
+    pub const fn amount(self) -> (i64, plannercraft_automation::command::DurationUnitJson) {
+        use plannercraft_automation::command::DurationUnitJson::{Day, Week};
+        match self {
+            Self::PlusDay => (1, Day),
+            Self::PlusWeek => (1, Week),
+            Self::PlusFourWeeks => (4, Week),
+            Self::MinusDay => (-1, Day),
+            Self::MinusWeek => (-1, Week),
+        }
+    }
+
+    /// Libellé de l'entrée (« +1 jour »).
+    #[must_use]
+    pub const fn label(self) -> crate::i18n::TextId {
+        use crate::i18n::TextId;
+        match self {
+            Self::PlusDay => TextId::ShiftPlusDay,
+            Self::PlusWeek => TextId::ShiftPlusWeek,
+            Self::PlusFourWeeks => TextId::ShiftPlusFourWeeks,
+            Self::MinusDay => TextId::ShiftMinusDay,
+            Self::MinusWeek => TextId::ShiftMinusWeek,
+        }
+    }
 }
 
 /// Opération de mise en forme (J8 lot L15).
@@ -512,6 +572,9 @@ pub enum DialogKind {
     /// « Champs personnalisés » (Projet → Champs personnalisés…, seconde
     /// passe UX, lot L9, H-UI-118).
     CustomFields,
+    /// « Décaler les tâches » : décalage personnalisé (Décaler ▾ →
+    /// Personnalisé…, H-UI-121).
+    Shift,
 }
 
 /// Action d'interface d'un agent (`app.ui`, J7) : sans historique, sans

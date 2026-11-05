@@ -1551,3 +1551,39 @@ ribbon-tip-custom-fields = Renames the Text, Number, Date and Flag custom fields
 diagnostics-show-all = Show All
 
 # --- UX2 L11 ---
+
+# --- Finitions P1 (ADR-0022) ---
+col-indicators = Indicators
+shift-plus-day = +1 day
+shift-plus-week = +1 week
+shift-plus-four-weeks = +4 weeks
+shift-minus-day = −1 day
+shift-minus-week = −1 week
+shift-custom = Custom…
+ribbon-shift = Move
+ribbon-tip-shift = Moves the selected tasks by a few working days: Start No Earlier Than constraint on an automatic task, dates moved on a manual task.
+ribbon-inspect = Inspect
+ribbon-tip-inspect = Shows what drives the active task's dates ("Why this date?").
+ribbon-zoom-selected = Selected Tasks
+ribbon-tip-zoom-selected = Fits the timescale so the bars of the selected tasks fit in the Gantt chart.
+shift-title = Move Tasks
+shift-by = Move by
+shift-hint = Duration in working days, negative to move earlier: "3d", "-2w", "+1d".
+shift-empty = Enter an amount, for example "2d" or "-1w".
+shift-no-percent = Give the amount as a duration ("2d"), not a percentage.
+shift-report-done =
+    { $count ->
+        [one] { $count } task moved by { $by }.
+       *[other] { $count } tasks moved by { $by }.
+    }
+shift-report-skipped = Not moved (complete, inactive or without dates): tasks { $tasks }.
+shift-report-replaced = Constraint replaced with Start No Earlier Than: tasks { $tasks }.
+shift-report-limited = Move limited by predecessors: tasks { $tasks }.
+shift-report-nothing = Nothing to move: the selected tasks are complete, inactive or have no dates.
+indicator-note = This task has a note (click to open it).
+indicator-constraint = Constraint: { $kind } { $date }.
+indicator-constraint-undated = Constraint: { $kind }.
+indicator-deadline = Deadline missed: { $date }.
+indicator-manual = Manually scheduled task.
+indicator-inactive = Inactive task.
+indicator-complete = Complete task (100%).

@@ -34,6 +34,8 @@ pub enum Icon {
     BetweenVerticalStart,
     /// `calendar-check.svg`.
     CalendarCheck,
+    /// `calendar-clock.svg`.
+    CalendarClock,
     /// `calendar-cog.svg`.
     CalendarCog,
     /// `calendar-range.svg`.
@@ -48,6 +50,8 @@ pub enum Icon {
     ChevronsDownUp,
     /// `chevrons-up-down.svg`.
     ChevronsUpDown,
+    /// `circle-check.svg`.
+    CircleCheck,
     /// `circle-off.svg`.
     CircleOff,
     /// `circle-x.svg`.
@@ -74,6 +78,10 @@ pub enum Icon {
     FileText,
     /// `filter.svg`.
     Filter,
+    /// `flag.svg`.
+    Flag,
+    /// `focus.svg`.
+    Focus,
     /// `indent-decrease.svg`.
     IndentDecrease,
     /// `indent-increase.svg`.
@@ -92,6 +100,8 @@ pub enum Icon {
     Locate,
     /// `maximize.svg`.
     Maximize,
+    /// `move-horizontal.svg`.
+    MoveHorizontal,
     /// `notebook-pen.svg`.
     NotebookPen,
     /// `paintbrush.svg`.
@@ -108,10 +118,14 @@ pub enum Icon {
     RefreshCw,
     /// `save.svg`.
     Save,
+    /// `scan-search.svg`.
+    ScanSearch,
     /// `scissors.svg`.
     Scissors,
     /// `search.svg`.
     Search,
+    /// `sticky-note.svg`.
+    StickyNote,
     /// `sun-moon.svg`.
     SunMoon,
     /// `swatch-book.svg`.
@@ -138,11 +152,12 @@ pub enum Icon {
 
 impl Icon {
     /// Toutes les icônes, dans l'ordre des fichiers.
-    pub const ALL: [Self; 54] = [
+    pub const ALL: [Self; 61] = [
         Self::ArrowDownToLine,
         Self::ArrowUpDown,
         Self::BetweenVerticalStart,
         Self::CalendarCheck,
+        Self::CalendarClock,
         Self::CalendarCog,
         Self::CalendarRange,
         Self::ChartColumn,
@@ -150,6 +165,7 @@ impl Icon {
         Self::ChartNoAxesGantt,
         Self::ChevronsDownUp,
         Self::ChevronsUpDown,
+        Self::CircleCheck,
         Self::CircleOff,
         Self::CircleX,
         Self::ClipboardList,
@@ -163,6 +179,8 @@ impl Icon {
         Self::FileDown,
         Self::FileText,
         Self::Filter,
+        Self::Flag,
+        Self::Focus,
         Self::IndentDecrease,
         Self::IndentIncrease,
         Self::Info,
@@ -172,6 +190,7 @@ impl Icon {
         Self::ListTree,
         Self::Locate,
         Self::Maximize,
+        Self::MoveHorizontal,
         Self::NotebookPen,
         Self::Paintbrush,
         Self::PanelLeftClose,
@@ -180,8 +199,10 @@ impl Icon {
         Self::Redo2,
         Self::RefreshCw,
         Self::Save,
+        Self::ScanSearch,
         Self::Scissors,
         Self::Search,
+        Self::StickyNote,
         Self::SunMoon,
         Self::SwatchBook,
         Self::Tags,
@@ -203,6 +224,7 @@ impl Icon {
             Self::ArrowUpDown => "arrow-up-down",
             Self::BetweenVerticalStart => "between-vertical-start",
             Self::CalendarCheck => "calendar-check",
+            Self::CalendarClock => "calendar-clock",
             Self::CalendarCog => "calendar-cog",
             Self::CalendarRange => "calendar-range",
             Self::ChartColumn => "chart-column",
@@ -210,6 +232,7 @@ impl Icon {
             Self::ChartNoAxesGantt => "chart-no-axes-gantt",
             Self::ChevronsDownUp => "chevrons-down-up",
             Self::ChevronsUpDown => "chevrons-up-down",
+            Self::CircleCheck => "circle-check",
             Self::CircleOff => "circle-off",
             Self::CircleX => "circle-x",
             Self::ClipboardList => "clipboard-list",
@@ -223,6 +246,8 @@ impl Icon {
             Self::FileDown => "file-down",
             Self::FileText => "file-text",
             Self::Filter => "filter",
+            Self::Flag => "flag",
+            Self::Focus => "focus",
             Self::IndentDecrease => "indent-decrease",
             Self::IndentIncrease => "indent-increase",
             Self::Info => "info",
@@ -232,6 +257,7 @@ impl Icon {
             Self::ListTree => "list-tree",
             Self::Locate => "locate",
             Self::Maximize => "maximize",
+            Self::MoveHorizontal => "move-horizontal",
             Self::NotebookPen => "notebook-pen",
             Self::Paintbrush => "paintbrush",
             Self::PanelLeftClose => "panel-left-close",
@@ -240,8 +266,10 @@ impl Icon {
             Self::Redo2 => "redo-2",
             Self::RefreshCw => "refresh-cw",
             Self::Save => "save",
+            Self::ScanSearch => "scan-search",
             Self::Scissors => "scissors",
             Self::Search => "search",
+            Self::StickyNote => "sticky-note",
             Self::SunMoon => "sun-moon",
             Self::SwatchBook => "swatch-book",
             Self::Tags => "tags",
@@ -264,6 +292,7 @@ impl Icon {
             Self::ArrowUpDown => &ARROW_UP_DOWN,
             Self::BetweenVerticalStart => &BETWEEN_VERTICAL_START,
             Self::CalendarCheck => &CALENDAR_CHECK,
+            Self::CalendarClock => &CALENDAR_CLOCK,
             Self::CalendarCog => &CALENDAR_COG,
             Self::CalendarRange => &CALENDAR_RANGE,
             Self::ChartColumn => &CHART_COLUMN,
@@ -271,6 +300,7 @@ impl Icon {
             Self::ChartNoAxesGantt => &CHART_NO_AXES_GANTT,
             Self::ChevronsDownUp => &CHEVRONS_DOWN_UP,
             Self::ChevronsUpDown => &CHEVRONS_UP_DOWN,
+            Self::CircleCheck => &CIRCLE_CHECK,
             Self::CircleOff => &CIRCLE_OFF,
             Self::CircleX => &CIRCLE_X,
             Self::ClipboardList => &CLIPBOARD_LIST,
@@ -284,6 +314,8 @@ impl Icon {
             Self::FileDown => &FILE_DOWN,
             Self::FileText => &FILE_TEXT,
             Self::Filter => &FILTER,
+            Self::Flag => &FLAG,
+            Self::Focus => &FOCUS,
             Self::IndentDecrease => &INDENT_DECREASE,
             Self::IndentIncrease => &INDENT_INCREASE,
             Self::Info => &INFO,
@@ -293,6 +325,7 @@ impl Icon {
             Self::ListTree => &LIST_TREE,
             Self::Locate => &LOCATE,
             Self::Maximize => &MAXIMIZE,
+            Self::MoveHorizontal => &MOVE_HORIZONTAL,
             Self::NotebookPen => &NOTEBOOK_PEN,
             Self::Paintbrush => &PAINTBRUSH,
             Self::PanelLeftClose => &PANEL_LEFT_CLOSE,
@@ -301,8 +334,10 @@ impl Icon {
             Self::Redo2 => &REDO_2,
             Self::RefreshCw => &REFRESH_CW,
             Self::Save => &SAVE,
+            Self::ScanSearch => &SCAN_SEARCH,
             Self::Scissors => &SCISSORS,
             Self::Search => &SEARCH,
+            Self::StickyNote => &STICKY_NOTE,
             Self::SunMoon => &SUN_MOON,
             Self::SwatchBook => &SWATCH_BOOK,
             Self::Tags => &TAGS,
@@ -392,6 +427,37 @@ static CALENDAR_CHECK: IconData = IconData {
         ] },
         IconLine { closed: false, points: &[
             (576, 960), (704, 1088), (960, 832),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `calendar-clock.svg`.
+static CALENDAR_CLOCK: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (1024, 896), (1024, 1037), (1126, 1101),
+        ] },
+        IconLine { closed: false, points: &[
+            (1024, 128), (1024, 320),
+        ] },
+        IconLine { closed: false, points: &[
+            (1344, 470), (1344, 320), (1339, 286), (1327, 256), (1307, 229), (1280, 209), (1250, 197), (1216, 192), (320, 192), (286, 197),
+            (256, 209), (229, 229), (209, 256), (197, 286), (192, 320), (192, 1216), (197, 1250), (209, 1280), (229, 1307), (256, 1327),
+            (286, 1339), (320, 1344), (470, 1344),
+        ] },
+        IconLine { closed: false, points: &[
+            (192, 576), (567, 576),
+        ] },
+        IconLine { closed: false, points: &[
+            (512, 128), (512, 320),
+        ] },
+        IconLine { closed: true, points: &[
+            (1408, 1024), (1404, 1080), (1393, 1132), (1373, 1184), (1347, 1231), (1314, 1275), (1275, 1314), (1231, 1347), (1184, 1373), (1132, 1393),
+            (1080, 1404), (1024, 1408), (968, 1404), (916, 1393), (864, 1373), (817, 1347), (773, 1314), (734, 1275), (701, 1231), (675, 1184),
+            (655, 1132), (644, 1080), (640, 1024), (644, 968), (655, 916), (675, 864), (701, 817), (734, 773), (773, 734), (817, 701),
+            (864, 675), (916, 655), (968, 644), (1024, 640), (1080, 644), (1132, 655), (1184, 675), (1231, 701), (1275, 734), (1314, 773),
+            (1347, 817), (1373, 864), (1393, 916), (1404, 968),
         ] },
     ],
     dots: &[],
@@ -552,6 +618,24 @@ static CHEVRONS_UP_DOWN: IconData = IconData {
         ] },
         IconLine { closed: false, points: &[
             (448, 576), (768, 256), (1088, 576),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `circle-check.svg`.
+static CIRCLE_CHECK: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (1408, 768), (1404, 842), (1392, 912), (1372, 979), (1345, 1046), (1310, 1108), (1268, 1167), (1220, 1220), (1167, 1268), (1108, 1310),
+            (1046, 1345), (979, 1372), (912, 1392), (842, 1404), (768, 1408), (694, 1404), (624, 1392), (557, 1372), (490, 1345), (428, 1310),
+            (369, 1268), (316, 1220), (268, 1167), (226, 1108), (191, 1046), (164, 979), (144, 912), (132, 842), (128, 768), (132, 694),
+            (144, 624), (164, 557), (191, 490), (226, 428), (268, 369), (316, 316), (369, 268), (428, 226), (490, 191), (557, 164),
+            (624, 144), (694, 132), (768, 128), (842, 132), (912, 144), (979, 164), (1046, 191), (1108, 226), (1167, 268), (1220, 316),
+            (1268, 369), (1310, 428), (1345, 490), (1372, 557), (1392, 624), (1404, 694),
+        ] },
+        IconLine { closed: false, points: &[
+            (1024, 576), (672, 928), (512, 768),
         ] },
     ],
     dots: &[],
@@ -867,6 +951,45 @@ static FILTER: IconData = IconData {
     dots: &[],
 };
 
+/// `flag.svg`.
+static FLAG: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (256, 1408), (256, 256), (259, 236), (268, 219), (282, 205), (323, 178), (367, 156), (414, 141), (462, 131), (512, 128),
+            (571, 132), (626, 143), (695, 164), (815, 214), (883, 240), (933, 252), (981, 256), (1046, 252), (1100, 242), (1143, 226),
+            (1178, 205), (1199, 194), (1222, 192), (1245, 199), (1263, 213), (1276, 233), (1280, 256), (1280, 896), (1277, 916), (1268, 933),
+            (1254, 947), (1213, 974), (1169, 996), (1122, 1011), (1074, 1021), (1024, 1024), (960, 1019), (895, 1005), (769, 960), (641, 915),
+            (576, 901), (512, 896), (456, 900), (401, 912), (349, 932), (301, 959), (256, 994),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `focus.svg`.
+static FOCUS: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (960, 768), (956, 806), (945, 841), (928, 875), (904, 904), (875, 928), (841, 945), (806, 956), (768, 960), (730, 956),
+            (695, 945), (661, 928), (632, 904), (608, 875), (591, 841), (580, 806), (576, 768), (580, 730), (591, 695), (608, 661),
+            (632, 632), (661, 608), (695, 591), (730, 580), (768, 576), (806, 580), (841, 591), (875, 608), (904, 632), (928, 661),
+            (945, 695), (956, 730),
+        ] },
+        IconLine { closed: false, points: &[
+            (192, 448), (192, 320), (197, 286), (209, 256), (229, 229), (256, 209), (286, 197), (320, 192), (448, 192),
+        ] },
+        IconLine { closed: false, points: &[
+            (1088, 192), (1216, 192), (1250, 197), (1280, 209), (1307, 229), (1327, 256), (1339, 286), (1344, 320), (1344, 448),
+        ] },
+        IconLine { closed: false, points: &[
+            (1344, 1088), (1344, 1216), (1339, 1250), (1327, 1280), (1307, 1307), (1280, 1327), (1250, 1339), (1216, 1344), (1088, 1344),
+        ] },
+        IconLine { closed: false, points: &[
+            (448, 1344), (320, 1344), (286, 1339), (256, 1327), (229, 1307), (209, 1280), (197, 1250), (192, 1216), (192, 1088),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `indent-decrease.svg`.
 static INDENT_DECREASE: IconData = IconData {
     lines: &[
@@ -1058,6 +1181,22 @@ static MAXIMIZE: IconData = IconData {
     dots: &[],
 };
 
+/// `move-horizontal.svg`.
+static MOVE_HORIZONTAL: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (1152, 512), (1408, 768), (1152, 1024),
+        ] },
+        IconLine { closed: false, points: &[
+            (128, 768), (1408, 768),
+        ] },
+        IconLine { closed: false, points: &[
+            (384, 512), (128, 768), (384, 1024),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `notebook-pen.svg`.
 static NOTEBOOK_PEN: IconData = IconData {
     lines: &[
@@ -1225,6 +1364,34 @@ static SAVE: IconData = IconData {
     dots: &[],
 };
 
+/// `scan-search.svg`.
+static SCAN_SEARCH: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (192, 448), (192, 320), (197, 286), (209, 256), (229, 229), (256, 209), (286, 197), (320, 192), (448, 192),
+        ] },
+        IconLine { closed: false, points: &[
+            (1088, 192), (1216, 192), (1250, 197), (1280, 209), (1307, 229), (1327, 256), (1339, 286), (1344, 320), (1344, 448),
+        ] },
+        IconLine { closed: false, points: &[
+            (1344, 1088), (1344, 1216), (1339, 1250), (1327, 1280), (1307, 1307), (1280, 1327), (1250, 1339), (1216, 1344), (1088, 1344),
+        ] },
+        IconLine { closed: false, points: &[
+            (448, 1344), (320, 1344), (286, 1339), (256, 1327), (229, 1307), (209, 1280), (197, 1250), (192, 1216), (192, 1088),
+        ] },
+        IconLine { closed: true, points: &[
+            (960, 768), (956, 806), (945, 841), (928, 875), (904, 904), (875, 928), (841, 945), (806, 956), (768, 960), (730, 956),
+            (695, 945), (661, 928), (632, 904), (608, 875), (591, 841), (580, 806), (576, 768), (580, 730), (591, 695), (608, 661),
+            (632, 632), (661, 608), (695, 591), (730, 580), (768, 576), (806, 580), (841, 591), (875, 608), (904, 632), (928, 661),
+            (945, 695), (956, 730),
+        ] },
+        IconLine { closed: false, points: &[
+            (1024, 1024), (902, 902),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `scissors.svg`.
 static SCISSORS: IconData = IconData {
     lines: &[
@@ -1265,6 +1432,22 @@ static SEARCH: IconData = IconData {
             (261, 960), (231, 900), (209, 837), (197, 772), (192, 704), (197, 636), (209, 571), (231, 508), (261, 448), (298, 393),
             (342, 342), (393, 298), (448, 261), (508, 231), (571, 209), (636, 197), (704, 192), (772, 197), (837, 209), (900, 231),
             (960, 261), (1015, 298), (1066, 342), (1110, 393), (1147, 448), (1177, 508), (1199, 571), (1211, 636),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `sticky-note.svg`.
+static STICKY_NOTE: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (1344, 576), (1341, 546), (1332, 517), (1318, 490), (1299, 467), (1069, 237), (1046, 218), (1019, 204), (990, 195), (960, 192),
+            (320, 192), (286, 197), (256, 209), (229, 229), (209, 256), (197, 286), (192, 320), (192, 1216), (197, 1250), (209, 1280),
+            (229, 1307), (256, 1327), (286, 1339), (320, 1344), (1216, 1344), (1250, 1339), (1280, 1327), (1307, 1307), (1327, 1280), (1339, 1250),
+            (1344, 1216),
+        ] },
+        IconLine { closed: false, points: &[
+            (960, 192), (960, 512), (963, 532), (972, 550), (986, 564), (1004, 573), (1024, 576), (1344, 576),
         ] },
     ],
     dots: &[],

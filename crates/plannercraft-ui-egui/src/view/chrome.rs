@@ -232,6 +232,9 @@ fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, _side_open: bool) {
                 zoom_choices(ui, fc);
                 ui.separator();
                 twin(ui, fc, RibbonCmd::EntireProject, None);
+                // Finitions P1 (H-UI-124) : jumeau de Zoom → Tâches
+                // sélectionnées.
+                twin(ui, fc, RibbonCmd::ZoomSelected, None);
                 // Jumeaux de Zoom avant / Zoom arrière (ADR-0017).
                 twin(ui, fc, RibbonCmd::ZoomIn, Some(Binding::Ui(UiBinding::ZoomFiner)));
                 twin(
@@ -491,6 +494,19 @@ fn task_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     ui.separator();
     twin(ui, fc, RibbonCmd::ManualSchedule, None);
     twin(ui, fc, RibbonCmd::Inactivate, None);
+    // Finitions P1 : Décaler (sous-menu jumeau de la liste du ruban,
+    // H-UI-121) et Inspecter (H-UI-123).
+    let enabled = RibbonCmd::ShiftMenu.enabled(fc);
+    let label = fc.texts.get(RibbonCmd::ShiftMenu.menu_label());
+    let response = ui
+        .add_enabled_ui(enabled.yes, |ui| {
+            ui.menu_button(label, |ui| shift_entries(ui, fc))
+        })
+        .response;
+    if let Some(reason) = enabled.reason {
+        response.on_disabled_hover_text(fc.texts.get(reason));
+    }
+    twin(ui, fc, RibbonCmd::Inspect, None);
     ui.separator();
     twin(
         ui,
@@ -553,6 +569,9 @@ pub(crate) fn dropdown_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: R
         RibbonCmd::ThemeMenu => theme_choices(ui, fc),
         RibbonCmd::LanguageMenu => language_choices(ui, fc),
         RibbonCmd::ColumnsMenu => column_choices(ui, fc),
+        // Décaler ▾ (finitions P1, H-UI-121) : pas prédéfinis puis
+        // « Personnalisé… », mêmes entrées qu'au menu Tâche → Décaler.
+        RibbonCmd::ShiftMenu => shift_entries(ui, fc),
         // Remplir ▾, Effacer ▾ (passe UX, lot L5) : une entrée, la commande
         // elle-même (même action, même prédicat, même raccourci).
         RibbonCmd::FillDown | RibbonCmd::ClearContents => {
@@ -568,6 +587,18 @@ pub(crate) fn dropdown_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: R
         }
         _ => {}
     }
+}
+
+/// Entrées de « Décaler ▾ » (H-UI-121) : un pas prédéfini par entrée
+/// ([`crate::action::ShiftStep::ALL`]), séparateur, « Personnalisé… » ;
+/// chaque entrée est une commande partagée (même action, même prédicat au
+/// ruban et au menu Tâche).
+fn shift_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    for step in crate::action::ShiftStep::ALL {
+        twin_cmd(ui, fc, RibbonCmd::Shift(step));
+    }
+    ui.separator();
+    twin_cmd(ui, fc, RibbonCmd::ShiftCustom);
 }
 
 /// Entrée « Remplir à droite » (Ctrl/Cmd+R, R-258 amendée, H-UI-120) :

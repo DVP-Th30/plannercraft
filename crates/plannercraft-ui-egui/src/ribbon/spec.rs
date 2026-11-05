@@ -19,7 +19,8 @@ use plannercraft_render::style::BarRole;
 use super::icon_data::Icon;
 use super::{Enabled, RibbonOp, RibbonTab};
 use crate::action::{
-    ACTIVE_COLUMN, Action, CellOp, ColumnOp, DialogKind, FormatOp, PaneOp, SelectOp, TaskCmd, TimelineOp,
+    ACTIVE_COLUMN, Action, CellOp, ColumnOp, DialogKind, FormatOp, PaneOp, SelectOp, ShiftStep, TaskCmd,
+    TimelineOp,
 };
 use crate::clipboard::ClipboardOp;
 use crate::i18n::TextId;
@@ -215,6 +216,18 @@ pub enum RibbonCmd {
     /// Champs personnalisés… (Projet → Propriétés, H-UI-118 ; fenêtre du
     /// lot L9).
     CustomFields,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P1).
+    /// Liste Décaler ▾ (Tâche → Planification, H-UI-121).
+    ShiftMenu,
+    /// Entrée de Décaler ▾ : pas prédéfini (R-267).
+    Shift(ShiftStep),
+    /// Entrée de Décaler ▾ : « Personnalisé… » (fenêtre de saisie).
+    ShiftCustom,
+    /// Inspecter : « Pourquoi cette date ? » sur la tâche active
+    /// (Tâche → Tâches, H-UI-123).
+    Inspect,
+    /// Zoom → Tâches sélectionnées (Affichage → Zoom, H-UI-124).
+    ZoomSelected,
 }
 
 /// Pas de « marquer n % », dans l'ordre de la rangée (H-UI-35).
@@ -255,7 +268,12 @@ impl RibbonCmd {
             | Self::TimescaleMenu
             | Self::ThemeMenu
             | Self::LanguageMenu
-            | Self::ColumnsMenu => return None,
+            | Self::ColumnsMenu
+            | Self::ShiftMenu => return None,
+            Self::Shift(step) => Action::TaskCmd(TaskCmd::Shift(step)),
+            Self::ShiftCustom => Action::ShowDialog(DialogKind::Shift),
+            Self::Inspect => Action::SidePanel(SideOp::Open(crate::view::side_panel::SideTab::WhyThisDate)),
+            Self::ZoomSelected => Action::ZoomToSelection,
             // Fenêtre « Champs personnalisés » (lot L9, H-UI-118).
             Self::CustomFields => Action::ShowDialog(DialogKind::CustomFields),
             // Comme le menu Affichage : le style du Gantt ramène à la vue
@@ -405,6 +423,11 @@ impl RibbonCmd {
                 | Self::DeleteTask
                 | Self::InsertColumn
                 | Self::FieldSettings
+                | Self::ShiftMenu
+                | Self::Shift(_)
+                | Self::ShiftCustom
+                | Self::Inspect
+                | Self::ZoomSelected
         )
     }
 
@@ -429,6 +452,11 @@ impl RibbonCmd {
                 | Self::FillDown
                 | Self::ClearContents
                 | Self::DeleteTask
+                | Self::ShiftMenu
+                | Self::Shift(_)
+                | Self::ShiftCustom
+                | Self::Inspect
+                | Self::ZoomSelected
         )
     }
 
@@ -528,6 +556,11 @@ impl RibbonCmd {
             Self::InsertColumn => TextId::MenuInsertColumn,
             Self::FieldSettings => TextId::MenuFieldSettings,
             Self::CustomFields => TextId::MenuCustomFields,
+            Self::ShiftMenu => TextId::RibbonShift,
+            Self::Shift(step) => step.label(),
+            Self::ShiftCustom => TextId::ShiftCustom,
+            Self::Inspect => TextId::RibbonInspect,
+            Self::ZoomSelected => TextId::RibbonZoomSelected,
         }
     }
 
@@ -554,7 +587,9 @@ impl RibbonCmd {
             | Self::ClearContents
             | Self::SelectAll
             | Self::DeleteTask => &[TextId::MenuEdit],
-            Self::ZoomIn | Self::ZoomOut | Self::EntireProject => &[TextId::MenuView, TextId::MenuZoom],
+            Self::ZoomIn | Self::ZoomOut | Self::EntireProject | Self::ZoomSelected => {
+                &[TextId::MenuView, TextId::MenuZoom]
+            }
             // Listes : leur jumeau est le sous-menu (Zoom, Thème, Langue,
             // Colonnes) ou la première entrée à plat du menu.
             Self::TimescaleMenu
@@ -584,7 +619,10 @@ impl RibbonCmd {
             | Self::ManualSchedule
             | Self::TaskInformation
             | Self::TaskNotes
-            | Self::AddToTimeline => &[TextId::MenuTask],
+            | Self::AddToTimeline
+            | Self::ShiftMenu
+            | Self::Inspect => &[TextId::MenuTask],
+            Self::Shift(_) | Self::ShiftCustom => &[TextId::MenuTask, TextId::RibbonShift],
             Self::ProjectInformation
             | Self::WorkingTime
             | Self::SetBaseline
@@ -1038,19 +1076,37 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 TextId::RibbonTipInactivate,
                 RibbonCmd::Inactivate,
             ),
+            // Finitions P1 (H-UI-121, R-267) : Décaler ▾.
+            plain(
+                Dropdown,
+                Some(Icon::MoveHorizontal),
+                TextId::RibbonShift,
+                TextId::RibbonTipShift,
+                RibbonCmd::ShiftMenu,
+            ),
         ],
         shrink_rank: 5,
     },
     GroupSpec {
         label: TextId::RibbonGroupTasks,
         icon: Icon::Pin,
-        items: &[plain(
-            Large,
-            Some(Icon::Pin),
-            TextId::RibbonManualSchedule,
-            TextId::RibbonTipManualSchedule,
-            RibbonCmd::ManualSchedule,
-        )],
+        items: &[
+            plain(
+                Large,
+                Some(Icon::Pin),
+                TextId::RibbonManualSchedule,
+                TextId::RibbonTipManualSchedule,
+                RibbonCmd::ManualSchedule,
+            ),
+            // Finitions P1 (H-UI-123) : Inspecter.
+            plain(
+                Small,
+                Some(Icon::ScanSearch),
+                TextId::RibbonInspect,
+                TextId::RibbonTipInspect,
+                RibbonCmd::Inspect,
+            ),
+        ],
         shrink_rank: 4,
     },
     GroupSpec {
@@ -1353,6 +1409,15 @@ const VIEW_GROUPS: &[GroupSpec] = &[
                 TextId::RibbonEntireProject,
                 TextId::RibbonTipEntireProject,
                 RibbonCmd::EntireProject,
+            ),
+            // Finitions P1 (H-UI-124) : Tâches sélectionnées, grand bouton
+            // à côté de Projet entier.
+            plain(
+                Large,
+                Some(Icon::Focus),
+                TextId::RibbonZoomSelected,
+                TextId::RibbonTipZoomSelected,
+                RibbonCmd::ZoomSelected,
             ),
         ],
         shrink_rank: 3,

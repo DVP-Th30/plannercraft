@@ -3914,6 +3914,114 @@
               "field"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Décale des tâches d'une durée signée (R-267, finitions P1).",
+            "properties": {
+              "by": {
+                "additionalProperties": false,
+                "description": "Décalage **signé** : texte (« 1j », « -1sem », « +2d », « 3ej ») ou\nminutes signées (`-480`) avec unité ; jours ouvrés du calendrier de\nchaque tâche (temps civil si écoulé) ; pas de pourcentage ni de\n« ? ».",
+                "properties": {
+                  "elapsed": {
+                    "description": "Durée écoulée (« 5ej »).",
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "estimated": {
+                    "description": "Durée estimée (« 5j? »).",
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "minutes": {
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
+                    "format": "int64",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "description": "Texte à la manière de MS Project (« 5j », « 2d? »).",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "anyOf": [
+                      {
+                        "description": "Unité d'une durée en JSON.",
+                        "oneOf": [
+                          {
+                            "const": "minute",
+                            "description": "Minute.",
+                            "type": "string"
+                          },
+                          {
+                            "const": "hour",
+                            "description": "Heure.",
+                            "type": "string"
+                          },
+                          {
+                            "const": "day",
+                            "description": "Jour.",
+                            "type": "string"
+                          },
+                          {
+                            "const": "week",
+                            "description": "Semaine.",
+                            "type": "string"
+                          },
+                          {
+                            "const": "month",
+                            "description": "Mois.",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Unité d'affichage."
+                  }
+                },
+                "type": "object"
+              },
+              "op": {
+                "const": "task.shift",
+                "type": "string"
+              },
+              "tasks": {
+                "description": "Tâches à décaler (une récapitulative vaut ses feuilles).",
+                "items": {
+                  "description": "Tâche : UID (entier) ou étiquette \"$x\" d'une tâche créée plus tôt dans le même lot.",
+                  "oneOf": [
+                    {
+                      "maximum": 4294967295,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    {
+                      "pattern": "^\\$[A-Za-z0-9_-]{1,64}$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "op",
+              "tasks",
+              "by"
+            ],
+            "type": "object"
           }
         ]
       },

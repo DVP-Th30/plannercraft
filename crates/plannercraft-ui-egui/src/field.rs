@@ -144,6 +144,7 @@ pub const fn availability(column: Column) -> Availability {
 static CATALOG: std::sync::LazyLock<Vec<FieldDesc>> = std::sync::LazyLock::new(|| {
     Column::ALL
         .into_iter()
+        .chain(Column::EXTRA)
         .chain(Column::FIELDS)
         .map(|column| desc(column, availability(column)))
         .collect()
@@ -278,7 +279,8 @@ pub const fn category(column: Column) -> FieldCategory {
         | Column::Notes
         | Column::Created
         | Column::Priority
-        | Column::Active => FieldCategory::General,
+        | Column::Active
+        | Column::Indicators => FieldCategory::General,
         Column::Duration
         | Column::Start
         | Column::Finish
@@ -682,9 +684,17 @@ mod tests {
     fn field_catalog_unique() {
         let columns: BTreeSet<Column> = catalog().iter().map(|d| d.column).collect();
         assert_eq!(columns.len(), catalog().len());
-        assert_eq!(columns, Column::ALL.into_iter().chain(Column::FIELDS).collect());
+        assert_eq!(
+            columns,
+            Column::ALL
+                .into_iter()
+                .chain(Column::EXTRA)
+                .chain(Column::FIELDS)
+                .collect()
+        );
         let mut ids: Vec<crate::i18n::TextId> = Column::ALL
             .into_iter()
+            .chain(Column::EXTRA)
             .chain(Column::FIELDS)
             .map(Column::title)
             .chain(FieldCategory::ALL.map(FieldCategory::title))
@@ -705,10 +715,14 @@ mod tests {
         let fr = Texts::new(Language::Fr);
         let titles: BTreeSet<String> = Column::ALL
             .into_iter()
+            .chain(Column::EXTRA)
             .chain(Column::FIELDS)
             .map(|c| fr.get(c.title()))
             .collect();
-        assert_eq!(titles.len(), Column::COUNT + Column::FIELDS.len());
+        assert_eq!(
+            titles.len(),
+            Column::COUNT + Column::EXTRA.len() + Column::FIELDS.len()
+        );
         assert_eq!(category(Column::FreeSlack), FieldCategory::Slack);
         assert_eq!(category(Column::Cost), FieldCategory::Costs);
         let custom = Column::Custom(CustomFieldId::new(CustomKind::Flag, 3).unwrap());

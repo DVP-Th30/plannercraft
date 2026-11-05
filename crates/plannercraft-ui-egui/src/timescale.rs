@@ -268,6 +268,27 @@ pub fn fit_zoom(range: ViewSpan, gantt_width_px: f32) -> TimeScaleZoom {
     }
 }
 
+/// Zoom « Tâches sélectionnées » (finitions P1, H-UI-124) : le plus fin
+/// de [`TimeScaleZoom::ALL`] où les jours civils de `start` à `finish`
+/// (bornes comprises, plus un jour de marge de chaque côté) tiennent dans
+/// `gantt_width_px` ; Trimestre si rien ne tient ; `None` si la largeur
+/// n'est pas utilisable ou la plage inversée. Aucune date calculée : les
+/// bornes viennent du planning.
+#[must_use]
+pub fn fit_span_zoom(start: Moment, finish: Moment, gantt_width_px: f32) -> Option<TimeScaleZoom> {
+    if !gantt_width_px.is_finite() || gantt_width_px <= 0.0 || finish < start {
+        return None;
+    }
+    let days = days_between(start.day(), finish.day()).saturating_add(3);
+    let days = i64_to_f32(days);
+    Some(
+        TimeScaleZoom::ALL
+            .into_iter()
+            .find(|zoom| days * zoom.px_per_day() <= gantt_width_px)
+            .unwrap_or(TimeScaleZoom::Quarter),
+    )
+}
+
 /// Minute de `Moment` du minuit d'un jour (même origine que
 /// `Moment::minutes`).
 fn day_minutes(d: Day) -> i64 {
@@ -959,6 +980,23 @@ mod tests {
         assert!(range.truncated);
         assert_eq!(range_days(range.span), i64::from(MAX_RANGE_DAYS));
         assert_eq!(range.span.start, demo_range().start);
+    }
+
+    #[test]
+    fn h_ui_124_fit_span_zoom() {
+        use super::fit_span_zoom;
+        // 5 jours (+ 2 de marge) × 36 px = 252 px ≤ 900 : Jour.
+        let (a, b) = (moment(2026, 10, 19, 8), moment(2026, 10, 23, 17));
+        assert_eq!(fit_span_zoom(a, b, 900.0), Some(TimeScaleZoom::Day));
+        // 7 × 36 = 252 > 200, 7 × 12 = 84 ≤ 200 : Semaine.
+        assert_eq!(fit_span_zoom(a, b, 200.0), Some(TimeScaleZoom::Week));
+        // Un an sur 300 px : rien ne tient, Trimestre.
+        assert_eq!(
+            fit_span_zoom(a, moment(2027, 10, 19, 8), 300.0),
+            Some(TimeScaleZoom::Quarter)
+        );
+        assert_eq!(fit_span_zoom(b, a, 900.0), None);
+        assert_eq!(fit_span_zoom(a, b, f32::NAN), None);
     }
 
     #[test]
