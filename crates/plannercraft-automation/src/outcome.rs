@@ -114,6 +114,12 @@ pub enum SideEffect {
         /// Raison.
         reason: &'static str,
     },
+    /// Tâche décalée par `task.shift` (R-267) : contrainte posée (tâche
+    /// automatique, avec `constraint_set`) ou dates manuelles déplacées.
+    TaskShifted {
+        /// Tâche.
+        task: TaskUid,
+    },
     /// Tâche ignorée par `task.shift` (R-267) : `reason` en code stable
     /// (`inactive`, `complete`, `undated`).
     ShiftSkipped {

@@ -229,6 +229,7 @@ pub(super) fn shift(op: &TaskShift, ctx: &mut Ctx<'_>) -> Result<(), CommandErro
                     uid,
                     kind: ConstraintKind::StartNoEarlierThan,
                 });
+                ctx.effects.push(SideEffect::TaskShifted { task: uid });
                 ctx.drop_task_extras(uid, TaskChange::Constraint);
                 ctx.touched.insert(Subject::Task(uid), ctx.op_index);
                 automatic.push((uid, target));
@@ -252,6 +253,7 @@ pub(super) fn shift(op: &TaskShift, ctx: &mut Ctx<'_>) -> Result<(), CommandErro
                         duration,
                     };
                 }
+                ctx.effects.push(SideEffect::TaskShifted { task: uid });
                 ctx.drop_task_extras(uid, TaskChange::Mode);
                 ctx.touched.insert(Subject::Task(uid), ctx.op_index);
             }

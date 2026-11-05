@@ -159,6 +159,15 @@ fn r267_summary_means_leaves_skips_inactive_and_complete() {
         json!([{ "op": "task.shift", "tasks": [1, 5], "by": { "text": "2j" } }]),
     );
     assert_eq!(skipped(&out), vec![(2, "complete"), (6, "inactive")]);
+    let shifted: Vec<u32> = out
+        .side_effects
+        .iter()
+        .filter_map(|e| match e {
+            SideEffect::TaskShifted { task } => Some(task.get()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(shifted, vec![3, 4, 7]);
     // 3 et le jalon 4 (sous 1), 7 (sous 5) : contrainte posée ; les
     // récapitulatives restent calculées.
     for n in [3, 4, 7] {
