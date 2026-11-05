@@ -1169,3 +1169,19 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 
 **Limites.** Le violet `#7719AA` sur noir est peu contrasté (rapport ≈ 2,5:1) : lisible pour des aplats de cette taille, à revoir si l'icône paraît terne sur le Dock. Le `.exe` Windows ne porte toujours pas d'icône dans l'Explorateur (ressource Windows non embarquée, dette connue).
 
+## ADR-0022 — 2026-11-05 — Finitions avant v1.0.0 : les vrais manques, pas un clone
+
+**Contexte.** Le propriétaire a comparé les onglets Tâche, Projet et Affichage du ruban avec des captures de MS Project 2013 (vues seulement, non versionnées). Consigne : « pas du tout tout cloner, Pareto » ; garder ce qui sert à un utilisateur occasionnel qui fait des plannings de chantier, et faire un lifting du ruban jugé « cheap ».
+
+**Décisions** (cahier `docs/plans/polish.md`, lots séquentiels P1 à P4) :
+- **D1** Décaler des tâches de n jours ouvrés (`task.shift`, MCP `shift_tasks`) : contrainte « Début au plus tôt le » posée sur une tâche automatique, dates décalées sur une tâche manuelle (hypothèse, règle `R-xxx` du lot P1).
+- **D2** Colonne Indicateurs (note, contrainte, échéance dépassée, manuelle, inactive, achevée), présente par défaut après N°.
+- **D3** Mise en forme du texte par tâche (gras, italique, couleur, surlignage, pinceau), dans le style du document, pas dans le MSPDI (le format ne la porte pas).
+- **D4** Regrouper par un champ (champ personnalisé texte comme « Lot », ressource, critique, jalon), mémorisé et imprimé ; gestes de structure grisés pendant le groupement.
+- **D5** Petits gains : bouton Inspecter (ouvre « Pourquoi cette date ? »), Zoom sur les tâches sélectionnées, libellés « Atteindre la tâche » et « Définir le planning de référence ».
+- **D6** Lifting du ruban et de la chronologie : accent violet de la marque (ADR-0021) en touche seulement, onglet actif souligné, surface neutre, boutons à coins doux, clair et sombre.
+
+**Écartés (Pareto).** Groupe Police complet (police, taille : nuit à la lisibilité d'un planning), Avancement conforme et Respecter les liaisons (les boutons 0-100 % et « Mettre à jour le projet » couvrent le suivi), mode « manuel » des nouvelles tâches (piège pour le débutant ; on reste en automatique), Utilisation des tâches et Planificateur d'équipe (plannings en heures par ressource, hors usage visé), Tables ▾, ligne 0 du projet, Mettre en surbrillance, sous-projets, liaisons inter-projets, Réseau, Calendrier, fenêtres multiples, orthographe, Livrable, durée estimée « ? ».
+
+**Méthode.** Un agent à la fois (machine à mémoire partagée ; incident du 2026-11-04 : suite de tests de l'interface lancée en même temps que d'autres tâches lourdes), tests ciblés en local, suite complète par la CI de chaque PR.
+
