@@ -29,6 +29,8 @@ fn class_name(c: Class) -> std::borrow::Cow<'static, str> {
     match c {
         Class::Phase(i, r) => format!("ph{i}{}", bar_name(r)).into(),
         Class::PhaseRow(i) => format!("pr{i}").into(),
+        Class::TaskText(i) => format!("tx{i}").into(),
+        Class::TaskFill(i) => format!("tf{i}").into(),
         Class::TextOnBar(r, None) => format!("ti{}", bar_name(r)).into(),
         Class::TextOnBar(r, Some(i)) => format!("ti{i}{}", bar_name(r)).into(),
         other => fixed_class_name(other).into(),
@@ -57,7 +59,12 @@ const fn fixed_class_name(c: Class) -> &'static str {
         Class::LinkCritical => "lc",
         Class::Arrow => "la",
         Class::ArrowCritical => "lac",
-        Class::Text | Class::Phase(..) | Class::PhaseRow(_) | Class::TextOnBar(..) => "",
+        Class::Text
+        | Class::Phase(..)
+        | Class::PhaseRow(_)
+        | Class::TextOnBar(..)
+        | Class::TaskText(_)
+        | Class::TaskFill(_) => "",
         Class::TextStrong => "ts",
         Class::TextMuted => "tw",
         Class::TextCut => "tc",
@@ -201,7 +208,12 @@ fn style(out: &mut String, scene: &Scene) {
         }
         let _ = write!(out, ".{name}{{");
         match class {
-            Class::TextStrong | Class::TextMuted | Class::TextCut | Class::StatusLabel | Class::Title => {
+            Class::TextStrong
+            | Class::TextMuted
+            | Class::TextCut
+            | Class::StatusLabel
+            | Class::Title
+            | Class::TaskText(_) => {
                 out.push_str("fill:");
                 out.push_str(&paint.fill.map_or_else(|| text.clone(), crate::style::Rgb::hex));
                 if *class == Class::TextStrong {
@@ -335,6 +347,10 @@ fn item(out: &mut String, it: &Item, base_size: u16) {
             // Un texte en gras hors des classes appuyées garde son poids.
             if font.weight == FontWeight::SemiBold && it.class != Class::TextStrong {
                 out.push_str(" font-weight=\"bold\"");
+            }
+            // Italique d'une tâche (finitions P2, H-UI-126).
+            if font.italic {
+                out.push_str(" font-style=\"italic\"");
             }
             class_attr(out, it.class);
             out.push_str(" x=\"");
