@@ -735,12 +735,18 @@ fn measure_edit_latency(name: &str, baseline: bool) {
     let labels = plannercraft_ui_egui::i18n::Texts::new(plannercraft_ui_egui::Language::Fr)
         .format_labels()
         .clone();
-    // Colonne Durée : deux crans à droite depuis l'ID.
+    // Colonne Durée : autant de crans à droite depuis l'ID que de colonnes
+    // affichées avant elle (Indicateurs comprise depuis les finitions P1).
+    let steps = app
+        .state
+        .visible_columns()
+        .position(|c| c.column == Column::Duration)
+        .unwrap();
     app.dispatch(Action::Nav {
         mv: plannercraft_ui_egui::nav::NavMove::RowStart,
         extend: false,
     });
-    for _ in 0..2 {
+    for _ in 0..steps {
         app.dispatch(Action::Nav {
             mv: plannercraft_ui_egui::nav::NavMove::Right,
             extend: false,
@@ -2243,8 +2249,8 @@ fn field_picker_5000() {
 // --- UX2 L7 --- (`wide_table_5000`)
 
 /// Seconde passe UX, lot L7 (§ 2.5) : réseau de 5 000 tâches, ligne de
-/// base 0 posée puis une durée modifiée (écarts non nuls), 30 colonnes
-/// affichées (les 6 par défaut, lignes de base 0 à 3, écarts, marges,
+/// base 0 posée puis une durée modifiée (écarts non nuls), 31 colonnes
+/// affichées (les 7 par défaut, Indicateurs comprise, lignes de base 0 à 3, écarts, marges,
 /// dates au plus tôt et au plus tard, travail, successeurs…) ; 120 images
 /// de molette verticale puis 60 de défilement horizontal de la table ;
 /// image médiane < 16 ms, p95 < 32 ms. Textes des colonnes calculés une
@@ -2255,6 +2261,7 @@ fn wide_table_5000() {
     use plannercraft_ui_egui::action::ColumnOp;
     let (mut app, mut bench) = nav_bench();
     set_baseline(&mut app, &mut bench);
+    let before = app.state.columns.len();
     let wide = [
         Column::BaselineStart,
         Column::BaselineFinish,
@@ -2288,7 +2295,9 @@ fn wide_table_5000() {
     let t0 = Instant::now();
     bench.settle(&mut app);
     let fill = t0.elapsed();
-    assert_eq!(app.state.columns.len(), 30);
+    // Colonnes par défaut (Indicateurs comprise depuis les finitions P1)
+    // plus les 24 insérées.
+    assert_eq!(app.state.columns.len(), before + wide.len());
     for _ in 0..WARMUP {
         bench.frame(&mut app, wheel_events(-WHEEL_STEP));
     }
