@@ -267,6 +267,19 @@ fn check_keymap_entry(i: usize) {
             press(&mut harness, i);
             assert!(!harness.state().state.ribbon.collapsed);
         }
+        // Finitions P2 (H-UI-127) : Ctrl/Cmd+B, Ctrl/Cmd+Maj+I sur la tâche
+        // active ; une entrée d'annulation chacune.
+        Binding::Ui(UiBinding::ToggleBold | UiBinding::ToggleItalic) => {
+            let mut harness = harness();
+            open_demo(&mut harness);
+            let uid = harness.state().selection.expect("tâche active");
+            press(&mut harness, i);
+            let doc = harness.state().document.as_ref().unwrap();
+            let t = plannercraft_automation::command::text_style::task_text_of(doc.project(), uid);
+            let bold = binding == Binding::Ui(UiBinding::ToggleBold);
+            assert_eq!((t.bold, t.italic), (bold, !bold), "{t:?}");
+            assert_eq!(history_len(harness.state()), (1, 0));
+        }
         other => panic!("entrée {i} sans vérification : {other:?}"),
     }
 }
@@ -375,6 +388,8 @@ keymap_entry_tests! {
     ui_keymap_each_shortcut_dispatches_82 => 82,
     ui_keymap_each_shortcut_dispatches_83 => 83,
     ui_keymap_each_shortcut_dispatches_84 => 84,
+    ui_keymap_each_shortcut_dispatches_85 => 85,
+    ui_keymap_each_shortcut_dispatches_86 => 86,
 }
 
 /// Lot refusé : UID absent.
