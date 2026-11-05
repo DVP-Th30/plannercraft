@@ -69,7 +69,7 @@ pub const TABLE_WIDTH_MIN: u16 = 120;
 pub const TABLE_WIDTH_MAX: u16 = 4_000;
 
 /// Largeur par défaut de la table : somme des colonnes visibles par défaut.
-pub const TABLE_WIDTH_DEFAULT: u16 = 642;
+pub const TABLE_WIDTH_DEFAULT: u16 = 670;
 
 /// Fichiers récents gardés au plus (H-UI-28).
 pub const MAX_RECENT_FILES: usize = 10;
@@ -156,6 +156,10 @@ pub struct UiState {
     /// Volet de détails « Formulaire tâche » (seconde passe UX, H-UI-111,
     /// H-UI-112).
     pub details: DetailsPrefs,
+    /// Colonne Indicateurs déjà ajoutée (finitions P1, H-UI-122) : un état
+    /// mémorisé sans ce champ (ou à faux) reçoit la colonne une fois, après
+    /// l'ID ; la masquer ensuite est respecté.
+    pub indicators_added: bool,
 }
 
 /// Préférences du volet de détails (seconde passe UX, ADR-0019 D5, D6).
@@ -455,11 +459,7 @@ impl Default for UiState {
             language: LanguagePref::default(),
             theme: ThemePref::default(),
             zoom: TimeScaleZoom::default(),
-            columns: Column::ALL
-                .into_iter()
-                .filter(|c| c.default_visible())
-                .map(ColumnState::default_for)
-                .collect(),
+            columns: default_columns(),
             table_width: TABLE_WIDTH_DEFAULT,
             diagnostics_open: false,
             view: ViewKind::default(),
@@ -476,8 +476,46 @@ impl Default for UiState {
             timeline_visible: true,
             timeline_height: TIMELINE_HEIGHT_DEFAULT,
             details: DetailsPrefs::default(),
+            indicators_added: true,
         }
     }
+}
+
+/// Colonnes affichées d'un état neuf : ID, Indicateurs (finitions P1,
+/// H-UI-122), puis les colonnes visibles par défaut de [`Column::ALL`].
+fn default_columns() -> Vec<ColumnState> {
+    let mut columns: Vec<ColumnState> = Column::ALL
+        .into_iter()
+        .filter(|c| c.default_visible())
+        .map(ColumnState::default_for)
+        .collect();
+    columns.insert(1.min(columns.len()), ColumnState::default_for(Column::Indicators));
+    columns
+}
+
+/// Migration unique de la colonne Indicateurs (H-UI-122) : ajoutée après
+/// l'ID si elle n'a jamais été ajoutée (`state.indicators_added` faux),
+/// qu'elle n'est pas déjà affichée et qu'il reste de la place ; la table
+/// s'élargit d'autant (les autres colonnes gardent leur largeur visible).
+/// Le drapeau passe à vrai.
+fn add_indicators_once(state: &mut UiState) {
+    let columns = &mut state.columns;
+    if !state.indicators_added
+        && !columns.iter().any(|c| c.column == Column::Indicators)
+        && columns.len() < MAX_COLUMNS
+    {
+        let at = columns
+            .iter()
+            .position(|c| c.column == Column::Id)
+            .map_or(0, |i| i.saturating_add(1));
+        let added = ColumnState::default_for(Column::Indicators);
+        state.table_width = state
+            .table_width
+            .saturating_add(added.width)
+            .clamp(TABLE_WIDTH_MIN, TABLE_WIDTH_MAX);
+        columns.insert(at, added);
+    }
+    state.indicators_added = true;
 }
 
 impl UiState {
@@ -550,7 +588,10 @@ impl UiState {
             timeline_visible: reader.field("timeline_visible", defaults.timeline_visible),
             timeline_height: reader.field("timeline_height", defaults.timeline_height),
             details: reader.field("details", defaults.details),
+            indicators_added: reader.field("indicators_added", false),
         };
+        let mut state = state.normalized();
+        add_indicators_once(&mut state);
         let warning = (!reader.bad.is_empty()).then_some(StateLoadError::Fields(reader.bad));
         (state.normalized(), warning)
     }
@@ -1054,8 +1095,8 @@ mod tests {
         assert_eq!(state.gantt_style, GanttStyle::Standard);
         assert_eq!(state.recent.len(), 0);
         // Colonnes J7 et colonne « Mode » (J8, lot L11) masquées : absentes
-        // de la liste v2.
-        assert_eq!(state.columns.len(), 6);
+        // de la liste v2 ; Indicateurs ajoutée une fois (finitions P1).
+        assert_eq!(state.columns.len(), 7);
         assert!(!state.shown(Column::Mode) && !state.shown(Column::TotalSlack));
     }
 
@@ -1201,7 +1242,7 @@ mod tests {
         assert!(warning.is_none(), "{warning:?}");
         assert!(read.chart_only);
         state.chart_only = false;
-        assert_eq!(state.visible_columns().count(), 6);
+        assert_eq!(state.visible_columns().count(), 7);
         assert_eq!(state.effective_table_width(), TABLE_WIDTH_DEFAULT);
     }
 
@@ -1296,6 +1337,7 @@ mod tests {
             order,
             [
                 Column::Id,
+                Column::Indicators,
                 Column::Name,
                 Column::Start,
                 Column::Finish,
@@ -1313,7 +1355,10 @@ mod tests {
             {"column":"free_slack","width":"x"}]}"#;
         let (state, warning) = UiState::from_json_lenient(json);
         let order: Vec<Column> = state.columns.iter().map(|c| c.column).collect();
-        assert_eq!(order, [Column::Id, Column::Name, Column::Duration]);
+        assert_eq!(
+            order,
+            [Column::Id, Column::Indicators, Column::Name, Column::Duration]
+        );
         assert_eq!(state.column(Column::Duration).unwrap().width, 70);
         assert!(matches!(&warning, Some(StateLoadError::Fields(f)) if f == &["columns"]));
         // `columns` qui n'est pas un tableau : colonnes par défaut.
@@ -1442,9 +1487,10 @@ mod tests {
         // La lecture tolérante normalise aussi ; liste vide : ID et Nom.
         let (read, warning) = UiState::from_json_lenient(r#"{"version":2,"table_width":0,"columns":[]}"#);
         assert!(warning.is_none());
-        assert_eq!(read.table_width, TABLE_WIDTH_MIN);
+        // Bornée, puis élargie de la colonne Indicateurs ajoutée une fois.
+        assert_eq!(read.table_width, TABLE_WIDTH_MIN + 28);
         let order: Vec<Column> = read.columns.iter().map(|c| c.column).collect();
-        assert_eq!(order, [Column::Id, Column::Name]);
+        assert_eq!(order, [Column::Id, Column::Indicators, Column::Name]);
     }
 
     /// P63 (état v1 relu) : l'état v1 par défaut de `main` et un état v1
@@ -1481,6 +1527,7 @@ mod tests {
             shown,
             [
                 (Column::Id, 40),
+                (Column::Indicators, 28),
                 (Column::Name, 300),
                 (Column::Start, 96),
                 (Column::Finish, 96),
@@ -1520,8 +1567,13 @@ mod tests {
                 )
             )
         );
+        let name_at = state
+            .columns
+            .iter()
+            .position(|c| c.column == Column::Name)
+            .unwrap();
         assert!(state.set_column_settings(
-            1,
+            name_at,
             ColumnState {
                 title: Some("Tâche".to_owned()),
                 align: Some(crate::column::CellAlign::Center),

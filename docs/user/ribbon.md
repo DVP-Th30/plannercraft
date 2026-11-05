@@ -19,10 +19,10 @@ La **barre de menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aid
 
 | Onglet | Groupes et boutons |
 |---|---|
-| **Tâche** | Affichage (Diagramme de Gantt ▾) · Presse-papiers (Coller, Couper, Copier, Collage spécial…) · Mise en forme (Mettre en forme les barres, Modèles…) · Planification (0 % à 100 %, Lier, Délier, Indenter, Désindenter, Désactiver) · Tâches (Planifier manuellement) · Insérer (Tâche, Récapitulative, Jalon) · Propriétés (Informations, Notes, Ajouter à la chronologie) · Édition (Rechercher, Défiler jusqu'à la tâche, Remplir ▾ : Vers le bas, À droite ; Effacer ▾) |
+| **Tâche** | Affichage (Diagramme de Gantt ▾) · Presse-papiers (Coller, Couper, Copier, Collage spécial…) · Mise en forme (Mettre en forme les barres, Modèles…) · Planification (0 % à 100 %, Lier, Délier, Indenter, Désindenter, Désactiver, Décaler ▾) · Tâches (Planifier manuellement, Inspecter) · Insérer (Tâche, Récapitulative, Jalon) · Propriétés (Informations, Notes, Ajouter à la chronologie) · Édition (Rechercher, Atteindre la tâche, Remplir ▾ : Vers le bas, À droite ; Effacer ▾) |
 | **Ressource** | Affichage (Feuille des ressources, Utilisation des ressources) · Affectations (Affecter les ressources) |
-| **Projet** | Propriétés (Informations sur le projet, Champs personnalisés, Modifier le temps de travail) · Planification (Définir la référence) · État (Mettre à jour le projet) · Impression (Mode impression, Mise en page…, Exporter en PDF…) |
-| **Affichage** | Affichages des tâches (Diagramme de Gantt, Gantt de suivi) · Affichages des ressources · Données (Trier ▾, Mode plan ▾, Filtre ▾) · Zoom (Échelle de temps ▾, Zoom avant, Zoom arrière, Projet entier) · Fractionner l'affichage (Chronologie, Détails, Volet Opérations IA, Diagnostics) · Interface (Thème ▾, Langue ▾, Réduire le ruban) |
+| **Projet** | Propriétés (Informations sur le projet, Champs personnalisés, Modifier le temps de travail) · Planification (Définir le planning de référence) · État (Mettre à jour le projet) · Impression (Mode impression, Mise en page…, Exporter en PDF…) |
+| **Affichage** | Affichages des tâches (Diagramme de Gantt, Gantt de suivi) · Affichages des ressources · Données (Trier ▾, Mode plan ▾, Filtre ▾) · Zoom (Échelle de temps ▾, Zoom avant, Zoom arrière, Projet entier, Tâches sélectionnées) · Fractionner l'affichage (Chronologie, Détails, Volet Opérations IA, Diagnostics) · Interface (Thème ▾, Langue ▾, Réduire le ruban) |
 | **Format** | Colonnes (Insérer une colonne, Paramètres de champ, Colonnes ▾) · Styles des barres (Mettre en forme les barres, Tâches critiques, Mois relatifs) · Styles du diagramme (Modèles de mise en forme…) · Afficher/Masquer (Graphique seul) |
 
 Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs petits boutons (l'info-bulle reste), puis se replient en un seul bouton à menu portant le nom du groupe.
@@ -39,8 +39,10 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Marquer l'avancement | Tâche → Planification → **0 %** à **100 %** |
 | Planification manuelle ou automatique | Tâche → Tâches → **Planifier manuellement** (bouton enfoncé si la tâche active est manuelle) |
 | Désactiver une tâche | Tâche → Planification → **Désactiver** |
+| Décaler des tâches de quelques jours | Tâche → Planification → **Décaler ▾** (+1 jour, +1 semaine, +4 semaines, −1 jour, −1 semaine, Personnalisé… : « 3j », « -2sem ») ; menu Tâche → Décaler. Une tâche automatique reçoit la contrainte « Début au plus tôt le » ; une tâche manuelle garde sa durée ; une récapitulative décale ses tâches ; les tâches achevées ou inactives ne bougent pas. Une seule annulation, et un message dit ce qui a été fait |
+| Comprendre pourquoi une tâche commence à cette date | Tâche → Tâches → **Inspecter** (volet « Pourquoi cette date ? ») |
 | Informations sur la tâche, notes | Tâche → Propriétés → **Informations** (Maj+F2), **Notes** |
-| Retrouver la barre d'une tâche | Tâche → Édition → **Défiler jusqu'à la tâche** |
+| Retrouver la barre d'une tâche | Tâche → Édition → **Atteindre la tâche** |
 | Rechercher | Tâche → Édition → **Rechercher** (Ctrl+F ; suivant Ctrl+G) |
 | Recopier vers le bas | Tâche → Édition → **Remplir ▾** → Vers le bas (Ctrl+D) |
 | Recopier vers la droite | Tâche → Édition → **Remplir ▾** → À droite (Ctrl+R), ou Édition → Remplir à droite |
@@ -48,11 +50,13 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Gantt de suivi, feuille des ressources | Affichage → Affichages des tâches / des ressources, ou Tâche → **Diagramme de Gantt ▾** |
 | Trier, filtrer, niveau de plan | Affichage → Données (effacer le filtre : F3 ; trier par N° : Maj+F3) |
 | Changer l'échelle de temps | Affichage → Zoom → **Échelle de temps ▾**, **Zoom avant/arrière** (Ctrl+/ et Ctrl+-), **Projet entier** |
+| Voir en entier les barres des tâches sélectionnées | Affichage → Zoom → **Tâches sélectionnées** |
+| Repérer les notes, contraintes, échéances dépassées | Colonne **ⓘ** (Indicateurs), après N° : survoler l'icône pour le détail ; cliquer sur l'icône de note ouvre les notes |
 | Afficher ou masquer la chronologie | Affichage → Fractionner l'affichage → **Chronologie** (ou clic droit dans la frise → Masquer, ou son ×) |
 | Formulaire de la tâche (prédécesseurs, successeurs, ressources) | Affichage → Fractionner l'affichage → **Détails** (voir `panes-columns-fields.md`) |
 | Ajouter des tâches à la chronologie | Tâche → Propriétés → **Ajouter à la chronologie**, ou clic droit sur la tâche |
 | Calendrier, jours fériés | Projet → Propriétés → **Modifier le temps de travail** |
-| Ligne de base | Projet → Planification → **Définir la référence** |
+| Ligne de base | Projet → Planification → **Définir le planning de référence** |
 | Imprimer, PDF | Projet → Impression → **Mode impression**, **Mise en page…**, **Exporter en PDF…** |
 | Colonnes de la table | Format → **Insérer une colonne**, **Paramètres de champ** (Alt+F3), **Colonnes ▾** ; clic droit sur un titre ; colonne « Ajouter une nouvelle colonne » en bout de table |
 | Renommer Texte1, Nombre1… | Projet → Propriétés → **Champs personnalisés** |

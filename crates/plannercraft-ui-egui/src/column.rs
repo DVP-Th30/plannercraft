@@ -213,6 +213,10 @@ pub enum Column {
     CostVariance,
     /// Champ personnalisé (Texte1, Nombre1… ; H-UI-118, servi par L9).
     Custom(CustomFieldId),
+    /// Indicateurs (finitions P1, H-UI-122) : icônes de note, contrainte,
+    /// échéance dépassée, tâche manuelle, inactive, achevée ; lecture
+    /// seule, titre ⓘ dessiné.
+    Indicators,
 }
 
 /// Alignement horizontal du texte d'une cellule (ou d'un titre, H-UI-115).
@@ -333,6 +337,10 @@ impl Column {
         Self::BaselineCost,
         Self::CostVariance,
     ];
+
+    /// Champs des finitions P1 (H-UI-122), hors de [`Column::ALL`] et de
+    /// [`Column::FIELDS`] : dans le catalogue après les 14 colonnes.
+    pub const EXTRA: [Self; 1] = [Self::Indicators];
 
     /// Largeur minimale d'une colonne, en points logiques.
     pub const MIN_WIDTH: u16 = 24;
@@ -455,6 +463,7 @@ impl Column {
             Self::ResourceNames | Self::ConstraintType => 140,
             Self::UniqueId | Self::OutlineLevel | Self::Summary | Self::Priority => 70,
             Self::Notes => 160,
+            Self::Indicators => 28,
             Self::Custom(id) => match id.kind() {
                 CustomKind::Text => 120,
                 CustomKind::Date => 96,
@@ -483,6 +492,7 @@ impl Column {
     /// Alignement du texte des cellules : nombres à droite (ID, durée,
     /// marge), indicateurs centrés, le reste à gauche.
     #[must_use]
+    #[allow(clippy::too_many_lines, reason = "une ligne par champ de la liste H-UI-117")]
     pub const fn align(self) -> CellAlign {
         match self {
             Self::Id
@@ -531,9 +541,12 @@ impl Column {
             | Self::RemainingCost
             | Self::BaselineCost
             | Self::CostVariance => CellAlign::Right,
-            Self::Critical | Self::Summary | Self::Milestone | Self::Active | Self::EffortDriven => {
-                CellAlign::Center
-            }
+            Self::Critical
+            | Self::Summary
+            | Self::Milestone
+            | Self::Active
+            | Self::EffortDriven
+            | Self::Indicators => CellAlign::Center,
             Self::Name
             | Self::Start
             | Self::Finish
@@ -605,6 +618,7 @@ impl Column {
             Self::BaselineFinish => TextId::ColBaselineFinish,
             Self::FinishVariance => TextId::ColFinishVariance,
             Self::Mode => TextId::ColMode,
+            Self::Indicators => TextId::ColIndicators,
             Self::UniqueId => TextId::ColUniqueId,
             Self::Wbs => TextId::ColWbs,
             Self::OutlineLevel => TextId::ColOutlineLevel,

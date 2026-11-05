@@ -1484,7 +1484,7 @@ impl App {
 
     /// Affiche un refus de commande : message traduit par son code, détail
     /// du moteur dans la langue de l'interface.
-    fn report_command_error(&mut self, error: &CommandError) {
+    pub(crate) fn report_command_error(&mut self, error: &CommandError) {
         let project = self.document.as_ref().map(OpenDocument::project);
         let (text, detail) =
             crate::error_text::user_message(error, project, &self.texts, self.text_language());
@@ -1748,6 +1748,47 @@ impl App {
         self.clamp_gantt_scroll();
     }
 
+    /// Affichage → Zoom → Tâches sélectionnées (finitions P1, H-UI-124) :
+    /// échelle la plus fine où les barres des tâches sélectionnées tiennent
+    /// dans la largeur du Gantt ([`crate::timescale::fit_span_zoom`]), puis
+    /// défilement jusqu'à la première barre (même marge que « Atteindre la
+    /// tâche »). Dates lues du planning (barres affichées des tâches
+    /// exclues comprises) ; aucune barre : rien.
+    fn zoom_to_selection(&mut self) {
+        use plannercraft_core::schedule::TaskOutcome;
+        if self.state.view != ViewKind::Gantt {
+            return;
+        }
+        let Some(document) = &self.document else {
+            return;
+        };
+        let schedule = document.schedule();
+        let spans = self
+            .selected
+            .uids()
+            .iter()
+            .filter_map(|uid| match schedule.get(*uid) {
+                Some(TaskOutcome::Scheduled(s)) => Some((s.start, s.finish)),
+                Some(TaskOutcome::Excluded { display, .. }) => display.map(|span| (span.start, span.finish)),
+                None => None,
+            });
+        let Some((start, finish)) = spans.reduce(|(a, b), (c, d)| (a.min(c), b.max(d))) else {
+            return;
+        };
+        let range = document.range;
+        let width = self.current_gantt_width();
+        let Some(zoom) = crate::timescale::fit_span_zoom(start, finish, width) else {
+            return;
+        };
+        self.view.needs_fit = false;
+        self.state.zoom = zoom;
+        let axis = crate::timescale::TimeAxis::new(range, zoom, 0.0);
+        if let Some(x) = crate::nav::scroll_for_x(axis.x(start), width) {
+            self.view.gantt_scroll_x = x;
+        }
+        self.clamp_gantt_scroll();
+    }
+
     /// Centre du Gantt visible, ancre des boutons de zoom et d'« Ajuster ».
     fn gantt_center(&self) -> f32 {
         self.current_gantt_width() / 2.0
@@ -1898,7 +1939,8 @@ impl App {
                 | DialogKind::Baseline
                 | DialogKind::Reschedule
                 | DialogKind::AssignResources
-                | DialogKind::CustomFields),
+                | DialogKind::CustomFields
+                | DialogKind::Shift),
             ) => self.open_window(kind),
             Action::CloseDialog => self.close_dialog(),
             // Contrat J7 (lot L0) : actions câblées par leur lot.
@@ -1971,6 +2013,8 @@ impl App {
                 self.scroll_to_task();
                 self.clamp_gantt_scroll();
             }
+            // Finitions P1 (H-UI-124).
+            Action::ZoomToSelection => self.zoom_to_selection(),
             Action::ShowTaskNotes if self.state.view != ViewKind::Gantt => {}
             Action::ShowTaskNotes => {
                 if let Some(uid) = self.selection {
@@ -2481,6 +2525,11 @@ impl App {
         }
         let session = &document.session;
         let result = match cmd {
+            // Finitions P1 (H-UI-121) : lot `task.shift`, compte rendu.
+            TaskCmd::Shift(step) => {
+                self.shift_step(step);
+                return;
+            }
             TaskCmd::MarkPercent(step) => helpers::mark_percent(session, &uids, step),
             TaskCmd::ToggleMode => helpers::toggle_mode(session, &uids),
             TaskCmd::ToggleActive => helpers::toggle_active(session, &uids),
@@ -2556,7 +2605,8 @@ impl App {
                 | DialogBody::CsvImport(_)
                 | DialogBody::Gallery(_)
                 | DialogBody::PageSetup(_)
-                | DialogBody::CustomFields(_),
+                | DialogBody::CustomFields(_)
+                | DialogBody::Shift(_),
             )
             | None => Shown::TaskInfo(task_info::Outcome::Cancel),
         };

@@ -46,6 +46,7 @@ pub mod page_setup;
 pub mod paste;
 pub mod project_info;
 pub mod reschedule;
+pub mod shift;
 pub mod sort;
 pub mod task_info;
 pub mod working_time;
@@ -124,6 +125,9 @@ pub enum DialogBody {
     /// « Champs personnalisés » (seconde passe UX, lot L9, H-UI-118),
     /// hébergée comme les fenêtres du lot L12.
     CustomFields(Box<custom_fields::CustomFieldsState>),
+    /// « Décaler les tâches » (finitions P1, H-UI-121), hébergée comme les
+    /// fenêtres du lot L12 ; « OK » passe par `App::shift_selection`.
+    Shift(Box<shift::ShiftState>),
 }
 
 impl DialogBody {
@@ -138,6 +142,7 @@ impl DialogBody {
                 | Self::Reschedule(_)
                 | Self::Assign(_)
                 | Self::CustomFields(_)
+                | Self::Shift(_)
         )
     }
 
@@ -151,6 +156,7 @@ impl DialogBody {
             Self::Reschedule(s) => Some(s.key),
             Self::CustomFields(s) => Some(s.key),
             Self::Empty
+            | Self::Shift(_)
             | Self::TaskInfo(_)
             | Self::Link(_)
             | Self::Assign(_)
@@ -249,6 +255,7 @@ impl App {
             DialogKind::CustomFields => {
                 DialogBody::CustomFields(Box::new(custom_fields::CustomFieldsState::open(s, key)))
             }
+            DialogKind::Shift => DialogBody::Shift(Box::default()),
             DialogKind::TaskInformation(_)
             | DialogKind::Link { .. }
             | DialogKind::PasteSpecial
@@ -289,6 +296,7 @@ impl App {
             (Some(_), Some(DialogBody::CustomFields(state))) => {
                 simple(custom_fields::show(ctx, &self.texts, state))
             }
+            (Some(_), Some(DialogBody::Shift(state))) => simple(shift::show(ctx, &self.texts, state)),
             (Some(_), Some(DialogBody::Assign(state))) => match assign::show(ctx, &self.texts, state) {
                 assign::AssignOutcome::Open => Shown::Open,
                 assign::AssignOutcome::Close => Shown::Cancel,
@@ -457,6 +465,7 @@ impl App {
                 **state = fresh;
             }
             DialogBody::Empty
+            | DialogBody::Shift(_)
             | DialogBody::TaskInfo(_)
             | DialogBody::Link(_)
             | DialogBody::Assign(_)
@@ -478,6 +487,13 @@ impl App {
     )]
     fn commit_window(&mut self) {
         if self.reread_if_stale() {
+            return;
+        }
+        if matches!(
+            self.view.dialog.as_ref().map(|d| &d.body),
+            Some(DialogBody::Shift(_))
+        ) {
+            self.commit_shift();
             return;
         }
         let lang = self.text_language();
@@ -523,6 +539,7 @@ impl App {
                 }
             },
             DialogBody::Empty
+            | DialogBody::Shift(_)
             | DialogBody::TaskInfo(_)
             | DialogBody::Link(_)
             | DialogBody::Assign(_)
@@ -574,6 +591,7 @@ impl App {
                     DialogBody::Reschedule(state) => state.error = Some(message),
                     DialogBody::CustomFields(state) => state.error = Some(message),
                     DialogBody::Empty
+                    | DialogBody::Shift(_)
                     | DialogBody::TaskInfo(_)
                     | DialogBody::Link(_)
                     | DialogBody::Assign(_)
@@ -581,6 +599,51 @@ impl App {
                     | DialogBody::CsvImport(_)
                     | DialogBody::Gallery(_)
                     | DialogBody::PageSetup(_) => {}
+                }
+            }
+        }
+    }
+
+    /// « OK » de « Décaler les tâches » (H-UI-121) : saisie relue
+    /// ([`shift::ShiftState::amount`]), puis le lot `task.shift` de la
+    /// sélection ([`App::shift_selection`]) ; refus affiché dans la fenêtre,
+    /// qui reste ouverte.
+    fn commit_shift(&mut self) {
+        let lang = self.text_language();
+        let (
+            Some(document),
+            Some(DialogState {
+                body: DialogBody::Shift(state),
+                ..
+            }),
+        ) = (&self.document, &mut self.view.dialog)
+        else {
+            self.close_dialog();
+            return;
+        };
+        let by = match state.amount(document.project(), &self.texts, lang) {
+            Ok(by) => by,
+            Err(message) => {
+                state.error = Some(message);
+                return;
+            }
+        };
+        let shown = state.text.trim().to_owned();
+        match self.shift_selection(by, &shown, EditOrigin::Dialog) {
+            Ok(()) => self.close_dialog(),
+            Err(error) => {
+                let message = task_info::command_message(
+                    &self.texts,
+                    &error,
+                    self.document.as_ref().map(OpenDocument::project),
+                    lang,
+                );
+                if let Some(DialogState {
+                    body: DialogBody::Shift(state),
+                    ..
+                }) = &mut self.view.dialog
+                {
+                    state.error = Some(message);
                 }
             }
         }

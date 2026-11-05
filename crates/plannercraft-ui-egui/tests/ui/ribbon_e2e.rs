@@ -44,7 +44,7 @@ use plannercraft_ui_egui::selection::SelectMode;
 use plannercraft_ui_egui::{Action, App, DocOrigin, Env, FileService, LanguagePref, ThemePref, UiState};
 
 use crate::filters::shown;
-use crate::{click, fr, harness_for, in_ribbon, now, ribbon_click, ribbon_menu, screen_axis};
+use crate::{click, fr, in_ribbon, now, ribbon_click, ribbon_menu, screen_axis};
 
 /// Demandes d'enregistrement reçues par le service en mémoire.
 type Saved = Rc<RefCell<Vec<SaveRequest>>>;
@@ -109,6 +109,19 @@ fn timeline(app: &App) -> Vec<u32> {
 }
 
 /// Sélectionne `first`, puis étend jusqu'à `last` (Maj+clic).
+/// Harnais 1 600 × 720 : depuis les finitions P1 (Décaler ▾, Inspecter),
+/// l'onglet Tâche replie Propriétés à 1 280 px ; le scénario clique ses
+/// éléments dans le ruban déplié.
+fn wide(app: App) -> Harness<'static, App> {
+    Harness::builder()
+        .with_size(egui::vec2(1600.0, 720.0))
+        .with_pixels_per_point(1.0)
+        .with_theme(egui::Theme::Light)
+        .with_os(egui::os::OperatingSystem::Nix)
+        .with_max_steps(8)
+        .build_ui_state(plannercraft_ui_egui::ui, app)
+}
+
 fn select(harness: &mut Harness<'static, App>, first: u32, last: u32) {
     harness.state_mut().dispatch(Action::Select(Some(uid(first))));
     harness.run();
@@ -205,7 +218,7 @@ fn e2e_ribbon() {
             demo: false,
         },
     );
-    let harness = &mut harness_for(app);
+    let harness = &mut wide(app);
     harness.run();
     let initial = project(harness.state()).clone();
     assert_eq!(harness.state().state.ribbon.tab, RibbonTab::Task);
@@ -518,7 +531,7 @@ fn h_ui_79_gallery_keeps_timeline() {
             demo: false,
         },
     );
-    let harness = &mut harness_for(app);
+    let harness = &mut wide(app);
     harness.run();
     add_to_timeline(harness, 3, 4);
     assert_eq!(timeline(harness.state()), [3, 4]);

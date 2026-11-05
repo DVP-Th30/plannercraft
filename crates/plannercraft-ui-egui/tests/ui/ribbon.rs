@@ -878,10 +878,11 @@ fn h_ui_75_no_overflow_widths() {
 }
 
 /// H-UI-75 : la réduction avance par rang avec un rang d'écart entre
-/// « sans libellés » et « replié ». À 1 280 px, Planification, Insérer et
-/// Presse-papiers gardent leurs libellés ; à 1 024 px (fenêtre réduite,
-/// web), Presse-papiers et Mise en forme les gardent et Planification
-/// n'est pas repliée (l'onglet entier demande ~1 540 px).
+/// « sans libellés » et « replié ». À 1 280 px, Planification et
+/// Presse-papiers gardent leurs libellés, Insérer n'est pas replié
+/// (finitions P1 : il perd ses libellés) ; à 1 024 px (fenêtre réduite,
+/// web), Presse-papiers les garde, Mise en forme et Planification ne sont
+/// pas repliées (l'onglet entier demande ~1 540 px).
 #[test]
 fn h_ui_75_task_tab_keeps_labels_when_narrow() {
     for width in [1280.0, 1024.0] {
@@ -895,11 +896,15 @@ fn h_ui_75_task_tab_keeps_labels_when_narrow() {
                 .unwrap()
         };
         assert_eq!(stage(TextId::RibbonGroupClipboard), Stage::Full, "{width}");
-        assert_eq!(stage(TextId::RibbonGroupFormatting), Stage::Full, "{width}");
+        // Finitions P1 : à 1 024 px, Mise en forme perd ses libellés.
+        assert_ne!(stage(TextId::RibbonGroupFormatting), Stage::Folded, "{width}");
         assert_ne!(stage(TextId::RibbonGroupSchedule), Stage::Folded, "{width}");
         if width >= 1280.0 {
+            assert_eq!(stage(TextId::RibbonGroupFormatting), Stage::Full, "{width}");
             assert_eq!(stage(TextId::RibbonGroupSchedule), Stage::Full, "{width}");
-            assert_eq!(stage(TextId::RibbonGroupInsert), Stage::Full, "{width}");
+            // Finitions P1 : Décaler ▾ et Inspecter élargissent l'onglet ;
+            // à 1 280 px, Insérer perd ses libellés mais n'est pas replié.
+            assert_ne!(stage(TextId::RibbonGroupInsert), Stage::Folded, "{width}");
         }
     }
 }
@@ -1154,7 +1159,9 @@ fn h_ui_97_ribbon_clear_contents() {
 /// commande, comme le menu Édition).
 #[test]
 fn h_ui_73_editing_lists_disabled_on_welcome() {
-    let harness = welcome();
+    // 1 920 px : le groupe Édition n'est pas replié (à 1 440 px, il l'est
+    // depuis Décaler ▾ et Inspecter, finitions P1).
+    let harness = sized(ribbon_app(), 1920.0, egui::os::OperatingSystem::Nix);
     for id in [TextId::RibbonFill, TextId::RibbonClear] {
         assert!(disabled(&node(&harness, &fr(id))), "{id:?}");
     }

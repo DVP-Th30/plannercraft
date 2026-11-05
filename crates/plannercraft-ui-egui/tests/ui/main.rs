@@ -64,6 +64,7 @@ mod nav;
 mod outline;
 mod panes;
 mod paste_destination;
+mod polish;
 mod pseudo;
 mod quit;
 mod recovery;
@@ -117,12 +118,25 @@ fn now() -> Moment {
 /// tests J7 lisent la palette de J7, `Palette::LIGHT` ; Sobre, défaut
 /// depuis J8 lot L15, est vérifié par les captures et `visible.rs`).
 fn fr_light() -> UiState {
-    UiState {
+    without_indicators(UiState {
         language: LanguagePref::Fr,
         theme: ThemePref::Light,
         default_template: plannercraft_render::style::TemplateId::Classique,
         ..UiState::default()
+    })
+}
+
+/// État sans la colonne Indicateurs (finitions P1, H-UI-122), table
+/// rétrécie d'autant : les tests d'avant le lot gardent la géométrie de
+/// leurs colonnes (N° puis Nom) ; la colonne est vérifiée par `polish.rs`
+/// et les captures.
+fn without_indicators(mut state: UiState) -> UiState {
+    use plannercraft_ui_egui::column::Column;
+    if let Some(at) = state.columns.iter().position(|c| c.column == Column::Indicators) {
+        let removed = state.columns.remove(at);
+        state.table_width = state.table_width.saturating_sub(removed.width);
     }
+    state
 }
 
 /// Application de test : français, thème clair, aucun sélecteur de fichiers.
