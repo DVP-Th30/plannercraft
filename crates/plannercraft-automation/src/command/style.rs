@@ -455,6 +455,11 @@ pub(super) fn apply(op: &StyleApply, ctx: &mut Ctx<'_>) -> Result<(), CommandErr
                 if over.task_text.is_none() {
                     over.task_text = current.over.task_text;
                 }
+                // Regroupement (finitions P3, H-UI-129) : une vue du
+                // document, gardée aussi.
+                if over.group_by.is_none() {
+                    over.group_by = current.over.group_by;
+                }
             }
             DocStyle {
                 v: STYLE_VERSION,
@@ -555,6 +560,8 @@ pub(super) fn reset_to_template(op: &StyleResetToTemplate, ctx: &mut Ctx<'_>) ->
         None => {
             doc.over = StylePatch {
                 task_text: doc.over.task_text.take(),
+                // Regroupement (finitions P3) : pas une surcharge du modèle.
+                group_by: doc.over.group_by.take(),
                 ..StylePatch::default()
             };
         }
@@ -772,6 +779,9 @@ pub fn save_as_template(
     // Un modèle ne porte pas la mise en forme du texte des tâches : ses UID
     // n'ont de sens que dans ce projet (finitions P2, H-UI-126).
     style.over.task_text = None;
+    // Ni le regroupement (finitions P3, H-UI-129) : un champ personnalisé
+    // n'a de sens que dans ce projet.
+    style.over.group_by = None;
     Ok(NamedStyleView {
         name: name.to_owned(),
         style,

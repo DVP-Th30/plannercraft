@@ -730,6 +730,36 @@ pub struct TextLook {
     pub fill: Option<Rgb>,
 }
 
+/// Regroupement des tâches (finitions P3, ADR-0022 D4, H-UI-129) : une
+/// ligne d'en-tête par valeur, les tâches feuilles du groupe dessous en
+/// ordre des ID (`crate::group`). Une vue du document, gardée dans son
+/// style ; rien dans le MSPDI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupBy {
+    /// Champ personnalisé texte (Texte1 à Texte30) : `{"custom":"text1"}`.
+    Custom(plannercraft_core::CustomFieldId),
+    /// Ressources affectées : une tâche à plusieurs ressources est sous
+    /// chacune ; sans ressource, « (sans valeur) ».
+    Resource,
+    /// Critique, puis non critique.
+    Critical,
+    /// Jalons, puis autres tâches.
+    Milestone,
+}
+
+impl GroupBy {
+    /// Vrai si le regroupement est lisible : un champ personnalisé doit
+    /// être de type texte.
+    #[must_use]
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Custom(field) => field.kind() == plannercraft_core::CustomKind::Text,
+            Self::Resource | Self::Critical | Self::Milestone => true,
+        }
+    }
+}
+
 /// Style complet du planning.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -769,6 +799,10 @@ pub struct PlanStyle {
     /// au plus [`MAX_TASK_TEXTS`], entrées non vides.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub task_text: BTreeMap<u32, TaskText>,
+    /// Regroupement des tâches (finitions P3, H-UI-129) ; aucun modèle
+    /// n'en porte.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_by: Option<GroupBy>,
 }
 
 /// Surcharge partielle des couleurs d'une variante.
@@ -908,6 +942,9 @@ pub struct StylePatch {
     /// remplacée en entier.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_text: Option<BTreeMap<u32, TaskText>>,
+    /// Regroupement des tâches (finitions P3, H-UI-129) ; absent : aucun.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_by: Option<GroupBy>,
 }
 
 impl StylePatch {
@@ -1084,6 +1121,7 @@ impl PlanStyle {
             self.task_text.len() <= MAX_TASK_TEXTS && self.task_text.values().all(|t| !t.is_empty()),
             "task_text",
         )?;
+        check(self.group_by.is_none_or(GroupBy::is_valid), "group_by")?;
         Ok(())
     }
 
@@ -1191,6 +1229,7 @@ impl PlanStyle {
             phases: BTreeMap::new(),
             timeline: TimelineSpec::default(),
             task_text: BTreeMap::new(),
+            group_by: None,
         }
     }
 
@@ -1248,6 +1287,9 @@ impl PlanStyle {
         }
         if let Some(v) = &over.task_text {
             self.task_text.clone_from(v);
+        }
+        if over.group_by.is_some() {
+            self.group_by = over.group_by;
         }
     }
 }

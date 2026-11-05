@@ -372,7 +372,13 @@ fn render(s: &Session, lang: Language, p: &RenderGanttParams) -> Result<Value, T
     // autour des barres formatés ici (règle 3).
     let style = p.style.map_or_else(
         || style::effective_style(s.project(), style::HEADLESS_DEFAULT),
-        |t| plannercraft_render::style::template(t.into()),
+        |t| {
+            // Un modèle demandé garde le regroupement du document
+            // (finitions P3, H-UI-129) : une vue, pas une mise en forme.
+            let mut st = plannercraft_render::style::template(t.into());
+            st.group_by = crate::command::group_by::group_by_of(s.project());
+            st
+        },
     );
     let texts = crate::render_text::SessionTexts { session: s, lang };
     let (svg, report) = plannercraft_render::svg_styled(s.project(), sched, &req, &style, &texts);
