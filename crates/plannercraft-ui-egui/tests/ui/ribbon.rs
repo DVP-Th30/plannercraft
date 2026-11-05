@@ -141,7 +141,7 @@ fn welcome() -> Harness<'static, App> {
 }
 
 /// Ruban sur « P », `width` px.
-fn p_at(width: f32) -> Harness<'static, App> {
+pub(crate) fn p_at(width: f32) -> Harness<'static, App> {
     let mut app = ribbon_app();
     open_p_in(&mut app);
     sized(app, width, egui::os::OperatingSystem::Nix)
@@ -878,11 +878,12 @@ fn h_ui_75_no_overflow_widths() {
 }
 
 /// H-UI-75 : la réduction avance par rang avec un rang d'écart entre
-/// « sans libellés » et « replié ». À 1 280 px, Planification et
-/// Presse-papiers gardent leurs libellés, Insérer n'est pas replié
-/// (finitions P1 : il perd ses libellés) ; à 1 024 px (fenêtre réduite,
-/// web), Presse-papiers les garde, Mise en forme et Planification ne sont
-/// pas repliées (l'onglet entier demande ~1 540 px).
+/// « sans libellés » et « replié ». À 1 280 px, Planification,
+/// Presse-papiers et Texte gardent tous leurs boutons (finitions P2 : le
+/// groupe Texte, 78 px, fait perdre son libellé à « Modèles… » et replier
+/// Insérer) ; à 1 024 px (fenêtre réduite, web), Presse-papiers garde ses
+/// libellés, Texte et Planification ne sont pas repliés (Mise en forme
+/// l'est ; l'onglet entier demande ~1 620 px).
 #[test]
 fn h_ui_75_task_tab_keeps_labels_when_narrow() {
     for width in [1280.0, 1024.0] {
@@ -896,15 +897,15 @@ fn h_ui_75_task_tab_keeps_labels_when_narrow() {
                 .unwrap()
         };
         assert_eq!(stage(TextId::RibbonGroupClipboard), Stage::Full, "{width}");
-        // Finitions P1 : à 1 024 px, Mise en forme perd ses libellés.
-        assert_ne!(stage(TextId::RibbonGroupFormatting), Stage::Folded, "{width}");
+        // Finitions P2 : le groupe Texte (icônes seules) n'est jamais réduit.
+        assert_eq!(stage(TextId::RibbonGroupText), Stage::Full, "{width}");
         assert_ne!(stage(TextId::RibbonGroupSchedule), Stage::Folded, "{width}");
         if width >= 1280.0 {
-            assert_eq!(stage(TextId::RibbonGroupFormatting), Stage::Full, "{width}");
+            // Finitions P2 : Mise en forme se réduit avant Planification
+            // (seul « Modèles… » perd son libellé) ; Insérer est replié.
+            assert_eq!(stage(TextId::RibbonGroupFormatting), Stage::Compact, "{width}");
             assert_eq!(stage(TextId::RibbonGroupSchedule), Stage::Full, "{width}");
-            // Finitions P1 : Décaler ▾ et Inspecter élargissent l'onglet ;
-            // à 1 280 px, Insérer perd ses libellés mais n'est pas replié.
-            assert_ne!(stage(TextId::RibbonGroupInsert), Stage::Folded, "{width}");
+            assert_ne!(stage(TextId::RibbonGroupTasks), Stage::Folded, "{width}");
         }
     }
 }

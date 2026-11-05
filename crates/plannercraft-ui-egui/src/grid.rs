@@ -106,6 +106,9 @@ pub struct CellStyle {
     pub level: u16,
     /// Texte barré (tâche inactive, H-UI-37, J8 lot L11).
     pub strike: bool,
+    /// Italique (oblique d'egui ; texte des tâches, finitions P2,
+    /// H-UI-126).
+    pub italic: bool,
 }
 
 impl CellStyle {
@@ -117,6 +120,7 @@ impl CellStyle {
             faux_bold: false,
             level: 0,
             strike: false,
+            italic: false,
         }
     }
 }
@@ -144,7 +148,21 @@ pub fn cell_font(ui: &egui::Ui) -> FontId {
 /// Galley d'un texte tronqué à `max_w` (« … »), couleur fixée au dessin.
 #[must_use]
 pub fn truncated_galley(painter: &Painter, text: &str, font: FontId, max_w: f32) -> Arc<Galley> {
-    let mut job = LayoutJob::single_section(text.to_owned(), TextFormat::simple(font, Color32::PLACEHOLDER));
+    truncated_galley_styled(painter, text, font, max_w, false)
+}
+
+/// [`truncated_galley`], en italique si `italic` (finitions P2, H-UI-126).
+#[must_use]
+pub fn truncated_galley_styled(
+    painter: &Painter,
+    text: &str,
+    font: FontId,
+    max_w: f32,
+    italic: bool,
+) -> Arc<Galley> {
+    let mut format = TextFormat::simple(font, Color32::PLACEHOLDER);
+    format.italics = italic;
+    let mut job = LayoutJob::single_section(text.to_owned(), format);
     job.wrap = TextWrapping::truncate_at_width(max_w);
     painter.layout_job(job)
 }
@@ -297,7 +315,7 @@ pub fn paint_cells<S: Sheet>(
         if !max_w.is_finite() || max_w < MIN_TEXT_WIDTH {
             continue;
         }
-        let galley = truncated_galley(painter, text, font.clone(), max_w);
+        let galley = truncated_galley_styled(painter, text, font.clone(), max_w, style.italic);
         let size = galley.size();
         let text_x = aligned_x(sheet.align(column), cell_left + indent, w - indent, pad, size.x);
         let text_y = at.rect.top() + (at.rect.height() - size.y) * 0.5;

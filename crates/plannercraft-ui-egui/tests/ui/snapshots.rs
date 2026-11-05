@@ -1167,3 +1167,55 @@ fn snapshot_example_l10_options() {
     assert_eq!(&shown[1..], columns.as_slice());
     assert_eq!(app.message_store().toasts().len(), 1);
 }
+
+/// Finitions P2 (H-UI-126, H-UI-127) : « P » avec 2 en gras, 3 en
+/// italique rouge, 6 surlignée en jaune, 7 en gras bleu surlignée en vert ; 2
+/// sélectionnée (Gras enfoncé dans le groupe Texte). Table seulement : le
+/// Gantt ne change pas.
+fn text_style_capture(theme: ThemePref) -> Harness<'static, App> {
+    let mut harness = p_capture(LanguagePref::Fr, theme, egui::vec2(1280.0, 720.0), 1.0, &[]);
+    let base = harness.state().state.default_template.key();
+    exec_ops(
+        &mut harness,
+        &serde_json::json!([
+            { "op": "task.set_text_style", "tasks": [2], "bold": true, "base": base },
+            { "op": "task.set_text_style", "tasks": [3], "italic": true, "color": "#C00000" },
+            { "op": "task.set_text_style", "tasks": [6], "fill": "#FFF2CC" },
+            { "op": "task.set_text_style", "tasks": [7], "bold": true, "color": "#0072B2", "fill": "#E2F0D9" }
+        ]),
+    );
+    harness
+        .state_mut()
+        .dispatch(Action::Select(Some(plannercraft_core::TaskUid::new(2))));
+    harness.run();
+    let bold = Texts::new(Language::Fr).get(TextId::RibbonBold);
+    let toggled = harness.query_all_by_label(&bold).find_map(|n| {
+        use egui_kittest::kittest::NodeT as _;
+        n.accesskit_node().toggled()
+    });
+    assert_eq!(toggled, Some(egui::accesskit::Toggled::True));
+    harness
+}
+
+#[test]
+fn snapshot_text_style_fr_light() {
+    let mut harness = text_style_capture(ThemePref::Light);
+    snapshot(&mut harness, "text_style_fr_light");
+}
+
+#[test]
+fn snapshot_text_style_fr_dark() {
+    let mut harness = text_style_capture(ThemePref::Dark);
+    snapshot(&mut harness, "text_style_fr_dark");
+}
+
+/// Finitions P2 : la même mise en forme dans l'aperçu du mode impression.
+#[test]
+fn snapshot_text_style_print_fr_light() {
+    let mut harness = text_style_capture(ThemePref::Light);
+    harness.state_mut().dispatch(Action::ShowDialog(
+        plannercraft_ui_egui::action::DialogKind::PageSetup { print_mode: true },
+    ));
+    harness.run();
+    snapshot(&mut harness, "text_style_print_fr_light");
+}

@@ -19,7 +19,7 @@ La **barre de menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aid
 
 | Onglet | Groupes et boutons |
 |---|---|
-| **Tâche** | Affichage (Diagramme de Gantt ▾) · Presse-papiers (Coller, Couper, Copier, Collage spécial…) · Mise en forme (Mettre en forme les barres, Modèles…) · Planification (0 % à 100 %, Lier, Délier, Indenter, Désindenter, Désactiver, Décaler ▾) · Tâches (Planifier manuellement, Inspecter) · Insérer (Tâche, Récapitulative, Jalon) · Propriétés (Informations, Notes, Ajouter à la chronologie) · Édition (Rechercher, Atteindre la tâche, Remplir ▾ : Vers le bas, À droite ; Effacer ▾) |
+| **Tâche** | Affichage (Diagramme de Gantt ▾) · Presse-papiers (Coller, Couper, Copier, Collage spécial…) · Texte (Gras, Italique, Couleur du texte ▾, Surlignage ▾, Reproduire la mise en forme, Effacer la mise en forme : icônes seules) · Mise en forme (Mettre en forme les barres, Modèles…) · Planification (0 % à 100 %, Lier, Délier, Indenter, Désindenter, Désactiver, Décaler ▾) · Tâches (Planifier manuellement, Inspecter) · Insérer (Tâche, Récapitulative, Jalon) · Propriétés (Informations, Notes, Ajouter à la chronologie) · Édition (Rechercher, Atteindre la tâche, Remplir ▾ : Vers le bas, À droite ; Effacer ▾) |
 | **Ressource** | Affichage (Feuille des ressources, Utilisation des ressources) · Affectations (Affecter les ressources) |
 | **Projet** | Propriétés (Informations sur le projet, Champs personnalisés, Modifier le temps de travail) · Planification (Définir le planning de référence) · État (Mettre à jour le projet) · Impression (Mode impression, Mise en page…, Exporter en PDF…) |
 | **Affichage** | Affichages des tâches (Diagramme de Gantt, Gantt de suivi) · Affichages des ressources · Données (Trier ▾, Mode plan ▾, Filtre ▾) · Zoom (Échelle de temps ▾, Zoom avant, Zoom arrière, Projet entier, Tâches sélectionnées) · Fractionner l'affichage (Chronologie, Détails, Volet Opérations IA, Diagnostics) · Interface (Thème ▾, Langue ▾, Réduire le ruban) |
@@ -61,6 +61,10 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Colonnes de la table | Format → **Insérer une colonne**, **Paramètres de champ** (Alt+F3), **Colonnes ▾** ; clic droit sur un titre ; colonne « Ajouter une nouvelle colonne » en bout de table |
 | Renommer Texte1, Nombre1… | Projet → Propriétés → **Champs personnalisés** |
 | Couleurs et styles des barres | Format → Styles des barres, Styles du diagramme |
+| Mettre une ligne en gras, en italique, en couleur | Tâche → **Texte** : **Gras** (Ctrl+B, Cmd+B sur macOS), **Italique** (Ctrl+Maj+I, Cmd+Maj+I : Ctrl+I insère une tâche), **Couleur du texte ▾** ; ou menu Format. Le bouton est enfoncé quand la tâche active est en gras ou en italique. Seule la table change, pas le Gantt |
+| Surligner une ligne | Tâche → Texte → **Surlignage ▾** (fond des cellules de la ligne dans la table ; « Aucun surlignage » le retire). Une couleur peu lisible est signalée, avec une teinte corrigée à cliquer ; en thème sombre, les couleurs trop sombres sont éclaircies d'elles-mêmes |
+| Recopier la mise en forme d'une ligne sur d'autres | Tâche → Texte → **Reproduire la mise en forme** (pinceau) : sélectionner la ligne modèle, cliquer le pinceau, puis cliquer (ou sélectionner) les lignes à mettre en forme ; Échap annule |
+| Retirer gras, italique, couleur et surlignage | Tâche → Texte → **Effacer la mise en forme** |
 | Agrandir la vue | Ctrl+F1 (replie le ruban : la vue gagne 92 points) |
 
 ## 4. La chronologie
@@ -74,6 +78,6 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 
 ## 5. Ce qui n'existe pas (encore)
 
-Pas de groupe Police, pas d'onglet « Format de la chronologie » (légendes, plusieurs barres, plages de dates), pas de personnalisation du ruban ni de la barre d'accès rapide, pas d'info-touches Alt, pas d'écran Fichier en coulisses (le menu Fichier le remplace), ni nivellement, Planificateur d'équipe, vues Réseau, Calendrier ou Détails (ADR-0017, reportés après la v1.0.0).
+Pas de choix de police ni de taille (le groupe Texte ne fait que gras, italique, couleur et surlignage, enregistrés avec le projet dans le style du document, jamais dans le XML de MS Project), pas d'onglet « Format de la chronologie » (légendes, plusieurs barres, plages de dates), pas de personnalisation du ruban ni de la barre d'accès rapide, pas d'info-touches Alt, pas d'écran Fichier en coulisses (le menu Fichier le remplace), ni nivellement, Planificateur d'équipe, vues Réseau, Calendrier ou Détails (ADR-0017, reportés après la v1.0.0).
 
 Sur macOS, Cmd+F1 peut être pris par le système (luminosité, recopie vidéo) selon les réglages du clavier : le double-clic sur un onglet et le menu Affichage restent toujours disponibles.

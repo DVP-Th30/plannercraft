@@ -20,7 +20,7 @@ use super::icon_data::Icon;
 use super::{Enabled, RibbonOp, RibbonTab};
 use crate::action::{
     ACTIVE_COLUMN, Action, CellOp, ColumnOp, DialogKind, FormatOp, PaneOp, SelectOp, ShiftStep, TaskCmd,
-    TimelineOp,
+    TextStyleOp, TimelineOp,
 };
 use crate::clipboard::ClipboardOp;
 use crate::i18n::TextId;
@@ -228,6 +228,20 @@ pub enum RibbonCmd {
     Inspect,
     /// Zoom → Tâches sélectionnées (Affichage → Zoom, H-UI-124).
     ZoomSelected,
+    // --- Finitions avant v1.0.0 (ADR-0022, lot P2) : groupe Texte de
+    // l'onglet Tâche (H-UI-127), jumeaux au menu Format.
+    /// Gras (bascule, Ctrl/Cmd+B).
+    Bold,
+    /// Italique (bascule, Ctrl/Cmd+Maj+I).
+    Italic,
+    /// Liste Couleur du texte ▾.
+    TextColorMenu,
+    /// Liste Surlignage ▾.
+    HighlightMenu,
+    /// Reproduire la mise en forme (pinceau, bascule, H-UI-128).
+    FormatPainter,
+    /// Effacer la mise en forme.
+    ClearFormatting,
 }
 
 /// Pas de « marquer n % », dans l'ordre de la rangée (H-UI-35).
@@ -269,7 +283,13 @@ impl RibbonCmd {
             | Self::ThemeMenu
             | Self::LanguageMenu
             | Self::ColumnsMenu
-            | Self::ShiftMenu => return None,
+            | Self::ShiftMenu
+            | Self::TextColorMenu
+            | Self::HighlightMenu => return None,
+            Self::Bold => Action::TextStyle(TextStyleOp::ToggleBold),
+            Self::Italic => Action::TextStyle(TextStyleOp::ToggleItalic),
+            Self::FormatPainter => Action::TextStyle(TextStyleOp::Painter),
+            Self::ClearFormatting => Action::TextStyle(TextStyleOp::Clear),
             Self::Shift(step) => Action::TaskCmd(TaskCmd::Shift(step)),
             Self::ShiftCustom => Action::ShowDialog(DialogKind::Shift),
             Self::Inspect => Action::SidePanel(SideOp::Open(crate::view::side_panel::SideTab::WhyThisDate)),
@@ -428,6 +448,12 @@ impl RibbonCmd {
                 | Self::ShiftCustom
                 | Self::Inspect
                 | Self::ZoomSelected
+                | Self::Bold
+                | Self::Italic
+                | Self::TextColorMenu
+                | Self::HighlightMenu
+                | Self::FormatPainter
+                | Self::ClearFormatting
         )
     }
 
@@ -457,6 +483,11 @@ impl RibbonCmd {
                 | Self::ShiftCustom
                 | Self::Inspect
                 | Self::ZoomSelected
+                | Self::Bold
+                | Self::Italic
+                | Self::TextColorMenu
+                | Self::HighlightMenu
+                | Self::ClearFormatting
         )
     }
 
@@ -484,6 +515,10 @@ impl RibbonCmd {
             Self::CriticalTasks => Some(fc.task_view.state.highlight_critical),
             Self::RelativeMonths => Some(relative_months(fc)),
             Self::ChartOnly => Some(fc.state.chart_only),
+            // Finitions P2 (H-UI-127) : état de la tâche active.
+            Self::Bold => Some(active_text(fc).bold),
+            Self::Italic => Some(active_text(fc).italic),
+            Self::FormatPainter => Some(fc.task_view.painter),
             _ => None,
         }
     }
@@ -561,6 +596,12 @@ impl RibbonCmd {
             Self::ShiftCustom => TextId::ShiftCustom,
             Self::Inspect => TextId::RibbonInspect,
             Self::ZoomSelected => TextId::RibbonZoomSelected,
+            Self::Bold => TextId::RibbonBold,
+            Self::Italic => TextId::RibbonItalic,
+            Self::TextColorMenu => TextId::RibbonTextColor,
+            Self::HighlightMenu => TextId::RibbonHighlight,
+            Self::FormatPainter => TextId::RibbonFormatPainter,
+            Self::ClearFormatting => TextId::RibbonClearFormatting,
         }
     }
 
@@ -633,18 +674,27 @@ impl RibbonCmd {
             | Self::RelativeMonths
             | Self::ColumnsMenu
             | Self::InsertColumn
-            | Self::FieldSettings => &[TextId::MenuFormat],
+            | Self::FieldSettings
+            | Self::Bold
+            | Self::Italic
+            | Self::TextColorMenu
+            | Self::HighlightMenu
+            | Self::FormatPainter
+            | Self::ClearFormatting => &[TextId::MenuFormat],
         }
     }
 
-    /// Case à cocher dans la barre de menus (préférences d'affichage) ;
-    /// les bascules de tâche y restent des commandes (« Activer /
-    /// désactiver », « Basculer manuelle / automatique »).
+    /// Case à cocher dans la barre de menus (préférences d'affichage ;
+    /// Gras et Italique, état de la tâche active, finitions P2) ; les
+    /// bascules de tâche y restent des commandes (« Activer / désactiver »,
+    /// « Basculer manuelle / automatique »).
     #[must_use]
     pub const fn menu_is_check(self) -> bool {
         matches!(
             self,
-            Self::TimelineVisible
+            Self::Bold
+                | Self::Italic
+                | Self::TimelineVisible
                 | Self::DetailsPane
                 | Self::AiPanel
                 | Self::Diagnostics
@@ -696,6 +746,8 @@ impl RibbonCmd {
             Self::ClearContents => ui(UiBinding::ClearCells),
             Self::SelectAll => ui(UiBinding::SelectAll),
             Self::FieldSettings => ui(UiBinding::FieldSettings),
+            Self::Bold => ui(UiBinding::ToggleBold),
+            Self::Italic => ui(UiBinding::ToggleItalic),
             _ => return None,
         })
     }
@@ -745,6 +797,23 @@ impl RibbonCmd {
         }
     }
 
+    /// Élément dessiné en icône seule à tous les paliers (groupe Texte,
+    /// finitions P2, H-UI-127 : petits boutons empilés, comme le groupe
+    /// Police de MS Project) ; libellé dans l'infobulle et le nom
+    /// accessible.
+    #[must_use]
+    pub const fn icon_only(self) -> bool {
+        matches!(
+            self,
+            Self::Bold
+                | Self::Italic
+                | Self::TextColorMenu
+                | Self::HighlightMenu
+                | Self::FormatPainter
+                | Self::ClearFormatting
+        )
+    }
+
     /// Case cochable dans un menu contextuel (H-UI-74 : état de la tâche
     /// active).
     #[must_use]
@@ -791,6 +860,22 @@ pub const TIMESCALE_MENU: &[RibbonCmd] = &[
 fn active_task<'a>(fc: &FrameCtx<'a>) -> Option<&'a plannercraft_core::Task> {
     let uid = fc.selection?;
     fc.doc?.project().tasks.get(uid)
+}
+
+/// Mise en forme du texte de la tâche active (style résolu de l'image,
+/// finitions P2) ; vide sans tâche active.
+fn active_text(fc: &FrameCtx<'_>) -> plannercraft_render::style::TaskText {
+    match (fc.doc, fc.selection) {
+        (Some(_), Some(uid)) => fc
+            .task_view
+            .style
+            .style
+            .task_text
+            .get(&uid.get())
+            .copied()
+            .unwrap_or_default(),
+        _ => plannercraft_render::style::TaskText::default(),
+    }
 }
 
 /// La tâche active est sur la chronologie (liste du style du document).
@@ -976,7 +1061,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
             TextId::RibbonTipViewMenu,
             RibbonCmd::ViewMenu,
         )],
-        shrink_rank: 8,
+        shrink_rank: 9,
     },
     GroupSpec {
         label: TextId::RibbonGroupClipboard,
@@ -1011,6 +1096,58 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::PasteSpecial,
             ),
         ],
+        shrink_rank: 8,
+    },
+    // Finitions P2 (H-UI-127) : groupe Texte, icônes seules empilées.
+    GroupSpec {
+        label: TextId::RibbonGroupText,
+        icon: Icon::Bold,
+        items: &[
+            item(
+                Check,
+                Some(Icon::Bold),
+                TextId::RibbonBold,
+                TextId::RibbonTipBold,
+                Some(ui(UiBinding::ToggleBold)),
+                RibbonCmd::Bold,
+            ),
+            item(
+                Check,
+                Some(Icon::Italic),
+                TextId::RibbonItalic,
+                TextId::RibbonTipItalic,
+                Some(ui(UiBinding::ToggleItalic)),
+                RibbonCmd::Italic,
+            ),
+            plain(
+                Dropdown,
+                Some(Icon::Baseline),
+                TextId::RibbonTextColor,
+                TextId::RibbonTipTextColor,
+                RibbonCmd::TextColorMenu,
+            ),
+            plain(
+                Dropdown,
+                Some(Icon::Highlighter),
+                TextId::RibbonHighlight,
+                TextId::RibbonTipHighlight,
+                RibbonCmd::HighlightMenu,
+            ),
+            plain(
+                Check,
+                Some(Icon::PaintbrushVertical),
+                TextId::RibbonFormatPainter,
+                TextId::RibbonTipFormatPainter,
+                RibbonCmd::FormatPainter,
+            ),
+            plain(
+                Small,
+                Some(Icon::RemoveFormatting),
+                TextId::RibbonClearFormatting,
+                TextId::RibbonTipClearFormatting,
+                RibbonCmd::ClearFormatting,
+            ),
+        ],
         shrink_rank: 7,
     },
     GroupSpec {
@@ -1026,7 +1163,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::Gallery,
             ),
         ],
-        shrink_rank: 6,
+        shrink_rank: 5,
     },
     GroupSpec {
         label: TextId::RibbonGroupSchedule,
@@ -1085,7 +1222,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::ShiftMenu,
             ),
         ],
-        shrink_rank: 5,
+        shrink_rank: 6,
     },
     GroupSpec {
         label: TextId::RibbonGroupTasks,

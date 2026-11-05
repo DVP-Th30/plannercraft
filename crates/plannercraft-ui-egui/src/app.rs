@@ -2015,6 +2015,8 @@ impl App {
             }
             // Finitions P1 (H-UI-124).
             Action::ZoomToSelection => self.zoom_to_selection(),
+            // Finitions P2 (H-UI-126 à H-UI-128).
+            Action::TextStyle(op) => self.text_style_op(op),
             Action::ShowTaskNotes if self.state.view != ViewKind::Gantt => {}
             Action::ShowTaskNotes => {
                 if let Some(uid) = self.selection {
@@ -2903,6 +2905,8 @@ impl App {
         // widget. Fenêtre ouverte (J7, lot L9) : la fenêtre est dessinée
         // d'abord et les touches qu'elle n'a pas prises sont retirées de
         // l'image (rien n'atteint la table ni le Gantt).
+        // Pinceau armé (H-UI-128) : Échap l'annule avant tout autre usage.
+        self.painter_escape(&ctx);
         self.read_keys(&ctx, &mut actions);
         let mut task_view = self.task_view_frame();
         task_view.style = screen;
@@ -3010,6 +3014,8 @@ impl App {
         self.refocus_table_after_click(&ctx);
         self.ensure_row_view();
         self.sync_selection();
+        // Pinceau (H-UI-128) : la sélection suivante reçoit la mise en forme.
+        self.painter_tick(&ctx);
         // Ajustement du zoom après une ouverture, dès que la largeur du
         // Gantt est connue : là aussi, une image de plus au bon zoom.
         let fitted = self.fit_if_needed();

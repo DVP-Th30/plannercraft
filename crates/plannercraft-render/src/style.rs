@@ -1506,8 +1506,8 @@ pub fn lighter_for(c: Rgb, bg: Rgb, min: u32) -> Rgb {
 /// corrigée proposée, comme pour les barres) ; sombre, couleur du texte
 /// gardée si elle atteint le seuil du style sur le fond, sinon sa variante
 /// claire ([`lighter_for`]), et surlignage ramené vers le fond jusqu'à ce
-/// que les encres de la table et la couleur du texte y soient lisibles
-/// ([`readable_tint`]).
+/// que le texte courant, le texte appuyé et la couleur du texte y soient
+/// lisibles ([`readable_tint`]).
 #[must_use]
 pub fn task_text_look(st: &PlanStyle, v: Variant, t: &TaskText) -> TextLook {
     if v != Variant::Dark {
@@ -1521,8 +1521,11 @@ pub fn task_text_look(st: &PlanStyle, v: Variant, t: &TaskText) -> TextLook {
     let c = st.tokens(v);
     let min = min_text_contrast(st);
     let color = t.color.map(|rgb| lighter_for(rgb, c.bg, min));
+    // Encres d'une ligne active (texte, appuyé) et couleur choisie : le
+    // texte atténué (ligne vide, exclue) n'est pas compté, sans quoi un
+    // surlignage clair disparaîtrait tout à fait sur le fond sombre.
     let fill = t.fill.map(|f| {
-        let mut inks = vec![c.text, c.text_strong, c.text_muted];
+        let mut inks = vec![c.text, c.text_strong];
         inks.extend(color);
         readable_tint(f, c.bg, &inks, min)
     });

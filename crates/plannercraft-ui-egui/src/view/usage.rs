@@ -437,6 +437,7 @@ impl Sheet for UsageSheet<'_> {
             color: if red { palette.critical } else { palette.text },
             faux_bold: false,
             strike: false,
+            italic: false,
             level: match (line.key, col) {
                 (UsageKey::Assignment(_), UsageColumn::Name) => 2,
                 _ => 0,

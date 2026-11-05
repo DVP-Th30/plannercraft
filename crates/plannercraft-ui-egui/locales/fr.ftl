@@ -1586,3 +1586,22 @@ indicator-deadline = Échéance dépassée : { $date }.
 indicator-manual = Tâche planifiée manuellement.
 indicator-inactive = Tâche inactive.
 indicator-complete = Tâche achevée (100 %).
+
+# --- Finitions P2 (ADR-0022) ---
+ribbon-group-text = Texte
+ribbon-bold = Gras
+ribbon-tip-bold = Met en gras le texte des tâches sélectionnées dans la table (ou le retire).
+ribbon-italic = Italique
+ribbon-tip-italic = Met en italique le texte des tâches sélectionnées dans la table (ou le retire).
+ribbon-text-color = Couleur du texte
+ribbon-tip-text-color = Change la couleur du texte des tâches sélectionnées dans la table.
+ribbon-highlight = Surlignage
+ribbon-tip-highlight = Colore le fond des tâches sélectionnées dans la table (le Gantt ne change pas).
+ribbon-format-painter = Reproduire la mise en forme
+ribbon-tip-format-painter = Copie la mise en forme du texte de la tâche active ; sélectionnez ensuite les tâches qui doivent la recevoir (Échap annule).
+ribbon-clear-formatting = Effacer la mise en forme
+ribbon-tip-clear-formatting = Retire gras, italique, couleur et surlignage des tâches sélectionnées.
+text-color-auto = Automatique
+text-highlight-none = Aucun surlignage
+text-contrast-low = Contraste insuffisant : { $ratio }:1 (4,5:1 au moins pour le texte).
+text-style-undo = Mise en forme du texte

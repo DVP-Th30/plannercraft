@@ -245,7 +245,8 @@ fn large_width(lines: &[String], arrow: bool, measure: &mut dyn FnMut(&str, f32)
 
 /// Forme d'un élément au palier `stage` ; `alone` : seul élément du groupe.
 fn kind_of(item: &ItemSpec, stage: Stage, alone: bool) -> Kind {
-    let compact = stage != Stage::Full;
+    // Groupe Texte (finitions P2) : icônes seules à tous les paliers.
+    let compact = stage != Stage::Full || item.cmd.icon_only();
     match item.size {
         ItemSize::Large => Kind::Large,
         ItemSize::Dropdown if alone => Kind::LargeDropdown,
