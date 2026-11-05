@@ -346,7 +346,7 @@ fn check_not_below_actual(
 /// utilisable, sinon celui du projet ou sa base, sinon le Standard intégré
 /// de R-066 ; temps civil pour une durée écoulée, R-067) ; `elapsed` : la
 /// durée en jeu est écoulée.
-fn on_task_scale<R>(
+pub(super) fn on_task_scale<R>(
     ctx: &mut Ctx<'_>,
     uid: TaskUid,
     elapsed: bool,

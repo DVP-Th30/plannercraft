@@ -630,8 +630,9 @@ async fn mcp_tracking_tools_structured() {
     let (a, b) = (out["labels"]["$a"].clone(), out["labels"]["$b"].clone());
     let tools = client.list_all_tools().await.unwrap();
     // 49 en J7, plus les six `style.*` du lot L6 de J8, `export_pdf`
-    // (lot L7) et `rename_custom_field` (seconde passe UX, lot L8).
-    assert_eq!(tools.len(), 57);
+    // (lot L7), `rename_custom_field` (seconde passe UX, lot L8) et
+    // `shift_tasks` (finitions P1).
+    assert_eq!(tools.len(), 58);
     for name in [
         "update_progress",
         "reschedule_remaining",

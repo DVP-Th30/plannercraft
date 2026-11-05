@@ -25,6 +25,7 @@ mod progress;
 mod project;
 mod refs;
 mod resource;
+pub mod shift;
 pub mod style;
 mod task;
 
@@ -44,6 +45,7 @@ pub use self::custom::{CustomFieldRename, parse_custom_number};
 pub use self::progress::{ProgressReschedule, ProgressUpdate};
 use self::refs::label_refusal;
 pub use self::refs::{LABEL_PATTERN, define_label, is_valid_label, resolve_task};
+pub use self::shift::TaskShift;
 use crate::error::{CommandError, CommandErrorKind, codes};
 pub use crate::json::{
     ConstraintKindJson, DaySettingJson, DurationJson, DurationUnitJson, GranularityJson, LagJson,
@@ -247,6 +249,9 @@ pub enum Command {
     /// seconde passe UX).
     #[serde(rename = "custom_field.rename")]
     CustomFieldRename(CustomFieldRename),
+    /// Décale des tâches d'une durée signée (R-267, finitions P1).
+    #[serde(rename = "task.shift")]
+    TaskShift(TaskShift),
 }
 
 impl Command {
@@ -288,6 +293,7 @@ impl Command {
             Self::StyleSetBarRole(_) => "style.set_bar_role",
             Self::StyleResetToTemplate(_) => "style.reset_to_template",
             Self::CustomFieldRename(_) => "custom_field.rename",
+            Self::TaskShift(_) => "task.shift",
         }
     }
 }

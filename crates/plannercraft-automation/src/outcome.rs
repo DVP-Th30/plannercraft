@@ -114,4 +114,26 @@ pub enum SideEffect {
         /// Raison.
         reason: &'static str,
     },
+    /// Tâche ignorée par `task.shift` (R-267) : `reason` en code stable
+    /// (`inactive`, `complete`, `undated`).
+    ShiftSkipped {
+        /// Tâche.
+        task: TaskUid,
+        /// Raison.
+        reason: &'static str,
+    },
+    /// Contrainte autre que « Dès que possible » ou « Début au plus tôt
+    /// le » remplacée par `task.shift` (R-267).
+    ShiftConstraintReplaced {
+        /// Tâche.
+        task: TaskUid,
+        /// Type remplacé.
+        previous: ConstraintKind,
+    },
+    /// Début obtenu après la date visée par `task.shift` (prédécesseurs) :
+    /// le décalage est fait, mais limité (R-267).
+    ShiftLimited {
+        /// Tâche.
+        task: TaskUid,
+    },
 }

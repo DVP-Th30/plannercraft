@@ -10,8 +10,8 @@ use plannercraft_core::calendar::{Calendar, CalendarSet};
 use plannercraft_core::{Arena, CalendarUid, Diagnostic, Project, ResourceUid, Schedule, Subject, TaskUid};
 
 use super::{
-    Command, assignment, baseline, calendar, constraint, custom, link, progress, project, resource, style,
-    task,
+    Command, assignment, baseline, calendar, constraint, custom, link, progress, project, resource, shift,
+    style, task,
 };
 use crate::error::{CommandError, CommandErrorKind, codes};
 use crate::outcome::SideEffect;
@@ -241,6 +241,7 @@ impl Exec for Command {
             Self::StyleSetBarRole(op) => style::set_bar_role(op, ctx),
             Self::StyleResetToTemplate(op) => style::reset_to_template(op, ctx),
             Self::CustomFieldRename(op) => custom::rename(op, ctx),
+            Self::TaskShift(op) => shift::shift(op, ctx),
         }
     }
 }
