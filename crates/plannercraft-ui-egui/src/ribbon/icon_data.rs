@@ -30,8 +30,12 @@ pub enum Icon {
     ArrowDownToLine,
     /// `arrow-up-down.svg`.
     ArrowUpDown,
+    /// `baseline.svg`.
+    Baseline,
     /// `between-vertical-start.svg`.
     BetweenVerticalStart,
+    /// `bold.svg`.
+    Bold,
     /// `calendar-check.svg`.
     CalendarCheck,
     /// `calendar-clock.svg`.
@@ -82,12 +86,16 @@ pub enum Icon {
     Flag,
     /// `focus.svg`.
     Focus,
+    /// `highlighter.svg`.
+    Highlighter,
     /// `indent-decrease.svg`.
     IndentDecrease,
     /// `indent-increase.svg`.
     IndentIncrease,
     /// `info.svg`.
     Info,
+    /// `italic.svg`.
+    Italic,
     /// `languages.svg`.
     Languages,
     /// `link.svg`.
@@ -106,6 +114,8 @@ pub enum Icon {
     NotebookPen,
     /// `paintbrush.svg`.
     Paintbrush,
+    /// `paintbrush-vertical.svg`.
+    PaintbrushVertical,
     /// `panel-left-close.svg`.
     PanelLeftClose,
     /// `pin.svg`.
@@ -116,6 +126,8 @@ pub enum Icon {
     Redo2,
     /// `refresh-cw.svg`.
     RefreshCw,
+    /// `remove-formatting.svg`.
+    RemoveFormatting,
     /// `save.svg`.
     Save,
     /// `scan-search.svg`.
@@ -152,10 +164,12 @@ pub enum Icon {
 
 impl Icon {
     /// Toutes les icônes, dans l'ordre des fichiers.
-    pub const ALL: [Self; 61] = [
+    pub const ALL: [Self; 67] = [
         Self::ArrowDownToLine,
         Self::ArrowUpDown,
+        Self::Baseline,
         Self::BetweenVerticalStart,
+        Self::Bold,
         Self::CalendarCheck,
         Self::CalendarClock,
         Self::CalendarCog,
@@ -181,9 +195,11 @@ impl Icon {
         Self::Filter,
         Self::Flag,
         Self::Focus,
+        Self::Highlighter,
         Self::IndentDecrease,
         Self::IndentIncrease,
         Self::Info,
+        Self::Italic,
         Self::Languages,
         Self::Link,
         Self::ListPlus,
@@ -193,11 +209,13 @@ impl Icon {
         Self::MoveHorizontal,
         Self::NotebookPen,
         Self::Paintbrush,
+        Self::PaintbrushVertical,
         Self::PanelLeftClose,
         Self::Pin,
         Self::Printer,
         Self::Redo2,
         Self::RefreshCw,
+        Self::RemoveFormatting,
         Self::Save,
         Self::ScanSearch,
         Self::Scissors,
@@ -222,7 +240,9 @@ impl Icon {
         match self {
             Self::ArrowDownToLine => "arrow-down-to-line",
             Self::ArrowUpDown => "arrow-up-down",
+            Self::Baseline => "baseline",
             Self::BetweenVerticalStart => "between-vertical-start",
+            Self::Bold => "bold",
             Self::CalendarCheck => "calendar-check",
             Self::CalendarClock => "calendar-clock",
             Self::CalendarCog => "calendar-cog",
@@ -248,9 +268,11 @@ impl Icon {
             Self::Filter => "filter",
             Self::Flag => "flag",
             Self::Focus => "focus",
+            Self::Highlighter => "highlighter",
             Self::IndentDecrease => "indent-decrease",
             Self::IndentIncrease => "indent-increase",
             Self::Info => "info",
+            Self::Italic => "italic",
             Self::Languages => "languages",
             Self::Link => "link",
             Self::ListPlus => "list-plus",
@@ -260,11 +282,13 @@ impl Icon {
             Self::MoveHorizontal => "move-horizontal",
             Self::NotebookPen => "notebook-pen",
             Self::Paintbrush => "paintbrush",
+            Self::PaintbrushVertical => "paintbrush-vertical",
             Self::PanelLeftClose => "panel-left-close",
             Self::Pin => "pin",
             Self::Printer => "printer",
             Self::Redo2 => "redo-2",
             Self::RefreshCw => "refresh-cw",
+            Self::RemoveFormatting => "remove-formatting",
             Self::Save => "save",
             Self::ScanSearch => "scan-search",
             Self::Scissors => "scissors",
@@ -290,7 +314,9 @@ impl Icon {
         match self {
             Self::ArrowDownToLine => &ARROW_DOWN_TO_LINE,
             Self::ArrowUpDown => &ARROW_UP_DOWN,
+            Self::Baseline => &BASELINE,
             Self::BetweenVerticalStart => &BETWEEN_VERTICAL_START,
+            Self::Bold => &BOLD,
             Self::CalendarCheck => &CALENDAR_CHECK,
             Self::CalendarClock => &CALENDAR_CLOCK,
             Self::CalendarCog => &CALENDAR_COG,
@@ -316,9 +342,11 @@ impl Icon {
             Self::Filter => &FILTER,
             Self::Flag => &FLAG,
             Self::Focus => &FOCUS,
+            Self::Highlighter => &HIGHLIGHTER,
             Self::IndentDecrease => &INDENT_DECREASE,
             Self::IndentIncrease => &INDENT_INCREASE,
             Self::Info => &INFO,
+            Self::Italic => &ITALIC,
             Self::Languages => &LANGUAGES,
             Self::Link => &LINK,
             Self::ListPlus => &LIST_PLUS,
@@ -328,11 +356,13 @@ impl Icon {
             Self::MoveHorizontal => &MOVE_HORIZONTAL,
             Self::NotebookPen => &NOTEBOOK_PEN,
             Self::Paintbrush => &PAINTBRUSH,
+            Self::PaintbrushVertical => &PAINTBRUSH_VERTICAL,
             Self::PanelLeftClose => &PANEL_LEFT_CLOSE,
             Self::Pin => &PIN,
             Self::Printer => &PRINTER,
             Self::Redo2 => &REDO_2,
             Self::RefreshCw => &REFRESH_CW,
+            Self::RemoveFormatting => &REMOVE_FORMATTING,
             Self::Save => &SAVE,
             Self::ScanSearch => &SCAN_SEARCH,
             Self::Scissors => &SCISSORS,
@@ -388,6 +418,22 @@ static ARROW_UP_DOWN: IconData = IconData {
     dots: &[],
 };
 
+/// `baseline.svg`.
+static BASELINE: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (256, 1280), (1280, 1280),
+        ] },
+        IconLine { closed: false, points: &[
+            (384, 1024), (768, 256), (1152, 1024),
+        ] },
+        IconLine { closed: false, points: &[
+            (512, 768), (1024, 768),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `between-vertical-start.svg`.
 static BETWEEN_VERTICAL_START: IconData = IconData {
     lines: &[
@@ -403,6 +449,21 @@ static BETWEEN_VERTICAL_START: IconData = IconData {
             (896, 576), (899, 556), (908, 538), (922, 524), (940, 515), (960, 512), (1280, 512), (1300, 515), (1318, 524), (1332, 538),
             (1341, 556), (1344, 576), (1344, 1280), (1341, 1300), (1332, 1318), (1318, 1332), (1300, 1341), (1280, 1344), (960, 1344), (940, 1341),
             (922, 1332), (908, 1318), (899, 1300), (896, 1280),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `bold.svg`.
+static BOLD: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (384, 768), (960, 768), (1006, 772), (1048, 783), (1088, 802), (1125, 828), (1156, 859), (1182, 896), (1201, 936), (1212, 978),
+            (1216, 1024), (1212, 1070), (1201, 1112), (1182, 1152), (1156, 1189), (1125, 1220), (1088, 1246), (1048, 1265), (1006, 1276), (960, 1280),
+            (448, 1280), (428, 1277), (410, 1268), (396, 1254), (387, 1236), (384, 1216), (384, 320), (387, 300), (396, 282), (410, 268),
+            (428, 259), (448, 256), (896, 256), (942, 260), (984, 271), (1024, 290), (1061, 316), (1092, 347), (1118, 384), (1137, 424),
+            (1148, 466), (1152, 512), (1148, 558), (1137, 600), (1118, 640), (1092, 677), (1061, 708), (1024, 734), (984, 753), (942, 764),
+            (896, 768),
         ] },
     ],
     dots: &[],
@@ -990,6 +1051,20 @@ static FOCUS: IconData = IconData {
     dots: &[],
 };
 
+/// `highlighter.svg`.
+static HIGHLIGHTER: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (576, 704), (192, 1088), (192, 1280), (768, 1280), (960, 1088),
+        ] },
+        IconLine { closed: false, points: &[
+            (1408, 768), (1114, 1062), (1087, 1083), (1057, 1095), (1024, 1099), (991, 1095), (961, 1083), (934, 1062), (602, 730), (581, 703),
+            (569, 673), (565, 640), (569, 607), (581, 577), (602, 550), (896, 256),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `indent-decrease.svg`.
 static INDENT_DECREASE: IconData = IconData {
     lines: &[
@@ -1046,6 +1121,22 @@ static INFO: IconData = IconData {
     dots: &[
         (768, 512),
     ],
+};
+
+/// `italic.svg`.
+static ITALIC: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (1216, 256), (640, 256),
+        ] },
+        IconLine { closed: false, points: &[
+            (896, 1280), (320, 1280),
+        ] },
+        IconLine { closed: false, points: &[
+            (960, 256), (576, 1280),
+        ] },
+    ],
+    dots: &[],
 };
 
 /// `languages.svg`.
@@ -1248,6 +1339,31 @@ static PAINTBRUSH: IconData = IconData {
     dots: &[],
 };
 
+/// `paintbrush-vertical.svg`.
+static PAINTBRUSH_VERTICAL: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (640, 128), (640, 256),
+        ] },
+        IconLine { closed: false, points: &[
+            (896, 128), (896, 384),
+        ] },
+        IconLine { closed: true, points: &[
+            (1088, 128), (1108, 131), (1126, 140), (1140, 154), (1149, 172), (1152, 192), (1152, 768), (384, 768), (384, 192), (387, 172),
+            (396, 154), (410, 140), (428, 131), (448, 128),
+        ] },
+        IconLine { closed: false, points: &[
+            (384, 768), (364, 771), (346, 780), (332, 794), (323, 812), (320, 832), (320, 896), (325, 930), (337, 960), (357, 987),
+            (384, 1007), (414, 1019), (448, 1024), (576, 1024), (596, 1027), (614, 1036), (628, 1050), (637, 1068), (640, 1088), (640, 1274),
+            (645, 1308), (657, 1338), (677, 1364), (704, 1385), (734, 1397), (768, 1402), (802, 1397), (832, 1385), (859, 1364), (879, 1338),
+            (891, 1308), (896, 1274), (896, 1088), (899, 1068), (908, 1050), (922, 1036), (940, 1027), (960, 1024), (1088, 1024), (1122, 1019),
+            (1152, 1007), (1179, 987), (1199, 960), (1211, 930), (1216, 896), (1216, 832), (1213, 812), (1204, 794), (1190, 780), (1172, 771),
+            (1152, 768),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `panel-left-close.svg`.
 static PANEL_LEFT_CLOSE: IconData = IconData {
     lines: &[
@@ -1340,6 +1456,28 @@ static REFRESH_CW: IconData = IconData {
         ] },
         IconLine { closed: false, points: &[
             (512, 1024), (192, 1024), (192, 1344),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `remove-formatting.svg`.
+static REMOVE_FORMATTING: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (256, 448), (256, 256), (1280, 256), (1280, 448),
+        ] },
+        IconLine { closed: false, points: &[
+            (320, 1280), (704, 1280),
+        ] },
+        IconLine { closed: false, points: &[
+            (832, 256), (512, 1280),
+        ] },
+        IconLine { closed: false, points: &[
+            (960, 960), (1280, 1280),
+        ] },
+        IconLine { closed: false, points: &[
+            (1280, 960), (960, 1280),
         ] },
     ],
     dots: &[],
