@@ -102,6 +102,9 @@ pub struct TaskSheet<'a> {
     /// Mise en forme du texte des tâches (finitions P2, H-UI-126), résolue
     /// pour le thème de l'écran.
     looks: std::sync::Arc<crate::theme::TextLooks>,
+    /// Ligne affichée du curseur (vue regroupée, finitions P3 : une tâche
+    /// répétée sous plusieurs groupes y garde son curseur).
+    hint: Option<DisplayRow>,
 }
 
 impl<'a> TaskSheet<'a> {
@@ -118,7 +121,22 @@ impl<'a> TaskSheet<'a> {
                 .filter_map(|c| c.align.map(|align| (c.column, align)))
                 .collect(),
             looks: std::sync::Arc::default(),
+            hint: None,
         }
+    }
+
+    /// Avec la ligne du curseur (vue regroupée, finitions P3).
+    #[must_use]
+    pub const fn with_hint(mut self, hint: Option<DisplayRow>) -> Self {
+        self.hint = hint;
+        self
+    }
+
+    /// La ligne `row` est un en-tête de groupe (finitions P3, H-UI-129) :
+    /// ni sélection, ni saisie.
+    #[must_use]
+    pub fn is_header(&self, row: usize) -> bool {
+        self.rows.header(DisplayRow::at(row)).is_some()
     }
 
     /// Avec la mise en forme du texte des tâches (H-UI-126).
@@ -158,7 +176,7 @@ impl Sheet for TaskSheet<'_> {
     }
 
     fn index_of(&self, key: TaskUid) -> Option<usize> {
-        self.rows.display_of(key).map(DisplayRow::index)
+        self.rows.display_near(key, self.hint).map(DisplayRow::index)
     }
 
     fn columns(&self) -> &[(Column, u16)] {
@@ -177,6 +195,16 @@ impl Sheet for TaskSheet<'_> {
     }
 
     fn style(&self, row: usize, col: Column, palette: &Palette) -> CellStyle {
+        let grouped = self.rows.view().is_grouped();
+        // En-tête de groupe (finitions P3, H-UI-129) : texte appuyé, Nom
+        // décalé d'un cran (triangle de repli devant).
+        if self.is_header(row) {
+            return CellStyle {
+                faux_bold: true,
+                level: if col == Column::Name { 2 } else { 0 },
+                ..CellStyle::plain(palette.text_strong)
+            };
+        }
         let Some(r) = self.rows.row(DisplayRow::at(row)) else {
             return CellStyle::plain(palette.text);
         };
@@ -200,6 +228,8 @@ impl Sheet for TaskSheet<'_> {
             // Tâche inactive : grisée (exclue du calcul) et barrée (H-UI-37).
             strike: !r.active && r.kind != RowKind::Null,
             level: match col {
+                // Vue regroupée : toutes les tâches au cran du nom du groupe.
+                Column::Name if grouped => 2,
                 Column::Name if self.outline => r.level.saturating_add(1),
                 Column::Name => r.level,
                 _ => 0,
@@ -208,6 +238,14 @@ impl Sheet for TaskSheet<'_> {
     }
 
     fn text(&self, row: usize, col: Column) -> &str {
+        if let Some(h) = self.rows.header(DisplayRow::at(row)) {
+            return match col {
+                Column::Name => &h.name,
+                Column::Start => &h.start,
+                Column::Finish => &h.finish,
+                _ => "",
+            };
+        }
         self.rows.text(DisplayRow::at(row), col)
     }
 
@@ -995,7 +1033,8 @@ pub fn paint_body(
     focus_widget(ui, fc, clip);
     let sheet = TaskSheet::new(rows, fc.state, fc.texts)
         .with_outline(fc.task_view.outline_triangles)
-        .with_looks(std::sync::Arc::clone(&fc.task_view.style.text_looks));
+        .with_looks(std::sync::Arc::clone(&fc.task_view.style.text_looks))
+        .with_hint(fc.task_view.cursor_row);
     open_from_keys(ui, fc, &sheet, edit, cursor);
     fc.stats.table_rows = range.clone();
     let left = clip.left();
@@ -1049,6 +1088,19 @@ pub fn paint_body(
         let top = origin.y + index_to_f32(i) * row_h;
         let row_rect = Rect::from_min_size(pos2(left, top), vec2(clip.width(), row_h));
         if !row_rect.is_finite() {
+            continue;
+        }
+        // En-tête de groupe (finitions P3, H-UI-129) : fond de l'en-tête,
+        // textes du groupe, triangle ; un clic replie ou déplie.
+        if let Some(header) = rows.header(DisplayRow::at(i)) {
+            place.rect = row_rect;
+            let at = GroupRowPlace {
+                row_rect,
+                cols_left,
+                clip,
+                place,
+            };
+            shapes = shapes.saturating_add(paint_group_row(ui, &painter, fc, &sheet, header, i, &at, &font));
             continue;
         }
         let row = rows.row(DisplayRow::at(i));
@@ -1643,6 +1695,103 @@ fn outline_triangle(
     1
 }
 
+/// Place d'une ligne d'en-tête de groupe.
+struct GroupRowPlace {
+    /// Rectangle écran de la ligne.
+    row_rect: Rect,
+    /// Bord gauche écran de la première colonne (défilement déduit).
+    cols_left: f32,
+    /// Découpe du corps.
+    clip: Rect,
+    /// Mesures des cellules.
+    place: RowPlace,
+}
+
+/// Ligne d'en-tête d'un groupe (finitions P3, H-UI-129) : fond de
+/// l'en-tête, Nom (valeur et nombre de tâches), Début et Fin du groupe en
+/// texte appuyé, triangle de repli devant le Nom ; toute la ligne est un
+/// bouton « Replier le groupe … » / « Déplier le groupe … » (ni sélection
+/// ni saisie). Rend le nombre de formes.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "contexte d'image découpé en emprunts disjoints"
+)]
+fn paint_group_row(
+    ui: &egui::Ui,
+    painter: &Painter,
+    fc: &mut FrameCtx<'_>,
+    sheet: &TaskSheet<'_>,
+    header: &crate::row_view::GroupHeader,
+    i: usize,
+    at: &GroupRowPlace,
+    font: &egui::FontId,
+) -> usize {
+    let palette = fc.palette;
+    let metrics = fc.metrics;
+    let mut shapes = 0_usize;
+    painter.rect_filled(at.row_rect, 0.0, palette.header_bg);
+    painter.hline(
+        at.row_rect.x_range(),
+        at.row_rect.bottom() - 0.5,
+        Stroke::new(1.0, palette.grid),
+    );
+    shapes = shapes.saturating_add(2);
+    shapes = shapes.saturating_add(grid::paint_cells(painter, sheet, palette, i, at.place, font));
+    if let Some((left, _)) = column_span(sheet.columns(), at.cols_left, Column::Name) {
+        let x0 = left + metrics.pad_x;
+        let rect = Rect::from_min_size(
+            pos2(x0, at.row_rect.top()),
+            vec2(metrics.indent, at.row_rect.height()),
+        );
+        if rect.is_finite() && rect.intersect(at.clip).is_positive() {
+            let c = rect.center();
+            let r = 4.0_f32;
+            let points = if header.collapsed {
+                vec![
+                    pos2(c.x - r * 0.6, c.y - r),
+                    pos2(c.x - r * 0.6, c.y + r),
+                    pos2(c.x + r * 0.8, c.y),
+                ]
+            } else {
+                vec![
+                    pos2(c.x - r, c.y - r * 0.6),
+                    pos2(c.x + r, c.y - r * 0.6),
+                    pos2(c.x, c.y + r * 0.8),
+                ]
+            };
+            painter.add(egui::Shape::convex_polygon(points, palette.text, Stroke::NONE));
+            shapes = shapes.saturating_add(1);
+        }
+    }
+    let hit = at.row_rect.intersect(at.clip);
+    if hit.is_positive() {
+        let response = ui.interact(
+            hit,
+            ui.make_persistent_id(("plannercraft-group-row", i)),
+            Sense::click(),
+        );
+        let texts = fc.texts;
+        let collapsed = header.collapsed;
+        let name = header.name.clone();
+        response.widget_info(|| {
+            let id = if collapsed {
+                TextId::GroupExpand
+            } else {
+                TextId::GroupCollapse
+            };
+            let label = texts.get_args(id, &[("name", Arg::Str(name.clone().into()))]);
+            egui::WidgetInfo::labeled(egui::Role::Button, true, label)
+        });
+        if response.clicked() {
+            fc.actions.push(Action::Group(crate::group_view::GroupOp::Toggle(
+                header.key.clone(),
+            )));
+            fc.actions.push(Action::FocusPane(Pane::Table));
+        }
+    }
+    shapes
+}
+
 /// Zone cliquable de la ligne `i` (ou de la ligne vide) et son libellé
 /// d'accessibilité (`row-label`, `blank-row-label`).
 fn row_widget(
@@ -1855,6 +2004,12 @@ fn row_pointer(
     }
     let (modifiers, press_origin) = ui.input(|i| (i.modifiers, i.pointer.press_origin()));
     let mode = press_mode(modifiers);
+    // Vue regroupée (finitions P3) : la ligne appuyée devient celle du
+    // curseur (une tâche peut être sous plusieurs groupes).
+    if fc.task_view.group_by.is_some() && (pressed_now(ui, response) || response.clicked()) {
+        fc.actions
+            .push(Action::Group(crate::group_view::GroupOp::CursorRow(hit.i)));
+    }
     if pressed_now(ui, response) {
         let column = column_of(press_origin).unwrap_or(cursor.column);
         let target = press_target(column);
@@ -1935,7 +2090,9 @@ pub struct Drags<'d> {
 /// curseur de déplacement et info-bulle du geste ; sous tri ou filtre,
 /// curseur interdit et raison (H-UI-32).
 fn row_move_hover(ui: &egui::Ui, fc: &FrameCtx<'_>, response: &Response) {
-    let (icon, tip) = if fc.task_view.state.reorder_locked() {
+    let (icon, tip) = if fc.task_view.group_by.is_some() {
+        (egui::CursorIcon::NotAllowed, TextId::ViewGroupLocked)
+    } else if fc.task_view.state.reorder_locked() {
         (
             egui::CursorIcon::NotAllowed,
             crate::structure::StructureRefusal::ViewReorderLocked.move_text_id(),
@@ -1952,6 +2109,10 @@ fn row_move_hover(ui: &egui::Ui, fc: &FrameCtx<'_>, response: &Response) {
 /// le lâcher est permis.
 fn drop_refusal(fc: &FrameCtx<'_>, rows: VisibleRows<'_>, before: Option<DisplayRow>) -> Option<TextId> {
     let doc = fc.doc?;
+    // Regroupement (finitions P3, H-UI-130) : aucun déplacement de lignes.
+    if fc.task_view.group_by.is_some() {
+        return Some(TextId::ViewGroupLocked);
+    }
     let target = before.and_then(|d| rows.uid(d));
     crate::structure::move_refusal(
         doc.project(),
@@ -2141,6 +2302,11 @@ fn track_select_drag(
     let len = sheet.len().saturating_add(1);
     let y = bounded(p.y, at.clip.top(), at.clip.bottom() - 0.5);
     let index = crate::geom::row_at(y - at.origin.y, row_h, len).unwrap_or(len.saturating_sub(1));
+    // En-tête de groupe sous le pointeur (finitions P3) : le bloc ne change
+    // pas (un en-tête n'est ni une tâche ni la ligne vide).
+    if sheet.is_header(index) {
+        return;
+    }
     let row = grid::row_ref(sheet, index);
     let column = if d.target == PressTarget::RowHeader {
         d.last.1

@@ -25,6 +25,7 @@ pub mod field;
 pub mod format;
 pub mod geom;
 pub mod grid;
+pub mod group_view;
 pub mod i18n;
 pub mod indicators;
 pub mod io;

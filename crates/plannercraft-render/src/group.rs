@@ -128,7 +128,7 @@ pub fn group_tasks(p: &Project, s: &Schedule, by: GroupBy, keep: &dyn Fn(usize) 
         match by {
             GroupBy::Custom(field) => match task.custom.get(&field) {
                 Some(CustomValue::Text(t)) if !t.is_empty() => {
-                    put(GroupKey::Text(t.clone()), Some(t.clone()))
+                    put(GroupKey::Text(t.clone()), Some(t.clone()));
                 }
                 _ => put(GroupKey::Empty, None),
             },

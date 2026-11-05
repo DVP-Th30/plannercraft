@@ -46,6 +46,9 @@
 //!   images) et `outline_5000` (niveau 1, Tous, 2, puis repli de 50
 //!   récapitulatives) : `RowView::build` médiane < 8 ms, images mêmes
 //!   seuils.
+//! - Finitions P3 (ignoré, release) : `group_by_5000` (40 lots, vue
+//!   regroupée, molette, ↓, replis) : image médiane < 16 ms, p95 < 32 ms ;
+//!   changement de regroupement < 150 ms.
 //! - J8 L9 (ignoré, release) : `search_5000` (barre de recherche ouverte,
 //!   10 caractères tapés, un par image, puis 20 « suivant ») : image
 //!   médiane < 16 ms, p95 < 32 ms.
@@ -1328,6 +1331,61 @@ fn outline_5000() {
     );
     assert_build_budget("outline_5000 build", builds);
     assert_budget("outline_5000", samples, bench.last);
+}
+
+/// Finitions P3 (H-UI-129) : Texte1 posé sur toutes les feuilles (40
+/// lots), regroupement par ce champ (lot `style.set_group_by`, recalcul et
+/// vue regroupée : image du changement publiée, garde < 150 ms), puis 20
+/// crans de molette, 100 ↓ (en-têtes sautés) et 10 groupes repliés un par
+/// image ; image médiane < 16 ms, p95 < 32 ms.
+#[test]
+#[ignore = "mesure, à lancer en --release : cargo test -p plannercraft-ui-egui --release --test perf -- --ignored --nocapture"]
+fn group_by_5000() {
+    use plannercraft_render::group::GroupKey;
+    use plannercraft_render::style::GroupBy;
+    use plannercraft_ui_egui::group_view::GroupOp;
+    let (mut app, mut bench) = nav_bench();
+    let leaves = spread_leaves(&app, usize::MAX);
+    assert!(leaves.len() > 4_000, "{}", leaves.len());
+    let ops: Vec<serde_json::Value> = leaves
+        .iter()
+        .map(|u| serde_json::json!({ "op": "task.update", "uid": u, "custom": { "text1": format!("Lot {}", u % 40) } }))
+        .collect();
+    // Lots de 500 opérations (borne d'un lot).
+    for chunk in ops.chunks(500) {
+        let batch = plannercraft_automation::Batch::from_json(
+            serde_json::json!({ "format_version": 1, "ops": chunk }),
+        )
+        .unwrap();
+        app.dispatch(Action::Exec(batch));
+    }
+    bench.settle(&mut app);
+    let field = GroupBy::Custom(plannercraft_core::CustomFieldId::TEXT1);
+    let t0 = Instant::now();
+    app.dispatch(Action::Group(GroupOp::Set(Some(field))));
+    let change = t0.elapsed() + bench.frame(&mut app, Vec::new());
+    eprintln!("perf UI group_by_5000 changement : {:.2} ms", ms(change));
+    assert!(change < EDIT_SPIKE, "changement {change:?} ≥ {EDIT_SPIKE:?}");
+    assert!(app.row_view().is_grouped());
+    // Toutes les feuilles regroupées, une ligne d'en-tête par lot présent.
+    let lots: std::collections::BTreeSet<u32> = leaves.iter().map(|u| u % 40).collect();
+    assert_eq!(app.row_view().members().len(), leaves.len());
+    assert_eq!(app.row_view().len(), leaves.len() + lots.len());
+    bench.settle(&mut app);
+    let mut samples = Vec::new();
+    for _ in 0..20 {
+        samples.push(bench.frame(&mut app, wheel_events(-WHEEL_STEP)));
+    }
+    for _ in 0..100 {
+        samples.push(bench.frame(&mut app, key_events(Key::ArrowDown, Modifiers::NONE)));
+    }
+    assert!(app.selection.is_some());
+    for k in 0..10 {
+        app.dispatch(Action::Group(GroupOp::Toggle(GroupKey::Text(format!("Lot {k}")))));
+        samples.push(bench.frame(&mut app, wheel_events(-WHEEL_STEP)));
+    }
+    assert!(app.row_view().len() < leaves.len());
+    assert_budget("group_by_5000", samples, bench.last);
 }
 
 /// J8 L9 : barre de recherche ouverte, « préparatio » tapé un caractère par

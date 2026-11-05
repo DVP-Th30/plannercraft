@@ -154,6 +154,16 @@ pub struct ViewTransient {
     /// Version du repli : change à chaque changement de `collapsed` (clé du
     /// cache de `RowView`).
     pub collapse_version: u64,
+    /// Regroupement du document à la dernière construction de la vue des
+    /// lignes (finitions P3, H-UI-129 ; lu du style du document).
+    pub group_by: Option<plannercraft_render::style::GroupBy>,
+    /// Groupes repliés (finitions P3) ; vidés quand le regroupement change.
+    /// Changer cet ensemble change `collapse_version`.
+    pub collapsed_groups: BTreeSet<plannercraft_render::group::GroupKey>,
+    /// Ligne affichée du curseur à la dernière navigation ou au dernier
+    /// clic (finitions P3) : une tâche répétée sous plusieurs groupes est
+    /// suivie depuis la ligne où elle a été atteinte.
+    pub cursor_row: Option<crate::row_view::DisplayRow>,
     /// Version de réapplication du filtre (J8, lot L9, H-UI-30) : change à
     /// chaque application d'un filtre (clé du cache de `RowView`).
     pub reapply_version: u64,

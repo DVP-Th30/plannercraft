@@ -343,6 +343,23 @@ pub fn scroll_for_x(x: f32, width: f32) -> Option<f32> {
     target.is_finite().then_some(target)
 }
 
+/// Ligne `target` ramenée hors des en-têtes de groupe (finitions P3,
+/// H-UI-131) : la première ligne qui n'en est pas un dans le sens du
+/// déplacement depuis `from` (vers le bas si `target` ≥ `from`), sinon
+/// dans l'autre sens, sinon `from`. Sans en-tête : `target` tel quel.
+#[must_use]
+pub fn skip_headers(rows: VisibleRows<'_>, target: usize, from: usize) -> usize {
+    let header = |i: usize| rows.header(DisplayRow::at(i)).is_some();
+    if !header(target) {
+        return target;
+    }
+    let last = rows.len();
+    let down = (target..=last).find(|&i| !header(i));
+    let up = (0..target).rev().find(|&i| !header(i));
+    let found = if target >= from { down.or(up) } else { up.or(down) };
+    found.unwrap_or(from)
+}
+
 impl crate::App {
     /// Navigation au clavier (H-UI-13 à H-UI-17) : [`step`] sur
     /// (ligne, colonne visible), ligne vide comprise ; la sélection suit la
@@ -366,7 +383,11 @@ impl crate::App {
         let len = rows.len();
         let visible: Vec<Column> = self.state.visible_columns().map(|state| state.column).collect();
         let row = match self.selection {
-            Some(uid) => rows.display_of(uid).map_or(0, DisplayRow::index),
+            // Vue regroupée (finitions P3) : une tâche répétée part de la
+            // ligne où est le curseur.
+            Some(uid) => rows
+                .display_near(uid, self.view.cursor_row)
+                .map_or(0, DisplayRow::index),
             None => len,
         };
         let col = visible
@@ -379,6 +400,10 @@ impl crate::App {
             page: page_rows(self.view.last_body_height, self.row_h()),
         };
         let mut target = step(GridPos { row, col }, mv, shape);
+        // En-têtes de groupe (finitions P3, H-UI-131) : jamais une cellule
+        // du curseur ; le déplacement continue jusqu'à la tâche suivante
+        // dans son sens, sinon dans l'autre, sinon rien ne bouge.
+        target.row = skip_headers(rows, target.row, row);
         let extend = extend && len > 0;
         if extend {
             // L'extension s'arrête à la dernière tâche.
@@ -389,6 +414,9 @@ impl crate::App {
             self.view.cursor.column = *column;
         }
         let uid = rows.uid(DisplayRow::at(target.row));
+        if rows.view().is_grouped() {
+            self.view.cursor_row = Some(DisplayRow::at(target.row));
+        }
         match uid {
             Some(uid) if extend => {
                 // H-UI-92 : plage de lignes depuis l'ancre (type gardé) et

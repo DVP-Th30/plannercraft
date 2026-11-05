@@ -390,6 +390,14 @@ impl App {
     /// pour un bloc de cellules, effacement du contenu (R-259, une entrée
     /// d'annulation).
     pub(crate) fn cut_selection(&mut self, ctx: &egui::Context) {
+        // Regroupement (finitions P3, H-UI-130) : couper des lignes entières
+        // est refusé, rien n'est copié ; couper des cellules reste permis.
+        self.sync_selection();
+        if self.view.group_by.is_some() && self.selected.kind() == SelectionKind::Rows {
+            let text = self.texts.get(TextId::ViewGroupLocked);
+            self.push_message(Severity::Info, text);
+            return;
+        }
         match self.copy_selection(ctx) {
             None => {}
             Some(ClipKind::Cells) => self.clear_cells(),
@@ -459,6 +467,13 @@ impl App {
         let Some(document) = &self.document else {
             return;
         };
+        // Regroupement (finitions P3, H-UI-130) : coller des lignes (insérer
+        // des tâches) refusé ; le collage de cellules reste permis.
+        if self.view.group_by.is_some() && matches!(route, PasteRoute::InsertRows | PasteRoute::ImportRows) {
+            let text = self.texts.get(TextId::ViewGroupLocked);
+            self.push_message(Severity::Info, text);
+            return;
+        }
         let at = self.paste_placement();
         let result = match route {
             PasteRoute::Cells => {

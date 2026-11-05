@@ -7,6 +7,7 @@
 
 #![allow(
     clippy::unwrap_used,
+    clippy::panic,
     clippy::indexing_slicing,
     reason = "tests : un échec doit s'arrêter net et lisiblement"
 )]
@@ -150,7 +151,7 @@ fn h_ui_129_scene_grouped_rows() {
     let shape: Vec<(Option<u32>, u16, bool)> = sc
         .rows
         .iter()
-        .map(|r| (r.uid.map(|u| u.get()), r.level, r.summary))
+        .map(|r| (r.uid.map(plannercraft_core::TaskUid::get), r.level, r.summary))
         .collect();
     assert_eq!(
         shape,
@@ -165,7 +166,7 @@ fn h_ui_129_scene_grouped_rows() {
             (Some(6), 2, false),
         ]
     );
-    assert!(sc.links.is_empty());
+    assert_eq!(sc.links, []);
     let header = sc.rows[3].bar.unwrap();
     assert_eq!(header.role, BarRole::Summary);
     assert_eq!(header.rect.x, sc.rows[4].bar.unwrap().rect.x);
@@ -177,7 +178,7 @@ fn h_ui_129_scene_grouped_rows() {
     // Sans regroupement : la scène d'avant, octet pour octet.
     let plain = scene(&p, &s, &template(TemplateId::Classique));
     assert_eq!(plain.rows.len(), 7);
-    assert!(!plain.links.is_empty());
+    assert_ne!(plain.links, []);
 }
 
 /// H-UI-129 : le SVG suit le style regroupé (`render_gantt`).

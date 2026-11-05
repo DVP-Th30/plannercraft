@@ -1484,6 +1484,18 @@ text_ids! {
     TextHighlightNone => "text-highlight-none",
     TextContrastLow => "text-contrast-low",
     TextStyleUndo => "text-style-undo",
+    // --- Finitions P3 (ADR-0022) ---
+    MenuGroupBy => "menu-group-by",
+    RibbonGroupBy => "ribbon-group-by",
+    RibbonTipGroupBy => "ribbon-tip-group-by",
+    GroupByNone => "group-by-none",
+    GroupByResource => "group-by-resource",
+    GroupByCritical => "group-by-critical",
+    GroupByMilestone => "group-by-milestone",
+    GroupByUndo => "group-by-undo",
+    ViewGroupLocked => "view-group-locked",
+    GroupExpand => "group-expand",
+    GroupCollapse => "group-collapse",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

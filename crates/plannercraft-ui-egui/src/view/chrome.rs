@@ -249,6 +249,9 @@ fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, _side_open: bool) {
         ui.menu_button(texts.get(TextId::MenuLanguage), |ui| language_choices(ui, fc));
         // --- J8 L9 : filtres, tri, niveau ---
         super::task_view::view_menu(ui, fc);
+        // --- Finitions P3 (H-UI-129) : Regrouper par, jumeau de la liste
+        // de l'onglet Affichage.
+        ui.menu_button(texts.get(TextId::MenuGroupBy), |ui| group_entries(ui, fc));
         // --- J8 L11 : surbrillance du critique ---
         twin(ui, fc, RibbonCmd::CriticalTasks, None);
         // --- J8 L15 : graphique seul (H-UI-64) ---
@@ -677,6 +680,9 @@ pub(crate) fn dropdown_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: R
         RibbonCmd::SortMenu => sort_entries(ui, fc),
         RibbonCmd::OutlineMenu => outline_entries(ui, fc),
         RibbonCmd::FilterMenu => filter_entries(ui, fc),
+        // Regrouper par ▾ (finitions P3, H-UI-129) : mêmes entrées qu'au
+        // menu Affichage → Regrouper par.
+        RibbonCmd::GroupByMenu => group_entries(ui, fc),
         RibbonCmd::TimescaleMenu => {
             ui.add_enabled_ui(has_doc, |ui| zoom_choices(ui, fc));
         }
@@ -775,6 +781,28 @@ fn view_entry(
     if ui.add_enabled(enabled, button).clicked() {
         fc.actions.push(Action::TaskView(op));
     }
+}
+
+/// Liste « Regrouper par ▾ » (finitions P3, H-UI-129) : Aucun groupe,
+/// champs personnalisés texte renommés ou remplis, Ressources, Critique,
+/// Jalons ; le regroupement courant est coché. Grisée sans document ou hors
+/// de la vue Gantt (prédicat de [`RibbonCmd::GroupByMenu`]).
+fn group_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    let enabled = RibbonCmd::GroupByMenu.enabled(fc).yes;
+    let current = fc.task_view.group_by;
+    let choices = crate::group_view::choices(fc.doc.map(crate::app::OpenDocument::project), fc.texts);
+    ui.add_enabled_ui(enabled, |ui| {
+        for (k, (by, label)) in choices.into_iter().enumerate() {
+            if k == 1 {
+                ui.separator();
+            }
+            if ui.selectable_label(enabled && current == by, label).clicked() {
+                fc.actions
+                    .push(Action::Group(crate::group_view::GroupOp::Set(by)));
+                ui.close();
+            }
+        }
+    });
 }
 
 /// Liste « Trier ▾ » : Trier…, Trier par ID (entrées du menu Affichage).

@@ -58,6 +58,7 @@ mod fields;
 mod files;
 mod filters;
 mod gestures;
+mod group;
 mod j8_e2e;
 mod messages;
 mod nav;
