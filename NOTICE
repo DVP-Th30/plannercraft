@@ -24,7 +24,7 @@ Police Inter (assets/fonts/Inter-Regular.ttf, assets/fonts/Inter-SemiBold.ttf)
       --layout-features='' --no-layout-closure --name-IDs='*'
       --name-languages='*'
 
-Icônes Lucide (assets/icons/lucide/*.svg, 54 fichiers)
+Icônes Lucide (assets/icons/lucide/*.svg, 61 fichiers)
   Copyright (c) 2026 Lucide Icons and Contributors (https://lucide.dev)
   Licence : ISC (assets/icons/lucide/LICENSE, recopié tel quel du paquet).
   Icônes dérivées de Feather (link, info, search, zoom-in, zoom-out,
