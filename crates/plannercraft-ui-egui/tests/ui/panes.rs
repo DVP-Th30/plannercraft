@@ -93,6 +93,43 @@ fn row_top(harness: &Harness<'static, App>, n: u32, name: &str) -> f32 {
     harness.get_by_label(&label).rect().top()
 }
 
+/// « P » avec la tâche 3 sur la frise : frise à la hauteur choisie et
+/// séparateur tirable (une frise sans tâche est basse et fixe, H-UI-137).
+fn framed(harness: &mut Harness<'static, App>) {
+    let json = serde_json::json!({
+        "format_version": 1,
+        "ops": [{ "op": "style.apply", "patch": { "timeline": { "tasks": [3] } } }]
+    });
+    dispatch(
+        harness,
+        Action::Exec(Batch::from_json_str(&json.to_string()).unwrap()),
+    );
+}
+
+/// H-UI-137 (finitions P4, seconde passe) : frise sans tâche ⇒ 36 points,
+/// sans séparateur, la place rendue à la vue ; une tâche ajoutée ⇒ hauteur
+/// choisie (72 points) et séparateur ; la hauteur enregistrée n'a pas
+/// bougé.
+#[test]
+fn h_ui_137_empty_timeline_compact() {
+    let mut harness = p();
+    let before = panes(&harness);
+    assert!(
+        (before.timeline.unwrap().height() - 36.0).abs() < 0.01,
+        "{before:?}"
+    );
+    assert!(before.timeline_splitter.is_none());
+    assert_eq!(harness.state().state.timeline_height, TIMELINE_HEIGHT_DEFAULT);
+    framed(&mut harness);
+    let after = panes(&harness);
+    assert!(
+        (after.timeline.unwrap().height() - 72.0).abs() < 0.01,
+        "{after:?}"
+    );
+    assert!(after.timeline_splitter.is_some());
+    assert!((before.view.height() - after.view.height() - 36.0).abs() < 0.5);
+}
+
 fn history_len(app: &App) -> usize {
     app.document.as_ref().unwrap().session.history().entries.len()
 }
@@ -252,6 +289,8 @@ fn h_ui_110_three_paths_same_action() {
 #[test]
 fn h_ui_111_timeline_splitter_drag() {
     let mut harness = p();
+    framed(&mut harness);
+    let base = history_len(harness.state());
     assert_eq!(harness.state().state.timeline_height, TIMELINE_HEIGHT_DEFAULT);
     let before = panes(&harness);
     assert!(
@@ -271,7 +310,7 @@ fn h_ui_111_timeline_splitter_drag() {
     let app = harness.state();
     assert_eq!(app.state.timeline_height, 152);
     assert!(app.view().split_drag.is_none());
-    assert_eq!(history_len(app), 0);
+    assert_eq!(history_len(app), base);
     let after = panes(&harness);
     assert!(
         (after.timeline.unwrap().height() - 152.0).abs() < 0.01,
@@ -284,7 +323,8 @@ fn h_ui_111_timeline_splitter_drag() {
     let (read, warning) = UiState::from_json_lenient(&json);
     assert!(warning.is_none(), "{warning:?}");
     assert_eq!(read.timeline_height, 152);
-    let again = open_with(project_p(), read);
+    let mut again = open_with(project_p(), read);
+    framed(&mut again);
     assert!((panes(&again).timeline.unwrap().height() - 152.0).abs() < 0.01);
 }
 
@@ -294,6 +334,7 @@ fn h_ui_111_timeline_splitter_drag() {
 #[test]
 fn h_ui_111_splitter_bounds() {
     let mut harness = p();
+    framed(&mut harness);
     let total = {
         let d = panes(&harness);
         d.timeline.unwrap().height() + d.view.height()
@@ -333,6 +374,7 @@ fn h_ui_111_splitter_bounds() {
 #[test]
 fn h_ui_111_double_click_resets() {
     let mut harness = p();
+    framed(&mut harness);
     dispatch(&mut harness, Action::Pane(PaneOp::SetTimelineHeight(200)));
     dispatch(&mut harness, Action::Pane(PaneOp::ShowDetails(true)));
     dispatch(&mut harness, Action::Pane(PaneOp::SetDetailsHeight(300)));
@@ -349,7 +391,9 @@ fn h_ui_111_double_click_resets() {
     double_click(&mut harness, g);
     assert_eq!(harness.state().state.details.height, DETAILS_HEIGHT_DEFAULT);
     assert!((panes(&harness).details.unwrap().height() - details_default(&harness)).abs() < 0.01);
-    assert_eq!(history_len(harness.state()), 0);
+    // Seule l'entrée de la frise (`framed`) : les séparateurs n'en ajoutent
+    // aucune.
+    assert_eq!(history_len(harness.state()), 1);
 }
 
 /// H-UI-111, H-UI-112 (cadre) : volet de détails fermé par défaut ; ouvert

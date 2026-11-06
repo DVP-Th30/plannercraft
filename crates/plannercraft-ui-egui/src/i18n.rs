@@ -1496,6 +1496,8 @@ text_ids! {
     ViewGroupLocked => "view-group-locked",
     GroupExpand => "group-expand",
     GroupCollapse => "group-collapse",
+    // --- Finitions P4 (ADR-0022 D6) ---
+    RibbonAddToTimeline => "ribbon-add-to-timeline",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

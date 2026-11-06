@@ -196,26 +196,33 @@ pub fn menu_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, side_open: bool) {
     let texts = fc.texts;
     ui.ctx()
         .data_mut(|data| data.insert_temp(side_open_id(), side_open));
-    egui::Panel::top("plannercraft_menu_bar").show(ui, |ui| {
-        egui::MenuBar::new().ui(ui, |ui| {
-            ui.menu_button(texts.get(TextId::MenuFile), |ui| file_menu(ui, fc));
-            ui.menu_button(texts.get(TextId::MenuEdit), |ui| edit_menu(ui, fc));
-            view_menu(ui, fc, side_open);
-            // --- J8 L15 : menus Tâche, Projet, Format, Aide ---
-            ui.menu_button(texts.get(TextId::MenuTask), |ui| task_menu(ui, fc));
-            ui.menu_button(texts.get(TextId::MenuProject), |ui| project_menu(ui, fc));
-            ui.menu_button(texts.get(TextId::MenuFormat), |ui| format_menu(ui, fc));
-            ui.menu_button(texts.get(TextId::MenuHelp), |ui| {
-                let label = texts.get_args(
-                    TextId::MenuAbout,
-                    &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
-                );
-                if ui.button(label).clicked() {
-                    fc.actions.push(Action::About);
-                }
+    // Finitions P4 (H-UI-132) : même surface que le ruban, sans filet entre
+    // les deux (le filet est sous le ruban).
+    let surface = crate::theme::ChromeTokens::for_theme(ui.ctx().theme()).surface;
+    let frame = egui::Frame::side_top_panel(ui.style()).fill(surface);
+    egui::Panel::top("plannercraft_menu_bar")
+        .frame(frame)
+        .show_separator_line(false)
+        .show(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button(texts.get(TextId::MenuFile), |ui| file_menu(ui, fc));
+                ui.menu_button(texts.get(TextId::MenuEdit), |ui| edit_menu(ui, fc));
+                view_menu(ui, fc, side_open);
+                // --- J8 L15 : menus Tâche, Projet, Format, Aide ---
+                ui.menu_button(texts.get(TextId::MenuTask), |ui| task_menu(ui, fc));
+                ui.menu_button(texts.get(TextId::MenuProject), |ui| project_menu(ui, fc));
+                ui.menu_button(texts.get(TextId::MenuFormat), |ui| format_menu(ui, fc));
+                ui.menu_button(texts.get(TextId::MenuHelp), |ui| {
+                    let label = texts.get_args(
+                        TextId::MenuAbout,
+                        &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
+                    );
+                    if ui.button(label).clicked() {
+                        fc.actions.push(Action::About);
+                    }
+                });
             });
         });
-    });
 }
 
 /// Menu Affichage : vues, zoom, thème, langue, vue des tâches, volet IA,

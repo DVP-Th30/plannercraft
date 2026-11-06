@@ -296,7 +296,13 @@ fn pane_slots(ui: &egui::Ui, fc: &FrameCtx<'_>, view: &ViewTransient, full: Rect
         .then(|| live_height(ui, view, Splitter::Timeline, fc.state.timeline_height, total));
     let details = (fc.state.details.visible && fc.doc.is_some())
         .then(|| live_height(ui, view, Splitter::Details, fc.state.details.height, total));
-    let h = panes::layout(total, timeline, details);
+    let mut h = panes::layout(total, timeline, details);
+    // Frise sans tâche (H-UI-137) : basse, la place rendue à la vue ; la
+    // hauteur choisie revient dès qu'une tâche y est.
+    if h.timeline > timeline::COMPACT_H && timeline::compact(fc) {
+        h.view += h.timeline - timeline::COMPACT_H;
+        h.timeline = timeline::COMPACT_H;
+    }
     let view_top = full.top() + h.timeline;
     let view_rect = Rect::from_min_size(pos2(full.left(), view_top), vec2(full.width(), h.view));
     PaneSlots {
@@ -384,8 +390,11 @@ fn pane_splitters(
     slots: &PaneSlots,
 ) -> PanesDrawn {
     let x = slots.view.x_range();
+    // Frise sans tâche : pas de séparateur à tirer (sa hauteur ne bouge
+    // pas, H-UI-137).
     let timeline_splitter = slots
         .timeline
+        .filter(|_| !timeline::compact(fc))
         .and_then(|r| splitter(ui, fc, view, Splitter::Timeline, (r.bottom(), x, r.height())));
     let details_splitter = slots
         .details

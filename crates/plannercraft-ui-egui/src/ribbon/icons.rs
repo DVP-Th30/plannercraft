@@ -4,9 +4,10 @@
 //! ([`super::icon_data`], `cargo xtask icons`) : egui les trace comme les
 //! liens du Gantt, à toute échelle (1×, 1,5×, 2×, 3× : retessellées par
 //! epaint, jamais une texture), à la couleur demandée (texte du thème,
-//! atténuée si l'élément est grisé). Trait de 2/24 du côté, disques aux
-//! extrémités des polylignes ouvertes et aux points isolés (bouts ronds de
-//! Lucide).
+//! grise si l'élément est grisé, accent pour une bascule enfoncée). Trait de
+//! 1,75/24 du côté (finitions P4, H-UI-133 : un peu plus fin que le 2/24 de
+//! Lucide, plus net à 24 px), disques aux extrémités des polylignes
+//! ouvertes et aux points isolés (bouts ronds de Lucide).
 
 use egui::{Color32, Painter, Pos2, Rect, Shape, Stroke};
 
@@ -18,8 +19,9 @@ const GRID: f32 = 24.0;
 /// Sous-unités par unité de grille dans [`super::icon_data`].
 const SUBUNITS: f32 = 64.0;
 
-/// Épaisseur du trait Lucide, en unités de grille.
-const STROKE: f32 = 2.0;
+/// Épaisseur du trait, en unités de grille (Lucide : 2 ; finitions P4 :
+/// 1,75).
+pub const STROKE: f32 = 1.75;
 
 /// Formes epaint de `icon` dans `rect` (carré centré de côté
 /// `min(largeur, hauteur)`) : vide si le rectangle n'est pas fini ou est

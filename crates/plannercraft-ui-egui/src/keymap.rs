@@ -150,7 +150,7 @@ pub enum UiBinding {
     // --- Finitions avant v1.0.0 (ADR-0022, lot P2, H-UI-127).
     /// Ctrl/Cmd+B : gras du texte des tâches sélectionnées.
     ToggleBold,
-    /// Ctrl/Cmd+Maj+I : italique (Ctrl/Cmd+I insère déjà une tâche).
+    /// Ctrl/Cmd+I : italique (finitions P4, H-UI-135).
     ToggleItalic,
 }
 
@@ -240,16 +240,19 @@ pub const KEYMAP: &[(KeyContext, Shortcut, Binding)] = &[
         Shortcut::new(Modifiers::NONE, Key::Insert),
         Binding::Command("task.add"),
     ),
-    // Finitions P2 (H-UI-127) : italique en Ctrl/Cmd+Maj+I, avant Ctrl/Cmd+I
-    // (egui ignore Maj en trop) ; Ctrl/Cmd+I reste l'insertion d'une tâche.
-    doc_ui(COMMAND_SHIFT, Key::I, UiBinding::ToggleItalic),
     // Insérer sans touche Inser (clavier Mac, relecture finale J7, F6) :
-    // Cmd+I (Ctrl+I ailleurs), affiché dans les menus sur macOS.
+    // Cmd+Maj+I (Ctrl+Maj+I ailleurs) depuis les finitions P4 (H-UI-135,
+    // décision du propriétaire du 2026-11-06 : Ctrl/Cmd+I = italique comme
+    // Office ; Cmd+Entrée, demandé, est déjà l'acceptation du bandeau de
+    // l'agent et le remplissage du bloc en saisie), affiché dans les menus
+    // sur macOS. Avant Ctrl/Cmd+I : egui ignore Maj en trop.
     (
         KeyContext::Document,
-        Shortcut::new(Modifiers::COMMAND, Key::I),
+        Shortcut::new(COMMAND_SHIFT, Key::I),
         Binding::Command("task.add"),
     ),
+    // Finitions P4 (H-UI-135) : italique en Ctrl/Cmd+I (P2 : Ctrl/Cmd+Maj+I).
+    doc_ui(COMMAND, Key::I, UiBinding::ToggleItalic),
     // Ctrl/Cmd+Suppr : effacer le contenu (ADR-0018, H-UI-97, S61 « Clear
     // or reset the selected field. »), avant Suppr.
     table_ui(COMMAND, Key::Delete, UiBinding::ClearCells),
@@ -632,7 +635,7 @@ pub fn shortcut_for(binding: Binding) -> Option<&'static Shortcut> {
 
 /// Raccourci affiché dans les menus pour `binding` sur le système `os` : sur
 /// macOS, le premier qui n'utilise ni Inser ni Suppr (touches absentes d'un
-/// clavier Mac : Cmd+I, Cmd+delete) ; ailleurs, le premier.
+/// clavier Mac : Cmd+Maj+I, Cmd+delete) ; ailleurs, le premier.
 #[must_use]
 pub fn shortcut_for_os(binding: Binding, os: egui::os::OperatingSystem) -> Option<&'static Shortcut> {
     let mac_key = |shortcut: &Shortcut| !matches!(shortcut.logical_key, Key::Insert | Key::Delete);
@@ -886,7 +889,8 @@ mod tests {
         ));
     }
 
-    /// Relecture finale J7, F6 : sur macOS, les menus montrent Cmd+I et
+    /// Relecture finale J7, F6 : sur macOS, les menus montrent Cmd+Maj+I
+    /// (finitions P4, H-UI-135 ; Cmd+I avant) et
     /// Cmd+delete (pas Inser ni Suppr) ; ailleurs, Inser et Suppr ; Retour
     /// arrière seul n'est plus lié à `task.delete`.
     #[test]
@@ -897,12 +901,9 @@ mod tests {
 
         let add = Binding::Command("task.add");
         let delete = Binding::Command("task.delete");
-        assert_eq!(
-            shortcut_for_os(add, OperatingSystem::Mac)
-                .expect("raccourci affiché")
-                .logical_key,
-            Key::I
-        );
+        let mac_add = shortcut_for_os(add, OperatingSystem::Mac).expect("raccourci affiché");
+        assert_eq!(mac_add.logical_key, Key::I);
+        assert_eq!(mac_add.modifiers, super::COMMAND_SHIFT, "Cmd+Maj+I (H-UI-135)");
         assert_eq!(
             shortcut_for_os(delete, OperatingSystem::Mac)
                 .expect("raccourci affiché")

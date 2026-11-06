@@ -232,7 +232,7 @@ pub enum RibbonCmd {
     // l'onglet Tâche (H-UI-127), jumeaux au menu Format.
     /// Gras (bascule, Ctrl/Cmd+B).
     Bold,
-    /// Italique (bascule, Ctrl/Cmd+Maj+I).
+    /// Italique (bascule, Ctrl/Cmd+I depuis les finitions P4).
     Italic,
     /// Liste Couleur du texte ▾.
     TextColorMenu,
@@ -831,6 +831,15 @@ impl RibbonCmd {
         )
     }
 
+    /// Petit élément posé sur la même rangée que le précédent (finitions P4,
+    /// H-UI-133) : Délier à côté de Lier, Désindenter à côté d'Indenter,
+    /// sous la rangée des pourcentages, pour que Planification tienne en
+    /// deux colonnes.
+    #[must_use]
+    pub const fn joins_previous(self) -> bool {
+        matches!(self, Self::Unlink | Self::Outdent)
+    }
+
     /// Case cochable dans un menu contextuel (H-UI-74 : état de la tâche
     /// active).
     #[must_use]
@@ -1180,7 +1189,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::Gallery,
             ),
         ],
-        shrink_rank: 5,
+        shrink_rank: 2,
     },
     GroupSpec {
         label: TextId::RibbonGroupSchedule,
@@ -1261,7 +1270,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::Inspect,
             ),
         ],
-        shrink_rank: 4,
+        shrink_rank: 3,
     },
     GroupSpec {
         label: TextId::RibbonGroupInsert,
@@ -1290,14 +1299,14 @@ const TASK_GROUPS: &[GroupSpec] = &[
                 RibbonCmd::InsertMilestone,
             ),
         ],
-        shrink_rank: 3,
+        shrink_rank: 5,
     },
     GroupSpec {
         label: TextId::RibbonGroupProperties,
         icon: Icon::Info,
         items: &[
             item(
-                Large,
+                Small,
                 Some(Icon::Info),
                 TextId::RibbonInformation,
                 TextId::RibbonTipInformation,
@@ -1314,12 +1323,13 @@ const TASK_GROUPS: &[GroupSpec] = &[
             plain(
                 Check,
                 Some(Icon::Timeline),
-                TextId::TimelineAdd,
+                // Finitions P4 (H-UI-133) : libellé court de la bascule.
+                TextId::RibbonAddToTimeline,
                 TextId::RibbonTipAddToTimeline,
                 RibbonCmd::AddToTimeline,
             ),
         ],
-        shrink_rank: 2,
+        shrink_rank: 4,
     },
     GroupSpec {
         label: TextId::RibbonGroupEditing,

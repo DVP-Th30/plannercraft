@@ -503,7 +503,7 @@ fn h_ui_70_task_cmds_disabled_in_resource_views() {
             TextId::RibbonIndent,
             TextId::RibbonInactivate,
             TextId::RibbonManualSchedule,
-            TextId::TimelineAdd,
+            TextId::RibbonAddToTimeline,
         ] {
             assert!(disabled(&node(&harness, &fr(id))), "{view:?} {id:?}");
         }
@@ -540,7 +540,8 @@ fn item_rect(d: &RibbonDrawn, label: &str) -> Rect {
 
 /// H-UI-71 : grand bouton ≥ 52 × 76 px ; petits boutons de 22 px de haut,
 /// trois par colonne ; Insérer : « Tâche » grand, « Récapitulative » et
-/// « Jalon » empilés à sa droite ; bande d'onglets de 26 px, corps de 92 px.
+/// « Jalon » empilés à sa droite ; bande d'onglets de 26 px, corps de 92 px ;
+/// Planification en deux colonnes (H-UI-133).
 #[test]
 fn h_ui_71_large_small_geometry() {
     let harness = p();
@@ -562,18 +563,24 @@ fn h_ui_71_large_small_geometry() {
     }
     assert!((summary.left() - milestone.left()).abs() < 0.01);
     assert!(summary.bottom() <= milestone.top());
-    // Trois par colonne : Indenter, Désindenter, Désactiver.
-    let column: Vec<Rect> = [
-        TextId::RibbonIndent,
-        TextId::RibbonOutdent,
-        TextId::RibbonInactivate,
-    ]
-    .map(|id| item_rect(&d, &fr(id)))
-    .to_vec();
-    for pair in column.windows(2) {
-        assert!((pair[0].left() - pair[1].left()).abs() < 0.01);
-        assert!(pair[0].bottom() <= pair[1].top());
+    // Finitions P4 (H-UI-133) : sous la rangée des pourcentages, Lier |
+    // Délier puis Indenter | Désindenter sur deux rangées de la même
+    // colonne ; Désactiver et Décaler dans la colonne suivante.
+    let at = |id: TextId| item_rect(&d, &fr(id));
+    let percent = item_rect(&d, "0 %");
+    let (link, unlink) = (at(TextId::RibbonLink), at(TextId::RibbonUnlink));
+    let (indent, outdent) = (at(TextId::RibbonIndent), at(TextId::RibbonOutdent));
+    for (left, right) in [(link, unlink), (indent, outdent)] {
+        assert!((left.top() - right.top()).abs() < 0.01, "{left:?} {right:?}");
+        assert!(left.right() <= right.left());
     }
+    assert!((percent.left() - link.left()).abs() < 0.01);
+    assert!((link.left() - indent.left()).abs() < 0.01);
+    assert!(percent.bottom() <= link.top() && link.bottom() <= indent.top());
+    let (inactivate, shift) = (at(TextId::RibbonInactivate), at(TextId::RibbonShift));
+    assert!((inactivate.left() - shift.left()).abs() < 0.01);
+    assert!(inactivate.left() >= outdent.right().max(percent.right()));
+    assert!(inactivate.bottom() <= shift.top());
     for item in &d.items {
         if item.kind == Some(Kind::Large) {
             assert!(
@@ -877,42 +884,64 @@ fn h_ui_75_no_overflow_widths() {
     }
 }
 
-/// H-UI-75 : la réduction avance par rang avec un rang d'écart entre
-/// « sans libellés » et « replié ». À 1 280 px, Planification,
-/// Presse-papiers et Texte gardent tous leurs boutons (finitions P2 : le
-/// groupe Texte, 78 px, fait perdre son libellé à « Modèles… » et replier
-/// Insérer) ; à 1 024 px (fenêtre réduite, web), Presse-papiers garde ses
-/// libellés, Texte et Planification ne sont pas repliés (Mise en forme
-/// l'est ; l'onglet entier demande ~1 620 px).
+/// H-UI-75, H-UI-133 (finitions P4, nouveaux paliers de l'onglet Tâche ;
+/// rangs : Édition 1, Mise en forme 2, Tâches 3, Propriétés 4, Insérer 5,
+/// Planification 6, Texte 7, Presse-papiers 8, Affichage 9). À 1 280 px,
+/// Presse-papiers, Texte, Planification, Insérer et Propriétés gardent tous
+/// leurs libellés ; Édition et Mise en forme sont réduits ou repliés,
+/// Tâches jamais repliée (FR : Mise en forme et Édition repliés, Tâches
+/// sans le libellé d'Inspecter ; EN : Édition et Mise en forme sans
+/// libellés). À 1 024 px (fenêtre réduite, web) : Presse-papiers
+/// et Texte entiers, Planification pas repliée, Insérer et Propriétés sans
+/// libellés, Mise en forme, Tâches et Édition repliés. FR et EN.
 #[test]
 fn h_ui_75_task_tab_keeps_labels_when_narrow() {
     for width in [1280.0, 1024.0] {
-        let harness = p_at(width);
-        let d = ribbon(&harness);
-        let stage = |name: TextId| {
-            d.groups
-                .iter()
-                .find(|(n, _, _)| *n == fr(name))
-                .map(|(_, s, _)| *s)
-                .unwrap()
-        };
-        assert_eq!(stage(TextId::RibbonGroupClipboard), Stage::Full, "{width}");
-        // Finitions P2 : le groupe Texte (icônes seules) n'est jamais réduit.
-        assert_eq!(stage(TextId::RibbonGroupText), Stage::Full, "{width}");
-        assert_ne!(stage(TextId::RibbonGroupSchedule), Stage::Folded, "{width}");
-        if width >= 1280.0 {
-            // Finitions P2 : Mise en forme se réduit avant Planification
-            // (seul « Modèles… » perd son libellé) ; Insérer est replié.
-            assert_eq!(stage(TextId::RibbonGroupFormatting), Stage::Compact, "{width}");
-            assert_eq!(stage(TextId::RibbonGroupSchedule), Stage::Full, "{width}");
-            assert_ne!(stage(TextId::RibbonGroupTasks), Stage::Folded, "{width}");
+        let mut harness = p_at(width);
+        for (pref, language) in [(LanguagePref::Fr, Language::Fr), (LanguagePref::En, Language::En)] {
+            dispatch(&mut harness, Action::SetLanguage(pref));
+            let texts = Texts::new(language);
+            let d = ribbon(&harness);
+            let stage = |name: TextId| {
+                d.groups
+                    .iter()
+                    .find(|(n, _, _)| *n == texts.get(name))
+                    .map(|(_, s, _)| *s)
+                    .unwrap()
+            };
+            let is = |group: TextId, expected: Stage| {
+                assert_eq!(stage(group), expected, "{width} {language:?} {group:?}");
+            };
+            let not = |group: TextId, unexpected: Stage| {
+                assert_ne!(stage(group), unexpected, "{width} {language:?} {group:?}");
+            };
+            is(TextId::RibbonGroupView, Stage::Full);
+            is(TextId::RibbonGroupClipboard, Stage::Full);
+            is(TextId::RibbonGroupText, Stage::Full);
+            not(TextId::RibbonGroupEditing, Stage::Full);
+            not(TextId::RibbonGroupSchedule, Stage::Folded);
+            if width >= 1280.0 {
+                is(TextId::RibbonGroupSchedule, Stage::Full);
+                is(TextId::RibbonGroupInsert, Stage::Full);
+                is(TextId::RibbonGroupProperties, Stage::Full);
+                not(TextId::RibbonGroupFormatting, Stage::Full);
+                not(TextId::RibbonGroupTasks, Stage::Folded);
+            } else {
+                is(TextId::RibbonGroupEditing, Stage::Folded);
+                is(TextId::RibbonGroupInsert, Stage::Compact);
+                is(TextId::RibbonGroupProperties, Stage::Compact);
+                is(TextId::RibbonGroupFormatting, Stage::Folded);
+                is(TextId::RibbonGroupTasks, Stage::Folded);
+            }
         }
     }
 }
 
-/// H-UI-75 : onglet Tâche à 800 px ⇒ Édition et Propriétés (et, mesuré,
-/// Insérer, Tâches, Planification) repliés en boutons ; « Propriétés ▾ » →
-/// Informations ⇒ fenêtre ouverte.
+/// H-UI-75 : onglet Tâche à 800 px ⇒ Édition, Insérer, Tâches,
+/// Planification et Mise en forme repliés en boutons ; Propriétés reste en
+/// icônes (son bouton replié serait plus large : pas sauté, finitions P4) ;
+/// « Insérer ▾ » → Jalon ⇒ une tâche de plus ; l'icône « Informations » ⇒
+/// fenêtre ouverte.
 #[test]
 fn h_ui_75_collapsed_group_menu_runs_action() {
     let mut harness = p_at(800.0);
@@ -925,16 +954,30 @@ fn h_ui_75_collapsed_group_menu_runs_action() {
             .map(|(_, s, _)| *s)
             .unwrap()
     };
-    assert_eq!(stage(TextId::RibbonGroupEditing), Stage::Folded);
-    assert_eq!(stage(TextId::RibbonGroupProperties), Stage::Folded);
+    for group in [
+        TextId::RibbonGroupEditing,
+        TextId::RibbonGroupInsert,
+        TextId::RibbonGroupTasks,
+        TextId::RibbonGroupSchedule,
+        TextId::RibbonGroupFormatting,
+    ] {
+        assert_eq!(stage(group), Stage::Folded, "{group:?}");
+    }
+    assert_eq!(stage(TextId::RibbonGroupProperties), Stage::Compact);
     // Les groupes de gauche ne sont pas repliés : Affichage,
-    // Presse-papiers, Mise en forme.
+    // Presse-papiers, Texte.
     assert_ne!(stage(TextId::RibbonGroupClipboard), Stage::Folded);
-    node(&harness, &fr(TextId::RibbonGroupProperties)).click();
+    assert_ne!(stage(TextId::RibbonGroupText), Stage::Folded);
+    let tasks = project(harness.state()).tasks.len();
+    node(&harness, &fr(TextId::RibbonGroupInsert)).click();
     harness.run();
-    let info = named(&harness, &fr(TextId::RibbonInformation));
-    assert_eq!(info.len(), 1);
-    info[0].click();
+    let milestone = named(&harness, &fr(TextId::RibbonInsertMilestone));
+    assert_eq!(milestone.len(), 1);
+    milestone[0].click();
+    harness.run();
+    assert_eq!(project(harness.state()).tasks.len(), tasks + 1);
+    select(&mut harness, 3, &[]);
+    node(&harness, &fr(TextId::RibbonInformation)).click();
     harness.run();
     let dialog = harness.state().view().dialog.as_ref().map(|d| d.kind);
     assert_eq!(dialog, Some(DialogKind::TaskInformation(uid(3))));
@@ -964,36 +1007,38 @@ fn h_ui_76_quick_access_undo_disabled() {
     assert!(!disabled(&node(&harness, &redo)));
 }
 
-/// Opacité la plus haute des formes d'icône (disques des bouts de trait)
-/// peintes dans `rect`.
-fn icon_alpha(harness: &Harness<'static, App>, rect: Rect) -> u8 {
+/// Couleur des disques (bouts de trait) de l'icône peinte dans `rect`.
+fn icon_color(harness: &Harness<'static, App>, rect: Rect) -> egui::Color32 {
     harness
         .output()
         .shapes
         .iter()
-        .filter_map(|clipped| match &clipped.shape {
-            Shape::Circle(c) if rect.contains(c.center) => Some(c.fill.a()),
+        .find_map(|clipped| match &clipped.shape {
+            Shape::Circle(c) if rect.contains(c.center) => Some(c.fill),
             _ => None,
         })
-        .max()
         .unwrap_or_else(|| panic!("aucune icône dans {rect:?}"))
 }
 
-/// H-UI-77 : « Coller » grisé ⇒ icône atténuée ; actif ⇒ pleine couleur.
+/// H-UI-77, H-UI-133 : « Coller » grisé ⇒ icône à l'encre grisée, opaque
+/// (lisible, ≥ 3:1) ; actif ⇒ couleur du texte de l'habillage.
 #[test]
 fn h_ui_77_disabled_icon_dimmed() {
+    use plannercraft_ui_egui::theme::ChromeTokens;
     let paste = fr(TextId::MenuPaste);
     let mut harness = welcome();
     harness.remove_cursor();
     harness.run();
     let rect = item_rect(&ribbon(&harness), &paste);
-    let dim = icon_alpha(&harness, rect);
+    let dim = icon_color(&harness, rect);
     let mut harness = p_at(1440.0);
     harness.remove_cursor();
     harness.run();
     let rect = item_rect(&ribbon(&harness), &paste);
-    let full = icon_alpha(&harness, rect);
-    assert!(dim < full, "grisé {dim} ≥ actif {full}");
+    let full = icon_color(&harness, rect);
+    assert_eq!(dim, ChromeTokens::LIGHT.disabled);
+    assert_eq!(full, ChromeTokens::LIGHT.text);
+    assert_eq!(dim.a(), 255);
 }
 
 /// R-252 par le ruban : « 50 % » sur la récapitulative 1 ⇒ feuilles 2 et 3

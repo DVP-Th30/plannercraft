@@ -267,7 +267,7 @@ fn check_keymap_entry(i: usize) {
             press(&mut harness, i);
             assert!(!harness.state().state.ribbon.collapsed);
         }
-        // Finitions P2 (H-UI-127) : Ctrl/Cmd+B, Ctrl/Cmd+Maj+I sur la tâche
+        // Finitions P2 (H-UI-127) : Ctrl/Cmd+B, Ctrl/Cmd+I (P4) sur la tâche
         // active ; une entrée d'annulation chacune.
         Binding::Ui(UiBinding::ToggleBold | UiBinding::ToggleItalic) => {
             let mut harness = harness();

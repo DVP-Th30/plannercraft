@@ -26,7 +26,7 @@ use plannercraft_ui_egui::action::{DialogKind, TimelineOp};
 use plannercraft_ui_egui::dialog::DialogBody;
 use plannercraft_ui_egui::dialog::page_setup::PageSetupState;
 use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
-use plannercraft_ui_egui::view::timeline::{TIMELINE_H, TimelineDrawn};
+use plannercraft_ui_egui::view::timeline::{COMPACT_H, TIMELINE_H, TimelineDrawn};
 use plannercraft_ui_egui::{Action, App, DocOrigin, ViewKind};
 
 use crate::filters::project_p;
@@ -175,13 +175,19 @@ fn row_rect(harness: &Harness<'static, App>, n: u32, name: &str) -> Rect {
 }
 
 /// H-UI-78 : P ⇒ « Début lun 19/10/26 » à gauche, « Fin mar 17/11/26 » à
-/// droite, graduation « nov. » ; frise de 72 points sur toute la largeur,
-/// sous le ruban.
+/// droite, graduation « nov. » ; frise sur toute la largeur, sous le
+/// ruban : basse sans tâche (H-UI-137, 36 points), 72 points dès qu'une
+/// tâche y est.
 #[test]
 fn h_ui_78_timeline_shows_project_bounds() {
-    let harness = p();
+    let mut harness = p();
     let d = drawn(&harness);
-    assert!((d.rect.height() - TIMELINE_H).abs() < 0.01, "{d:?}");
+    assert!((d.rect.height() - COMPACT_H).abs() < 0.01, "{d:?}");
+    put(&mut harness, &[3]);
+    assert!((drawn(&harness).rect.height() - TIMELINE_H).abs() < 0.01);
+    put(&mut harness, &[]);
+    let d = drawn(&harness);
+    assert!((d.rect.height() - COMPACT_H).abs() < 0.01, "{d:?}");
     // Toute la largeur de la vue (marges du panneau central comprises).
     let table_left = row_rect(&harness, 1, "Gros œuvre").left();
     assert!((d.rect.left() - table_left).abs() < 0.5, "{d:?}");
@@ -221,8 +227,8 @@ fn h_ui_78_empty_timeline_hint() {
     assert!(!frise_texts(&harness).contains(&hint));
 }
 
-/// H-UI-78 : case décochée ⇒ frise retirée, table remontée de 72 points ;
-/// cochée à nouveau ⇒ redescendue.
+/// H-UI-78 : case décochée ⇒ frise retirée, table remontée de sa hauteur
+/// (36 points sans tâche, H-UI-137) ; cochée à nouveau ⇒ redescendue.
 #[test]
 fn h_ui_78_toggle_hides() {
     let mut harness = p();
@@ -230,7 +236,7 @@ fn h_ui_78_toggle_hides() {
     dispatch(&mut harness, Action::Timeline(TimelineOp::SetVisible(false)));
     assert!(harness.state().view().timeline.drawn.is_none());
     let hidden = row_rect(&harness, 1, "Gros œuvre").top();
-    assert!((shown - hidden - TIMELINE_H).abs() < 0.5, "{shown} → {hidden}");
+    assert!((shown - hidden - COMPACT_H).abs() < 0.5, "{shown} → {hidden}");
     dispatch(&mut harness, Action::Timeline(TimelineOp::SetVisible(true)));
     assert!((row_rect(&harness, 1, "Gros œuvre").top() - shown).abs() < 0.5);
 }
@@ -269,7 +275,7 @@ fn h_ui_78_default_visible() {
     let harness = p();
     assert!(harness.state().state.timeline_visible);
     let drawn = drawn(&harness);
-    assert!(drawn.rect.height() >= TIMELINE_H - 0.5, "{:?}", drawn.rect);
+    assert!(drawn.rect.height() >= COMPACT_H - 0.5, "{:?}", drawn.rect);
     let texts = frise_texts(&harness);
     assert!(texts.iter().any(|t| t.starts_with("Début")), "{texts:?}");
     assert!(texts.iter().any(|t| t.starts_with("Fin")), "{texts:?}");

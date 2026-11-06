@@ -517,7 +517,7 @@ pub enum TextStyleOp {
     /// Gras : inverse l'état de la tâche active, appliqué à la sélection
     /// (Ctrl/Cmd+B).
     ToggleBold,
-    /// Italique : comme le gras (Ctrl/Cmd+Maj+I).
+    /// Italique : comme le gras (Ctrl/Cmd+I, finitions P4).
     ToggleItalic,
     /// Couleur du texte (`None` : automatique).
     Color(Option<plannercraft_render::style::Rgb>),
