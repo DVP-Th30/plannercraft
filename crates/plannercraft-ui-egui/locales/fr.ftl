@@ -1621,3 +1621,64 @@ group-collapse = Replier le groupe { $name }
 
 # --- Finitions P4 (ADR-0022 D6) ---
 ribbon-add-to-timeline = Sur la chronologie
+
+# --- Assistant IA (ADR-0024, lot A1) ---
+side-tab-assistant = Assistant
+menu-assistant = Assistant IA
+ribbon-tip-assistant = Ouvre l'assistant IA : posez une question sur le planning ouvert ; il le lit et répond, sans le modifier.
+assistant-intro-title = Assistant IA
+assistant-disclosure = Vous échangez avec une IA ; votre planning (noms de tâches, dates) est envoyé à OpenRouter et au fournisseur du modèle choisi.
+assistant-read-only = L'assistant lit le planning et répond ; il ne le modifie pas. Il faut un compte OpenRouter (vos appels vous sont facturés par OpenRouter).
+assistant-enable = Activer l'assistant
+assistant-disable = Désactiver l'assistant
+assistant-login = Se connecter à OpenRouter
+assistant-enter-key = Saisir une clé
+assistant-key-hint = Clé OpenRouter :
+assistant-key-save = Enregistrer la clé
+assistant-cancel = Annuler
+assistant-logout = Se déconnecter
+assistant-login-waiting = Connexion dans le navigateur…
+assistant-key-loading = Lecture du trousseau…
+assistant-connected = Connecté à OpenRouter (clé dans le trousseau du système).
+assistant-connected-session = Connecté à OpenRouter pour cette session.
+assistant-keyring-missing = Trousseau du système indisponible : la clé est gardée pour cette session seulement.
+assistant-model = Modèle :
+assistant-no-document = Ouvrez un projet pour que l'assistant puisse le lire.
+assistant-placeholder = Question sur le planning
+assistant-send = Envoyer
+assistant-stop = Arrêter
+assistant-clear = Nouvelle conversation
+assistant-thinking = L'assistant réfléchit…
+assistant-reading = L'assistant lit le planning…
+assistant-writing = L'assistant écrit…
+assistant-you = Vous
+assistant-name = Assistant IA
+assistant-tools-used = A lu le planning : { $detail }
+assistant-stopped = Réponse arrêtée.
+assistant-cost =
+    Coût de la demande : { $value } $ ({ $count ->
+        [one] { $count } jeton
+       *[other] { $count } jetons
+    })
+assistant-cost-tokens =
+    { $count ->
+        [one] { $count } jeton utilisé
+       *[other] { $count } jetons utilisés
+    }
+assistant-error-no-key = Connectez-vous à OpenRouter ou saisissez une clé.
+assistant-error-unauthorized = Clé refusée par OpenRouter : reconnectez-vous ou saisissez une autre clé.
+assistant-error-payment = Crédits OpenRouter épuisés : rechargez votre compte sur openrouter.ai.
+assistant-error-rate = Trop de demandes : réessayez dans un instant.
+assistant-error-rate-wait =
+    Trop de demandes : réessayez dans { $count ->
+        [one] { $count } seconde
+       *[other] { $count } secondes
+    }.
+assistant-error-http = OpenRouter a refusé la demande ({ $detail }).
+assistant-error-provider = Le fournisseur du modèle a interrompu la réponse ({ $detail }).
+assistant-error-network = Connexion impossible : vérifiez votre accès à Internet ({ $detail }).
+assistant-error-protocol = Réponse illisible d'OpenRouter ({ $detail }).
+assistant-error-rounds = L'assistant a fait trop d'étapes pour cette question : reformulez-la plus simplement.
+assistant-error-busy = Une demande est déjà en cours.
+assistant-error-login = Connexion à OpenRouter non aboutie ({ $detail }).
+assistant-error-keyring = Trousseau du système en échec ({ $detail }).

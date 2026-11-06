@@ -160,6 +160,33 @@ pub struct UiState {
     /// mémorisé sans ce champ (ou à faux) reçoit la colonne une fois, après
     /// l'ID ; la masquer ensuite est respecté.
     pub indicators_added: bool,
+    /// Assistant IA (ADR-0024, lot A1) : activation explicite et modèle
+    /// choisi. Jamais la clé (envoyée aux agents MCP rattachés sinon).
+    pub assistant: AssistantPrefs,
+}
+
+/// Longueur au plus de l'identifiant de modèle mémorisé.
+pub const MAX_ASSISTANT_MODEL_CHARS: usize = 100;
+
+/// Préférences de l'assistant IA (ADR-0024, lot A1, H-UI-138).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AssistantPrefs {
+    /// Activé par l'utilisateur après la mention « vous échangez avec une
+    /// IA » (AI Act art. 50) ; faux par défaut.
+    pub enabled: bool,
+    /// Modèle OpenRouter de la liste fermée ; un identifiant inconnu est
+    /// remplacé par le défaut à l'usage.
+    pub model: String,
+}
+
+impl Default for AssistantPrefs {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model: plannercraft_assistant::openrouter::DEFAULT_MODEL.to_owned(),
+        }
+    }
 }
 
 /// Préférences du volet de détails (seconde passe UX, ADR-0019 D5, D6).
@@ -477,6 +504,7 @@ impl Default for UiState {
             timeline_height: TIMELINE_HEIGHT_DEFAULT,
             details: DetailsPrefs::default(),
             indicators_added: true,
+            assistant: AssistantPrefs::default(),
         }
     }
 }
@@ -589,6 +617,7 @@ impl UiState {
             timeline_height: reader.field("timeline_height", defaults.timeline_height),
             details: reader.field("details", defaults.details),
             indicators_added: reader.field("indicators_added", false),
+            assistant: reader.field("assistant", defaults.assistant),
         };
         let mut state = state.normalized();
         add_indicators_once(&mut state);
@@ -657,6 +686,9 @@ impl UiState {
         self.columns = normalize_columns(std::mem::take(&mut self.columns));
         self.timeline_height = self.timeline_height.clamp(TIMELINE_HEIGHT_MIN, PANE_HEIGHT_MAX);
         self.details.height = self.details.height.clamp(DETAILS_HEIGHT_MIN, PANE_HEIGHT_MAX);
+        if self.assistant.model.chars().count() > MAX_ASSISTANT_MODEL_CHARS {
+            self.assistant.model = AssistantPrefs::default().model;
+        }
         self
     }
 

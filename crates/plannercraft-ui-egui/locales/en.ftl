@@ -1622,3 +1622,64 @@ group-collapse = Collapse group { $name }
 
 # --- Finitions P4 (ADR-0022 D6) ---
 ribbon-add-to-timeline = Add to Timeline
+
+# --- AI assistant (ADR-0024, lot A1) ---
+side-tab-assistant = Assistant
+menu-assistant = AI assistant
+ribbon-tip-assistant = Opens the AI assistant: ask a question about the open schedule; it reads it and answers, without changing it.
+assistant-intro-title = AI assistant
+assistant-disclosure = You are talking to an AI; your schedule (task names, dates) is sent to OpenRouter and to the provider of the chosen model.
+assistant-read-only = The assistant reads the schedule and answers; it does not change it. An OpenRouter account is needed (OpenRouter bills your requests to you).
+assistant-enable = Turn on the assistant
+assistant-disable = Turn off the assistant
+assistant-login = Sign in to OpenRouter
+assistant-enter-key = Enter a key
+assistant-key-hint = OpenRouter key:
+assistant-key-save = Save the key
+assistant-cancel = Cancel
+assistant-logout = Sign out
+assistant-login-waiting = Signing in in the browser…
+assistant-key-loading = Reading the keychain…
+assistant-connected = Connected to OpenRouter (key in the system keychain).
+assistant-connected-session = Connected to OpenRouter for this session.
+assistant-keyring-missing = System keychain unavailable: the key is kept for this session only.
+assistant-model = Model:
+assistant-no-document = Open a project so that the assistant can read it.
+assistant-placeholder = Question about the schedule
+assistant-send = Send
+assistant-stop = Stop
+assistant-clear = New conversation
+assistant-thinking = The assistant is thinking…
+assistant-reading = The assistant is reading the schedule…
+assistant-writing = The assistant is writing…
+assistant-you = You
+assistant-name = AI assistant
+assistant-tools-used = Read the schedule: { $detail }
+assistant-stopped = Answer stopped.
+assistant-cost =
+    Cost of the request: ${ $value } ({ $count ->
+        [one] { $count } token
+       *[other] { $count } tokens
+    })
+assistant-cost-tokens =
+    { $count ->
+        [one] { $count } token used
+       *[other] { $count } tokens used
+    }
+assistant-error-no-key = Sign in to OpenRouter or enter a key.
+assistant-error-unauthorized = OpenRouter refused the key: sign in again or enter another key.
+assistant-error-payment = Out of OpenRouter credits: top up your account on openrouter.ai.
+assistant-error-rate = Too many requests: try again in a moment.
+assistant-error-rate-wait =
+    Too many requests: try again in { $count ->
+        [one] { $count } second
+       *[other] { $count } seconds
+    }.
+assistant-error-http = OpenRouter refused the request ({ $detail }).
+assistant-error-provider = The model provider interrupted the answer ({ $detail }).
+assistant-error-network = Cannot connect: check your Internet access ({ $detail }).
+assistant-error-protocol = Unreadable answer from OpenRouter ({ $detail }).
+assistant-error-rounds = The assistant needed too many steps for this question: ask it more simply.
+assistant-error-busy = A request is already running.
+assistant-error-login = Signing in to OpenRouter did not succeed ({ $detail }).
+assistant-error-keyring = System keychain failed ({ $detail }).

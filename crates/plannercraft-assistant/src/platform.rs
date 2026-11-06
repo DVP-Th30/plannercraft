@@ -55,3 +55,63 @@ impl BrowserOpener for SystemBrowser {
         webbrowser::open(url).map_err(|e| e.to_string())
     }
 }
+
+/// Résultat d'une tâche courte lancée hors du fil de l'interface (lecture
+/// ou écriture du trousseau, qui peut attendre D-Bus ou un déverrouillage).
+/// Web : exécutée tout de suite (magasin en mémoire, rien n'attend).
+pub struct Background<R>(std::sync::Arc<std::sync::Mutex<Option<R>>>);
+
+impl<R> std::fmt::Debug for Background<R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Background")
+    }
+}
+
+impl<R: Send + 'static> Background<R> {
+    /// Lance `task` ; `waker` est appelé quand le résultat est prêt.
+    #[must_use]
+    pub fn spawn(
+        task: impl FnOnce() -> R + Send + 'static,
+        waker: Option<crate::conversation::Waker>,
+    ) -> Self {
+        let slot = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let done = std::sync::Arc::clone(&slot);
+        let run = move || {
+            let result = task();
+            if let Ok(mut s) = done.lock() {
+                *s = Some(result);
+            }
+            if let Some(w) = &waker {
+                w();
+            }
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // L'échec de création du fil est rare ; la tâche est alors
+            // abandonnée et le résultat ne vient jamais : on la refait ici.
+            let shared = std::sync::Arc::new(std::sync::Mutex::new(Some(run)));
+            let in_thread = std::sync::Arc::clone(&shared);
+            let spawned = std::thread::Builder::new()
+                .name("plannercraft-assistant-task".to_owned())
+                .spawn(move || {
+                    if let Some(run) = in_thread.lock().ok().and_then(|mut r| r.take()) {
+                        run();
+                    }
+                });
+            if spawned.is_err()
+                && let Some(run) = shared.lock().ok().and_then(|mut r| r.take())
+            {
+                run();
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        run();
+        Self(slot)
+    }
+
+    /// Résultat, une fois.
+    #[must_use]
+    pub fn take(&self) -> Option<R> {
+        self.0.lock().ok().and_then(|mut s| s.take())
+    }
+}

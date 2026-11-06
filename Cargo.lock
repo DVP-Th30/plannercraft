@@ -3823,6 +3823,7 @@ dependencies = [
  "image",
  "js-sys",
  "log",
+ "plannercraft-assistant",
  "plannercraft-automation",
  "plannercraft-core",
  "plannercraft-mspdi",

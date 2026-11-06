@@ -177,6 +177,9 @@ pub enum RibbonCmd {
     TimelineVisible,
     /// Case Volet Opérations IA.
     AiPanel,
+    /// Case Assistant IA (ADR-0024, lot A1, H-UI-138) : volet latéral sur
+    /// l'onglet Assistant.
+    Assistant,
     /// Case Diagnostics.
     Diagnostics,
     /// Liste Thème.
@@ -340,6 +343,9 @@ impl RibbonCmd {
             Self::EntireProject => Action::FitZoom,
             Self::TimelineVisible => Action::Timeline(TimelineOp::SetVisible(!fc.state.timeline_visible)),
             Self::AiPanel => Action::SidePanel(SideOp::Toggle),
+            Self::Assistant => {
+                Action::SidePanel(SideOp::ToggleTab(crate::view::side_panel::SideTab::Assistant))
+            }
             Self::Diagnostics => Action::ToggleDiagnostics,
             Self::CollapseRibbon => Action::Ribbon(RibbonOp::ToggleCollapsed),
             Self::CriticalTasks => Action::SetHighlightCritical(!fc.task_view.state.highlight_critical),
@@ -379,6 +385,7 @@ impl RibbonCmd {
             | Self::LanguageMenu
             | Self::CollapseRibbon
             | Self::AiPanel
+            | Self::Assistant
             | Self::Diagnostics
             | Self::TimelineVisible
             | Self::DetailsPane
@@ -517,7 +524,7 @@ impl RibbonCmd {
         match self {
             Self::TimelineVisible => Some(fc.state.timeline_visible),
             Self::DetailsPane => Some(fc.state.details.visible),
-            Self::AiPanel => Some(false),
+            Self::AiPanel | Self::Assistant => Some(false),
             Self::Inactivate => Some(active_task(fc).is_some_and(|task| !task.active)),
             Self::ManualSchedule => {
                 Some(active_task(fc).is_some_and(|task| {
@@ -590,6 +597,7 @@ impl RibbonCmd {
             Self::EntireProject => TextId::ToolbarFit,
             Self::TimelineVisible => TextId::RibbonTimeline,
             Self::AiPanel => TextId::MenuAiPanel,
+            Self::Assistant => TextId::MenuAssistant,
             Self::Diagnostics => TextId::MenuDiagnostics,
             Self::ThemeMenu => TextId::MenuTheme,
             Self::LanguageMenu => TextId::MenuLanguage,
@@ -660,6 +668,7 @@ impl RibbonCmd {
             | Self::FilterMenu
             | Self::TimelineVisible
             | Self::AiPanel
+            | Self::Assistant
             | Self::Diagnostics
             | Self::ThemeMenu
             | Self::LanguageMenu
@@ -714,6 +723,7 @@ impl RibbonCmd {
                 | Self::TimelineVisible
                 | Self::DetailsPane
                 | Self::AiPanel
+                | Self::Assistant
                 | Self::Diagnostics
                 | Self::CollapseRibbon
                 | Self::CriticalTasks
@@ -1620,6 +1630,15 @@ const VIEW_GROUPS: &[GroupSpec] = &[
                 TextId::MenuAiPanel,
                 TextId::RibbonTipAiPanel,
                 RibbonCmd::AiPanel,
+            ),
+            // ADR-0024, lot A1 (H-UI-138) : assistant IA, à côté du volet
+            // Opérations IA.
+            plain(
+                Check,
+                None,
+                TextId::MenuAssistant,
+                TextId::RibbonTipAssistant,
+                RibbonCmd::Assistant,
             ),
             plain(
                 Check,

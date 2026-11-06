@@ -690,7 +690,8 @@ impl App {
     /// document modifié, génération, numéro d'ouverture. Les fichiers récents
     /// (`recent`) ne sont **pas** rendus : chemins et noms d'autres projets
     /// de l'utilisateur, sans rapport avec la session de l'agent (relecture
-    /// finale J7, relais F7).
+    /// finale J7, relais F7) ; ni les préférences de l'assistant intégré
+    /// (`assistant`, lot A1 d'ADR-0024).
     #[must_use]
     pub fn ui_state_json(&self) -> Value {
         let mut ui_state = self
@@ -701,6 +702,9 @@ impl App {
             .unwrap_or(Value::Null);
         if let Value::Object(map) = &mut ui_state {
             map.remove("recent");
+            // Préférences de l'assistant intégré (ADR-0024) : sans rapport
+            // avec l'agent rattaché, et réponse inchangée pour les rejeux.
+            map.remove("assistant");
         }
         let mut selection: Vec<u32> = self.selected.click_order().iter().map(|uid| uid.get()).collect();
         selection.sort_unstable();
