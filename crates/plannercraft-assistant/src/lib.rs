@@ -10,7 +10,11 @@
 //!   imposée, erreurs HTTP, liste fermée de modèles ;
 //! - [`tools`] : outils en lecture pris dans le registre, exécutés sur une
 //!   copie de la session (règle 3 : les dates viennent du moteur) ;
-//! - [`conversation`] : boucle d'outils bornée, menée par l'interface ;
+//! - [`conversation`] : tours (question, raisonnement, lectures, réponse),
+//!   boucle d'outils bornée, menée par l'interface ;
+//! - [`memory`] : historique renvoyé, allégé, points de cache (lot A1b) ;
+//! - [`archive`] : conversations gardées par document, hors du fichier
+//!   projet et de `UiState` (lot A1b) ;
 //! - [`pkce`], [`login`], `web` : connexion OAuth PKCE d'OpenRouter ;
 //! - [`secrets`] : clé dans le trousseau du système, jamais dans `UiState`.
 //!
@@ -18,10 +22,12 @@
 
 #![forbid(unsafe_code)]
 
+pub mod archive;
 pub mod conversation;
 pub mod error;
 pub mod http;
 pub mod login;
+pub mod memory;
 pub mod openrouter;
 pub mod pkce;
 pub mod platform;
@@ -33,7 +39,9 @@ pub mod tools;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
-pub use conversation::{Activity, Conversation, Entry, RequestConfig, Waker};
+pub use conversation::{
+    Activity, Conversation, RequestConfig, SavedConversation, ToolStep, Turn, TurnState, Waker,
+};
 pub use error::AssistantError;
 pub use http::{EhttpTransport, HttpEvent, HttpRequest, SharedTransport, Transport};
 pub use stream::Usage;

@@ -6,8 +6,12 @@
 
 use std::fmt;
 
-/// Erreur affichable de l'assistant.
-#[derive(Clone, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+/// Erreur affichable de l'assistant (sérialisée avec la conversation
+/// gardée par document : aucune ne porte de secret).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "code", rename_all = "snake_case")]
 pub enum AssistantError {
     /// Aucune clé : l'utilisateur doit se connecter ou en saisir une.
     NoKey,

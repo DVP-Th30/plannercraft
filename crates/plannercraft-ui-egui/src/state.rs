@@ -163,6 +163,9 @@ pub struct UiState {
     /// Assistant IA (ADR-0024, lot A1) : activation explicite et modèle
     /// choisi. Jamais la clé (envoyée aux agents MCP rattachés sinon).
     pub assistant: AssistantPrefs,
+    /// « Réduire les animations » (lot A1b, H-UI-147) : défilements animés
+    /// d'egui et pulsation de l'assistant coupés.
+    pub reduce_motion: bool,
 }
 
 /// Longueur au plus de l'identifiant de modèle mémorisé.
@@ -505,6 +508,7 @@ impl Default for UiState {
             details: DetailsPrefs::default(),
             indicators_added: true,
             assistant: AssistantPrefs::default(),
+            reduce_motion: false,
         }
     }
 }
@@ -618,6 +622,7 @@ impl UiState {
             details: reader.field("details", defaults.details),
             indicators_added: reader.field("indicators_added", false),
             assistant: reader.field("assistant", defaults.assistant),
+            reduce_motion: reader.field("reduce_motion", defaults.reduce_motion),
         };
         let mut state = state.normalized();
         add_indicators_once(&mut state);

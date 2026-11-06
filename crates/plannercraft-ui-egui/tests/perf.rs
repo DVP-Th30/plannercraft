@@ -90,6 +90,11 @@
 //!   chaque image (une disposition par image) et 60 images de défilement
 //!   horizontal du Gantt (rectangle de la partie visible suivi) ; images
 //!   mêmes seuils.
+//! - Assistant (ADR-0024, lot A1b) : `assistant_stream_5000` (ignoré,
+//!   release) : réseau de 5 000 tâches ouvert, volet Assistant, réponse
+//!   Markdown longue (≈ 9 Kio, gras, listes) reçue en flux, quatre morceaux
+//!   par image, puis 60 images sur la réponse complète ; mêmes seuils (rendu
+//!   Markdown analysé à chaque image, sans cache par message).
 //!
 //! Le rendu GPU n'est pas chronométré (lavapipe en CI n'est pas
 //! représentatif). Le projet est construit directement
@@ -2379,4 +2384,63 @@ fn wide_table_5000() {
     );
     assert_budget("wide_table_5000 vertical", vertical, bench.last);
     assert_budget("wide_table_5000 horizontal", horizontal, bench.last);
+}
+
+/// Lot A1b (ADR-0024, cahier `docs/plans/assistant-chat.md` § 1) : réponse
+/// longue de l'assistant affichée en flux sur un réseau de 5 000 tâches ;
+/// image médiane < 16 ms, p95 < 32 ms (mêmes seuils que la navigation).
+#[test]
+#[ignore = "mesure, à lancer en --release : cargo test -p plannercraft-ui-egui --release --test perf -- --ignored --nocapture"]
+fn assistant_stream_5000() {
+    use std::fmt::Write as _;
+    use std::sync::Arc;
+
+    use plannercraft_assistant::testing::{ScriptedTransport, sse_response, text_chunks};
+    use plannercraft_ui_egui::assistant::{AssistantOp, AssistantServices};
+    use plannercraft_ui_egui::view::side_panel::{SideOp, SideTab};
+
+    let (mut app, mut bench) = nav_bench();
+    let mut answer = String::from("## Synthèse du planning\n\n");
+    for i in 1..=60 {
+        let _ = writeln!(
+            answer,
+            "- Lot {i} : la **tâche {i}** finit avant la tâche suivante, marge libre conservée ; \
+             rien à signaler."
+        );
+        if i % 15 == 0 {
+            let _ = writeln!(
+                answer,
+                "\nLes lots {} à {i} sont sur le **chemin critique**.\n",
+                i - 14
+            );
+        }
+    }
+    let transport = Arc::new(ScriptedTransport::manual(vec![sse_response(&text_chunks(
+        &answer, 0.01,
+    ))]));
+    app.set_assistant_services(AssistantServices::with_transport(Arc::clone(&transport) as _));
+    app.dispatch(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
+    app.dispatch(Action::Assistant(AssistantOp::Enable));
+    "sk-or-v1-perf".clone_into(&mut app.assistant_mut().key_draft);
+    app.dispatch(Action::Assistant(AssistantOp::SaveKey));
+    bench.settle(&mut app);
+    "Résume le planning".clone_into(&mut app.assistant_mut().draft);
+    app.dispatch(Action::Assistant(AssistantOp::Send));
+    bench.settle(&mut app);
+    for _ in 0..WARMUP {
+        transport.step(4);
+        bench.frame(&mut app, Vec::new());
+    }
+    let mut samples = Vec::new();
+    while transport.step(4) > 0 {
+        samples.push(bench.frame(&mut app, Vec::new()));
+    }
+    for _ in 0..60 {
+        samples.push(bench.frame(&mut app, Vec::new()));
+    }
+    let conversation = &app.assistant().conversation;
+    assert!(!conversation.busy());
+    assert_eq!(conversation.turns()[0].answer, answer);
+    assert!(samples.len() > 200, "{} images", samples.len());
+    assert_budget("assistant_stream_5000", samples, bench.last);
 }

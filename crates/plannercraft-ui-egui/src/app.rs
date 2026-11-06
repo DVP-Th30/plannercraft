@@ -382,6 +382,10 @@ pub struct App {
     rx: Receiver<OpenEvent>,
     /// Thème appliqué au contexte egui (appel seulement au changement).
     applied_theme: Option<ThemePref>,
+    /// « Réduire les animations » appliqué au contexte egui (lot A1b).
+    applied_motion: Option<bool>,
+    /// Durée des animations d'egui avant « Réduire les animations ».
+    motion_default: Option<f32>,
     /// Génération du prochain document ouvert.
     next_generation: u64,
     /// Une ouverture par le sélecteur est en cours : indicateur seulement,
@@ -481,6 +485,8 @@ impl App {
             tx,
             rx,
             applied_theme: None,
+            applied_motion: None,
+            motion_default: None,
             next_generation: 1,
             opening: false,
             diagnostics: DiagnosticsView::default(),
@@ -1543,10 +1549,64 @@ impl App {
         })
     }
 
+    /// Document de la conversation affichée (lot A1b) : clé brute
+    /// (`demo`, `path:<chemin>`, `name:<nom>`), canonisée seulement quand
+    /// elle change (chemin canonique sur le desktop).
+    fn sync_assistant_document(&mut self) {
+        let raw = self.document.as_ref().map(|d| {
+            if d.origin.demo {
+                "demo".to_owned()
+            } else if let Some(path) = &d.origin.path {
+                format!("path:{path}")
+            } else {
+                format!("name:{}", d.origin.name)
+            }
+        });
+        if raw.as_deref() == self.assistant.doc_raw() {
+            return;
+        }
+        let document = raw.map(|raw| {
+            let key = canonical_doc_key(&raw);
+            (key, raw)
+        });
+        self.assistant.switch_document(document);
+    }
+
+    /// Conversations de l'assistant gardées par document, conversation
+    /// affichée comprise (sauvegarde : stockage d'eframe, jamais `UiState`).
+    #[must_use]
+    pub fn assistant_archive_json(&mut self) -> String {
+        self.assistant.archive_json()
+    }
+
+    /// Relit les conversations gardées (démarrage).
+    pub fn load_assistant_archive(&mut self, json: &str) {
+        self.assistant.load_archive(json);
+    }
+
+    /// Environnement d'une commande de l'assistant : langue, contexte de
+    /// l'interface (sélection, vue) joint à la question, heure.
+    fn assistant_env(&self) -> crate::assistant::AssistantEnv {
+        let ui_state = self.assistant_ui_state();
+        let context = self.texts.get_args(
+            TextId::AssistantContext,
+            &[("json", Arg::Str(ui_state.to_string().into()))],
+        );
+        let minutes = (self.env.now)().time_of_day().minutes();
+        crate::assistant::AssistantEnv {
+            lang: self.text_language(),
+            context: self.document.is_some().then_some(context),
+            asked_at: Some(format!("{:02}:{:02}", minutes / 60, minutes % 60)),
+            continue_prompt: self.texts.get(TextId::AssistantContinuePrompt),
+        }
+    }
+
     /// Mène l'assistant (début d'image) : magasin, connexion, flux, outils
     /// sur une copie de la session (lecture seule).
     fn poll_assistant(&mut self, ctx: &egui::Context) {
         self.assistant.ensure_waker(ctx);
+        self.assistant.conversation.set_now(self.clock);
+        self.sync_assistant_document();
         if self.state.assistant.enabled {
             self.assistant.start_key_load();
         }
@@ -1769,6 +1829,27 @@ impl App {
         }
     }
 
+    /// « Réduire les animations » (lot A1b, H-UI-147) : durée des animations
+    /// d'egui (défilements, repli) à zéro, ou à sa valeur par défaut ;
+    /// seulement si la préférence a changé.
+    fn apply_motion(&mut self, ctx: &egui::Context) {
+        // Rien à faire au démarrage sans la préférence : le style d'egui
+        // garde sa durée par défaut.
+        if self.applied_motion.is_none() && !self.state.reduce_motion {
+            self.applied_motion = Some(false);
+            return;
+        }
+        if self.applied_motion != Some(self.state.reduce_motion) {
+            // Durée d'origine du contexte, relevée avant la première coupure.
+            let original = *self
+                .motion_default
+                .get_or_insert_with(|| ctx.global_style().animation_time);
+            let time = if self.state.reduce_motion { 0.0 } else { original };
+            ctx.all_styles_mut(|style| style.animation_time = time);
+            self.applied_motion = Some(self.state.reduce_motion);
+        }
+    }
+
     /// Recrée les messages et le modèle de lignes si la langue résolue a
     /// changé.
     fn apply_language(&mut self) {
@@ -1949,6 +2030,7 @@ impl App {
                 self.state.theme = theme;
                 self.apply_theme(ctx);
             }
+            Action::SetReduceMotion(reduce) => self.state.reduce_motion = reduce,
             // Boutons et menu de zoom : ancrés au centre du Gantt (la zone
             // affichée reste à l'écran, comme dans MS Project).
             Action::SetZoom(zoom) => self.zoom_to(zoom, self.gantt_center()),
@@ -2107,8 +2189,8 @@ impl App {
             Action::SidePanel(op) => self.side.apply(op),
             // ADR-0024, lot A1 : assistant IA.
             Action::Assistant(op) => {
-                let lang = self.text_language();
-                self.assistant.apply(op, &mut self.state.assistant, lang);
+                let env = self.assistant_env();
+                self.assistant.apply(op, &mut self.state.assistant, &env);
             }
             Action::ShowDialog(DialogKind::PasteSpecial) => self.open_paste_special(),
             // J8, lot L15 : galerie, mise en page, menu Tâche, mise en forme.
@@ -3015,6 +3097,7 @@ impl App {
         self.take_dropped_files(&ctx);
         self.guard_close(&ctx);
         self.apply_theme(&ctx);
+        self.apply_motion(&ctx);
         self.apply_language();
         self.ensure_row_view();
         // Style effectif du document (J8, lot L11) : palette, densité,
@@ -3510,6 +3593,18 @@ fn union_span(old: ViewSpan, new: ViewSpan) -> ViewSpan {
     } else {
         new
     }
+}
+
+/// Clé d'archive de l'assistant pour la clé brute `raw` : chemin canonique
+/// sur le desktop (même document par deux chemins), clé brute sinon.
+fn canonical_doc_key(raw: &str) -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(path) = raw.strip_prefix("path:")
+        && let Ok(canonical) = std::fs::canonicalize(path)
+    {
+        return format!("path:{}", canonical.display());
+    }
+    raw.to_owned()
 }
 
 #[cfg(test)]

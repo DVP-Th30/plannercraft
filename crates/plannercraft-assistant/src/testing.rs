@@ -142,6 +142,29 @@ pub fn text_chunks(text: &str, cost: f64) -> Vec<Value> {
     chunks
 }
 
+/// Morceaux d'un raisonnement (`reasoning_details`, format d'Anthropic),
+/// un morceau par mot, signature au dernier.
+#[must_use]
+pub fn reasoning_chunks(text: &str) -> Vec<Value> {
+    let words: Vec<&str> = text.split_inclusive(' ').collect();
+    let last = words.len().saturating_sub(1);
+    words
+        .iter()
+        .enumerate()
+        .map(|(i, word)| {
+            let mut detail = json!({
+                "type": "reasoning.text", "text": word, "format": "anthropic-claude-v1", "index": 0,
+            });
+            if i == last
+                && let Value::Object(map) = &mut detail
+            {
+                map.insert("signature".to_owned(), Value::String("sig-test".to_owned()));
+            }
+            json!({ "choices": [{ "index": 0, "delta": { "reasoning": word, "reasoning_details": [detail] } }] })
+        })
+        .collect()
+}
+
 /// Morceaux d'un appel d'outil, arguments coupés en deux morceaux.
 #[must_use]
 pub fn tool_call_chunks(id: &str, name: &str, arguments: &str) -> Vec<Value> {

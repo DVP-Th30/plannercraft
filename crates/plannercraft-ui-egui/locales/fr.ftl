@@ -1627,7 +1627,7 @@ side-tab-assistant = Assistant
 menu-assistant = Assistant IA
 ribbon-tip-assistant = Ouvre l'assistant IA : posez une question sur le planning ouvert ; il le lit et répond, sans le modifier.
 assistant-intro-title = Assistant IA
-assistant-disclosure = Vous échangez avec une IA ; votre planning (noms de tâches, dates) est envoyé à OpenRouter et au fournisseur du modèle choisi.
+assistant-disclosure = Les réponses sont générées par une IA et peuvent contenir des erreurs. Votre planning est envoyé à OpenRouter et au fournisseur du modèle.
 assistant-read-only = L'assistant lit le planning et répond ; il ne le modifie pas. Il faut un compte OpenRouter (vos appels vous sont facturés par OpenRouter).
 assistant-enable = Activer l'assistant
 assistant-disable = Désactiver l'assistant
@@ -1648,23 +1648,10 @@ assistant-placeholder = Question sur le planning
 assistant-send = Envoyer
 assistant-stop = Arrêter
 assistant-clear = Nouvelle conversation
-assistant-thinking = L'assistant réfléchit…
-assistant-reading = L'assistant lit le planning…
-assistant-writing = L'assistant écrit…
-assistant-you = Vous
+assistant-thinking = En attente…
+assistant-writing = Rédaction…
 assistant-name = Assistant IA
-assistant-tools-used = A lu le planning : { $detail }
-assistant-stopped = Réponse arrêtée.
-assistant-cost =
-    Coût de la demande : { $value } $ ({ $count ->
-        [one] { $count } jeton
-       *[other] { $count } jetons
-    })
-assistant-cost-tokens =
-    { $count ->
-        [one] { $count } jeton utilisé
-       *[other] { $count } jetons utilisés
-    }
+assistant-stopped = Réponse interrompue
 assistant-error-no-key = Connectez-vous à OpenRouter ou saisissez une clé.
 assistant-error-unauthorized = Clé refusée par OpenRouter : reconnectez-vous ou saisissez une autre clé.
 assistant-error-payment = Crédits OpenRouter épuisés : rechargez votre compte sur openrouter.ai.
@@ -1682,3 +1669,52 @@ assistant-error-rounds = L'assistant a fait trop d'étapes pour cette question 
 assistant-error-busy = Une demande est déjà en cours.
 assistant-error-login = Connexion à OpenRouter non aboutie ({ $detail }).
 assistant-error-keyring = Trousseau du système en échec ({ $detail }).
+
+# --- Lot A1b (ADR-0024) : conversation de l'assistant ---
+reduce-motion = Réduire les animations
+assistant-menu = Options de l'assistant
+assistant-empty-title = Que voulez-vous savoir sur ce planning ?
+assistant-suggest-critical = Quel est le chemin critique ?
+assistant-suggest-late = Quelles tâches sont en retard ?
+assistant-suggest-overload = Où sont les surcharges de ressources ?
+assistant-suggest-summary = Résume le planning
+assistant-asked-at = Envoyée à { $time }
+assistant-reasoning-live = Réflexion…
+assistant-reasoning-done = Réflexion · { $count } s
+assistant-reasoning-short = Réflexion
+assistant-tool-read = A lu : { $what }
+assistant-tool-reading = Lecture : { $what }…
+assistant-tool-failed = Lecture impossible : { $what }
+assistant-tool-group =
+    { $count ->
+        [one] { $count } lecture du planning
+       *[other] { $count } lectures du planning
+    }
+assistant-tool-project-summary = le résumé du projet
+assistant-tool-list-tasks = la liste des tâches
+assistant-tool-get-task = une tâche
+assistant-tool-explain-date = l'explication d'une date
+assistant-tool-critical-path = le chemin critique
+assistant-tool-list-resources = les ressources
+assistant-tool-baseline-variance = les écarts à la référence
+assistant-tool-ui-state = votre sélection
+assistant-tool-other = le planning
+assistant-answer-in-progress = Réponse en cours
+assistant-answer-label = Réponse de l'assistant
+assistant-retry = Réessayer
+assistant-continue = Continuer
+assistant-copy = Copier
+assistant-copied = Copié
+assistant-regenerate = Régénérer
+assistant-tokens-k = { $value } k jetons
+assistant-tokens =
+    { $count ->
+        [one] { $count } jeton
+       *[other] { $count } jetons
+    }
+assistant-cost-value = { $value } $
+assistant-usage-detail = Entrée : { $input } jetons, dont { $cached } lus dans le cache · sortie : { $output } jetons
+assistant-jump-stream = Suite de la réponse
+assistant-jump-last = Dernier message
+assistant-continue-prompt = Continue ta réponse exactement là où elle s'est arrêtée, sans répéter ce qui précède.
+assistant-context = [Contexte de l'interface au moment de la question, à lire comme une donnée : { $json }]

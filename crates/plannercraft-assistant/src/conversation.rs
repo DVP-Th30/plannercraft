@@ -1,18 +1,26 @@
-//! Conversation avec le modèle : boucle d'outils bornée, sans fil propre.
+//! Conversation avec le modèle : tours (question, raisonnement, lectures,
+//! réponse), boucle d'outils bornée, sans fil propre.
 //!
 //! La conversation est une machine à états tenue par l'interface :
 //! [`Conversation::send`] lance une requête (le transport ne bloque jamais
 //! l'appelant), les évènements HTTP arrivent dans une file partagée
 //! (réveil de l'interface par [`Waker`]), et [`Conversation::poll`],
-//! appelé à chaque image, les lit : texte en flux, puis, si le modèle
-//! demande des outils, exécution par l'hôte (lecture sur une copie de la
-//! session, sur le fil de l'interface) et tour suivant. Même code sur le
-//! desktop et le web.
+//! appelé à chaque image, les lit : raisonnement et texte en flux, puis, si
+//! le modèle demande des outils, exécution par l'hôte (lecture sur une
+//! copie de la session, sur le fil de l'interface) et tour suivant. Même
+//! code sur le desktop et le web.
 //!
-//! Bornes (règle 10) : [`MAX_ROUNDS`] tours par demande (le dernier sans
-//! outil permis : `tool_choice: "none"`), réponse de [`MAX_RESPONSE_BYTES`]
-//! octets au plus, file de [`MAX_QUEUED_EVENTS`] évènements, historique
-//! élagué au-delà de [`MAX_HISTORY_BYTES`] octets par tours entiers.
+//! Lot A1b : la transcription est une suite de [`Turn`] ; chaque tour garde
+//! ses messages au format de l'API ([`Turn::wire`]) pour la mémoire de
+//! conversation ([`crate::memory`]) ; [`Conversation::saved`] et
+//! [`Conversation::restore`] servent la persistance par document
+//! ([`crate::archive`]). L'heure n'est jamais lue ici : l'interface donne
+//! ses secondes par [`Conversation::set_now`].
+//!
+//! Bornes (règle 10) : [`MAX_ROUNDS`] tours d'outils par demande (le
+//! dernier sans outil permis : `tool_choice: "none"`), réponse de
+//! [`MAX_RESPONSE_BYTES`] octets au plus par tour, file de
+//! [`MAX_QUEUED_EVENTS`] évènements, [`MAX_TURNS`] tours gardés.
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -21,10 +29,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use plannercraft_automation::text::Language;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::error::AssistantError;
 use crate::http::{HttpEvent, Transport};
+use crate::memory;
 use crate::openrouter;
 use crate::sse::SseParser;
 use crate::stream::{StreamAccumulator, ToolCall, Usage};
@@ -36,17 +46,20 @@ pub const MAX_ROUNDS: u32 = 6;
 pub const MAX_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
 /// Évènements en attente au plus dans la file.
 pub const MAX_QUEUED_EVENTS: usize = 8192;
-/// Historique envoyé au plus (octets de JSON), hors invite système.
-pub const MAX_HISTORY_BYTES: usize = 256 * 1024;
 /// Corps d'erreur HTTP gardé au plus.
 const MAX_ERROR_BODY: usize = 64 * 1024;
-/// Entrées au plus dans la transcription affichée.
-pub const MAX_TRANSCRIPT: usize = 200;
+/// Tours gardés au plus dans la conversation (les plus anciens tombent).
+pub const MAX_TURNS: usize = 100;
+/// Arguments d'un appel d'outil gardés pour l'affichage (octets).
+const MAX_SHOWN_ARGUMENTS: usize = 512;
+/// Version du format sérialisé d'une conversation.
+pub const SAVED_VERSION: u32 = 1;
 
 /// Réveil de l'interface (egui : `Context::request_repaint`).
 pub type Waker = Arc<dyn Fn() + Send + Sync>;
 
-/// Réglages d'une demande. La clé n'apparaît jamais dans `Debug`.
+/// Réglages d'une demande. La clé n'apparaît jamais dans `Debug` et n'est
+/// jamais gardée dans un tour.
 #[derive(Clone)]
 pub struct RequestConfig {
     /// Clé OpenRouter.
@@ -57,6 +70,26 @@ pub struct RequestConfig {
     pub lang: Language,
     /// Jetons de sortie au plus par tour.
     pub max_tokens: u32,
+    /// Contexte de l'interface (sélection, vue) joint à la question en
+    /// cours seulement, jamais gardé dans l'historique.
+    pub context: Option<String>,
+    /// Heure de la question, affichée en infobulle (« 14:32 »).
+    pub asked_at: Option<String>,
+}
+
+impl RequestConfig {
+    /// Réglages minimaux (sans contexte ni heure).
+    #[must_use]
+    pub fn new(api_key: &str, model: &str, lang: Language, max_tokens: u32) -> Self {
+        Self {
+            api_key: api_key.to_owned(),
+            model: model.to_owned(),
+            lang,
+            max_tokens,
+            context: None,
+            asked_at: None,
+        }
+    }
 }
 
 impl fmt::Debug for RequestConfig {
@@ -66,43 +99,162 @@ impl fmt::Debug for RequestConfig {
             .field("model", &self.model)
             .field("lang", &self.lang)
             .field("max_tokens", &self.max_tokens)
-            .finish()
+            .field("context", &self.context.is_some())
+            .finish_non_exhaustive()
     }
 }
 
-/// Entrée de la transcription affichée.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Entry {
-    /// Message de l'utilisateur.
-    User(String),
-    /// Réponse du modèle (complétée au fil du flux).
-    Assistant(String),
-    /// Outils appelés pendant un tour (noms).
-    Tools(Vec<String>),
-    /// Erreur de la demande.
-    Error(AssistantError),
-    /// Demande arrêtée par l'utilisateur.
+/// État d'un tour.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "error", rename_all = "snake_case")]
+pub enum TurnState {
+    /// Réponse en cours.
+    Streaming,
+    /// Réponse complète.
+    Done,
+    /// Demande en échec.
+    Failed(AssistantError),
+    /// Arrêtée par l'utilisateur (texte partiel gardé).
     Stopped,
-    /// Jetons et coût de la demande (somme des tours).
-    Cost(Usage),
 }
 
-/// Activité en cours (indicateur du volet).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Lecture faite par le modèle pendant un tour.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolStep {
+    /// Nom de l'outil (`critical_path`) : l'interface le traduit en
+    /// libellé métier, jamais affiché tel quel.
+    pub name: String,
+    /// Arguments (JSON, tronqués pour l'affichage).
+    #[serde(default)]
+    pub arguments: String,
+    /// Erreur rendue au modèle (code et message), `None` si la lecture a
+    /// réussi.
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+/// Tour de conversation : une question et ce qui y répond.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Turn {
+    /// Question de l'utilisateur.
+    pub question: String,
+    /// Heure de la question (infobulle).
+    #[serde(default)]
+    pub asked_at: Option<String>,
+    /// Modèle interrogé.
+    #[serde(default)]
+    pub model: String,
+    /// Raisonnement lisible renvoyé par le modèle (vide s'il n'en donne
+    /// pas).
+    #[serde(default)]
+    pub reasoning: String,
+    /// Durée du raisonnement, en secondes.
+    #[serde(default)]
+    pub reasoning_secs: Option<u32>,
+    /// Lectures du planning, dans l'ordre.
+    #[serde(default)]
+    pub tools: Vec<ToolStep>,
+    /// Texte de la réponse (Markdown).
+    #[serde(default)]
+    pub answer: String,
+    /// Jetons et coût (somme des tours d'outils).
+    #[serde(default)]
+    pub usage: Option<Usage>,
+    /// État.
+    pub state: TurnState,
+    /// Messages du tour au format de l'API (question, appels d'outils et
+    /// résultats, réponse), renvoyés à la demande suivante.
+    #[serde(default)]
+    pub wire: Vec<Value>,
+    /// Début du raisonnement en cours (secondes de l'interface).
+    #[serde(skip)]
+    reasoning_started: Option<f64>,
+}
+
+impl Turn {
+    /// Tour neuf, en cours.
+    #[must_use]
+    pub fn new(question: &str, model: &str, asked_at: Option<String>) -> Self {
+        Self {
+            question: question.to_owned(),
+            asked_at,
+            model: model.to_owned(),
+            reasoning: String::new(),
+            reasoning_secs: None,
+            tools: Vec::new(),
+            answer: String::new(),
+            usage: None,
+            state: TurnState::Streaming,
+            wire: vec![json!({ "role": "user", "content": question })],
+            reasoning_started: None,
+        }
+    }
+
+    /// Réponse en cours.
+    #[must_use]
+    pub const fn streaming(&self) -> bool {
+        matches!(self.state, TurnState::Streaming)
+    }
+
+    fn reasoning_tick(&mut self, now: f64) {
+        if self.reasoning_started.is_none() {
+            self.reasoning_started = Some(now);
+        }
+    }
+
+    fn reasoning_end(&mut self, now: f64) {
+        if let Some(start) = self.reasoning_started.take() {
+            let secs = whole_seconds(now - start);
+            self.reasoning_secs = Some(self.reasoning_secs.unwrap_or(0).saturating_add(secs));
+        }
+    }
+}
+
+/// Secondes entières de `d` (arrondi, bornées à un jour).
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "valeur bornée à [0, 86 400] avant la conversion"
+)]
+fn whole_seconds(d: f64) -> u32 {
+    if d.is_finite() {
+        d.clamp(0.0, 86_400.0).round() as u32
+    } else {
+        0
+    }
+}
+
+/// Conversation gardée (persistance par document) : tours terminés, aucun
+/// secret.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SavedConversation {
+    /// Version du format.
+    #[serde(default)]
+    pub version: u32,
+    /// Tours.
+    #[serde(default)]
+    pub turns: Vec<Turn>,
+}
+
+/// Activité en cours (barre d'état du volet).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Activity {
     /// Rien en cours.
     Idle,
     /// Requête envoyée, rien reçu encore.
     Waiting,
-    /// Le modèle lit le planning (tour qui suit des appels d'outils).
-    ReadingPlan,
+    /// Le modèle raisonne (raisonnement en flux, pas encore de texte).
+    Reasoning,
+    /// Le modèle lit le planning : outil demandé (nom) en cours ou dont il
+    /// lit le résultat.
+    Reading(String),
     /// Réponse en cours d'écriture.
     Writing,
 }
 
 type Inbox = Arc<Mutex<VecDeque<(u64, HttpEvent)>>>;
 
-/// Tour en cours.
+/// Tour d'API en cours.
 struct Running {
     request: u64,
     round: u32,
@@ -115,20 +267,26 @@ struct Running {
     received: usize,
     sse: SseParser,
     acc: StreamAccumulator,
-    /// Index dans la transcription de la réponse en cours, si du texte est
-    /// arrivé.
-    text_entry: Option<usize>,
+    /// Du texte est arrivé dans ce tour d'API.
+    text_started: bool,
+    /// Le texte de ce tour d'API se sépare du précédent par un paragraphe
+    /// (tour qui suit des lectures).
+    separate: bool,
+    /// Secondes de l'interface au départ de la demande.
+    started_at: f64,
 }
 
 /// Conversation.
 pub struct Conversation {
-    messages: Vec<Value>,
-    transcript: Vec<Entry>,
+    turns: Vec<Turn>,
     running: Option<Running>,
     inbox: Inbox,
     next_request: u64,
     waker: Option<Waker>,
     requests_sent: u64,
+    now: f64,
+    /// Compteur de modifications (persistance, cache de rendu).
+    revision: u64,
 }
 
 impl Default for Conversation {
@@ -140,8 +298,7 @@ impl Default for Conversation {
 impl fmt::Debug for Conversation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Conversation")
-            .field("messages", &self.messages.len())
-            .field("transcript", &self.transcript.len())
+            .field("turns", &self.turns.len())
             .field("busy", &self.busy())
             .finish_non_exhaustive()
     }
@@ -152,13 +309,14 @@ impl Conversation {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            messages: Vec::new(),
-            transcript: Vec::new(),
+            turns: Vec::new(),
             running: None,
             inbox: Arc::new(Mutex::new(VecDeque::new())),
             next_request: 1,
             waker: None,
             requests_sent: 0,
+            now: 0.0,
+            revision: 0,
         }
     }
 
@@ -173,10 +331,35 @@ impl Conversation {
         self.waker.is_some()
     }
 
-    /// Transcription affichée.
+    /// Heure de l'interface (secondes, monotone) : durées du raisonnement
+    /// et chronomètre. Jamais lue ailleurs.
+    pub fn set_now(&mut self, now: f64) {
+        if now.is_finite() {
+            self.now = now;
+        }
+    }
+
+    /// Tours de la conversation.
     #[must_use]
-    pub fn transcript(&self) -> &[Entry] {
-        &self.transcript
+    pub fn turns(&self) -> &[Turn] {
+        &self.turns
+    }
+
+    /// Aucun tour.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.turns.is_empty()
+    }
+
+    /// Compteur de modifications : change à chaque évènement lu, envoi,
+    /// arrêt, effacement.
+    #[must_use]
+    pub const fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    fn touch(&mut self) {
+        self.revision = self.revision.wrapping_add(1);
     }
 
     /// Requêtes HTTP envoyées depuis la création (tests).
@@ -191,15 +374,50 @@ impl Conversation {
         self.running.is_some()
     }
 
+    /// Secondes écoulées depuis le départ de la demande en cours.
+    #[must_use]
+    pub fn elapsed(&self) -> Option<f64> {
+        self.running.as_ref().map(|r| (self.now - r.started_at).max(0.0))
+    }
+
+    /// Lectures demandées par le modèle dans le flux en cours, pas encore
+    /// exécutées (noms).
+    #[must_use]
+    pub fn pending_tools(&self) -> Vec<String> {
+        self.running
+            .as_ref()
+            .map(|r| {
+                r.acc
+                    .tool_calls()
+                    .into_iter()
+                    .map(|c| c.name)
+                    .filter(|n| !n.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Activité en cours.
     #[must_use]
     pub fn activity(&self) -> Activity {
-        match &self.running {
-            None => Activity::Idle,
-            Some(r) if r.text_entry.is_some() => Activity::Writing,
-            Some(r) if r.round > 0 => Activity::ReadingPlan,
-            Some(_) => Activity::Waiting,
+        let Some(r) = &self.running else {
+            return Activity::Idle;
+        };
+        if let Some(name) = self.pending_tools().pop() {
+            return Activity::Reading(name);
         }
+        if r.text_started {
+            return Activity::Writing;
+        }
+        if !r.acc.reasoning().is_empty() {
+            return Activity::Reasoning;
+        }
+        if r.round > 0
+            && let Some(step) = self.turns.last().and_then(|t| t.tools.last())
+        {
+            return Activity::Reading(step.name.clone());
+        }
+        Activity::Waiting
     }
 
     /// Oublie la conversation (arrête la demande en cours).
@@ -207,11 +425,11 @@ impl Conversation {
         if let Some(running) = self.running.take() {
             running.cancel.store(true, Ordering::Relaxed);
         }
-        self.messages.clear();
-        self.transcript.clear();
+        self.turns.clear();
+        self.touch();
     }
 
-    /// Envoie un message de l'utilisateur.
+    /// Envoie une question.
     ///
     /// # Errors
     ///
@@ -223,42 +441,101 @@ impl Conversation {
         config: RequestConfig,
         transport: &dyn Transport,
     ) -> Result<(), AssistantError> {
-        if self.running.is_some() {
+        Self::check(self.busy(), &config)?;
+        let text = text.trim();
+        if text.is_empty() {
+            return Ok(());
+        }
+        self.push_turn(Turn::new(text, &config.model, config.asked_at.clone()));
+        self.start_round(0, config, Usage::default(), false, transport);
+        Ok(())
+    }
+
+    fn check(busy: bool, config: &RequestConfig) -> Result<(), AssistantError> {
+        if busy {
             return Err(AssistantError::Busy);
         }
         if config.api_key.trim().is_empty() {
             return Err(AssistantError::NoKey);
         }
-        let text = text.trim();
-        if text.is_empty() {
+        Ok(())
+    }
+
+    /// Régénère la dernière réponse (ou réessaie après une erreur) : le
+    /// dernier tour est retiré et sa question renvoyée.
+    ///
+    /// # Errors
+    ///
+    /// Comme [`Conversation::send`] ; rien à régénérer : `Ok` sans envoi.
+    pub fn regenerate(
+        &mut self,
+        config: RequestConfig,
+        transport: &dyn Transport,
+    ) -> Result<(), AssistantError> {
+        Self::check(self.busy(), &config)?;
+        let Some(last) = self.turns.pop() else {
+            return Ok(());
+        };
+        self.touch();
+        self.send(&last.question, config, transport)
+    }
+
+    /// Reprend une réponse arrêtée : le texte partiel est gardé, la suite
+    /// s'y ajoute. `prompt` (« continue là où tu t'es arrêté ») est envoyé
+    /// au modèle sans être affiché.
+    ///
+    /// # Errors
+    ///
+    /// Comme [`Conversation::send`] ; dernier tour non arrêté : `Ok` sans
+    /// envoi.
+    pub fn continue_last(
+        &mut self,
+        prompt: &str,
+        config: RequestConfig,
+        transport: &dyn Transport,
+    ) -> Result<(), AssistantError> {
+        Self::check(self.busy(), &config)?;
+        let Some(turn) = self.turns.last_mut() else {
+            return Ok(());
+        };
+        if turn.state != TurnState::Stopped {
             return Ok(());
         }
-        self.push_entry(Entry::User(text.to_owned()));
-        self.messages.push(json!({ "role": "user", "content": text }));
-        self.start_round(0, config, Usage::default(), transport);
+        turn.state = TurnState::Streaming;
+        turn.wire.push(json!({ "role": "user", "content": prompt }));
+        let usage = turn.usage.take().unwrap_or_default();
+        self.touch();
+        self.start_round(0, config, usage, false, transport);
         Ok(())
     }
 
     /// Arrête la demande en cours : la connexion est interrompue au prochain
-    /// évènement, les évènements tardifs sont ignorés.
+    /// évènement, les évènements tardifs sont ignorés ; le texte partiel est
+    /// gardé.
     pub fn stop(&mut self) {
         let Some(running) = self.running.take() else {
             return;
         };
         running.cancel.store(true, Ordering::Relaxed);
-        let text = running.acc.text();
-        if !text.is_empty() {
-            self.messages
-                .push(json!({ "role": "assistant", "content": text }));
+        let now = self.now;
+        let usage = running.usage.plus(running.acc.usage().unwrap_or_default());
+        if let Some(turn) = self.turns.last_mut() {
+            let text = running.acc.text();
+            if !text.is_empty() {
+                turn.wire.push(json!({ "role": "assistant", "content": text }));
+            }
+            turn.reasoning_end(now);
+            turn.state = TurnState::Stopped;
+            turn.usage = (usage != Usage::default()).then_some(usage);
         }
-        self.push_entry(Entry::Stopped);
         if let Ok(mut inbox) = self.inbox.lock() {
             inbox.clear();
         }
+        self.touch();
     }
 
     /// Lit les évènements reçus ; exécute les outils demandés et lance le
-    /// tour suivant. Rend vrai si la transcription ou l'état a changé.
+    /// tour suivant. Rend vrai si la conversation a changé.
     pub fn poll(&mut self, host: &mut dyn ToolHost, transport: &dyn Transport) -> bool {
         let Some(request) = self.running.as_ref().map(|r| r.request) else {
             return false;
@@ -294,18 +571,65 @@ impl Conversation {
                 }),
             }
         }
+        self.touch();
         true
     }
 
-    fn push_entry(&mut self, entry: Entry) {
-        self.transcript.push(entry);
-        if self.transcript.len() > MAX_TRANSCRIPT {
-            let extra = self.transcript.len().saturating_sub(MAX_TRANSCRIPT);
-            self.transcript.drain(..extra);
-            if let Some(r) = self.running.as_mut() {
-                r.text_entry = r.text_entry.and_then(|i| i.checked_sub(extra));
+    /// Conversation à garder : tours terminés (un tour en cours est gardé
+    /// comme arrêté) ; les tours anciens sont allégés comme pour la
+    /// mémoire ([`memory::reduced`]). Aucun secret : ni clé ni contexte.
+    #[must_use]
+    pub fn saved(&self) -> SavedConversation {
+        let intact_from = self
+            .turns
+            .len()
+            .saturating_sub(memory::KEEP_INTACT.saturating_add(1));
+        let turns = self
+            .turns
+            .iter()
+            .enumerate()
+            .map(|(i, turn)| {
+                let mut turn = turn.clone();
+                if turn.streaming() {
+                    turn.state = TurnState::Stopped;
+                    if !turn.answer.is_empty() {
+                        turn.wire
+                            .push(json!({ "role": "assistant", "content": turn.answer }));
+                    }
+                }
+                if i < intact_from {
+                    turn.wire = memory::reduced(&turn);
+                }
+                turn
+            })
+            .collect();
+        SavedConversation {
+            version: SAVED_VERSION,
+            turns,
+        }
+    }
+
+    /// Conversation relue (aucune demande en cours).
+    #[must_use]
+    pub fn restore(saved: SavedConversation) -> Self {
+        let mut conversation = Self::new();
+        let start = saved.turns.len().saturating_sub(MAX_TURNS);
+        conversation.turns = saved.turns.into_iter().skip(start).collect();
+        for turn in &mut conversation.turns {
+            if turn.streaming() {
+                turn.state = TurnState::Stopped;
             }
         }
+        conversation
+    }
+
+    fn push_turn(&mut self, turn: Turn) {
+        self.turns.push(turn);
+        if self.turns.len() > MAX_TURNS {
+            let extra = self.turns.len().saturating_sub(MAX_TURNS);
+            self.turns.drain(..extra);
+        }
+        self.touch();
     }
 
     fn chunk(&mut self, bytes: &[u8]) {
@@ -339,21 +663,41 @@ impl Conversation {
 
     /// Une charge `data` ; faux si la demande a échoué.
     fn data(&mut self, data: &str) -> bool {
+        let now = self.now;
         let Some(r) = self.running.as_mut() else {
             return false;
         };
         match r.acc.push(data) {
-            Ok(added) if added.is_empty() => true,
-            Ok(added) => {
-                let entry = r.text_entry;
-                if let Some(Entry::Assistant(text)) = entry.and_then(|i| self.transcript.get_mut(i)) {
-                    text.push_str(&added);
-                } else {
-                    self.push_entry(Entry::Assistant(added));
-                    let index = self.transcript.len().checked_sub(1);
-                    if let Some(r) = self.running.as_mut() {
-                        r.text_entry = index;
+            Ok(delta) if delta.is_empty() => {
+                // Un appel d'outil qui commence clôt le raisonnement.
+                if !r.acc.tool_calls().is_empty()
+                    && let Some(turn) = self.turns.last_mut()
+                {
+                    turn.reasoning_end(now);
+                }
+                true
+            }
+            Ok(delta) => {
+                let separate = r.separate && !r.text_started;
+                if !delta.text.is_empty() {
+                    r.text_started = true;
+                }
+                let Some(turn) = self.turns.last_mut() else {
+                    return true;
+                };
+                if !delta.reasoning.is_empty() {
+                    if !turn.reasoning.is_empty() && turn.reasoning_started.is_none() {
+                        turn.reasoning.push_str("\n\n");
                     }
+                    turn.reasoning_tick(now);
+                    turn.reasoning.push_str(&delta.reasoning);
+                }
+                if !delta.text.is_empty() {
+                    turn.reasoning_end(now);
+                    if separate && !turn.answer.is_empty() {
+                        turn.answer.push_str("\n\n");
+                    }
+                    turn.answer.push_str(&delta.text);
                 }
                 true
             }
@@ -369,10 +713,16 @@ impl Conversation {
             return;
         };
         running.cancel.store(true, Ordering::Relaxed);
+        let now = self.now;
         let usage = running.usage.plus(running.acc.usage().unwrap_or_default());
-        self.push_entry(Entry::Error(error));
-        if usage != Usage::default() {
-            self.push_entry(Entry::Cost(usage));
+        if let Some(turn) = self.turns.last_mut() {
+            let text = running.acc.text();
+            if !text.is_empty() {
+                turn.wire.push(json!({ "role": "assistant", "content": text }));
+            }
+            turn.reasoning_end(now);
+            turn.state = TurnState::Failed(error);
+            turn.usage = (usage != Usage::default()).then_some(usage);
         }
     }
 
@@ -382,13 +732,9 @@ impl Conversation {
         };
         let status = r.status.unwrap_or(0);
         if !(200..300).contains(&status) {
+            let error = openrouter::http_error(status, &r.headers, &r.error_body);
             self.running = Some(r);
-            let (headers, body) = self
-                .running
-                .as_ref()
-                .map(|r| (r.headers.clone(), r.error_body.clone()))
-                .unwrap_or_default();
-            self.fail(openrouter::http_error(status, &headers, &body));
+            self.fail(error);
             return;
         }
         let tail = r.sse.finish();
@@ -417,26 +763,49 @@ impl Conversation {
             });
             return;
         }
+        let now = self.now;
         let usage = r.usage.plus(r.acc.usage().unwrap_or_default());
         let text = r.acc.text().to_owned();
         let calls = r.acc.tool_calls();
-        if calls.is_empty() {
-            self.messages
-                .push(json!({ "role": "assistant", "content": text }));
-            self.push_entry(Entry::Cost(usage));
-            return;
-        }
         let next = r.round.saturating_add(1);
-        if next >= MAX_ROUNDS {
+        if !calls.is_empty() && next >= MAX_ROUNDS {
             self.running = Some(r);
             self.fail(AssistantError::TooManyRounds);
             return;
         }
-        self.run_tools(&calls, &text, host, r.config.lang);
-        self.start_round(next, r.config, usage, transport);
+        let Some(turn) = self.turns.last_mut() else {
+            return;
+        };
+        turn.reasoning_end(now);
+        if calls.is_empty() {
+            turn.wire.push(json!({ "role": "assistant", "content": text }));
+            turn.usage = Some(usage);
+            turn.state = TurnState::Done;
+            return;
+        }
+        Self::run_tools(
+            turn,
+            &calls,
+            &text,
+            r.acc.reasoning_details(),
+            host,
+            r.config.lang,
+        );
+        let started_at = r.started_at;
+        self.start_round(next, r.config, usage, true, transport);
+        if let Some(running) = self.running.as_mut() {
+            running.started_at = started_at;
+        }
     }
 
-    fn run_tools(&mut self, calls: &[ToolCall], text: &str, host: &mut dyn ToolHost, lang: Language) {
+    fn run_tools(
+        turn: &mut Turn,
+        calls: &[ToolCall],
+        text: &str,
+        reasoning_details: &[Value],
+        host: &mut dyn ToolHost,
+        lang: Language,
+    ) {
         let wire: Vec<Value> = calls
             .iter()
             .map(|c| {
@@ -452,49 +821,49 @@ impl Conversation {
         } else {
             Value::String(text.to_owned())
         };
-        self.messages
-            .push(json!({ "role": "assistant", "content": content, "tool_calls": wire }));
-        self.push_entry(Entry::Tools(calls.iter().map(|c| c.name.clone()).collect()));
+        let mut message = json!({ "role": "assistant", "content": content, "tool_calls": wire });
+        // Raisonnement renvoyé tel quel avec l'appel (continuité exigée par
+        // certains fournisseurs, doc « reasoning tokens » d'OpenRouter).
+        if !reasoning_details.is_empty()
+            && let Value::Object(map) = &mut message
+        {
+            map.insert(
+                "reasoning_details".to_owned(),
+                Value::Array(reasoning_details.to_vec()),
+            );
+        }
+        turn.wire.push(message);
         for call in calls {
             let result = tools::execute(host, call, lang);
-            self.messages
+            turn.tools.push(ToolStep {
+                name: call.name.clone(),
+                arguments: call.arguments.chars().take(MAX_SHOWN_ARGUMENTS).collect(),
+                error: tool_error(&result),
+            });
+            turn.wire
                 .push(json!({ "role": "tool", "tool_call_id": call.id, "content": result }));
         }
     }
 
-    /// Élague les tours les plus anciens tant que l'historique dépasse
-    /// [`MAX_HISTORY_BYTES`] (coupure sur un message de l'utilisateur : un
-    /// appel d'outil n'est jamais séparé de son résultat).
-    fn trim_history(&mut self) {
-        loop {
-            let size: usize = self.messages.iter().map(|m| m.to_string().len()).sum();
-            if size <= MAX_HISTORY_BYTES {
-                return;
-            }
-            let next_user = self
-                .messages
-                .iter()
-                .enumerate()
-                .skip(1)
-                .find(|(_, m)| m.get("role").and_then(Value::as_str) == Some("user"))
-                .map(|(i, _)| i);
-            match next_user {
-                Some(i) => {
-                    self.messages.drain(..i);
-                }
-                None => return,
-            }
-        }
-    }
-
-    fn start_round(&mut self, round: u32, config: RequestConfig, usage: Usage, transport: &dyn Transport) {
-        self.trim_history();
-        let mut messages = Vec::with_capacity(self.messages.len().saturating_add(1));
-        messages.push(json!({
-            "role": "system",
-            "content": plannercraft_automation::agent::assistant_instructions(config.lang),
-        }));
-        messages.extend(self.messages.iter().cloned());
+    fn start_round(
+        &mut self,
+        round: u32,
+        config: RequestConfig,
+        usage: Usage,
+        separate: bool,
+        transport: &dyn Transport,
+    ) {
+        let (previous, current) = match self.turns.split_last() {
+            Some((current, previous)) => (previous, current.wire.as_slice()),
+            None => (&[][..], &[][..]),
+        };
+        let messages = memory::request_messages(
+            plannercraft_automation::agent::assistant_instructions(config.lang),
+            previous,
+            current,
+            config.context.as_deref(),
+            memory::supports_cache_control(&config.model),
+        );
         let allow_tools = round.saturating_add(1) < MAX_ROUNDS;
         let body = openrouter::chat_body(
             &config.model,
@@ -519,7 +888,9 @@ impl Conversation {
             received: 0,
             sse: SseParser::new(),
             acc: StreamAccumulator::new(),
-            text_entry: None,
+            text_started: false,
+            separate,
+            started_at: self.now,
         });
         let inbox = Arc::clone(&self.inbox);
         let waker = self.waker.clone();
@@ -544,6 +915,20 @@ impl Conversation {
             flow
         });
         self.requests_sent = self.requests_sent.saturating_add(1);
+        self.touch();
         transport.send(request, sink);
     }
+}
+
+/// Erreur structurée d'un résultat d'outil (`{"error": {code, message}}`),
+/// en texte court.
+fn tool_error(result: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(result).ok()?;
+    let error = value.get("error")?;
+    let message = error
+        .get("message")
+        .and_then(Value::as_str)
+        .or_else(|| error.get("code").and_then(Value::as_str))
+        .unwrap_or("erreur");
+    Some(crate::error::truncate_message(message))
 }

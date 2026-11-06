@@ -30,6 +30,8 @@ pub struct Model {
     pub id: &'static str,
     /// Nom affiché.
     pub label: &'static str,
+    /// Nom court (pied de message, en-tête du volet).
+    pub short: &'static str,
 }
 
 /// Liste fermée des modèles proposés (ADR-0024 § 9) ; le premier est le
@@ -38,14 +40,17 @@ pub const MODELS: &[Model] = &[
     Model {
         id: "anthropic/claude-sonnet-5.5",
         label: "Claude Sonnet 5.5",
+        short: "Sonnet 5.5",
     },
     Model {
         id: "anthropic/claude-haiku-5.5",
         label: "Claude Haiku 5.5",
+        short: "Haiku 5.5",
     },
     Model {
         id: "google/gemini-3.8-flash",
         label: "Gemini 3.8 Flash",
+        short: "Gemini 3.8 Flash",
     },
 ];
 
@@ -64,6 +69,7 @@ pub fn model_or_default(id: &str) -> &'static Model {
         .unwrap_or(&Model {
             id: DEFAULT_MODEL,
             label: "Claude Sonnet 5.5",
+            short: "Sonnet 5.5",
         })
 }
 

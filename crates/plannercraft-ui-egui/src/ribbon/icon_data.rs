@@ -26,8 +26,12 @@ pub struct IconData {
 /// Icône du ruban : un variant par fichier de `assets/icons/lucide/`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Icon {
+    /// `arrow-down.svg`.
+    ArrowDown,
     /// `arrow-down-to-line.svg`.
     ArrowDownToLine,
+    /// `arrow-up.svg`.
+    ArrowUp,
     /// `arrow-up-down.svg`.
     ArrowUpDown,
     /// `baseline.svg`.
@@ -50,6 +54,12 @@ pub enum Icon {
     ChartGantt,
     /// `chart-no-axes-gantt.svg`.
     ChartNoAxesGantt,
+    /// `check.svg`.
+    Check,
+    /// `chevron-down.svg`.
+    ChevronDown,
+    /// `chevron-right.svg`.
+    ChevronRight,
     /// `chevrons-down-up.svg`.
     ChevronsDownUp,
     /// `chevrons-up-down.svg`.
@@ -72,6 +82,8 @@ pub enum Icon {
     Copy,
     /// `diamond.svg`.
     Diamond,
+    /// `ellipsis.svg`.
+    Ellipsis,
     /// `eraser.svg`.
     Eraser,
     /// `file-cog.svg`.
@@ -138,6 +150,12 @@ pub enum Icon {
     Scissors,
     /// `search.svg`.
     Search,
+    /// `sparkles.svg`.
+    Sparkles,
+    /// `square.svg`.
+    Square,
+    /// `square-pen.svg`.
+    SquarePen,
     /// `sticky-note.svg`.
     StickyNote,
     /// `sun-moon.svg`.
@@ -166,8 +184,10 @@ pub enum Icon {
 
 impl Icon {
     /// Toutes les icônes, dans l'ordre des fichiers.
-    pub const ALL: [Self; 68] = [
+    pub const ALL: [Self; 77] = [
+        Self::ArrowDown,
         Self::ArrowDownToLine,
+        Self::ArrowUp,
         Self::ArrowUpDown,
         Self::Baseline,
         Self::BetweenVerticalStart,
@@ -179,6 +199,9 @@ impl Icon {
         Self::ChartColumn,
         Self::ChartGantt,
         Self::ChartNoAxesGantt,
+        Self::Check,
+        Self::ChevronDown,
+        Self::ChevronRight,
         Self::ChevronsDownUp,
         Self::ChevronsUpDown,
         Self::CircleCheck,
@@ -190,6 +213,7 @@ impl Icon {
         Self::Columns3Cog,
         Self::Copy,
         Self::Diamond,
+        Self::Ellipsis,
         Self::Eraser,
         Self::FileCog,
         Self::FileDown,
@@ -223,6 +247,9 @@ impl Icon {
         Self::ScanSearch,
         Self::Scissors,
         Self::Search,
+        Self::Sparkles,
+        Self::Square,
+        Self::SquarePen,
         Self::StickyNote,
         Self::SunMoon,
         Self::SwatchBook,
@@ -241,7 +268,9 @@ impl Icon {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
+            Self::ArrowDown => "arrow-down",
             Self::ArrowDownToLine => "arrow-down-to-line",
+            Self::ArrowUp => "arrow-up",
             Self::ArrowUpDown => "arrow-up-down",
             Self::Baseline => "baseline",
             Self::BetweenVerticalStart => "between-vertical-start",
@@ -253,6 +282,9 @@ impl Icon {
             Self::ChartColumn => "chart-column",
             Self::ChartGantt => "chart-gantt",
             Self::ChartNoAxesGantt => "chart-no-axes-gantt",
+            Self::Check => "check",
+            Self::ChevronDown => "chevron-down",
+            Self::ChevronRight => "chevron-right",
             Self::ChevronsDownUp => "chevrons-down-up",
             Self::ChevronsUpDown => "chevrons-up-down",
             Self::CircleCheck => "circle-check",
@@ -264,6 +296,7 @@ impl Icon {
             Self::Columns3Cog => "columns-3-cog",
             Self::Copy => "copy",
             Self::Diamond => "diamond",
+            Self::Ellipsis => "ellipsis",
             Self::Eraser => "eraser",
             Self::FileCog => "file-cog",
             Self::FileDown => "file-down",
@@ -297,6 +330,9 @@ impl Icon {
             Self::ScanSearch => "scan-search",
             Self::Scissors => "scissors",
             Self::Search => "search",
+            Self::Sparkles => "sparkles",
+            Self::Square => "square",
+            Self::SquarePen => "square-pen",
             Self::StickyNote => "sticky-note",
             Self::SunMoon => "sun-moon",
             Self::SwatchBook => "swatch-book",
@@ -316,7 +352,9 @@ impl Icon {
     #[must_use]
     pub const fn data(self) -> &'static IconData {
         match self {
+            Self::ArrowDown => &ARROW_DOWN,
             Self::ArrowDownToLine => &ARROW_DOWN_TO_LINE,
+            Self::ArrowUp => &ARROW_UP,
             Self::ArrowUpDown => &ARROW_UP_DOWN,
             Self::Baseline => &BASELINE,
             Self::BetweenVerticalStart => &BETWEEN_VERTICAL_START,
@@ -328,6 +366,9 @@ impl Icon {
             Self::ChartColumn => &CHART_COLUMN,
             Self::ChartGantt => &CHART_GANTT,
             Self::ChartNoAxesGantt => &CHART_NO_AXES_GANTT,
+            Self::Check => &CHECK,
+            Self::ChevronDown => &CHEVRON_DOWN,
+            Self::ChevronRight => &CHEVRON_RIGHT,
             Self::ChevronsDownUp => &CHEVRONS_DOWN_UP,
             Self::ChevronsUpDown => &CHEVRONS_UP_DOWN,
             Self::CircleCheck => &CIRCLE_CHECK,
@@ -339,6 +380,7 @@ impl Icon {
             Self::Columns3Cog => &COLUMNS_3_COG,
             Self::Copy => &COPY,
             Self::Diamond => &DIAMOND,
+            Self::Ellipsis => &ELLIPSIS,
             Self::Eraser => &ERASER,
             Self::FileCog => &FILE_COG,
             Self::FileDown => &FILE_DOWN,
@@ -372,6 +414,9 @@ impl Icon {
             Self::ScanSearch => &SCAN_SEARCH,
             Self::Scissors => &SCISSORS,
             Self::Search => &SEARCH,
+            Self::Sparkles => &SPARKLES,
+            Self::Square => &SQUARE,
+            Self::SquarePen => &SQUARE_PEN,
             Self::StickyNote => &STICKY_NOTE,
             Self::SunMoon => &SUN_MOON,
             Self::SwatchBook => &SWATCH_BOOK,
@@ -388,6 +433,19 @@ impl Icon {
     }
 }
 
+/// `arrow-down.svg`.
+static ARROW_DOWN: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (768, 320), (768, 1216),
+        ] },
+        IconLine { closed: false, points: &[
+            (1216, 768), (768, 1216), (320, 768),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `arrow-down-to-line.svg`.
 static ARROW_DOWN_TO_LINE: IconData = IconData {
     lines: &[
@@ -399,6 +457,19 @@ static ARROW_DOWN_TO_LINE: IconData = IconData {
         ] },
         IconLine { closed: false, points: &[
             (1216, 1344), (320, 1344),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `arrow-up.svg`.
+static ARROW_UP: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (320, 768), (768, 320), (1216, 768),
+        ] },
+        IconLine { closed: false, points: &[
+            (768, 1216), (768, 320),
         ] },
     ],
     dots: &[],
@@ -663,6 +734,36 @@ static CHART_NO_AXES_GANTT: IconData = IconData {
     dots: &[],
 };
 
+/// `check.svg`.
+static CHECK: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (1280, 384), (576, 1088), (256, 768),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `chevron-down.svg`.
+static CHEVRON_DOWN: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (384, 576), (768, 960), (1152, 576),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `chevron-right.svg`.
+static CHEVRON_RIGHT: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (576, 1152), (960, 768), (576, 384),
+        ] },
+    ],
+    dots: &[],
+};
+
 /// `chevrons-down-up.svg`.
 static CHEVRONS_DOWN_UP: IconData = IconData {
     lines: &[
@@ -890,6 +991,25 @@ static DIAMOND: IconData = IconData {
             (682, 1383), (709, 1397), (737, 1405), (768, 1408), (798, 1405), (827, 1397), (853, 1383), (877, 1363), (1363, 877), (1382, 854),
             (1396, 827), (1405, 799), (1408, 768), (1405, 738), (1396, 709), (1382, 683), (1363, 659), (877, 173), (853, 154), (827, 140),
             (798, 131), (768, 128), (737, 131), (709, 140), (682, 154), (659, 173),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `ellipsis.svg`.
+static ELLIPSIS: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (832, 768), (829, 788), (820, 806), (806, 820), (788, 829), (768, 832), (748, 829), (730, 820), (716, 806), (707, 788),
+            (704, 768), (707, 748), (716, 730), (730, 716), (748, 707), (768, 704), (788, 707), (806, 716), (820, 730), (829, 748),
+        ] },
+        IconLine { closed: true, points: &[
+            (1280, 768), (1277, 788), (1268, 806), (1254, 820), (1236, 829), (1216, 832), (1196, 829), (1178, 820), (1164, 806), (1155, 788),
+            (1152, 768), (1155, 748), (1164, 730), (1178, 716), (1196, 707), (1216, 704), (1236, 707), (1254, 716), (1268, 730), (1277, 748),
+        ] },
+        IconLine { closed: true, points: &[
+            (384, 768), (381, 788), (372, 806), (358, 820), (340, 829), (320, 832), (300, 829), (282, 820), (268, 806), (259, 788),
+            (256, 768), (259, 748), (268, 730), (282, 716), (300, 707), (320, 704), (340, 707), (358, 716), (372, 730), (381, 748),
         ] },
     ],
     dots: &[],
@@ -1604,6 +1724,61 @@ static SEARCH: IconData = IconData {
             (261, 960), (231, 900), (209, 837), (197, 772), (192, 704), (197, 636), (209, 571), (231, 508), (261, 448), (298, 393),
             (342, 342), (393, 298), (448, 261), (508, 231), (571, 209), (636, 197), (704, 192), (772, 197), (837, 209), (900, 231),
             (960, 261), (1015, 298), (1066, 342), (1110, 393), (1147, 448), (1177, 508), (1199, 571), (1211, 636),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `sparkles.svg`.
+static SPARKLES: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (705, 180), (713, 159), (727, 143), (746, 132), (768, 128), (790, 132), (809, 143), (823, 159), (831, 180), (898, 536),
+            (908, 565), (923, 591), (945, 613), (971, 628), (1000, 638), (1356, 705), (1377, 713), (1393, 727), (1404, 746), (1408, 768),
+            (1404, 790), (1393, 809), (1377, 823), (1356, 831), (1000, 898), (971, 908), (945, 923), (923, 945), (908, 971), (898, 1000),
+            (831, 1356), (823, 1377), (809, 1393), (790, 1404), (768, 1408), (746, 1404), (727, 1393), (713, 1377), (705, 1356), (638, 1000),
+            (628, 971), (613, 945), (591, 923), (565, 908), (536, 898), (180, 831), (159, 823), (143, 809), (132, 790), (128, 768),
+            (132, 746), (143, 727), (159, 713), (180, 705), (536, 638), (565, 628), (591, 613), (613, 591), (628, 565), (638, 536),
+        ] },
+        IconLine { closed: false, points: &[
+            (1280, 128), (1280, 384),
+        ] },
+        IconLine { closed: false, points: &[
+            (1408, 256), (1152, 256),
+        ] },
+        IconLine { closed: true, points: &[
+            (384, 1280), (379, 1314), (367, 1344), (346, 1370), (320, 1391), (290, 1403), (256, 1408), (222, 1403), (192, 1391), (166, 1370),
+            (145, 1344), (133, 1314), (128, 1280), (133, 1246), (145, 1216), (166, 1190), (192, 1169), (222, 1157), (256, 1152), (290, 1157),
+            (320, 1169), (346, 1190), (367, 1216), (379, 1246),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `square.svg`.
+static SQUARE: IconData = IconData {
+    lines: &[
+        IconLine { closed: true, points: &[
+            (192, 320), (197, 286), (209, 256), (229, 229), (256, 209), (286, 197), (320, 192), (1216, 192), (1250, 197), (1280, 209),
+            (1307, 229), (1327, 256), (1339, 286), (1344, 320), (1344, 1216), (1339, 1250), (1327, 1280), (1307, 1307), (1280, 1327), (1250, 1339),
+            (1216, 1344), (320, 1344), (286, 1339), (256, 1327), (229, 1307), (209, 1280), (197, 1250), (192, 1216),
+        ] },
+    ],
+    dots: &[],
+};
+
+/// `square-pen.svg`.
+static SQUARE_PEN: IconData = IconData {
+    lines: &[
+        IconLine { closed: false, points: &[
+            (768, 192), (320, 192), (286, 197), (256, 209), (229, 229), (209, 256), (197, 286), (192, 320), (192, 1216), (197, 1250),
+            (209, 1280), (229, 1307), (256, 1327), (286, 1339), (320, 1344), (1216, 1344), (1250, 1339), (1280, 1327), (1307, 1307), (1327, 1280),
+            (1339, 1250), (1344, 1216), (1344, 768),
+        ] },
+        IconLine { closed: true, points: &[
+            (1176, 168), (1201, 149), (1227, 136), (1257, 129), (1287, 129), (1317, 136), (1343, 149), (1368, 168), (1387, 193), (1400, 219),
+            (1407, 249), (1407, 279), (1400, 309), (1387, 335), (1368, 360), (791, 937), (766, 956), (737, 969), (553, 1023), (536, 1023),
+            (521, 1015), (513, 1000), (513, 983), (567, 799), (580, 770), (599, 745),
         ] },
     ],
     dots: &[],
