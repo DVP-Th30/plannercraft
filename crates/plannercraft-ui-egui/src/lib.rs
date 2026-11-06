@@ -12,6 +12,7 @@
 
 pub mod action;
 pub mod app;
+pub mod assistant;
 pub mod block;
 pub mod cells;
 pub mod clipboard;

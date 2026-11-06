@@ -1,0 +1,49 @@
+[package]
+name = "plannercraft-assistant"
+description = "Assistant IA de PlannerCraft (ADR-0024) : client OpenRouter en flux SSE, outils en lecture du registre, OAuth PKCE, secrets."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+plannercraft-automation.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+# PKCE (S256) : empreinte SHA-256 du vérifieur, encodée en base64url.
+sha2.workspace = true
+base64.workspace = true
+# Client HTTP desktop et web (lot A1) : ureq dans un fil sur le desktop,
+# `fetch` du navigateur en wasm ; `streaming` pour lire la réponse SSE au fil
+# de l'eau. Aucun runtime async imposé à l'interface.
+ehttp = { workspace = true, features = ["streaming"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Vérifieur et `state` PKCE : aléa du système.
+getrandom.workspace = true
+# Ouverture du navigateur pour la connexion OpenRouter (déjà tiré par eframe).
+webbrowser.workspace = true
+# Trousseau du système (clé OpenRouter) : API commune et magasins par système.
+keyring-core.workspace = true
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+zbus-secret-service-keyring-store.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Aléa (`crypto.getRandomValues`), adresse de la page, `sessionStorage` du
+# vérifieur PKCE le temps de la redirection, nettoyage de l'URL.
+web-sys = { workspace = true, features = ["Crypto", "Location", "History", "Storage"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+plannercraft-core.workspace = true

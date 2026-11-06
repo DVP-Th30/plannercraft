@@ -13,6 +13,10 @@
 //! clavier : Accepter et Refuser suivent les règles du bandeau J7
 //! ([`super::approval::decision_row`]).
 //!
+//! Onglet « Assistant » (ADR-0024, lot A1, H-UI-138 à H-UI-142) :
+//! conversation avec l'assistant IA intégré, dessinée par
+//! [`super::assistant`].
+//!
 //! Ouvert d'office à chaque demande d'un agent (onglet « Opérations IA »),
 //! refermable (bouton du volet, Affichage → Opérations IA) ; fermé par
 //! défaut, et jamais persisté : les captures J7 sont inchangées. Le bandeau
@@ -51,6 +55,8 @@ pub enum SideTab {
     AiOperations,
     /// Pourquoi cette date ?
     WhyThisDate,
+    /// Assistant IA (ADR-0024, lot A1, H-UI-138).
+    Assistant,
 }
 
 /// Commande du volet (réducteur d'`App`).
@@ -62,6 +68,9 @@ pub enum SideOp {
     Open(SideTab),
     /// Referme le volet.
     Close,
+    /// Ouvre le volet sur l'onglet donné, ou le referme s'il y est déjà
+    /// (Affichage → Assistant IA, ADR-0024 lot A1).
+    ToggleTab(SideTab),
 }
 
 /// Issue d'une proposition d'un agent (H-UI-41).
@@ -129,7 +138,7 @@ pub struct SidePanelState {
 
 impl SidePanelState {
     /// Applique une commande du volet.
-    pub const fn apply(&mut self, op: SideOp) {
+    pub fn apply(&mut self, op: SideOp) {
         match op {
             SideOp::Toggle => self.open = !self.open,
             SideOp::Open(tab) => {
@@ -137,6 +146,14 @@ impl SidePanelState {
                 self.tab = tab;
             }
             SideOp::Close => self.open = false,
+            SideOp::ToggleTab(tab) => {
+                if self.open && self.tab == tab {
+                    self.open = false;
+                } else {
+                    self.open = true;
+                    self.tab = tab;
+                }
+            }
         }
     }
 
@@ -213,7 +230,13 @@ impl AiPanelInput<'_> {
 }
 
 /// Dessine le volet (rien s'il est fermé) et pousse ses actions.
-pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, state: &SidePanelState, ai: AiPanelInput<'_>) {
+pub fn panel(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    state: &SidePanelState,
+    ai: AiPanelInput<'_>,
+    assistant: &mut crate::assistant::AssistantPanel,
+) {
     if !state.open {
         return;
     }
@@ -227,6 +250,7 @@ pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, state: &SidePanelState, a
                 for (tab, id) in [
                     (SideTab::AiOperations, TextId::SideTabAi),
                     (SideTab::WhyThisDate, TextId::SideTabWhy),
+                    (SideTab::Assistant, TextId::SideTabAssistant),
                 ] {
                     if ui.selectable_label(state.tab == tab, texts.get(id)).clicked() && state.tab != tab {
                         fc.actions.push(Action::SidePanel(SideOp::Open(tab)));
@@ -242,6 +266,7 @@ pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, state: &SidePanelState, a
             match state.tab {
                 SideTab::AiOperations => ai_tab(ui, fc, ai),
                 SideTab::WhyThisDate => why_tab(ui, fc, state),
+                SideTab::Assistant => super::assistant::tab(ui, fc, assistant),
             }
         });
 }

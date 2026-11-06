@@ -25,4 +25,4 @@ disallowed-types = [
 
 # Recopié du `clippy.toml` racine : nom du produit (ADR-0020) sans
 # backticks dans la documentation ; `..` garde la liste par défaut.
-doc-valid-idents = ["PlannerCraft", ".."]
+doc-valid-idents = ["PlannerCraft", "OpenRouter", ".."]

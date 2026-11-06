@@ -185,6 +185,8 @@ pub enum Action {
     // --- J8 L12 : volet latéral (H-UI-41, H-UI-58).
     /// Ouvre, referme ou change d'onglet le volet latéral.
     SidePanel(SideOp),
+    /// Commande du volet Assistant (ADR-0024, lot A1).
+    Assistant(crate::assistant::AssistantOp),
     // --- J8 L15 : menu Tâche, barre d'outils, mise en forme.
     /// Commande de tâche sur la sélection (menu Tâche, barre d'outils) :
     /// un seul lot, une entrée d'annulation (R-252, R-253, R-255).

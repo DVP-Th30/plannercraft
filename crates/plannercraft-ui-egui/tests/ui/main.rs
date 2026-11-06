@@ -22,6 +22,9 @@
 //! ADR-0019 (lot L0), remplis par leur lot ; `ux2_contract` : touches,
 //! actions et état posés par L0.
 //!
+//! Assistant IA (ADR-0024, lot A1) : `assistant` (activation, connexion
+//! simulée, flux, arrêt, erreurs, modèle, capture).
+//!
 //! Cible unique `ui` (un seul binaire lié à wgpu, ADR-0011, décision 12).
 //! Les libellés cherchés sont construits par `Texts` (jamais en dur : le
 //! français contient des espaces insécables U+00A0 avant « : »). Le harnais
@@ -41,6 +44,7 @@
 
 mod ai_panel;
 mod assign;
+mod assistant;
 mod cells;
 mod clipboard;
 mod columns;

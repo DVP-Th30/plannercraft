@@ -35,3 +35,11 @@ Icônes Lucide (assets/icons/lucide/*.svg, 68 fichiers)
   sha1 12e5674d15cb258ca10e5ec8ff039ed602886d44), fichiers icons/<nom>.svg
   copiés sans modification. Convertis en polylignes au build par
   `cargo xtask icons` (crates/plannercraft-ui-egui/src/ribbon/icon_data.rs).
+
+Certificats racines de Mozilla (crate webpki-roots, binaires du desktop)
+  Liste des autorités de certification de confiance de Mozilla, embarquée
+  par rustls (client HTTPS de l'assistant IA : ehttp → ureq → rustls).
+  Licence : Community Data License Agreement – Permissive, Version 2.0
+  (CDLA-Permissive-2.0), texte : https://cdla.dev/permissive-2-0/
+  Source : https://github.com/rustls/webpki-roots (données issues de
+  https://ccadb.org/).

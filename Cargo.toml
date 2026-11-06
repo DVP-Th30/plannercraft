@@ -9,6 +9,7 @@ members = [
     "crates/plannercraft-pdf",
     "crates/plannercraft-automation",
     "crates/plannercraft-mcp",
+    "crates/plannercraft-assistant",
     "crates/plannercraft-ui-egui",
     "apps/plannercraft-cli",
     "apps/plannercraft",
@@ -33,6 +34,7 @@ plannercraft-render = { path = "crates/plannercraft-render", version = "1.0.0-rc
 plannercraft-pdf = { path = "crates/plannercraft-pdf", version = "1.0.0-rc.1" }
 plannercraft-automation = { path = "crates/plannercraft-automation", version = "1.0.0-rc.1" }
 plannercraft-mcp = { path = "crates/plannercraft-mcp", version = "1.0.0-rc.1" }
+plannercraft-assistant = { path = "crates/plannercraft-assistant", version = "1.0.0-rc.1" }
 plannercraft-ui-egui = { path = "crates/plannercraft-ui-egui", version = "1.0.0-rc.1" }
 
 # Dates en heure locale du projet, sans fuseau. On ne demande pas `clock`, mais
@@ -98,6 +100,17 @@ clap = { version = "4.6.7", features = ["derive"] }
 log = "0.4.34"
 wasm-bindgen-futures = "0.4.79"
 web-sys = { version = "0.3.106", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+# Assistant IA (ADR-0024, lot A1) : client HTTP desktop et web de
+# l'écosystème egui (ureq natif dans un fil, `fetch` en wasm), lecture en
+# flux ; ouverture du navigateur (déjà tiré par eframe) ; trousseau du
+# système par keyring-core et ses magasins (Secret Service par zbus, déjà
+# au lock ; Trousseau macOS ; Gestionnaire d'identification Windows).
+ehttp = { version = "0.7.3", default-features = false }
+webbrowser = "1.2.4"
+keyring-core = "1.0.1"
+zbus-secret-service-keyring-store = { version = "1.0.1", features = ["rt-async-io-crypto-rust"] }
+apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
+windows-native-keyring-store = { version = "1.1.0", default-features = false }
 cargo_metadata = "0.23.1"
 # `cargo xtask panics` : analyse syntaxique des sources, lignes des jetons.
 syn = { version = "2.0.119", default-features = false, features = ["full", "parsing", "visit"] }

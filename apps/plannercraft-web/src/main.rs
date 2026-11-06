@@ -325,6 +325,10 @@ mod web {
                     };
                     let mut app = PlannerCraftApp::new(cc, env);
                     app.app_mut().set_observer(Box::new(tab));
+                    // Assistant IA (ADR-0024, lot A1) : `fetch`, clé en
+                    // mémoire, connexion OpenRouter par redirection.
+                    app.app_mut()
+                        .set_assistant_services(plannercraft_ui_egui::assistant::AssistantServices::web());
                     Ok(Box::new(WebApp { inner: app, scope }))
                 }),
             )

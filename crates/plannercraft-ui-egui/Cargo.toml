@@ -15,6 +15,9 @@ plannercraft-mspdi.workspace = true
 plannercraft-automation.workspace = true
 # Style du planning et contraste WCAG partagés (ADR-0016 D5, D6).
 plannercraft-render.workspace = true
+# Assistant IA (ADR-0024, lot A1) : client OpenRouter, outils en lecture,
+# connexion et clé, sans egui (règle 9).
+plannercraft-assistant.workspace = true
 egui.workspace = true
 eframe.workspace = true
 chrono.workspace = true

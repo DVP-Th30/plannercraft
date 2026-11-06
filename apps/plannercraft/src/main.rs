@@ -664,6 +664,10 @@ fn main() -> ExitCode {
             let (control, inbox) = ControlRendezvous::new(Arc::new(move || ctx.request_repaint()));
             app.app_mut().control_inbox(inbox);
             app.app_mut().enable_screenshots(ScreenshotConfig::default());
+            // Assistant IA (ADR-0024, lot A1) : réseau réel, trousseau du
+            // système, navigateur par défaut pour la connexion OpenRouter.
+            app.app_mut()
+                .set_assistant_services(plannercraft_ui_egui::assistant::AssistantServices::desktop());
             match recovery_dir() {
                 Some(root) => start_recovery(app.app_mut(), root),
                 None => {

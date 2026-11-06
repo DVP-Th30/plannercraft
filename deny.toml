@@ -47,6 +47,12 @@ exceptions = [
     # nom des dérivés uniquement. Ne touchent pas le code ; jamais autorisées
     # globalement, pour qu'une crate de code sous OFL ne passe pas sans revue.
     { crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] },
+    # Certificats racines de Mozilla pour rustls (assistant IA, ADR-0024 lot
+    # A1 : ehttp → ureq → rustls). CDLA-Permissive-2.0 : licence permissive
+    # de données (la liste des autorités), pas de code ; redistribution libre,
+    # texte de la licence mis à disposition (NOTICE). Jamais autorisée
+    # globalement.
+    { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
 ]
 # Pas d'alerte pour une licence autorisée mais non utilisée aujourd'hui.
 unused-allowed-license = "allow"

@@ -426,6 +426,9 @@ pub struct App {
     /// Volet latéral : opérations IA et « Pourquoi cette date ? » (J8 lot
     /// L12) ; jamais persisté.
     pub(crate) side: crate::view::side_panel::SidePanelState,
+    /// Assistant IA (ADR-0024, lot A1) : conversation, clé, connexion ;
+    /// jamais persisté (la clé ne va pas dans `UiState`).
+    pub(crate) assistant: crate::assistant::AssistantPanel,
     /// Journal de reprise après plantage (desktop, J7 lot L15) : branché
     /// par [`App::set_recovery`], suit le document à chaque changement.
     #[cfg(not(target_arch = "wasm32"))]
@@ -495,6 +498,7 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             relay: None,
             side: crate::view::side_panel::SidePanelState::default(),
+            assistant: crate::assistant::AssistantPanel::new(crate::assistant::AssistantServices::offline()),
             #[cfg(not(target_arch = "wasm32"))]
             recovery: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -1505,6 +1509,63 @@ impl App {
         &self.side
     }
 
+    /// Assistant IA (ADR-0024, lot A1).
+    #[must_use]
+    pub const fn assistant(&self) -> &crate::assistant::AssistantPanel {
+        &self.assistant
+    }
+
+    /// Assistant IA, modifiable (tests : saisie de la question).
+    pub const fn assistant_mut(&mut self) -> &mut crate::assistant::AssistantPanel {
+        &mut self.assistant
+    }
+
+    /// Branche les services de l'assistant (desktop : réseau réel,
+    /// trousseau, navigateur ; web : `fetch`, mémoire). Sans cet appel,
+    /// l'assistant est hors ligne (tests).
+    pub fn set_assistant_services(&mut self, services: crate::assistant::AssistantServices) {
+        self.assistant.set_services(services);
+    }
+
+    /// État de l'interface rendu à l'assistant (`ui_state`) : document,
+    /// tâche active, sélection (200 UID au plus), vue. Ni préférences ni
+    /// fichiers récents.
+    #[must_use]
+    pub fn assistant_ui_state(&self) -> serde_json::Value {
+        let mut selection: Vec<u32> = self.selected.click_order().iter().map(|uid| uid.get()).collect();
+        selection.sort_unstable();
+        selection.truncate(200);
+        serde_json::json!({
+            "document": self.document.as_ref().map(|d| d.origin.name.as_str()),
+            "active": self.selection.map(TaskUid::get),
+            "selection": selection,
+            "view": self.state.view,
+        })
+    }
+
+    /// Mène l'assistant (début d'image) : magasin, connexion, flux, outils
+    /// sur une copie de la session (lecture seule).
+    fn poll_assistant(&mut self, ctx: &egui::Context) {
+        self.assistant.ensure_waker(ctx);
+        if self.state.assistant.enabled {
+            self.assistant.start_key_load();
+        }
+        let mut changed = self.assistant.poll_services();
+        if self.assistant.conversation.busy() {
+            let lang = self.text_language();
+            let mut host = plannercraft_assistant::tools::SessionHost {
+                session: self.document.as_ref().map(|d| &d.session),
+                env: plannercraft_automation::CallEnv::new((self.env.now)(), lang),
+                ui_state: self.assistant_ui_state(),
+            };
+            let transport = self.assistant.transport();
+            changed |= self.assistant.conversation.poll(&mut host, transport.as_ref());
+        }
+        if changed {
+            ctx.request_repaint();
+        }
+    }
+
     /// Une ouverture par le sélecteur de fichiers est en cours.
     #[must_use]
     pub const fn is_opening(&self) -> bool {
@@ -2044,6 +2105,11 @@ impl App {
             Action::Export(kind) => self.start_export(kind, ctx),
             // J8, lot L12 : volet latéral.
             Action::SidePanel(op) => self.side.apply(op),
+            // ADR-0024, lot A1 : assistant IA.
+            Action::Assistant(op) => {
+                let lang = self.text_language();
+                self.assistant.apply(op, &mut self.state.assistant, lang);
+            }
             Action::ShowDialog(DialogKind::PasteSpecial) => self.open_paste_special(),
             // J8, lot L15 : galerie, mise en page, menu Tâche, mise en forme.
             Action::ShowDialog(DialogKind::Gallery) => self.open_gallery(),
@@ -2942,6 +3008,7 @@ impl App {
         // par l'image est celle qui a répondu.
         #[cfg(not(target_arch = "wasm32"))]
         self.drain_relay(&ctx);
+        self.poll_assistant(&ctx);
         self.poll_io();
         self.poll_save(&ctx);
         self.poll_export();
@@ -3018,7 +3085,8 @@ impl App {
                 window_open: self.view.dialog.is_some(),
                 task_view,
             };
-            view::chrome::menu_bar(ui, &mut fc, self.side.open);
+            let assistant_open = self.side.open && self.side.tab == view::side_panel::SideTab::Assistant;
+            view::chrome::menu_bar(ui, &mut fc, self.side.open, assistant_open);
             view::ribbon::show(ui, &mut fc, &self.state.ribbon, self.view.ribbon_overlay);
             view::search::search_bar(ui, &mut fc);
             view::chrome::status_bar(ui, &mut fc, &self.messages);
@@ -3045,10 +3113,16 @@ impl App {
                     .map_or(view::side_panel::AiPanelInput::EMPTY, |relay| {
                         crate::relay::panel_input(relay, banner)
                     });
-                view::side_panel::panel(ui, &mut fc, &self.side, ai);
+                view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant);
             }
             #[cfg(target_arch = "wasm32")]
-            view::side_panel::panel(ui, &mut fc, &self.side, view::side_panel::AiPanelInput::EMPTY);
+            view::side_panel::panel(
+                ui,
+                &mut fc,
+                &self.side,
+                view::side_panel::AiPanelInput::EMPTY,
+                &mut self.assistant,
+            );
             if self.state.diagnostics_open {
                 view::diagnostics::panel(ui, &mut fc);
             }
