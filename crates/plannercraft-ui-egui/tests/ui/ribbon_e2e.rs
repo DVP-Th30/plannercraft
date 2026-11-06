@@ -321,7 +321,7 @@ fn e2e_ribbon() {
     // 6. Propriétés → Ajouter à la chronologie sur {3, 4} (H-UI-79) :
     // « Murs » et « Livraison » sur la frise, un lot.
     select(harness, 3, 4);
-    ribbon_click(harness, RibbonTab::Task, &fr(TextId::TimelineAdd));
+    ribbon_click(harness, RibbonTab::Task, &fr(TextId::RibbonAddToTimeline));
     assert_eq!(timeline(harness.state()), [3, 4]);
     assert_eq!(history(harness.state()), (6, 0));
     let generation = harness.state().document.as_ref().unwrap().generation();
@@ -503,7 +503,7 @@ fn e2e_ribbon() {
 /// Ajouter à la chronologie) sur les tâches `first` à `last`.
 fn add_to_timeline(harness: &mut Harness<'static, App>, first: u32, last: u32) {
     select(harness, first, last);
-    ribbon_click(harness, RibbonTab::Task, &fr(TextId::TimelineAdd));
+    ribbon_click(harness, RibbonTab::Task, &fr(TextId::RibbonAddToTimeline));
 }
 
 /// Ouvre Format → Modèles de mise en forme… par le ruban.

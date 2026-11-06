@@ -303,6 +303,56 @@ fn empty_hint(painter: &egui::Painter, fc: &FrameCtx<'_>, rect: Rect) {
     );
 }
 
+/// Peintures de la frise **à l'écran** (finitions P4, H-UI-134) : fond
+/// neutre, barres en teinte légère de l'accent avec contour à l'accent,
+/// losanges, date d'état et son étiquette à l'accent, texte des barres
+/// lisible (jetons de [`crate::theme::ChromeTokens`]). Les tâches inactives,
+/// l'axe et les autres textes gardent les peintures du style ; l'aperçu, le
+/// SVG et le PDF gardent toutes celles du style du document (la frise
+/// imprimée appartient au document, l'accent à l'interface).
+#[must_use]
+pub fn screen_paints(
+    mut paints: std::collections::BTreeMap<Class, plannercraft_render::geometry::Paint>,
+    t: &crate::theme::ChromeTokens,
+) -> std::collections::BTreeMap<Class, plannercraft_render::geometry::Paint> {
+    use plannercraft_render::geometry::Paint;
+    use plannercraft_render::style::{BarRole, Rgb};
+    let rgb = |c: Color32| Rgb(c.r(), c.g(), c.b());
+    let solid = |fill: Color32| Paint {
+        fill: Some(rgb(fill)),
+        stroke: None,
+        width16: 0,
+        dash16: None,
+    };
+    paints.insert(Class::HeaderBg, solid(t.timeline_bg));
+    paints.insert(
+        Class::Bar(BarRole::Task),
+        Paint {
+            fill: Some(rgb(t.timeline_bar)),
+            stroke: Some(rgb(t.accent)),
+            width16: 16,
+            dash16: None,
+        },
+    );
+    paints.insert(Class::Bar(BarRole::Milestone), solid(t.accent));
+    paints.insert(Class::TextOnBar(BarRole::Task, None), solid(t.timeline_bar_text));
+    paints.insert(Class::StatusLabel, solid(t.accent));
+    let status = paints.get(&Class::StatusLine).copied();
+    paints.insert(
+        Class::StatusLine,
+        Paint {
+            stroke: Some(rgb(t.accent)),
+            ..status.unwrap_or(Paint {
+                fill: None,
+                stroke: None,
+                width16: 16,
+                dash16: None,
+            })
+        },
+    );
+    paints
+}
+
 /// Entrée « Masquer la chronologie » d'un menu contextuel (H-UI-110).
 fn hide_entry(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     if ui.button(fc.texts.get(TextId::TimelineHide)).clicked() {
@@ -362,7 +412,11 @@ pub fn show(
     // Dessin : primitives de la scène, puis la partie visible et le
     // séparateur bas.
     let painter = ui.painter_at(rect);
-    let paints = plannercraft_render::timeline::paints(&screen.style, screen.variant);
+    let tokens = crate::theme::ChromeTokens::for_theme(ui.ctx().theme());
+    let paints = screen_paints(
+        plannercraft_render::timeline::paints(&screen.style, screen.variant),
+        &tokens,
+    );
     let inter = ui.ctx().fonts(|f| {
         f.families()
             .contains(&FontFamily::Name(crate::theme::PLAN_FAMILY.into()))
@@ -388,18 +442,19 @@ pub fn show(
         })
         .collect();
     if let Some(w) = window {
-        shapes.push(Shape::rect_filled(w, 2.0, fc.palette.cursor.gamma_multiply(0.08)));
+        // Finitions P4 (H-UI-134) : cadre en violet transparent.
+        shapes.push(Shape::rect_filled(w, 4.0, tokens.window_fill));
         shapes.push(Shape::rect_stroke(
             w,
-            2.0,
-            Stroke::new(1.5, fc.palette.cursor),
+            4.0,
+            Stroke::new(1.5, tokens.window_stroke),
             egui::StrokeKind::Inside,
         ));
     }
     let bottom = rect.bottom() - 0.5;
     shapes.push(Shape::line_segment(
         [pos2(rect.left(), bottom), pos2(rect.right(), bottom)],
-        Stroke::new(1.0, fc.palette.grid_major),
+        Stroke::new(1.0, tokens.rule),
     ));
     fc.stats.shapes = fc.stats.shapes.saturating_add(shapes.len());
     painter.extend(shapes);

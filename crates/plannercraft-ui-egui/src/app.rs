@@ -1702,6 +1702,8 @@ impl App {
                 ThemePref::Light => egui::ThemePreference::Light,
                 ThemePref::Dark => egui::ThemePreference::Dark,
             });
+            // Finitions P4 (H-UI-132) : sélection d'egui à l'accent.
+            crate::theme::ChromeTokens::install(ctx);
             self.applied_theme = Some(self.state.theme);
         }
     }

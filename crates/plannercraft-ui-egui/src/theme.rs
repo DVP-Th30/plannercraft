@@ -191,6 +191,165 @@ impl Palette {
     }
 }
 
+/// Violet de la marque (ADR-0021, `#7719AA`) : bloc du symbole de
+/// l'application et accent du ruban en thème clair.
+pub const BRAND_VIOLET: Color32 = Color32::from_rgb(0x77, 0x19, 0xAA);
+
+/// Contraste exigé des textes de l'habillage sur leur fond (H-UI-132, WCAG
+/// AA, millièmes).
+pub const CHROME_TEXT_CONTRAST: u32 = 4500;
+
+/// Contraste exigé des icônes, traits d'accent et du grisé de l'habillage
+/// sur leur fond (H-UI-132, WCAG 1.4.11, millièmes).
+pub const CHROME_GRAPHIC_CONTRAST: u32 = 3000;
+
+/// Jetons de l'habillage : ruban, barre de menus, chronologie à l'écran
+/// (finitions P4, ADR-0022 D6, H-UI-132 à H-UI-134).
+///
+/// Propres au thème de l'interface, **jamais** au style du document : les
+/// couleurs du Gantt, de la table et de l'impression restent celles du
+/// modèle de mise en forme. Le violet de la marque n'est qu'un accent
+/// (onglet actif, bascules enfoncées, chronologie, focus) ; aucun dégradé,
+/// aucune ombre. Contrastes testés par `h_ui_132_chrome_contrast`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChromeTokens {
+    /// Fond du ruban et de la barre de menus (fond de la fenêtre, pas de
+    /// bloc gris).
+    pub surface: Color32,
+    /// Filet bas du ruban, séparateurs de groupes et de la barre d'accès
+    /// rapide, filet bas de la chronologie.
+    pub rule: Color32,
+    /// Libellés et icônes.
+    pub text: Color32,
+    /// Nom des groupes (gris moyen, ≥ 4,5:1).
+    pub text_weak: Color32,
+    /// Libellé et icône d'un élément grisé (lisible, ≥ 3:1, opaque).
+    pub disabled: Color32,
+    /// Accent de la marque : onglet actif et son trait, icône d'une bascule
+    /// enfoncée, anneau de focus, chronologie.
+    pub accent: Color32,
+    /// Fond d'un élément ou d'un onglet survolé.
+    pub hover: Color32,
+    /// Fond d'un élément appuyé ou dont la liste est ouverte.
+    pub pressed: Color32,
+    /// Fond d'une bascule enfoncée (violet très clair).
+    pub toggle_bg: Color32,
+    /// Fond de la chronologie (neutre).
+    pub timeline_bg: Color32,
+    /// Remplissage des barres de la chronologie (teinte légère de
+    /// l'accent, contour à l'accent).
+    pub timeline_bar: Color32,
+    /// Texte dans une barre de la chronologie.
+    pub timeline_bar_text: Color32,
+    /// Remplissage du cadre de la partie visible du Gantt (translucide).
+    pub window_fill: Color32,
+    /// Contour du cadre de la partie visible du Gantt (translucide).
+    pub window_stroke: Color32,
+    /// Fond du texte sélectionné et des éléments choisis d'egui (zones de
+    /// saisie, listes).
+    pub selection_bg: Color32,
+    /// Trait et texte des éléments choisis d'egui, contour de focus des
+    /// zones de saisie.
+    pub selection_fg: Color32,
+    /// Liseré d'un pixel autour du symbole de l'application : la surface en
+    /// clair (invisible), un gris en sombre, où le carré noir se perdrait.
+    pub logo_ring: Color32,
+}
+
+impl ChromeTokens {
+    /// Thème clair.
+    pub const LIGHT: Self = Self {
+        surface: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        rule: Color32::from_rgb(0xE2, 0xE1, 0xE6),
+        text: Color32::from_rgb(0x1F, 0x1F, 0x23),
+        text_weak: Color32::from_rgb(0x6C, 0x6B, 0x74),
+        disabled: Color32::from_rgb(0x7A, 0x79, 0x82),
+        accent: BRAND_VIOLET,
+        hover: Color32::from_rgb(0xF2, 0xF0, 0xF5),
+        pressed: Color32::from_rgb(0xE7, 0xE2, 0xED),
+        toggle_bg: Color32::from_rgb(0xF1, 0xE6, 0xF8),
+        timeline_bg: Color32::from_rgb(0xF8, 0xF8, 0xFA),
+        timeline_bar: Color32::from_rgb(0xEB, 0xDD, 0xF5),
+        timeline_bar_text: Color32::from_rgb(0x1F, 0x1F, 0x23),
+        window_fill: Color32::from_rgba_unmultiplied_const(0x77, 0x19, 0xAA, 0x06),
+        window_stroke: Color32::from_rgba_unmultiplied_const(0x77, 0x19, 0xAA, 0x99),
+        selection_bg: Color32::from_rgb(0xE6, 0xD5, 0xF3),
+        selection_fg: BRAND_VIOLET,
+        logo_ring: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+    };
+
+    /// Thème sombre.
+    pub const DARK: Self = Self {
+        surface: Color32::from_rgb(0x1E, 0x1F, 0x22),
+        rule: Color32::from_rgb(0x36, 0x37, 0x3D),
+        text: Color32::from_rgb(0xE6, 0xE6, 0xEA),
+        text_weak: Color32::from_rgb(0x9E, 0x9D, 0xA7),
+        disabled: Color32::from_rgb(0x7E, 0x7E, 0x87),
+        accent: Color32::from_rgb(0xB5, 0x7B, 0xE0),
+        hover: Color32::from_rgb(0x2A, 0x2B, 0x30),
+        pressed: Color32::from_rgb(0x34, 0x35, 0x3B),
+        toggle_bg: Color32::from_rgb(0x3A, 0x2D, 0x48),
+        timeline_bg: Color32::from_rgb(0x23, 0x24, 0x28),
+        timeline_bar: Color32::from_rgb(0x3F, 0x2D, 0x54),
+        timeline_bar_text: Color32::from_rgb(0xE6, 0xE6, 0xEA),
+        window_fill: Color32::from_rgba_unmultiplied_const(0xB5, 0x7B, 0xE0, 0x0A),
+        window_stroke: Color32::from_rgba_unmultiplied_const(0xB5, 0x7B, 0xE0, 0x99),
+        selection_bg: Color32::from_rgb(0x4A, 0x30, 0x63),
+        selection_fg: Color32::from_rgb(0xD4, 0xAE, 0xF0),
+        logo_ring: Color32::from_rgb(0x4C, 0x4D, 0x55),
+    };
+
+    /// Jetons du thème résolu.
+    #[must_use]
+    pub const fn for_theme(theme: egui::Theme) -> Self {
+        match theme {
+            egui::Theme::Light => Self::LIGHT,
+            egui::Theme::Dark => Self::DARK,
+        }
+    }
+
+    /// Pose les couleurs de sélection d'egui (texte sélectionné, éléments
+    /// choisis, focus des zones de saisie) des deux thèmes de `ctx` sur
+    /// l'accent (H-UI-132) ; le reste des visuels d'egui est inchangé.
+    pub fn install(ctx: &egui::Context) {
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            let t = Self::for_theme(theme);
+            ctx.style_mut_of(theme, |style| {
+                style.visuals.selection.bg_fill = t.selection_bg;
+                style.visuals.selection.stroke = egui::Stroke::new(1.0, t.selection_fg);
+            });
+        }
+    }
+}
+
+/// Symbole de l'application dessiné dans la barre d'accès rapide
+/// (H-UI-132) : même composition que l'icône (ADR-0021, `xtask/src/icon.rs`)
+/// sur une grille de 16 cellules, en formes egui (aucune image) : carré
+/// arrondi noir (rayon 185/824 du côté), carré blanc aux cellules 2..5 ×
+/// 11..14, bloc violet aux cellules 6..14 × 2..14. Formes vides si `rect`
+/// n'est pas fini ou est vide.
+#[must_use]
+pub fn logo_shapes(rect: egui::Rect) -> Vec<egui::Shape> {
+    let side = rect.width().min(rect.height());
+    if !rect.is_finite() || !side.is_finite() || side <= 0.0 {
+        return Vec::new();
+    }
+    let left = rect.center().x - side / 2.0;
+    let top = rect.center().y - side / 2.0;
+    let cell = side / 16.0;
+    let cells = |x0: f32, y0: f32, x1: f32, y1: f32| {
+        egui::Rect::from_min_max(
+            egui::pos2(left + x0 * cell, top + y0 * cell),
+            egui::pos2(left + x1 * cell, top + y1 * cell),
+        )
+    };
+    vec![
+        egui::Shape::rect_filled(cells(0.0, 0.0, 16.0, 16.0), side * 185.0 / 824.0, Color32::BLACK),
+        egui::Shape::rect_filled(cells(2.0, 11.0, 5.0, 14.0), 0.0, Color32::WHITE),
+        egui::Shape::rect_filled(cells(6.0, 2.0, 14.0, 14.0), 0.0, BRAND_VIOLET),
+    ]
+}
+
 /// Contraste exigé du texte d'une notification sur son fond (H-UI-104,
 /// WCAG AA, millièmes).
 pub const TOAST_TEXT_CONTRAST: u32 = 4500;
@@ -963,6 +1122,131 @@ mod tests {
             assert_ne!(t.warning, t.error, "{name}");
             assert!(t.shadow.a() > 0 && t.shadow.a() < 255, "{name}");
         }
+    }
+
+    /// H-UI-132 (finitions P4) : jetons de l'habillage, clair et sombre.
+    /// Textes (libellés, noms de groupes, onglet actif, texte des barres de
+    /// la chronologie) ≥ 4,5:1 sur leurs fonds ; icônes, accent, grisé,
+    /// filets d'accent ≥ 3:1 ; survol, appui et bascule distincts de la
+    /// surface ; jetons opaques sauf le cadre de la partie visible ; accent
+    /// clair = violet de la marque, accent sombre violet clair.
+    #[test]
+    fn h_ui_132_chrome_contrast() {
+        use super::{CHROME_GRAPHIC_CONTRAST as GRAPHIC, CHROME_TEXT_CONTRAST as TEXT, ChromeTokens};
+        assert_eq!(ChromeTokens::LIGHT.accent, Color32::from_rgb(0x77, 0x19, 0xAA));
+        assert_eq!(ChromeTokens::DARK.accent, Color32::from_rgb(0xB5, 0x7B, 0xE0));
+        for (name, t) in [("clair", ChromeTokens::LIGHT), ("sombre", ChromeTokens::DARK)] {
+            let backs = [
+                ("surface", t.surface),
+                ("survol", t.hover),
+                ("appui", t.pressed),
+                ("bascule", t.toggle_bg),
+            ];
+            for (label, back) in backs {
+                let ratio = contrast(t.text, back);
+                assert!(ratio >= TEXT, "{name} : texte sur {label} = {ratio}‰");
+                for (what, ink) in [("accent", t.accent), ("grisé", t.disabled)] {
+                    let ratio = contrast(ink, back);
+                    assert!(ratio >= GRAPHIC, "{name} : {what} sur {label} = {ratio}‰");
+                }
+                assert_ne!(back, t.disabled, "{name} {label}");
+            }
+            // Onglet actif (texte à l'accent) et nom des groupes.
+            for (what, ink) in [("onglet actif", t.accent), ("nom de groupe", t.text_weak)] {
+                for (label, back) in [("surface", t.surface), ("survol", t.hover)] {
+                    let ratio = contrast(ink, back);
+                    assert!(ratio >= TEXT, "{name} : {what} sur {label} = {ratio}‰");
+                }
+            }
+            for (label, back) in [
+                ("survol", t.hover),
+                ("appui", t.pressed),
+                ("bascule", t.toggle_bg),
+            ] {
+                assert_ne!(back, t.surface, "{name} : {label} = surface");
+            }
+            // Chronologie : texte des barres, contour (accent) des barres et
+            // losanges, date d'état sur le fond.
+            let ratio = contrast(t.timeline_bar_text, t.timeline_bar);
+            assert!(ratio >= TEXT, "{name} : texte dans une barre = {ratio}‰");
+            for (label, back) in [("fond", t.timeline_bg), ("barre", t.timeline_bar)] {
+                let ratio = contrast(t.accent, back);
+                assert!(
+                    ratio >= GRAPHIC,
+                    "{name} : accent sur {label} de la frise = {ratio}‰"
+                );
+            }
+            for (label, ink) in [("texte", t.text), ("nom de groupe", t.text_weak)] {
+                let ratio = contrast(ink, t.timeline_bg);
+                assert!(ratio >= TEXT, "{name} : {label} sur la frise = {ratio}‰");
+            }
+            // Sélection d'egui : texte lisible dessus, trait visible.
+            let ratio = contrast(t.text, t.selection_bg);
+            assert!(ratio >= TEXT, "{name} : texte sélectionné = {ratio}‰");
+            let ratio = contrast(t.selection_fg, t.selection_bg);
+            assert!(ratio >= GRAPHIC, "{name} : choix sur sélection = {ratio}‰");
+            // Filet visible sans être un trait fort.
+            assert_ne!(t.rule, t.surface, "{name} : filet");
+            for c in [
+                t.surface,
+                t.rule,
+                t.text,
+                t.text_weak,
+                t.disabled,
+                t.accent,
+                t.hover,
+                t.pressed,
+                t.toggle_bg,
+                t.timeline_bg,
+                t.timeline_bar,
+                t.timeline_bar_text,
+                t.selection_bg,
+                t.selection_fg,
+                t.logo_ring,
+            ] {
+                assert_eq!(c.a(), 255, "{name} : {c:?}");
+            }
+            assert!(t.window_fill.a() > 0 && t.window_fill.a() < 32, "{name}");
+            assert!(t.window_stroke.a() > 64 && t.window_stroke.a() < 255, "{name}");
+        }
+        assert_eq!(ChromeTokens::for_theme(egui::Theme::Dark), ChromeTokens::DARK);
+    }
+
+    /// H-UI-132 : symbole de l'application, trois formes de la grille de 16
+    /// cellules (fond noir arrondi, carré blanc, bloc violet), dans le
+    /// rectangle ; rectangle vide ou non fini ⇒ rien.
+    #[test]
+    fn h_ui_132_logo_shapes() {
+        use egui::{Pos2, Rect, Shape, vec2};
+        let rect = Rect::from_min_size(Pos2::new(10.0, 4.0), vec2(16.0, 16.0));
+        let shapes = super::logo_shapes(rect);
+        assert_eq!(shapes.len(), 3);
+        let fills: Vec<(Rect, Color32)> = shapes
+            .iter()
+            .map(|s| match s {
+                Shape::Rect(r) => (r.rect, r.fill),
+                other => panic!("forme inattendue : {other:?}"),
+            })
+            .collect();
+        assert_eq!(fills[0], (rect, Color32::BLACK));
+        assert_eq!(fills[1].1, Color32::WHITE);
+        assert_eq!(
+            fills[1].0,
+            Rect::from_min_max(Pos2::new(12.0, 15.0), Pos2::new(15.0, 18.0))
+        );
+        assert_eq!(fills[2].1, super::BRAND_VIOLET);
+        assert_eq!(
+            fills[2].0,
+            Rect::from_min_max(Pos2::new(16.0, 6.0), Pos2::new(24.0, 18.0))
+        );
+        for (r, _) in &fills {
+            assert!(rect.contains_rect(*r));
+        }
+        assert_eq!(super::logo_shapes(Rect::NOTHING).len(), 0);
+        assert_eq!(
+            super::logo_shapes(Rect::from_min_size(Pos2::ZERO, vec2(0.0, 16.0))).len(),
+            0
+        );
     }
 
     #[test]

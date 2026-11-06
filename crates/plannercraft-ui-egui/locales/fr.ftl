@@ -1618,3 +1618,6 @@ group-by-undo = Regrouper par
 view-group-locked = Retirez le regroupement pour insérer, déplacer ou indenter des lignes.
 group-expand = Déplier le groupe { $name }
 group-collapse = Replier le groupe { $name }
+
+# --- Finitions P4 (ADR-0022 D6) ---
+ribbon-add-to-timeline = Sur la chronologie

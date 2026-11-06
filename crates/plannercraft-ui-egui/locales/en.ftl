@@ -1619,3 +1619,6 @@ group-by-undo = Group By
 view-group-locked = Remove the grouping to insert, move or indent rows.
 group-expand = Expand group { $name }
 group-collapse = Collapse group { $name }
+
+# --- Finitions P4 (ADR-0022 D6) ---
+ribbon-add-to-timeline = Add to Timeline
