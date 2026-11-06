@@ -1238,3 +1238,13 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 - **REA n'est ni une dépendance ni un outil du projet** (écosystème Node, outils natifs lourds, surface de sécurité large ; popularité affichée peu crédible).
 - **Repris en idée seulement**, dans les consignes des agents (`CLAUDE.md`, « Méthode ») : comptes rendus qui séparent observé, déduit et inconnu ; jamais un test annoncé sans avoir été lancé ; après un défaut confirmé, chercher le même défaut dans les modules voisins ; corriger à la source plutôt qu'en aval.
 
+## ADR-0024 — 2026-11-06 — Assistant IA intégré et service payant
+
+**Statut : accepté** le 2026-11-06 (`docs/plans/assistant.md` § 9) : Stripe Managed Payments (repli Paddle), packs de crédits prépayés, Sonnet 5.5 par défaut avec choix dans une liste fermée, données en UE plus tard, lots A1 à A3 lancés sans attendre. Avant toute vente : confirmation écrite d'OpenRouter sur la revente, statut juridique et TVA validés par un expert-comptable.
+
+**Décision.** Un volet Assistant dans l'application, deux accès : **compte PlannerCraft payant** (crédits achetés à l'éditeur, appels par un relais privé de l'éditeur qui détient la clé du fournisseur, endpoint métier et non proxy générique) et **« ma propre clé »** (OAuth PKCE d'OpenRouter, appel direct, gratuit côté PlannerCraft). Le code de l'application reste libre ; la valeur vendue est le service, pas le code : un utilisateur qui modifie l'app ne fait qu'utiliser sa propre clé. L'assistant n'écrit que par le registre et le panneau Opérations IA (règle 3, validation humaine d'ADR-0015 D10 et ADR-0016 D10) ; aucun secret dans `UiState`.
+
+**Rapport à ADR-0002** (un seul point d'entrée agent : `plannercraft mcp`, serveur MCP embarqué écarté) : l'assistant n'est pas un serveur MCP embarqué ; c'est un client du registre dans l'application, qui réutilise ses schémas et son panneau de validation. Le MCP reste le point d'entrée des agents externes.
+
+**Écartés.** Clé de l'éditeur dans l'application (extractible) ; clé OpenRouter plafonnée remise au client (transfert d'accès, § 7 des conditions d'OpenRouter) ; version fermée avec l'IA verrouillée (contraire au projet, contournable) ; Lemon Squeezy (en cours d'absorption par Stripe).
+
