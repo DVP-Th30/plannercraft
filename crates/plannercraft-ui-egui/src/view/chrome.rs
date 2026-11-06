@@ -264,7 +264,7 @@ fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, _side_open: bool) {
                 );
             });
         });
-        ui.menu_button(texts.get(TextId::MenuTheme), |ui| theme_choices(ui, fc));
+        ui.menu_button(texts.get(TextId::MenuTheme), |ui| theme_menu(ui, fc));
         ui.menu_button(texts.get(TextId::MenuLanguage), |ui| language_choices(ui, fc));
         // --- J8 L9 : filtres, tri, niveau ---
         super::task_view::view_menu(ui, fc);
@@ -707,7 +707,7 @@ pub(crate) fn dropdown_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: R
         RibbonCmd::TimescaleMenu => {
             ui.add_enabled_ui(has_doc, |ui| zoom_choices(ui, fc));
         }
-        RibbonCmd::ThemeMenu => theme_choices(ui, fc),
+        RibbonCmd::ThemeMenu => theme_menu(ui, fc),
         RibbonCmd::LanguageMenu => language_choices(ui, fc),
         RibbonCmd::ColumnsMenu => column_choices(ui, fc),
         // Décaler ▾ (finitions P1, H-UI-121) : pas prédéfinis puis
@@ -978,6 +978,20 @@ fn theme_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
         if choice(ui, fc.state.theme == pref, &fc.texts.get(label)) {
             fc.actions.push(Action::SetTheme(pref));
         }
+    }
+}
+
+/// Liste « Thème » (menu Affichage et liste du ruban) : thèmes, puis
+/// « Réduire les animations » (lot A1b, H-UI-147).
+fn theme_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    theme_choices(ui, fc);
+    ui.separator();
+    let mut reduce = fc.state.reduce_motion;
+    if ui
+        .checkbox(&mut reduce, fc.texts.get(TextId::ReduceMotion))
+        .clicked()
+    {
+        fc.actions.push(Action::SetReduceMotion(reduce));
     }
 }
 

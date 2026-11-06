@@ -1,6 +1,7 @@
-//! Volet Assistant (ADR-0024, lot A1, H-UI-138 à H-UI-142) sans réseau :
-//! transport scripté (réponses SSE écrites à la main d'après la
-//! documentation d'OpenRouter), clé en mémoire, navigateur simulé.
+//! Volet Assistant (ADR-0024 ; lot A1, H-UI-138 à H-UI-142 ; lot A1b,
+//! H-UI-143 à H-UI-148) sans réseau : transport scripté (réponses SSE
+//! écrites à la main d'après la documentation d'OpenRouter), clé en
+//! mémoire, navigateur simulé.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,16 +11,16 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 use plannercraft_assistant::http::HttpEvent;
 use plannercraft_assistant::testing::{
-    ScriptedTransport, error_response, sse_response, text_chunks, tool_call_chunks,
+    ScriptedTransport, error_response, reasoning_chunks, sse_response, text_chunks, tool_call_chunks,
 };
 use plannercraft_ui_egui::App;
 use plannercraft_ui_egui::action::Action;
-use plannercraft_ui_egui::assistant::{AssistantOp, AssistantServices};
+use plannercraft_ui_egui::assistant::{AssistantOp, AssistantServices, ScrollMode};
 use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
 use plannercraft_ui_egui::view::side_panel::{SideOp, SideTab};
 use serde_json::{Value, json};
 
-use crate::{click, fr, harness, open_demo};
+use crate::{click, click_where, fr, harness, open_demo};
 
 const KEY: &str = "sk-or-v1-0123456789abcdef-test";
 
@@ -69,6 +70,12 @@ fn settle(harness: &mut Harness<'static, App>) {
     assert!(!harness.state().assistant().conversation.busy());
 }
 
+/// Ouvre le menu « … » des options de l'assistant.
+fn open_options(harness: &mut Harness<'static, App>) {
+    click(harness, &fr(TextId::AssistantMenu));
+    harness.run();
+}
+
 fn body(transport: &ScriptedTransport, i: usize) -> Value {
     serde_json::from_slice(&transport.requests()[i].body).unwrap()
 }
@@ -90,7 +97,9 @@ fn h_ui_138_explicit_activation_with_disclosure() {
     harness.get_by_label(&fr(TextId::AssistantLogin));
     harness.get_by_label(&fr(TextId::AssistantEnterKey));
     assert_eq!(transport.requests().len(), 0);
-    // Désactiver : retour à la mention et au bouton d'activation.
+    // Désactiver (menu des options) : retour à la mention et au bouton
+    // d'activation.
+    open_options(&mut harness);
     click(&mut harness, &fr(TextId::AssistantDisable));
     harness.run();
     assert!(!harness.state().state.assistant.enabled);
@@ -159,7 +168,9 @@ fn h_ui_139_key_never_in_ui_state() {
         "{ui_state}"
     );
     assert!(!format!("{:?}", app.assistant()).contains("sk-or"));
-    // Mémoire seule (pas de trousseau) : « pour cette session ».
+    // Mémoire seule (pas de trousseau) : « pour cette session » (menu des
+    // options).
+    open_options(&mut harness);
     harness.get_by_label(&fr(TextId::AssistantConnectedSession));
     click(&mut harness, &fr(TextId::AssistantLogout));
     harness.run();
@@ -298,13 +309,17 @@ fn h_ui_141_tool_loop_on_demo_read_only() {
         result.get("finish").is_some() || result.get("name").is_some(),
         "{result}"
     );
-    harness.get_by_label("Le projet finit le 30/06/27 d'après le moteur.");
-    harness.get_by_label(&fr_args(
-        TextId::AssistantToolsUsed,
-        &[("detail", "project_summary")],
-    ));
-    let cost = harness.query_all_by_label_contains("0,0052").count();
-    assert_eq!(cost, 1);
+    assert!(
+        harness
+            .query_all_by_label_contains("30/06/27 d'après le moteur")
+            .count()
+            >= 1
+    );
+    // Libellé métier, jamais l'identifiant technique.
+    harness.get_by_label("A lu\u{a0}: le résumé du projet");
+    assert!(harness.query_by_label_contains("project_summary").is_none());
+    // Pied : modèle · jetons · coût (somme des tours d'API).
+    harness.get_by_label("Sonnet 5.5 · 2,3 k jetons · 0,005 $");
     assert_eq!(
         harness.state().document.as_ref().unwrap().generation(),
         generation
@@ -333,7 +348,9 @@ fn h_ui_141_streaming_then_stop() {
     let mut harness = assistant_harness(Arc::clone(&transport));
     enable_with_key(&mut harness);
     ask(&mut harness, "compte");
-    harness.get_by_label(&fr(TextId::AssistantThinking));
+    // Rien reçu : barre d'état « réponse en cours » (« En attente… » après
+    // 800 ms), chronomètre.
+    harness.get_by_role(egui::accesskit::Role::Status);
     transport.step(4);
     harness.run();
     assert_eq!(streamed(&harness), 1);
@@ -342,10 +359,14 @@ fn h_ui_141_streaming_then_stop() {
     click(&mut harness, &fr(TextId::AssistantStop));
     harness.run();
     harness.get_by_label(&fr(TextId::AssistantStopped));
+    harness.get_by_label(&fr(TextId::AssistantContinue));
     assert!(!harness.state().assistant().conversation.busy());
     transport.step(20);
     harness.run();
-    assert_eq!(streamed(&harness), 1);
+    assert_eq!(
+        harness.state().assistant().conversation.turns()[0].answer,
+        "un deux "
+    );
     assert!(harness.query_by_label_contains("quatre").is_none());
     // Entrée envoie la question suivante.
     harness
@@ -382,6 +403,8 @@ fn h_ui_142_errors_in_user_language() {
         ask(&mut harness, "x");
         settle(&mut harness);
         harness.get_by_label(&fr(id));
+        // Un seul bouton : « Réessayer ».
+        harness.get_by_label(&fr(TextId::AssistantRetry));
     }
     let transport = Arc::new(ScriptedTransport::new(vec![error_response(
         429,
@@ -436,22 +459,361 @@ fn h_ui_140_model_choice_remembered() {
     assert_eq!(body(&transport, 1)["model"], "anthropic/claude-sonnet-5.5");
 }
 
-/// Capture du volet activé, conversation d'exemple simulée (clair).
+/// Réponses d'un tour riche : raisonnement, trois lectures (une par tour
+/// d'API), réponse Markdown (gras, liste).
+fn rich_turn() -> Vec<Vec<HttpEvent>> {
+    let mut first = reasoning_chunks("Je dois lire le chemin critique, puis les tâches et le résumé.");
+    first.extend(tool_call_chunks("c1", "critical_path", "{}"));
+    vec![
+        sse_response(&first),
+        sse_response(&tool_call_chunks("c2", "list_tasks", "{}")),
+        sse_response(&tool_call_chunks("c3", "project_summary", "{}")),
+        sse_response(&text_chunks(RICH_ANSWER, 0.0071)),
+    ]
+}
+
+const RICH_ANSWER: &str = "Le **chemin critique** passe par trois lots :\n\n- les études et le permis ;\n- \
+     le terrassement et les fondations ;\n- le gros œuvre.\n\nUn retard sur l'une de ces tâches décale \
+     d'autant la **fin du projet**.";
+
+/// Longue réponse : `n` lignes de liste.
+fn long_text(n: usize) -> String {
+    use std::fmt::Write as _;
+    let mut text = String::new();
+    for i in 1..=n {
+        let _ = writeln!(text, "- ligne {i} de la réponse");
+    }
+    text
+}
+
+/// H-UI-143 : état vide (transparence, suggestions qui préremplissent la
+/// saisie).
 #[test]
-fn snapshot_assistant_fr_light() {
-    use plannercraft_ui_egui::{LanguagePref, ThemePref};
-    let transport = Arc::new(ScriptedTransport::new(vec![
-        sse_response(&tool_call_chunks("call_1", "critical_path", "{}")),
-        sse_response(&text_chunks(
-            "D'après critical_path, le chemin critique passe par les études, les fondations, \
-             le gros œuvre puis la charpente : un retard sur l'une de ces tâches retarde la fin du projet.",
-            0.0061,
-        )),
+fn h_ui_143_empty_state_suggestions() {
+    let transport = Arc::new(ScriptedTransport::new(vec![]));
+    let mut harness = assistant_harness(transport);
+    enable_with_key(&mut harness);
+    harness.get_by_label(&fr(TextId::AssistantEmptyTitle));
+    harness.get_by_label(&fr(TextId::AssistantDisclosure));
+    click(&mut harness, &fr(TextId::AssistantSuggestCritical));
+    harness.run();
+    assert_eq!(
+        harness.state().assistant().draft,
+        fr(TextId::AssistantSuggestCritical)
+    );
+}
+
+/// H-UI-143 : tour riche — réflexion repliée (dépliable), trois lectures
+/// regroupées au libellé métier, réponse Markdown, pied ; jamais
+/// l'identifiant d'un outil ni de JSON.
+#[test]
+fn h_ui_143_turn_layout() {
+    let transport = Arc::new(ScriptedTransport::new(rich_turn()));
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "Quel est le chemin critique ?");
+    settle(&mut harness);
+    let turn = harness.state().assistant().conversation.turns()[0].clone();
+    assert_eq!(turn.tools.len(), 3);
+    assert!(turn.reasoning.starts_with("Je dois lire"));
+    // Réflexion repliée : son texte n'est pas affiché.
+    let reasoning = harness.query_all_by_label_contains("Réflexion").count();
+    assert_eq!(reasoning, 1);
+    assert!(harness.query_by_label_contains("Je dois lire").is_none());
+    // Lectures regroupées.
+    let group = Texts::new(Language::Fr).get_args(TextId::AssistantToolGroup, &[("count", Arg::Count(3))]);
+    harness.get_by_label(&group);
+    assert!(harness.query_by_label("A lu\u{a0}: le chemin critique").is_none());
+    click(&mut harness, &group);
+    harness.get_by_label("A lu\u{a0}: le chemin critique");
+    harness.get_by_label("A lu\u{a0}: la liste des tâches");
+    for technical in ["critical_path", "list_tasks", "project_summary", "{}"] {
+        assert!(
+            harness.query_by_label_contains(technical).is_none(),
+            "{technical} affiché"
+        );
+    }
+    // Markdown : pas de marques `**`.
+    assert!(harness.query_by_label_contains("**").is_none());
+    assert!(harness.query_all_by_label_contains("chemin critique").count() >= 1);
+    // Déplier la réflexion.
+    click_where(&mut harness, |l| l.starts_with("Réflexion"));
+    assert!(harness.query_all_by_label_contains("Je dois lire").count() >= 1);
+    harness.get_by_label_contains("Sonnet 5.5 · ");
+}
+
+/// Position haute de la question `q` à l'écran.
+fn question_top(harness: &Harness<'static, App>, q: &str) -> f32 {
+    harness.get_by_label(q).rect().top()
+}
+
+fn view_top(harness: &Harness<'static, App>) -> f32 {
+    harness.state().assistant().scroll.layout.view_rect.unwrap().top()
+}
+
+/// H-UI-144 : défilement (cahier § 2). La question envoyée monte en haut
+/// de la vue et y reste pendant tout le flux (la vue ne bouge pas quand du
+/// texte arrive) ; la pastille apparaît quand la réponse dépasse ; un geste
+/// de molette rend la main (Free) ; un clic sur la pastille suit le bas.
+#[test]
+fn h_ui_144_question_anchored_during_stream() {
+    let transport = Arc::new(ScriptedTransport::manual(vec![
+        sse_response(&text_chunks(&long_text(30), 0.0)),
+        sse_response(&text_chunks(&long_text(120), 0.0)),
     ]));
-    let mut harness = crate::common::harness(LanguagePref::Fr, ThemePref::Light);
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "Question un ?");
+    transport.step(10_000);
+    settle(&mut harness);
+    ask(&mut harness, "Question deux ?");
+    harness.run();
+    assert_eq!(harness.state().assistant().scroll.mode, ScrollMode::Anchored(1));
+    transport.step(8);
+    harness.run();
+    let anchored = question_top(&harness, "Question deux ?");
+    let target = view_top(&harness) + 8.0;
+    assert!(
+        (anchored - target).abs() <= 1.5,
+        "question à {anchored}, attendue à {target}"
+    );
+    // Le texte arrive : la question ne bouge pas.
+    for _ in 0..12 {
+        transport.step(25);
+        harness.run();
+        let top = question_top(&harness, "Question deux ?");
+        assert!(
+            (top - anchored).abs() <= 0.5,
+            "la vue a bougé : {top} ≠ {anchored}"
+        );
+        assert_eq!(harness.state().assistant().scroll.mode, ScrollMode::Anchored(1));
+    }
+    // La réponse dépasse la vue : pastille « Suite de la réponse » après
+    // 300 ms.
+    harness.run_steps(3);
+    harness.get_by_label(&fr(TextId::AssistantJumpStream));
+    // Geste de molette sur la zone : Free, la vue n'est plus déplacée.
+    harness.get_by_label("Question deux ?").hover();
+    harness.event(Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -60.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Wheel,
+        modifiers: egui::Modifiers::NONE,
+    });
+    harness.run();
+    assert_eq!(harness.state().assistant().scroll.mode, ScrollMode::Free);
+    let offset = harness.state().assistant().scroll.layout.offset;
+    transport.step(25);
+    harness.run();
+    let after = harness.state().assistant().scroll.layout.offset;
+    assert!((after - offset).abs() <= 0.5, "{after} ≠ {offset}");
+    // Clic sur la pastille : suit le bas pendant le flux.
+    click(&mut harness, &fr(TextId::AssistantJumpStream));
+    assert_eq!(harness.state().assistant().scroll.mode, ScrollMode::Following);
+    transport.step(40);
+    harness.run();
+    harness.run();
+    let layout = harness.state().assistant().scroll.layout.clone();
+    let bottom = layout.content_height - layout.view_height;
+    assert!(
+        (layout.offset - bottom).abs() <= 1.5,
+        "{} ≠ {bottom}",
+        layout.offset
+    );
+}
+
+/// H-UI-144 : redimensionner le volet en mode ancré réancre la question.
+#[test]
+fn h_ui_144_resize_reanchors() {
+    let transport = Arc::new(ScriptedTransport::manual(vec![
+        sse_response(&text_chunks(&long_text(30), 0.0)),
+        sse_response(&text_chunks(&long_text(10), 0.0)),
+    ]));
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "Question un ?");
+    transport.step(10_000);
+    settle(&mut harness);
+    ask(&mut harness, "Question deux ?");
+    transport.step(10_000);
+    settle(&mut harness);
+    harness.set_size(egui::vec2(1280.0, 600.0));
+    harness.run();
+    harness.run();
+    let top = question_top(&harness, "Question deux ?");
+    assert!((top - (view_top(&harness) + 8.0)).abs() <= 1.5);
+}
+
+/// H-UI-145 : conversation gardée par document, hors de `UiState` et de
+/// `app.ui_state` ; relue à la réouverture (dernière question en haut) ;
+/// « Nouvelle conversation » archive ; aucun secret.
+#[test]
+fn h_ui_145_conversation_per_document() {
+    let transport = Arc::new(ScriptedTransport::new(vec![sse_response(&text_chunks(
+        "Le projet compte 49 tâches.",
+        0.001,
+    ))]));
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "Combien de tâches ?");
+    settle(&mut harness);
+    let json = harness.state_mut().assistant_archive_json();
+    assert!(json.contains("Combien de tâches ?"), "{json}");
+    assert!(!json.contains(KEY) && !json.contains("sk-or"), "{json}");
+    let app = harness.state();
+    assert!(!app.state.to_json().unwrap().contains("Combien de tâches"));
+    let ui_state = app.ui_state_json().to_string();
+    assert!(
+        !ui_state.contains("Combien de tâches") && !ui_state.contains("49 tâches"),
+        "{ui_state}"
+    );
+    // Fermer puis rouvrir le document : la conversation revient.
+    harness.state_mut().dispatch(Action::CloseDocument);
+    harness.run();
+    assert!(harness.state().assistant().conversation.is_empty());
+    open_demo(&mut harness);
     harness
         .state_mut()
-        .set_assistant_services(AssistantServices::with_transport(Arc::clone(&transport) as _));
+        .dispatch(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
+    harness.run();
+    harness.run();
+    assert_eq!(harness.state().assistant().conversation.turns().len(), 1);
+    assert_eq!(harness.state().assistant().scroll.mode, ScrollMode::Anchored(0));
+    harness.get_by_label("Combien de tâches ?");
+    // Relue par une autre session de l'application (stockage local).
+    let mut other = assistant_harness(Arc::new(ScriptedTransport::new(vec![])));
+    other.state_mut().load_assistant_archive(&json);
+    other.run();
+    other.run();
+    assert_eq!(other.state().assistant().conversation.turns().len(), 1);
+    // « Nouvelle conversation » : archivée, plus relue.
+    click(&mut harness, &fr(TextId::AssistantClear));
+    harness.run();
+    assert!(harness.state().assistant().conversation.is_empty());
+    let archive = harness.state().assistant().archive();
+    assert_eq!(archive.entries.len(), 1);
+    assert!(!archive.entries[0].active);
+    assert!(archive.active("demo").is_none());
+}
+
+/// H-UI-147 : « Réduire les animations » (menu Affichage → Thème) coupe
+/// les animations d'egui ; préférence gardée, absente d'`app.ui_state`.
+#[test]
+fn h_ui_147_reduce_motion() {
+    let mut harness = harness();
+    // kittest coupe déjà les animations : une durée posée ici sert de
+    // témoin.
+    harness.ctx.all_styles_mut(|style| style.animation_time = 0.1);
+    open_demo(&mut harness);
+    // Menu Affichage → Thème → « Réduire les animations ».
+    click(&mut harness, &fr(TextId::MenuView));
+    let label = fr(TextId::MenuTheme);
+    {
+        let theme = harness.get_by_label(&label);
+        theme.hover();
+        theme.click();
+    }
+    harness.run();
+    click(&mut harness, &fr(TextId::ReduceMotion));
+    harness.run();
+    assert_eq!(harness.ctx.global_style().animation_time, 0.0);
+    assert!(harness.state().state.reduce_motion);
+    assert!(
+        harness
+            .state()
+            .state
+            .to_json()
+            .unwrap()
+            .contains("\"reduce_motion\":true")
+    );
+    assert!(
+        !harness
+            .state()
+            .ui_state_json()
+            .to_string()
+            .contains("reduce_motion")
+    );
+    harness.state_mut().dispatch(Action::SetReduceMotion(false));
+    harness.run();
+    assert_eq!(harness.ctx.global_style().animation_time, 0.1);
+}
+
+/// H-UI-148 : clavier — Tab depuis la saisie atteint Copier et Régénérer
+/// (sans souris), Entrée les déclenche ; Échap arrête la réponse.
+#[test]
+fn h_ui_148_keyboard_actions() {
+    let transport = Arc::new(ScriptedTransport::new(vec![
+        sse_response(&text_chunks("Réponse courte.", 0.0)),
+        sse_response(&text_chunks("Autre réponse.", 0.0)),
+    ]));
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "Question ?");
+    settle(&mut harness);
+    harness
+        .get_by_role_and_label(
+            egui::accesskit::Role::MultilineTextInput,
+            &fr(TextId::AssistantPlaceholder),
+        )
+        .focus();
+    harness.run();
+    let copy = plannercraft_ui_egui::view::assistant::copy_id(0);
+    let regenerate = plannercraft_ui_egui::view::assistant::regenerate_id();
+    let mut reached_copy = false;
+    for _ in 0..40 {
+        harness.key_press(Key::Tab);
+        harness.run();
+        if harness.ctx.memory(|m| m.has_focus(copy)) {
+            reached_copy = true;
+            break;
+        }
+    }
+    assert!(reached_copy, "Copier inaccessible au clavier");
+    harness.key_press(Key::Enter);
+    harness.run();
+    assert!(harness.state().assistant().copied.is_some());
+    harness.key_press(Key::Tab);
+    harness.run();
+    assert!(harness.ctx.memory(|m| m.has_focus(regenerate)));
+    harness.key_press(Key::Enter);
+    settle(&mut harness);
+    assert_eq!(transport.requests().len(), 2);
+    assert_eq!(
+        harness.state().assistant().conversation.turns()[0].answer,
+        "Autre réponse."
+    );
+    // Échap arrête une réponse en cours (saisie active).
+    let manual = Arc::new(ScriptedTransport::manual(vec![sse_response(&text_chunks(
+        "un deux trois",
+        0.0,
+    ))]));
+    let mut harness = assistant_harness(Arc::clone(&manual));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "compte");
+    harness
+        .get_by_role_and_label(
+            egui::accesskit::Role::MultilineTextInput,
+            &fr(TextId::AssistantPlaceholder),
+        )
+        .focus();
+    harness.run();
+    assert!(harness.state().assistant().conversation.busy());
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(!harness.state().assistant().conversation.busy());
+}
+
+/// Harnais de capture : volet Assistant activé, clé saisie, exemple ouvert.
+fn chat_capture_harness(
+    transport: Arc<ScriptedTransport>,
+    language: plannercraft_ui_egui::LanguagePref,
+    theme: plannercraft_ui_egui::ThemePref,
+) -> Harness<'static, App> {
+    let mut harness = crate::common::harness(language, theme);
+    harness
+        .state_mut()
+        .set_assistant_services(AssistantServices::with_transport(transport as _));
     harness.run();
     harness.state_mut().open_demo();
     harness.run();
@@ -467,11 +829,95 @@ fn snapshot_assistant_fr_light() {
         .state_mut()
         .dispatch(Action::Assistant(AssistantOp::SaveKey));
     harness.run();
-    harness.state_mut().assistant_mut().draft = "Quelles tâches sont critiques ?".to_owned();
+    harness
+}
+
+fn send_now(harness: &mut Harness<'static, App>, question: &str) {
+    question.clone_into(&mut harness.state_mut().assistant_mut().draft);
     harness.state_mut().dispatch(Action::Assistant(AssistantOp::Send));
-    for _ in 0..10 {
+}
+
+/// Capture du volet activé, état vide (clair).
+#[test]
+fn snapshot_assistant_fr_light() {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let transport = Arc::new(ScriptedTransport::new(vec![]));
+    let mut harness = chat_capture_harness(transport, LanguagePref::Fr, ThemePref::Light);
+    for _ in 0..4 {
+        harness.run();
+    }
+    crate::common::snapshot(&mut harness, "assistant_fr_light");
+}
+
+/// Capture : conversation de deux tours terminée ; le second (réflexion
+/// repliée, trois lectures regroupées, liste et gras, pied) tenu en haut
+/// de la vue.
+#[test]
+fn snapshot_assistant_chat_fr_light() {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let mut responses = vec![sse_response(&text_chunks(
+        "Le projet compte 49 tâches, de l'étude au gros œuvre.",
+        0.0012,
+    ))];
+    responses.extend(rich_turn());
+    let transport = Arc::new(ScriptedTransport::new(responses));
+    let mut harness = chat_capture_harness(transport, LanguagePref::Fr, ThemePref::Light);
+    send_now(&mut harness, "Combien de tâches compte le projet ?");
+    for _ in 0..6 {
+        harness.run();
+    }
+    send_now(&mut harness, "Quel est le chemin critique ?");
+    for _ in 0..12 {
         harness.run();
     }
     assert!(!harness.state().assistant().conversation.busy());
-    crate::common::snapshot(&mut harness, "assistant_fr_light");
+    crate::common::snapshot(&mut harness, "assistant_chat_fr_light");
+}
+
+/// Capture : même conversation en anglais, thème sombre, pendant le flux
+/// de la seconde réponse (question ancrée en haut, barre d'état, Arrêter).
+#[test]
+fn snapshot_assistant_chat_en_dark() {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let mut responses = vec![sse_response(&text_chunks(
+        "The project has 49 tasks, from design to structural work.",
+        0.0012,
+    ))];
+    let mut first = reasoning_chunks("I need the critical path, then the tasks and the summary.");
+    first.extend(tool_call_chunks("c1", "critical_path", "{}"));
+    responses.push(sse_response(&first));
+    responses.push(sse_response(&tool_call_chunks("c2", "list_tasks", "{}")));
+    responses.push(sse_response(&tool_call_chunks("c3", "project_summary", "{}")));
+    responses.push(sse_response(&text_chunks(
+        "The **critical path** runs through three work packages:\n\n- design and permit;\n- \
+         earthworks and foundations;\n- structural work.\n\nAny delay on one of these tasks moves the \
+         **project finish** by as much.",
+        0.0071,
+    )));
+    let transport = Arc::new(ScriptedTransport::manual(responses));
+    let mut harness = chat_capture_harness(Arc::clone(&transport), LanguagePref::En, ThemePref::Dark);
+    send_now(&mut harness, "How many tasks does the project have?");
+    harness.run();
+    transport.step(10_000);
+    for _ in 0..6 {
+        harness.run();
+    }
+    send_now(&mut harness, "What is the critical path?");
+    harness.run();
+    // Réflexion, trois lectures, puis la moitié de la réponse.
+    for _ in 0..3 {
+        transport.step(10_000);
+        harness.run();
+        harness.run();
+    }
+    transport.step(16);
+    for _ in 0..3 {
+        harness.run();
+    }
+    assert!(
+        harness.state().assistant().conversation.busy(),
+        "{:#?}",
+        harness.state().assistant().conversation.turns()
+    );
+    crate::common::snapshot(&mut harness, "assistant_chat_en_dark");
 }

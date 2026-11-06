@@ -19,6 +19,9 @@ plannercraft-render.workspace = true
 # connexion et clé, sans egui (règle 9).
 plannercraft-assistant.workspace = true
 egui.workspace = true
+# Markdown des réponses de l'assistant, derrière `view::markdown::render_markdown`.
+egui_commonmark.workspace = true
+pulldown-cmark.workspace = true
 eframe.workspace = true
 chrono.workspace = true
 serde.workspace = true

@@ -332,6 +332,107 @@ impl ChromeTokens {
     }
 }
 
+/// Jetons de la conversation de l'assistant (lot A1b d'ADR-0024, cahier
+/// `docs/plans/assistant-chat.md` § 1, H-UI-143) : propres au thème de
+/// l'interface, jamais au style du document. Textes ≥ 4,5:1 sur leur fond,
+/// icônes d'état ≥ 3:1 (`h_ui_143_chat_contrast`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChatTokens {
+    /// Fond du volet (celui d'egui : `Visuals::panel_fill`).
+    pub panel: Color32,
+    /// Texte des messages.
+    pub text: Color32,
+    /// Texte appuyé (gras du Markdown : egui l'affiche par la couleur).
+    pub strong: Color32,
+    /// Méta : pied de message, lignes d'outils, barre d'état, réflexion.
+    pub meta: Color32,
+    /// Fond du message de l'utilisateur (accent à ~9 % en clair, ~16 % en
+    /// sombre, rendu opaque sur le volet).
+    pub user_bg: Color32,
+    /// Filet gauche du bloc réflexion déplié.
+    pub rule: Color32,
+    /// Lecture réussie (✓).
+    pub ok: Color32,
+    /// Lecture en échec (⚠).
+    pub warn: Color32,
+    /// Fond de l'encadré d'erreur.
+    pub error_bg: Color32,
+    /// Contour de l'encadré d'erreur.
+    pub error_border: Color32,
+    /// Texte de l'encadré d'erreur.
+    pub error_text: Color32,
+    /// Fond de la pastille « ↓ Suite de la réponse », des suggestions et de
+    /// la saisie.
+    pub surface: Color32,
+    /// Contour de la pastille, des suggestions et de la saisie.
+    pub border: Color32,
+    /// Bouton Envoyer / Arrêter (accent).
+    pub send_bg: Color32,
+    /// Icône du bouton Envoyer / Arrêter.
+    pub send_fg: Color32,
+    /// Bouton Envoyer grisé.
+    pub send_disabled_bg: Color32,
+    /// Icône du bouton Envoyer grisé.
+    pub send_disabled_fg: Color32,
+    /// Accent (icône de l'en-tête, focus).
+    pub accent: Color32,
+}
+
+impl ChatTokens {
+    /// Thème clair.
+    pub const LIGHT: Self = Self {
+        panel: Color32::from_rgb(0xF8, 0xF8, 0xF8),
+        text: Color32::from_rgb(0x30, 0x30, 0x36),
+        strong: Color32::from_rgb(0x00, 0x00, 0x00),
+        meta: Color32::from_rgb(0x63, 0x62, 0x6B),
+        user_bg: Color32::from_rgb(0xEC, 0xE4, 0xF1),
+        rule: Color32::from_rgb(0xD6, 0xD0, 0xDE),
+        ok: Color32::from_rgb(0x2E, 0x7D, 0x32),
+        warn: Color32::from_rgb(0xA8, 0x4B, 0x00),
+        error_bg: Color32::from_rgb(0xFC, 0xEE, 0xED),
+        error_border: Color32::from_rgb(0xE3, 0xA5, 0xA0),
+        error_text: Color32::from_rgb(0x8A, 0x1C, 0x1C),
+        surface: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        border: Color32::from_rgb(0xDD, 0xDB, 0xE2),
+        send_bg: BRAND_VIOLET,
+        send_fg: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        send_disabled_bg: Color32::from_rgb(0xE4, 0xE2, 0xE8),
+        send_disabled_fg: Color32::from_rgb(0x8E, 0x8C, 0x96),
+        accent: BRAND_VIOLET,
+    };
+
+    /// Thème sombre.
+    pub const DARK: Self = Self {
+        panel: Color32::from_rgb(0x1B, 0x1B, 0x1B),
+        text: Color32::from_rgb(0xD4, 0xD4, 0xDA),
+        strong: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        meta: Color32::from_rgb(0xA3, 0xA2, 0xAC),
+        user_bg: Color32::from_rgb(0x34, 0x2A, 0x3B),
+        rule: Color32::from_rgb(0x45, 0x40, 0x4D),
+        ok: Color32::from_rgb(0x6F, 0xCF, 0x7F),
+        warn: Color32::from_rgb(0xF0, 0xB3, 0x5A),
+        error_bg: Color32::from_rgb(0x38, 0x20, 0x20),
+        error_border: Color32::from_rgb(0x8C, 0x45, 0x45),
+        error_text: Color32::from_rgb(0xF6, 0xBE, 0xBE),
+        surface: Color32::from_rgb(0x24, 0x25, 0x29),
+        border: Color32::from_rgb(0x3D, 0x3E, 0x45),
+        send_bg: Color32::from_rgb(0xB5, 0x7B, 0xE0),
+        send_fg: Color32::from_rgb(0x1B, 0x1B, 0x1B),
+        send_disabled_bg: Color32::from_rgb(0x34, 0x35, 0x3B),
+        send_disabled_fg: Color32::from_rgb(0x7E, 0x7E, 0x87),
+        accent: Color32::from_rgb(0xB5, 0x7B, 0xE0),
+    };
+
+    /// Jetons du thème résolu.
+    #[must_use]
+    pub const fn for_theme(theme: egui::Theme) -> Self {
+        match theme {
+            egui::Theme::Light => Self::LIGHT,
+            egui::Theme::Dark => Self::DARK,
+        }
+    }
+}
+
 /// Symbole de l'application dessiné dans la barre d'accès rapide
 /// (H-UI-132) : même composition que l'icône (ADR-0021, `xtask/src/icon.rs`)
 /// sur une grille de 16 cellules, en formes egui (aucune image) : carré
@@ -1335,6 +1436,52 @@ mod tests {
             assert!(t.window_stroke.a() > 64 && t.window_stroke.a() < 255, "{name}");
         }
         assert_eq!(ChromeTokens::for_theme(egui::Theme::Dark), ChromeTokens::DARK);
+    }
+
+    /// H-UI-143 (lot A1b) : jetons de la conversation, clair et sombre.
+    /// Textes (messages, méta, erreur, message de l'utilisateur) ≥ 4,5:1 sur
+    /// leur fond ; icônes d'état, accent et bouton Envoyer ≥ 3:1 ; fond du
+    /// volet = celui d'egui ; message de l'utilisateur distinct du volet.
+    #[test]
+    fn h_ui_143_chat_contrast() {
+        use super::{CHROME_GRAPHIC_CONTRAST as GRAPHIC, CHROME_TEXT_CONTRAST as TEXT, ChatTokens};
+        for (name, t, visuals) in [
+            ("clair", ChatTokens::LIGHT, egui::Visuals::light()),
+            ("sombre", ChatTokens::DARK, egui::Visuals::dark()),
+        ] {
+            assert_eq!(t.panel, visuals.panel_fill, "{name} : fond du volet");
+            for (what, ink, back) in [
+                ("texte", t.text, t.panel),
+                ("texte appuyé", t.strong, t.panel),
+                ("méta", t.meta, t.panel),
+                ("texte sur message utilisateur", t.text, t.user_bg),
+                ("méta sur message utilisateur", t.meta, t.user_bg),
+                ("texte d'erreur", t.error_text, t.error_bg),
+                ("texte sur surface", t.text, t.surface),
+                ("méta sur surface", t.meta, t.surface),
+            ] {
+                let ratio = contrast(ink, back);
+                assert!(ratio >= TEXT, "{name} : {what} = {ratio}‰");
+            }
+            for (what, ink, back) in [
+                ("lecture réussie", t.ok, t.panel),
+                ("lecture en échec", t.warn, t.panel),
+                ("accent", t.accent, t.panel),
+                ("bouton Envoyer", t.send_bg, t.surface),
+                ("icône Envoyer", t.send_fg, t.send_bg),
+            ] {
+                let ratio = contrast(ink, back);
+                assert!(ratio >= GRAPHIC, "{name} : {what} = {ratio}‰");
+            }
+            assert_ne!(t.user_bg, t.panel, "{name}");
+            // Le gras se distingue du texte (egui l'affiche par la couleur).
+            assert!(
+                contrast(t.strong, t.panel) > contrast(t.text, t.panel),
+                "{name} : gras"
+            );
+            assert_ne!(t.send_disabled_bg, t.send_bg, "{name}");
+        }
+        assert_eq!(ChatTokens::for_theme(egui::Theme::Dark), ChatTokens::DARK);
     }
 
     /// H-UI-132 : symbole de l'application, trois formes de la grille de 16

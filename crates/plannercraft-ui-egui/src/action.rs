@@ -36,6 +36,8 @@ pub enum Action {
     SetLanguage(LanguagePref),
     /// Change la préférence de thème.
     SetTheme(ThemePref),
+    /// « Réduire les animations » (lot A1b, H-UI-147).
+    SetReduceMotion(bool),
     /// Change le zoom de l'échelle de temps, ancré au centre du Gantt
     /// visible (la zone affichée reste à l'écran).
     SetZoom(TimeScaleZoom),

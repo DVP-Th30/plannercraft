@@ -705,6 +705,9 @@ impl App {
             // Préférences de l'assistant intégré (ADR-0024) : sans rapport
             // avec l'agent rattaché, et réponse inchangée pour les rejeux.
             map.remove("assistant");
+            // « Réduire les animations » (lot A1b) : préférence d'affichage
+            // sans effet sur l'agent ; réponse inchangée pour les rejeux.
+            map.remove("reduce_motion");
         }
         let mut selection: Vec<u32> = self.selected.click_order().iter().map(|uid| uid.get()).collect();
         selection.sort_unstable();

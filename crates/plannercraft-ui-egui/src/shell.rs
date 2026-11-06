@@ -35,6 +35,14 @@ impl PlannerCraftApp {
         if let Some(warning) = warning {
             app.report_state_load(&warning);
         }
+        // Conversations de l'assistant gardées par document (lot A1b) :
+        // clé à part, jamais dans `UiState`.
+        if let Some(json) = cc
+            .storage
+            .and_then(|storage| storage.get_string(crate::assistant::ARCHIVE_KEY))
+        {
+            app.load_assistant_archive(&json);
+        }
         Self { app }
     }
 
@@ -77,6 +85,7 @@ impl eframe::App for PlannerCraftApp {
             Ok(json) => storage.set_string(STATE_KEY, json),
             Err(error) => log::warn!("état d'interface non sauvegardé : {error}"),
         }
+        storage.set_string(crate::assistant::ARCHIVE_KEY, self.app.assistant_archive_json());
     }
 
     fn persist_egui_memory(&self) -> bool {

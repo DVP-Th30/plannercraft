@@ -15,9 +15,15 @@
 //!   desktop tourne dans son propre fil.
 //! - Lecture seule : les outils travaillent sur une copie de la session
 //!   (`SessionHost`), le document n'est jamais modifié par l'assistant.
+//! - Lot A1b (H-UI-143 à H-UI-148) : conversation par tours, défilement
+//!   ancré ([`ChatScroll`]), conversation gardée par document
+//!   ([`Archive`], stockage local de l'application, jamais dans le fichier
+//!   projet ni dans `UiState`).
 
 use std::sync::Arc;
+use std::time::Duration;
 
+use plannercraft_assistant::archive::Archive;
 use plannercraft_assistant::conversation::{Conversation, RequestConfig, Waker};
 use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::http::{EventSink, HttpEvent, HttpRequest, SharedTransport, Transport};
@@ -52,7 +58,115 @@ pub enum AssistantOp {
     Logout,
     /// Choisit un modèle de la liste fermée.
     SetModel(&'static str),
+    /// Régénère la dernière réponse, ou réessaie après une erreur (lot
+    /// A1b).
+    Regenerate,
+    /// Reprend une réponse arrêtée (lot A1b).
+    Continue,
 }
+
+/// Environnement d'une commande : langue, contexte de l'interface joint à
+/// la question, heure affichée, consigne de reprise (textes traduits par
+/// l'application).
+#[derive(Clone, Debug)]
+pub struct AssistantEnv {
+    /// Langue des textes.
+    pub lang: plannercraft_automation::text::Language,
+    /// Contexte de l'interface (sélection, vue), dernier message seulement.
+    pub context: Option<String>,
+    /// Heure de la question (« 14:32 »).
+    pub asked_at: Option<String>,
+    /// Consigne envoyée par « Continuer ».
+    pub continue_prompt: String,
+}
+
+impl AssistantEnv {
+    /// Environnement minimal (tests).
+    #[must_use]
+    pub fn new(lang: plannercraft_automation::text::Language) -> Self {
+        Self {
+            lang,
+            context: None,
+            asked_at: None,
+            continue_prompt: "Continue.".to_owned(),
+        }
+    }
+}
+
+/// Mode du défilement de la conversation (cahier § 2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollMode {
+    /// La question du tour d'indice donné est tenue en haut de la vue ; la
+    /// réponse pousse dessous, la vue ne bouge pas.
+    Anchored(usize),
+    /// Colle au bas tant que l'utilisateur y reste (après un clic sur la
+    /// pastille).
+    Following,
+    /// L'utilisateur a pris la main : le programme ne déplace plus la vue.
+    Free,
+}
+
+/// Mesures de la dernière image (coordonnées du contenu, points).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ChatLayout {
+    /// Haut de la question de chaque tour.
+    pub turn_tops: Vec<f32>,
+    /// Hauteur du dernier tour (question et réponse en cours).
+    pub last_turn_height: f32,
+    /// Fin du contenu, marge basse exclue.
+    pub content_end: f32,
+    /// Hauteur de la vue.
+    pub view_height: f32,
+    /// Zone de la vue à l'écran.
+    pub view_rect: Option<egui::Rect>,
+    /// Décalage relevé en fin d'image.
+    pub offset: f32,
+    /// Hauteur totale du contenu (marge basse comprise).
+    pub content_height: f32,
+}
+
+/// Défilement de la conversation (H-UI-144) : mode, mesures, pastille.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChatScroll {
+    /// Mode courant.
+    pub mode: ScrollMode,
+    /// Mesures de l'image précédente.
+    pub layout: ChatLayout,
+    /// Début de l'ancrage animé : décalage de départ et heure.
+    pub anim: Option<(f32, f64)>,
+    /// Heure depuis laquelle la suite du contenu est sous la vue
+    /// (pastille au-delà de 300 ms).
+    pub below_since: Option<f64>,
+}
+
+impl Default for ChatScroll {
+    fn default() -> Self {
+        Self {
+            mode: ScrollMode::Free,
+            layout: ChatLayout::default(),
+            anim: None,
+            below_since: None,
+        }
+    }
+}
+
+impl ChatScroll {
+    /// Ancre la question du tour `turn` en haut de la vue (à l'envoi, à la
+    /// réouverture).
+    pub fn anchor(&mut self, turn: usize) {
+        self.mode = ScrollMode::Anchored(turn);
+        self.anim = None;
+        self.below_since = None;
+    }
+}
+
+/// Clé de stockage des conversations (eframe : fichier du dossier de
+/// stockage de l'application sur le desktop, `localStorage` sur le web).
+/// Contient le nom technique : listée dans `docs/rename.md`.
+pub const ARCHIVE_KEY: &str = "plannercraft.assistant.conversations";
+
+/// Délai de rafraîchissement à l'arrivée d'un morceau (cahier § 2.8).
+pub const REPAINT_AFTER: Duration = Duration::from_millis(33);
 
 /// Transport sans réseau (application de test, harnais) : toute requête
 /// échoue aussitôt.
@@ -207,6 +321,15 @@ pub struct AssistantPanel {
     pub key_entry: bool,
     /// Avis à afficher.
     pub notice: Option<Notice>,
+    /// Défilement de la conversation.
+    pub scroll: ChatScroll,
+    /// Conversations gardées par document.
+    archive: Archive,
+    /// Document dont la conversation est affichée (clé d'archive) ; chemin
+    /// brut à côté, pour ne canoniser qu'au changement.
+    doc_key: Option<(String, String)>,
+    /// Tour copié et heure (retour « Copié »).
+    pub copied: Option<(usize, f64)>,
     waker: Option<Waker>,
     #[cfg(target_arch = "wasm32")]
     callback_checked: bool,
@@ -243,15 +366,92 @@ impl AssistantPanel {
             key_draft: String::new(),
             key_entry: false,
             notice: None,
+            scroll: ChatScroll::default(),
+            archive: Archive::default(),
+            doc_key: None,
+            copied: None,
             waker: None,
             #[cfg(target_arch = "wasm32")]
             callback_checked: false,
         }
     }
 
-    /// Remplace les services (application : réseau réel, trousseau).
+    /// Remplace les services (application : réseau réel, trousseau) ;
+    /// les conversations gardées restent.
     pub fn set_services(&mut self, services: AssistantServices) {
+        let archive = std::mem::take(&mut self.archive);
         *self = Self::new(services);
+        self.archive = archive;
+    }
+
+    /// Relit les conversations gardées (démarrage).
+    pub fn load_archive(&mut self, json: &str) {
+        self.archive = Archive::from_json(json);
+        self.doc_key = None;
+    }
+
+    /// Conversations gardées, conversation affichée comprise (sauvegarde).
+    #[must_use]
+    pub fn archive_json(&mut self) -> String {
+        self.store_current();
+        self.archive.to_json()
+    }
+
+    /// Range la conversation affichée sous la clé du document.
+    fn store_current(&mut self) {
+        if let Some((key, _)) = &self.doc_key {
+            self.archive.put_active(key, self.conversation.saved());
+        }
+    }
+
+    /// Document affiché : `raw` (chemin ou nom, `None` sans document) et
+    /// sa clé canonique `canonical` (calculée par l'appelant seulement si
+    /// `raw` a changé, voir [`AssistantPanel::doc_raw`]). Au changement, la
+    /// conversation du document quitté est gardée et celle du nouveau
+    /// relue, sa dernière question en haut de la vue.
+    pub fn switch_document(&mut self, document: Option<(String, String)>) {
+        if self.doc_key.as_ref().map(|(_, raw)| raw) == document.as_ref().map(|(_, raw)| raw) {
+            return;
+        }
+        self.conversation.stop();
+        self.store_current();
+        let restored = document
+            .as_ref()
+            .and_then(|(key, _)| self.archive.active(key).cloned())
+            .map(Conversation::restore)
+            .unwrap_or_default();
+        self.set_conversation(restored);
+        self.doc_key = document;
+    }
+
+    /// Chemin ou nom brut du document affiché.
+    #[must_use]
+    pub fn doc_raw(&self) -> Option<&str> {
+        self.doc_key.as_ref().map(|(_, raw)| raw.as_str())
+    }
+
+    /// Clé d'archive du document affiché.
+    #[must_use]
+    pub fn doc_key(&self) -> Option<&str> {
+        self.doc_key.as_ref().map(|(key, _)| key.as_str())
+    }
+
+    fn set_conversation(&mut self, mut conversation: Conversation) {
+        if let Some(waker) = &self.waker {
+            conversation.set_waker(Arc::clone(waker));
+        }
+        self.scroll = ChatScroll::default();
+        if let Some(last) = conversation.turns().len().checked_sub(1) {
+            self.scroll.anchor(last);
+        }
+        self.conversation = conversation;
+        self.copied = None;
+    }
+
+    /// Conversations gardées (tests).
+    #[must_use]
+    pub const fn archive(&self) -> &Archive {
+        &self.archive
     }
 
     /// Une clé est connue.
@@ -284,11 +484,13 @@ impl AssistantPanel {
         self.store.as_ref().is_some_and(|s| s.persistent())
     }
 
-    /// Réveil de l'image (posé une fois).
+    /// Réveil de l'image (posé une fois) : une image dans les 33 ms qui
+    /// suivent un évènement (les morceaux rapprochés n'en demandent
+    /// qu'une, cahier § 2.8).
     pub fn ensure_waker(&mut self, ctx: &egui::Context) {
         if self.waker.is_none() {
             let ctx = ctx.clone();
-            let waker: Waker = Arc::new(move || ctx.request_repaint());
+            let waker: Waker = Arc::new(move || ctx.request_repaint_after(REPAINT_AFTER));
             self.conversation.set_waker(Arc::clone(&waker));
             self.waker = Some(waker);
         }
@@ -407,13 +609,9 @@ impl AssistantPanel {
     }
 
     /// Applique `op` ; l'activation et le modèle sont mémorisés dans
-    /// `prefs` (état d'interface), `lang` est la langue des textes.
-    pub fn apply(
-        &mut self,
-        op: AssistantOp,
-        prefs: &mut crate::state::AssistantPrefs,
-        lang: plannercraft_automation::text::Language,
-    ) {
+    /// `prefs` (état d'interface), `env` donne la langue et le contexte.
+    pub fn apply(&mut self, op: AssistantOp, prefs: &mut crate::state::AssistantPrefs, env: &AssistantEnv) {
+        let lang = env.lang;
         match op {
             AssistantOp::Enable => {
                 prefs.enabled = true;
@@ -421,15 +619,26 @@ impl AssistantPanel {
             }
             AssistantOp::Disable => {
                 prefs.enabled = false;
+                // « Désactiver » oublie la conversation du document.
                 self.conversation.clear();
+                self.store_current();
+                self.scroll = ChatScroll::default();
                 self.cancel_login();
             }
-            AssistantOp::Send => self.send(prefs, lang),
+            AssistantOp::Send => self.send(prefs, env),
             AssistantOp::Stop => self.conversation.stop(),
             AssistantOp::Clear => {
-                self.conversation.clear();
+                // « Nouvelle conversation » : la précédente est archivée.
+                self.conversation.stop();
+                self.store_current();
+                if let Some((key, _)) = &self.doc_key {
+                    self.archive.archive_active(key);
+                }
+                self.set_conversation(Conversation::new());
                 self.notice = self.notice.take().filter(|n| *n == Notice::KeyringMissing);
             }
+            AssistantOp::Regenerate => self.regenerate(prefs, env),
+            AssistantOp::Continue => self.continue_last(prefs, env),
             AssistantOp::Login => self.login(lang),
             AssistantOp::CancelLogin => self.cancel_login(),
             AssistantOp::KeyEntry(show) => {
@@ -443,8 +652,10 @@ impl AssistantPanel {
                 self.set_key(&key);
             }
             AssistantOp::Logout => {
+                // La conversation reste (gardée par document) ; la demande
+                // en cours s'arrête.
                 self.key = None;
-                self.conversation.clear();
+                self.conversation.stop();
                 if let Some(store) = self.store.clone() {
                     self.save = Some(Background::spawn(move || store.delete(), self.waker.clone()));
                 }
@@ -455,27 +666,77 @@ impl AssistantPanel {
         }
     }
 
-    fn send(&mut self, prefs: &crate::state::AssistantPrefs, lang: plannercraft_automation::text::Language) {
-        let question: String = self.draft.trim().chars().take(MAX_QUESTION_CHARS).collect();
-        if question.is_empty() {
-            return;
-        }
+    /// Réglages d'une demande ; sans clé : avis « connectez-vous ».
+    fn config(&mut self, prefs: &crate::state::AssistantPrefs, env: &AssistantEnv) -> Option<RequestConfig> {
         let Some(api_key) = self.key.clone() else {
             self.notice = Some(Notice::Error(AssistantError::NoKey));
-            return;
+            return None;
         };
-        let config = RequestConfig {
+        Some(RequestConfig {
             api_key,
             model: openrouter::model_or_default(&prefs.model).id.to_owned(),
-            lang,
+            lang: env.lang,
             max_tokens: MAX_TOKENS,
+            context: env.context.clone(),
+            asked_at: env.asked_at.clone(),
+        })
+    }
+
+    /// Après un envoi accepté : la nouvelle question en haut de la vue.
+    fn anchor_last(&mut self) {
+        if let Some(last) = self.conversation.turns().len().checked_sub(1) {
+            self.scroll.anchor(last);
+        }
+    }
+
+    fn send(&mut self, prefs: &crate::state::AssistantPrefs, env: &AssistantEnv) {
+        let question: String = self.draft.trim().chars().take(MAX_QUESTION_CHARS).collect();
+        if question.is_empty() || self.conversation.busy() {
+            return;
+        }
+        let Some(config) = self.config(prefs, env) else {
+            return;
         };
         match self
             .conversation
             .send(&question, config, self.services.transport.as_ref())
         {
-            Ok(()) => self.draft.clear(),
+            Ok(()) => {
+                self.draft.clear();
+                self.anchor_last();
+            }
             Err(error) => self.notice = Some(Notice::Error(error)),
+        }
+    }
+
+    fn regenerate(&mut self, prefs: &crate::state::AssistantPrefs, env: &AssistantEnv) {
+        if self.conversation.busy() || self.conversation.is_empty() {
+            return;
+        }
+        let Some(config) = self.config(prefs, env) else {
+            return;
+        };
+        match self
+            .conversation
+            .regenerate(config, self.services.transport.as_ref())
+        {
+            Ok(()) => self.anchor_last(),
+            Err(error) => self.notice = Some(Notice::Error(error)),
+        }
+    }
+
+    fn continue_last(&mut self, prefs: &crate::state::AssistantPrefs, env: &AssistantEnv) {
+        if self.conversation.busy() {
+            return;
+        }
+        let Some(config) = self.config(prefs, env) else {
+            return;
+        };
+        if let Err(error) =
+            self.conversation
+                .continue_last(&env.continue_prompt, config, self.services.transport.as_ref())
+        {
+            self.notice = Some(Notice::Error(error));
         }
     }
 

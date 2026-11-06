@@ -31,6 +31,7 @@ pub mod diagnostics;
 pub mod format_panel;
 pub mod gantt;
 pub mod main_view;
+pub mod markdown;
 pub mod recovery;
 pub mod resource_sheet;
 pub mod ribbon;
