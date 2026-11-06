@@ -1,6 +1,6 @@
 # Cahier de conception « Assistant IA » — PlannerCraft
 
-Statut : **proposé** (ADR-0024), en attente des arbitrages du propriétaire (§ 9). Aucun code tant qu'ils ne sont pas rendus. Recherches du 2026-11-06 (docs officielles lues ce jour-là) : à revérifier avant la mise en vente, les tarifs et conditions bougent.
+Statut : **accepté** (ADR-0024, arbitrages du propriétaire rendus le 2026-11-06, § 9). Recherches du 2026-11-06 (docs officielles lues ce jour-là) : à revérifier avant la mise en vente, les tarifs et conditions bougent.
 
 ## 1. Objectif
 
@@ -90,7 +90,11 @@ Frais OpenRouter : 5,5 % sur l'achat de crédits (8 % en offre Business). Le pri
 
 Les lots A1 à A3 sont utiles seuls (mode « ma clé ») et ne demandent aucun arbitrage commercial.
 
-## 9. Arbitrages du propriétaire
+## 9. Arbitrages du propriétaire (rendus le 2026-11-06 : « je valide tout ça »)
+
+Décisions : Stripe Managed Payments (repli Paddle) ; packs de crédits prépayés ; Claude Sonnet 5.5 par défaut, choix du modèle laissé à l'utilisateur dans une liste fermée ; option « données en UE » plus tard ; lots A1 à A3 lancés tout de suite, livrables avant ou après la v1.0.0 selon l'avancement (ils ne la retardent pas). Restent à trancher hors code : statut juridique et TVA (expert-comptable), confirmation écrite d'OpenRouter sur la revente.
+
+Questions posées :
 
 1. **Statut juridique et encaissement** : micro-entreprise ou société ? Stripe Managed Payments (recommandé) ou Paddle ?
 2. **Modèle de prix** : packs de crédits prépayés (recommandé : aucun impayé, aucun abonnement à gérer) ou abonnement mensuel plafonné ?
