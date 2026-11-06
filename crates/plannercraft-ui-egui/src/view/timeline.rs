@@ -53,6 +53,20 @@ pub const CONTEXT_LABELS: (TextId, TextId) = (TextId::TimelineAdd, TextId::Timel
 /// (72, H-UI-78 ; `plannercraft_render::timeline::TIMELINE_HEIGHT16`).
 pub const TIMELINE_H: f32 = 72.0;
 
+/// Hauteur de la frise **sans tâche** (finitions P4, seconde passe,
+/// H-UI-137) : bande des étiquettes du haut (mois, état), puis l'axe avec
+/// « Début … » et « Fin … », la phrase d'aide posée sur l'axe. La hauteur
+/// choisie (`UiState::timeline_height`) revient dès qu'une tâche y est.
+pub const COMPACT_H: f32 = 36.0;
+
+/// Frise compacte : hauteur gardée du haut de la disposition (étiquettes
+/// des mois et de la date d'état, ligne de base à 9 points).
+const COMPACT_TOP: f32 = 14.0;
+
+/// Frise compacte : ordonnée de la disposition (72 points) à partir de
+/// laquelle le bas est gardé (axe à 62, étiquettes des bornes à 65).
+const COMPACT_CUT: f32 = 54.0;
+
 /// Côté du bouton × de la frise, en points (H-UI-110).
 const CLOSE_SIDE: f32 = 16.0;
 
@@ -138,6 +152,13 @@ pub struct TimelineView {
 #[must_use]
 pub fn wanted(fc: &FrameCtx<'_>) -> bool {
     fc.state.timeline_visible && fc.doc.is_some()
+}
+
+/// La frise est-elle sans tâche (liste du style effectif vide) ? Elle est
+/// alors basse ([`COMPACT_H`]) et sans séparateur à tirer (H-UI-137).
+#[must_use]
+pub fn compact(fc: &FrameCtx<'_>) -> bool {
+    fc.task_view.style.style.timeline.tasks.is_empty()
 }
 
 /// Largeur de la frise en pixels entiers, bornée à `[0, 100 000]` (0 si
@@ -291,6 +312,57 @@ fn extend_band(items: &mut [Item], height_px: u32) {
     }
 }
 
+/// Formes de la frise compacte (H-UI-137) : fond, puis les primitives de la
+/// disposition en deux bandes découpées, celle du haut (`[0, COMPACT_TOP[`)
+/// à sa place et celle de l'axe (`[COMPACT_CUT, 72]`) remontée sous elle,
+/// chacune peinte par un peintre découpé à sa bande, sans les formes qui
+/// tombent hors de leur bande ; `out` reçoit les formes peintes (relevé des
+/// tests et statistiques).
+fn compact_shapes(
+    ui: &egui::Ui,
+    items: &[Item],
+    ink: &Ink<'_>,
+    rect: Rect,
+    background: Color32,
+    out: &mut Vec<Shape>,
+) {
+    ui.painter_at(rect).rect_filled(rect, 0.0, background);
+    let top = Rect::from_min_max(rect.min, pos2(rect.right(), rect.top() + COMPACT_TOP));
+    let axis = Rect::from_min_max(pos2(rect.left(), rect.top() + COMPACT_TOP), rect.max);
+    for (clip, dy) in [(top, 0.0), (axis, COMPACT_TOP - COMPACT_CUT)] {
+        let painter = ui.painter_at(clip);
+        let pr = Projection {
+            src: (0, 0),
+            dst: pos2(rect.left(), rect.top() + dy),
+            k: 1.0 / SUB,
+        };
+        let mut band = Vec::with_capacity(items.len());
+        items_shapes(&painter, items, ink, &pr, &mut band);
+        // Formes hors de la bande écartées (les étiquettes du haut remontées
+        // avec l'axe, par exemple) : jamais peintes ni relevées.
+        band.retain(|s| clip.intersects(s.visual_bounding_rect()));
+        painter.extend(band.iter().cloned());
+        out.extend(band);
+    }
+}
+
+/// Phrase d'aide de la frise compacte (H-UI-137) : une ligne en gris,
+/// centrée sur l'axe, sur une pastille du fond de la frise qui interrompt
+/// l'axe (rien n'y est cliquable).
+fn compact_hint(painter: &egui::Painter, fc: &FrameCtx<'_>, rect: Rect, t: &crate::theme::ChromeTokens) {
+    let galley = painter.layout_no_wrap(
+        fc.texts.get(TextId::TimelineEmptyHint),
+        egui::FontId::proportional(12.0),
+        fc.palette.text_weak,
+    );
+    let size = galley.size();
+    let y = rect.top() + COMPACT_TOP + (62.0 - COMPACT_CUT);
+    let at = pos2(rect.center().x - size.x / 2.0, y - size.y / 2.0);
+    let patch = Rect::from_min_size(at, size).expand2(egui::vec2(8.0, 0.0));
+    painter.rect_filled(patch, 0.0, t.timeline_bg);
+    painter.galley(at, galley, fc.palette.text_weak);
+}
+
 /// Frise sans tâche dessinée : comment y ajouter des tâches (texte
 /// atténué au centre, découverte).
 fn empty_hint(painter: &egui::Painter, fc: &FrameCtx<'_>, rect: Rect) {
@@ -385,7 +457,14 @@ pub fn show(
     }
     // Volet plus bas que la disposition : réduite à l'échelle (faite pour
     // une largeur agrandie d'autant) ; plus haut : centrée.
-    let (scale, offset) = fit(rect.height());
+    let is_compact = compact(fc);
+    // Frise sans tâche (H-UI-137) : jamais réduite à l'échelle, coupée en
+    // deux bandes (haut et axe) au dessin.
+    let (scale, offset) = if is_compact {
+        (1.0, 0.0)
+    } else {
+        fit(rect.height())
+    };
     let screen = fc.task_view.style.clone();
     let tasks = screen.style.timeline.tasks.iter().map(|uid| u64::from(*uid));
     let key = TimelineKey {
@@ -433,9 +512,23 @@ pub fn show(
         k: scale / SUB,
     };
     let mut shapes = Vec::with_capacity(view.items.len().saturating_add(3));
-    items_shapes(&painter, &view.items, &ink, &pr, &mut shapes);
+    // Frise compacte : formes peintes par bande (découpées), gardées à part
+    // pour le relevé.
+    let mut banded = Vec::new();
+    if is_compact {
+        compact_shapes(ui, &view.items, &ink, rect, tokens.timeline_bg, &mut banded);
+        // Phrase d'aide avant le cadre de la partie visible : la pastille
+        // prend la même teinte que le reste de la frise.
+        if found.is_empty() {
+            compact_hint(&painter, fc, rect, &tokens);
+        }
+    } else {
+        items_shapes(&painter, &view.items, &ink, &pr, &mut shapes);
+    }
+    fc.stats.shapes = fc.stats.shapes.saturating_add(banded.len());
     let filled: Vec<Rect> = shapes
         .iter()
+        .chain(banded.iter())
         .filter_map(|s| match s {
             Shape::Rect(r) if r.fill != Color32::TRANSPARENT => Some(r.rect),
             _ => None,
@@ -458,7 +551,7 @@ pub fn show(
     ));
     fc.stats.shapes = fc.stats.shapes.saturating_add(shapes.len());
     painter.extend(shapes);
-    if found.is_empty() {
+    if found.is_empty() && !is_compact {
         empty_hint(&painter, fc, rect);
     }
 

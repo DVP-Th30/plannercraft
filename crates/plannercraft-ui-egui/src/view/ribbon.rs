@@ -100,7 +100,7 @@ const TAB_PAD: f32 = 10.0;
 /// Épaisseur du trait sous l'onglet actif.
 const TAB_UNDERLINE: f32 = 2.0;
 /// Côté du symbole de l'application.
-const LOGO: f32 = 16.0;
+const LOGO: f32 = 20.0;
 /// Hauteur du séparateur entre la barre d'accès rapide et les onglets.
 const QUICK_SEP_H: f32 = 14.0;
 /// Marge horizontale du corps.

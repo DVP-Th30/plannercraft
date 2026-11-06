@@ -89,7 +89,7 @@ impl Palette {
         grid: Color32::from_rgb(0xE3, 0xE5, 0xE8),
         grid_major: Color32::from_rgb(0xC4, 0xC8, 0xCE),
         header_bg: Color32::from_rgb(0xF3, 0xF4, 0xF6),
-        selection: Color32::from_rgb(0xA3, 0xBF, 0xE6),
+        selection: Color32::from_rgb(0xD3, 0xB3, 0xE5),
         bar: Color32::from_rgb(0x3F, 0x7C, 0xC4),
         bar_outline: Color32::from_rgb(0x2B, 0x5C, 0x99),
         critical: Color32::from_rgb(0xC9, 0x30, 0x2C),
@@ -102,12 +102,12 @@ impl Palette {
         summary_critical: Color32::from_rgb(0x8E, 0x1F, 0x1C),
         message_error_bg: Color32::from_rgb(0xFD, 0xEC, 0xEA),
         message_warning_bg: Color32::from_rgb(0xFF, 0xF4, 0xD6),
-        cursor: Color32::from_rgb(0x1F, 0x5F, 0xBF),
+        cursor: Color32::from_rgb(0x77, 0x19, 0xAA),
         baseline: Color32::from_rgb(0x80, 0x86, 0x8F),
         progress: Color32::from_rgb(0x10, 0x14, 0x1A),
-        selection_border: Color32::from_rgb(0x1F, 0x5F, 0xBF),
-        header_selected: Color32::from_rgb(0xD3, 0xDF, 0xF0),
-        hover_row: Color32::from_rgb(0xE9, 0xEF, 0xF8),
+        selection_border: Color32::from_rgb(0x77, 0x19, 0xAA),
+        header_selected: Color32::from_rgb(0xE7, 0xDC, 0xF0),
+        hover_row: Color32::from_rgb(0xF3, 0xEE, 0xF8),
     };
 
     /// Palette sombre.
@@ -119,7 +119,7 @@ impl Palette {
         grid: Color32::from_rgb(0x33, 0x36, 0x3C),
         grid_major: Color32::from_rgb(0x4A, 0x4E, 0x56),
         header_bg: Color32::from_rgb(0x26, 0x28, 0x2C),
-        selection: Color32::from_rgb(0x36, 0x4B, 0x67),
+        selection: Color32::from_rgb(0x59, 0x47, 0x6A),
         bar: Color32::from_rgb(0x6F, 0xA8, 0xE8),
         bar_outline: Color32::from_rgb(0x4A, 0x86, 0xC8),
         critical: Color32::from_rgb(0xFF, 0x6B, 0x66),
@@ -132,12 +132,12 @@ impl Palette {
         summary_critical: Color32::from_rgb(0xFF, 0x8A, 0x85),
         message_error_bg: Color32::from_rgb(0x3A, 0x14, 0x14),
         message_warning_bg: Color32::from_rgb(0x3A, 0x30, 0x12),
-        cursor: Color32::from_rgb(0x8A, 0xB4, 0xF8),
+        cursor: Color32::from_rgb(0xD4, 0xAE, 0xF0),
         baseline: Color32::from_rgb(0x8E, 0x94, 0x9C),
         progress: Color32::from_rgb(0x0F, 0x23, 0x40),
-        selection_border: Color32::from_rgb(0x8A, 0xB4, 0xF8),
-        header_selected: Color32::from_rgb(0x2C, 0x36, 0x44),
-        hover_row: Color32::from_rgb(0x25, 0x2B, 0x33),
+        selection_border: Color32::from_rgb(0xD4, 0xAE, 0xF0),
+        header_selected: Color32::from_rgb(0x37, 0x33, 0x41),
+        hover_row: Color32::from_rgb(0x2B, 0x29, 0x32),
     };
 
     /// Palette tirée d'un style du planning (ADR-0016 D5) pour une variante.
@@ -146,7 +146,11 @@ impl Palette {
     /// rôle de barre absent (style non validé) prend le texte courant.
     #[must_use]
     pub fn from_style(style: &PlanStyle, variant: Variant) -> Self {
-        let c = style.tokens(variant);
+        // Finitions P4, seconde passe (H-UI-136) : modèle à la sélection
+        // bleue d'origine ⇒ sélection et curseur à l'accent de l'interface,
+        // à l'écran seulement (le style du document n'est pas touché).
+        let accented = accent_selection_tokens(style, variant);
+        let c = accented.as_ref().unwrap_or_else(|| style.tokens(variant));
         let sel = SelectionTokens::derive(c, min_text_contrast(style));
         let rgb = |v: Rgb| Color32::from_rgb(v.0, v.1, v.2);
         let fill = |role: BarRole| rgb(c.bars.get(&role).map_or(c.text, |p| p.fill));
@@ -254,6 +258,10 @@ pub struct ChromeTokens {
     /// Liseré d'un pixel autour du symbole de l'application : la surface en
     /// clair (invisible), un gris en sombre, où le carré noir se perdrait.
     pub logo_ring: Color32,
+    /// Cadre de la cellule active et bordure du bloc dans la table et le
+    /// Gantt des modèles à sélection bleue d'origine (H-UI-136) : l'accent
+    /// en clair, un violet plus clair en sombre (≥ 3:1 sur la teinte).
+    pub table_cursor: Color32,
 }
 
 impl ChromeTokens {
@@ -276,6 +284,7 @@ impl ChromeTokens {
         selection_bg: Color32::from_rgb(0xE6, 0xD5, 0xF3),
         selection_fg: BRAND_VIOLET,
         logo_ring: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        table_cursor: BRAND_VIOLET,
     };
 
     /// Thème sombre.
@@ -297,6 +306,7 @@ impl ChromeTokens {
         selection_bg: Color32::from_rgb(0x4A, 0x30, 0x63),
         selection_fg: Color32::from_rgb(0xD4, 0xAE, 0xF0),
         logo_ring: Color32::from_rgb(0x4C, 0x4D, 0x55),
+        table_cursor: Color32::from_rgb(0xD4, 0xAE, 0xF0),
     };
 
     /// Jetons du thème résolu.
@@ -348,6 +358,50 @@ pub fn logo_shapes(rect: egui::Rect) -> Vec<egui::Shape> {
         egui::Shape::rect_filled(cells(2.0, 11.0, 5.0, 14.0), 0.0, Color32::WHITE),
         egui::Shape::rect_filled(cells(6.0, 2.0, 14.0, 14.0), 0.0, BRAND_VIOLET),
     ]
+}
+
+/// Modèles dont la sélection d'origine est le bleu par défaut (H-UI-136) :
+/// leur sélection et leur curseur passent à l'accent de l'interface.
+pub const BLUE_SELECTION_TEMPLATES: [TemplateId; 2] = [TemplateId::Classique, TemplateId::Sobre];
+
+/// Jetons de couleur de `style` pour `variant` avec la sélection et le
+/// curseur de l'interface (H-UI-136), si le style garde ceux, bleus, d'un
+/// modèle de [`BLUE_SELECTION_TEMPLATES`] (même `selection` et même
+/// `cursor` que ce modèle dans la variante) ; `None` sinon : modèle à
+/// sélection propre (Contraste élevé, Présentation, Planning travaux,
+/// Impression N&B), couleur choisie par l'utilisateur, ou variante
+/// d'impression (rien ne change à l'impression).
+///
+/// Graine de la teinte : la bascule de l'habillage (violet très clair),
+/// renforcée par [`SelectionTokens::derive`] vers le curseur jusqu'aux
+/// seuils de H-UI-103 ; curseur et bordure du bloc :
+/// [`ChromeTokens::table_cursor`].
+#[must_use]
+pub fn accent_selection_tokens(style: &PlanStyle, variant: Variant) -> Option<ColorTokens> {
+    let chrome = match variant {
+        Variant::Light => ChromeTokens::LIGHT,
+        Variant::Dark => ChromeTokens::DARK,
+        Variant::Print => return None,
+    };
+    // Les deux variantes doivent garder la sélection du modèle bleu :
+    // Planning travaux partage la sélection sombre de Classique mais pas la
+    // claire, il garde donc la sienne partout.
+    let same = |t: &ColorTokens, c: &ColorTokens| t.selection == c.selection && t.cursor == c.cursor;
+    let blue = BLUE_SELECTION_TEMPLATES.iter().any(|id| {
+        let t = template(*id);
+        [Variant::Light, Variant::Dark]
+            .into_iter()
+            .all(|v| same(t.tokens(v), style.tokens(v)))
+    });
+    let c = style.tokens(variant);
+    if !blue {
+        return None;
+    }
+    let rgb = |v: Color32| Rgb(v.r(), v.g(), v.b());
+    let mut out = c.clone();
+    out.selection = rgb(chrome.toggle_bg);
+    out.cursor = rgb(chrome.table_cursor);
+    Some(out)
 }
 
 /// Contraste exigé du texte d'une notification sur son fond (H-UI-104,
@@ -483,7 +537,7 @@ impl SelectionTokens {
     /// - Bordure : le cadre du curseur s'il tient [`BORDER_CONTRAST`] sur
     ///   le fond, le zébrage, les bandes et la teinte ; sinon le texte
     ///   appuyé.
-    /// - ID appuyé : l'en-tête mêlé vers la teinte jusqu'à
+    /// - ID appuyé : l'en-tête mêlé vers la teinte par pas de 1 % jusqu'à
     ///   `PRESSED_ON_HEADER` sur l'en-tête et le fond, texte lisible.
     /// - Survol : à mi-chemin du fond et de l'ID appuyé.
     #[must_use]
@@ -513,8 +567,12 @@ impl SelectionTokens {
         } else {
             c.text_strong
         };
-        let header_selected = (0..=20_u8)
-            .map(|k| blend(c.header_bg, selection, k.saturating_mul(5)))
+        // Pas de 1 % (finitions P4, seconde passe) : le premier mélange qui
+        // tient le seuil, sans le dépasser de tout un pas de 5 % (les barres
+        // claires d'un modèle doivent rester ≥ 3:1 sur la ligne
+        // sélectionnée du Gantt).
+        let header_selected = (0..=100_u8)
+            .map(|k| blend(c.header_bg, selection, k))
             .find(|h| {
                 contrast_ratio(*h, c.header_bg) >= PRESSED_ON_HEADER
                     && contrast_ratio(*h, c.bg) >= PRESSED_ON_HEADER
@@ -931,13 +989,80 @@ mod tests {
     }
 
     /// Le modèle Classique reproduit J7 champ par champ (ADR-0016 D6), dans
-    /// les deux thèmes ; l'impression part du clair.
+    /// les deux thèmes, sauf la sélection et le curseur passés à l'accent
+    /// de l'interface (H-UI-136) ; la variante d'impression garde le bleu
+    /// du modèle.
     #[test]
     fn classique_equals_j7_palette() {
         let style = template(TemplateId::Classique);
         assert_eq!(Palette::from_style(&style, Variant::Light), Palette::LIGHT);
         assert_eq!(Palette::from_style(&style, Variant::Dark), Palette::DARK);
-        assert_eq!(Palette::from_style(&style, Variant::Print), Palette::LIGHT);
+        let print = Palette::from_style(&style, Variant::Print);
+        assert_eq!(print.cursor, Color32::from_rgb(0x1F, 0x5F, 0xBF));
+        assert_eq!(
+            Palette {
+                selection: Palette::LIGHT.selection,
+                cursor: Palette::LIGHT.cursor,
+                selection_border: Palette::LIGHT.selection_border,
+                header_selected: Palette::LIGHT.header_selected,
+                hover_row: Palette::LIGHT.hover_row,
+                ..print
+            },
+            Palette::LIGHT
+        );
+    }
+
+    /// H-UI-136 (finitions P4, seconde passe) : Classique et Sobre (sélection
+    /// bleue d'origine) prennent la sélection et le curseur de l'interface
+    /// à l'écran, clair et sombre ; Contraste élevé, Présentation, Planning
+    /// travaux et Impression N&B gardent les leurs ; une sélection choisie
+    /// dans le style la garde ; texte et texte appuyé ≥ 4,5:1 sur la
+    /// teinte, l'ID appuyé et le survol ; style du document inchangé.
+    #[test]
+    fn h_ui_136_accent_selection_for_blue_templates() {
+        use super::{BLUE_SELECTION_TEMPLATES, ChromeTokens, accent_selection_tokens};
+        for id in TemplateId::ALL {
+            let style = template(id);
+            for (variant, chrome) in [
+                (Variant::Light, ChromeTokens::LIGHT),
+                (Variant::Dark, ChromeTokens::DARK),
+            ] {
+                let p = Palette::from_style(&style, variant);
+                let c = style.tokens(variant);
+                let name = format!("{id:?} {variant:?}");
+                let accented = BLUE_SELECTION_TEMPLATES.contains(&id);
+                assert_eq!(
+                    accent_selection_tokens(&style, variant).is_some(),
+                    accented,
+                    "{name}"
+                );
+                if accented {
+                    assert_eq!(p.cursor, chrome.table_cursor, "{name}");
+                    assert_eq!(p.selection_border, chrome.table_cursor, "{name}");
+                    // Teinte violette : bleu au-dessus du vert, rouge au moins autant.
+                    for tint in [p.selection, p.header_selected, p.hover_row] {
+                        assert!(tint.r() >= tint.g() && tint.b() > tint.g(), "{name} {tint:?}");
+                    }
+                    for back in [p.selection, p.header_selected, p.hover_row] {
+                        for ink in [p.text, p.text_strong] {
+                            let ratio = contrast(ink, back);
+                            assert!(ratio >= 4500, "{name} : texte sur {back:?} = {ratio}‰");
+                        }
+                    }
+                } else {
+                    let rgb = |v: Rgb| Color32::from_rgb(v.0, v.1, v.2);
+                    assert_eq!(p.cursor, rgb(c.cursor), "{name}");
+                }
+            }
+            assert!(accent_selection_tokens(&style, Variant::Print).is_none());
+        }
+        // Sélection choisie par l'utilisateur dans le style : gardée.
+        let mut custom = template(TemplateId::Classique);
+        let mut light = custom.tokens(Variant::Light).clone();
+        light.selection = Rgb(0xCC, 0xE8, 0xCC);
+        custom.colors.light = light;
+        assert!(accent_selection_tokens(&custom, Variant::Light).is_none());
+        assert!(accent_selection_tokens(&custom, Variant::Dark).is_none());
     }
 
     /// Le style n'est relu que si le document ou le modèle par défaut

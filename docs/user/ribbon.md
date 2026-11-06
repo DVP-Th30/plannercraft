@@ -8,7 +8,7 @@ Guide pour l'utilisateur occasionnel de MS Project qui ouvre PlannerCraft. Réf�
 - **Groupes nommés** sous chaque onglet (Presse-papiers, Planification, Insérer, Propriétés, Édition…), grands boutons à icône et libellé, petits boutons empilés, listes déroulantes (▾), cases à cocher.
 - **Info-bulles** : survoler un bouton affiche son nom, une phrase d'aide et le raccourci clavier (« Lier les tâches (Ctrl+F2) ») ; un bouton grisé dit pourquoi (« Sélectionnez au moins une tâche », « Retirez le tri ou le filtre »).
 - **Barre d'accès rapide** à gauche des onglets, après le petit symbole de PlannerCraft : Enregistrer, Annuler, Rétablir.
-- **Apparence** : le ruban est posé sur le fond de la fenêtre, l'onglet ouvert est écrit en violet et souligné ; un bouton enfoncé (Gras, Planifier manuellement, Sur la chronologie…) a un fond violet très clair et une icône violette ; un bouton grisé reste lisible. Clair et sombre suivent le thème choisi (Affichage → Thème).
+- **Apparence** : le ruban est posé sur le fond de la fenêtre, l'onglet ouvert est écrit en violet et souligné ; un bouton enfoncé (Gras, Planifier manuellement, Sur la chronologie…) a un fond violet très clair et une icône violette ; un bouton grisé reste lisible. Clair et sombre suivent le thème choisi (Affichage → Thème). Avec les modèles Classique et Sobre, la ligne sélectionnée et le cadre de la cellule active sont violets eux aussi (les autres modèles gardent leurs couleurs).
 - **Ruban repliable** : double-clic sur un onglet, ou **Ctrl+F1** (Cmd+F1 sur macOS), ou Affichage → Réduire le ruban. Replié, un clic sur un onglet ouvre ses boutons par-dessus la vue ; Échap ou un clic ailleurs les referme.
 - **Chronologie** : frise au-dessus du diagramme de Gantt (page Microsoft « Create a timeline in Project »), affichée par défaut.
 
@@ -71,6 +71,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 
 ## 4. La chronologie
 
+- Tant qu'aucune tâche n'y est ajoutée, la frise reste basse (une ligne : dates de début et de fin, graduations, et la phrase d'aide) ; elle reprend sa hauteur dès qu'une tâche y est.
 - Frise de la largeur de la fenêtre, au-dessus de la table et du Gantt : **Début** et date à gauche, **Fin** et date à droite, graduations des mois (trimestres ou années pour un long projet), date d'état en trait tireté « État JJ/MM ». Absente des vues des ressources.
 - **Ajouter** : sélectionner des tâches, Tâche → Propriétés → **Sur la chronologie** (ou clic droit → « Ajouter à la chronologie ») ; si toutes y sont déjà, le même bouton les retire. Une tâche devient une barre, un jalon un losange. Au plus 3 rangées de barres ; les tâches qui ne tiennent pas sont comptées « +n » à droite. Au plus 200 tâches.
 - **Cliquer** une barre ou un losange sélectionne la tâche et fait défiler la table et le Gantt jusqu'à elle ; clic droit → « Retirer de la chronologie ».

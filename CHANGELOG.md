@@ -43,6 +43,7 @@ Finitions avant `v1.0.0` (ADR-0022, cahier `docs/plans/polish.md`) : les manques
 
 ### Modifié
 - **Nouvelle apparence du ruban et de la chronologie** (ADR-0022 D6) : ruban sur le fond de la fenêtre avec un filet fin, onglets en texte seul (l'onglet ouvert en violet de la marque, souligné), petit symbole de l'application devant la barre d'accès rapide, boutons à coins doux (survol et appui teintés, bouton enfoncé en violet très clair, grisé lisible), icônes de 24 et 16 px au trait plus fin, séparateurs de groupes courts ; chronologie sur fond neutre, barres et losanges violets, cadre de la partie visible en violet transparent (l'impression garde les couleurs du modèle) ; clair et sombre, contrastes vérifiés.
+- Sélection de la table, ligne sélectionnée du Gantt et cadre de la cellule active en violet avec les modèles Classique et Sobre (les autres modèles gardent leurs couleurs ; rien ne change à l'impression) ; chronologie basse tant qu'aucune tâche n'y est ajoutée ; symbole de l'application agrandi (20 px).
 - Onglet Tâche réorganisé : Planification en deux colonnes (Lier et Délier, Indenter et Désindenter côte à côte), Propriétés en petits boutons (« Sur la chronologie ») ; à 1 280 px, Presse-papiers, Texte, Planification, Insérer et Propriétés restent entiers.
 - **Raccourcis** : Ctrl/Cmd+I met en italique (comme Office) ; insérer une tâche passe à **Ctrl/Cmd+Maj+I** (Inser inchangé).
 - Libellés du ruban : « Atteindre la tâche » (au lieu de « Défiler jusqu'à la tâche ») et « Définir le planning de référence » (au lieu de « Définir la référence »).

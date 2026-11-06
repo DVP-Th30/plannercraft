@@ -662,7 +662,22 @@ fn e2e_ux2() {
     ribbon_click(harness, RibbonTab::View, &fr(TextId::RibbonTimeline));
     assert!(harness.state().state.timeline_visible, "n° 15 : réaffichée");
     // n° 16 (H-UI-111) : séparateur sous la frise tiré de 80 points ⇒ frise
-    // de 152 points, curseur de redimensionnement.
+    // de 152 points, curseur de redimensionnement. Frise sans tâche : basse
+    // et sans séparateur (H-UI-137) ; 2 y est d'abord ajoutée (une entrée).
+    assert!(
+        harness
+            .state()
+            .view()
+            .panes
+            .drawn
+            .and_then(|d| d.timeline_splitter)
+            .is_none(),
+        "n° 16 : frise vide sans séparateur"
+    );
+    click_cell(harness, 2, name, Modifiers::NONE);
+    ribbon_click(harness, RibbonTab::Task, &fr(TextId::RibbonAddToTimeline));
+    expected += 1;
+    assert_eq!(entries(harness.state()), expected, "n° 16 : 2 sur la frise");
     let grip = harness
         .state()
         .view()
@@ -919,9 +934,11 @@ fn e2e_ux2() {
     assert_eq!(app.state.details.height, 220);
     assert_eq!(app.state.details.form, DetailsForm::PredecessorsSuccessors);
     assert_eq!(app.state.columns, state.columns);
+    // L'exemple rouvert a une frise vide : basse (H-UI-137), la hauteur
+    // enregistrée revient avec une tâche.
     let drawn = app.view().panes.drawn.expect("volets dessinés");
     assert!(
-        (drawn.timeline.unwrap().height() - 152.0).abs() < 0.01,
+        (drawn.timeline.unwrap().height() - plannercraft_ui_egui::view::timeline::COMPACT_H).abs() < 0.01,
         "{drawn:?}"
     );
     assert!(drawn.details.is_some());
