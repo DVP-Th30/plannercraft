@@ -1,7 +1,7 @@
 //! Mise en forme du texte des lignes (finitions avant v1.0.0, lot P2,
 //! ADR-0022 D3) : groupe Texte de l'onglet Tâche (H-UI-127), gestes et
 //! annulation (H-UI-126), palette et contraste, pinceau (H-UI-128),
-//! raccourcis Ctrl/Cmd+B et Ctrl/Cmd+Maj+I, saisie d'une cellule intacte.
+//! raccourcis Ctrl/Cmd+B et Ctrl/Cmd+I (P4), saisie d'une cellule intacte.
 //!
 //! Projet « P » (`filters::project_p`) : 1 « Gros œuvre » ⊃ 2 « Fondations »,
 //! 3 « Murs », 4 jalon ; 5 « Second œuvre » ⊃ 6, 7.
@@ -114,8 +114,8 @@ fn h_ui_126_no_op_gesture_writes_nothing() {
     assert_eq!(history_len(harness.state()), 2);
 }
 
-/// H-UI-127 : Ctrl/Cmd+B et Ctrl/Cmd+Maj+I sur la sélection ; Ctrl/Cmd+I
-/// insère toujours une tâche (raccourci gardé).
+/// H-UI-127, H-UI-135 (finitions P4) : Ctrl/Cmd+B et Ctrl/Cmd+I sur la
+/// sélection ; l'insertion d'une tâche passe à Ctrl/Cmd+Maj+I.
 #[test]
 fn h_ui_127_shortcuts_bold_italic() {
     let mut harness = harness_p();
@@ -123,27 +123,28 @@ fn h_ui_127_shortcuts_bold_italic() {
     harness.key_press_modifiers(Modifiers::COMMAND, Key::B);
     harness.run();
     assert!(text_of(harness.state(), 3).bold);
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::I);
+    harness.run();
+    let t = text_of(harness.state(), 3);
+    assert!(t.bold && t.italic, "{t:?}");
+    let tasks = harness.state().document.as_ref().unwrap().project().tasks.len();
+    assert_eq!(history_len(harness.state()), 2);
+    // Ctrl/Cmd+Maj+I : insertion (aucune mise en forme de plus).
     let shift_command = Modifiers {
         shift: true,
         ..Modifiers::COMMAND
     };
     harness.key_press_modifiers(shift_command, Key::I);
     harness.run();
-    let t = text_of(harness.state(), 3);
-    assert!(t.bold && t.italic, "{t:?}");
-    let tasks = harness.state().document.as_ref().unwrap().project().tasks.len();
-    assert_eq!(history_len(harness.state()), 2);
-    // Ctrl/Cmd+I seul : insertion (aucune mise en forme de plus).
-    harness.key_press_modifiers(Modifiers::COMMAND, Key::I);
-    harness.run();
     assert_eq!(
         harness.state().document.as_ref().unwrap().project().tasks.len(),
         tasks + 1
     );
+    assert!(text_of(harness.state(), 3).italic, "italique gardé");
 }
 
-/// Pendant la saisie d'une cellule, Ctrl/Cmd+B et Ctrl/Cmd+Maj+I ne
-/// mettent rien en forme et la saisie continue.
+/// Pendant la saisie d'une cellule, Ctrl/Cmd+B et Ctrl/Cmd+I ne mettent
+/// rien en forme et la saisie continue.
 #[test]
 fn h_ui_127_shortcuts_ignored_while_editing() {
     let mut harness = harness_p();
@@ -153,13 +154,7 @@ fn h_ui_127_shortcuts_ignored_while_editing() {
     assert!(harness.state().view().edit.editing.is_some(), "saisie ouverte");
     harness.key_press_modifiers(Modifiers::COMMAND, Key::B);
     harness.run();
-    harness.key_press_modifiers(
-        Modifiers {
-            shift: true,
-            ..Modifiers::COMMAND
-        },
-        Key::I,
-    );
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::I);
     harness.run();
     assert!(
         harness.state().view().edit.editing.is_some(),

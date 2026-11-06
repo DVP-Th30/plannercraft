@@ -31,7 +31,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 
 | Je cherche… | Dans PlannerCraft |
 |---|---|
-| Insérer une tâche | Tâche → Insérer → **Tâche** (Inser) |
+| Insérer une tâche | Tâche → Insérer → **Tâche** (Inser, ou Ctrl+Maj+I ; Cmd+Maj+I sur macOS) |
 | Insérer un jalon | Tâche → Insérer → **Jalon** (avant la tâche sélectionnée, en fin de projet sans sélection) |
 | Créer une récapitulative au-dessus de tâches | Sélectionner des tâches voisines, Tâche → Insérer → **Récapitulative** (une seule annulation) |
 | Lier, délier | Tâche → Planification → **Lier** (Ctrl+F2), **Délier** (Ctrl+Maj+F2) |
@@ -62,7 +62,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Colonnes de la table | Format → **Insérer une colonne**, **Paramètres de champ** (Alt+F3), **Colonnes ▾** ; clic droit sur un titre ; colonne « Ajouter une nouvelle colonne » en bout de table |
 | Renommer Texte1, Nombre1… | Projet → Propriétés → **Champs personnalisés** |
 | Couleurs et styles des barres | Format → Styles des barres, Styles du diagramme |
-| Mettre une ligne en gras, en italique, en couleur | Tâche → **Texte** : **Gras** (Ctrl+B, Cmd+B sur macOS), **Italique** (Ctrl+Maj+I, Cmd+Maj+I : Ctrl+I insère une tâche), **Couleur du texte ▾** ; ou menu Format. Le bouton est enfoncé quand la tâche active est en gras ou en italique. Seule la table change, pas le Gantt |
+| Mettre une ligne en gras, en italique, en couleur | Tâche → **Texte** : **Gras** (Ctrl+B, Cmd+B sur macOS), **Italique** (Ctrl+I, Cmd+I sur macOS), **Couleur du texte ▾** ; ou menu Format. Le bouton est enfoncé quand la tâche active est en gras ou en italique. Seule la table change, pas le Gantt |
 | Surligner une ligne | Tâche → Texte → **Surlignage ▾** (fond des cellules de la ligne dans la table ; « Aucun surlignage » le retire). Une couleur peu lisible est signalée, avec une teinte corrigée à cliquer ; en thème sombre, les couleurs trop sombres sont éclaircies d'elles-mêmes |
 | Recopier la mise en forme d'une ligne sur d'autres | Tâche → Texte → **Reproduire la mise en forme** (pinceau) : sélectionner la ligne modèle, cliquer le pinceau, puis cliquer (ou sélectionner) les lignes à mettre en forme ; Échap annule |
 | Retirer gras, italique, couleur et surlignage | Tâche → Texte → **Effacer la mise en forme** |

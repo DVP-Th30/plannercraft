@@ -88,6 +88,7 @@ fn h_ui_55_interceptable_flags() {
         (Modifiers::COMMAND, Key::Equals),
         (Modifiers::COMMAND, Key::Minus),
         (Modifiers::COMMAND, Key::I),
+        (COMMAND_SHIFT, Key::I),
         (Modifiers::COMMAND, Key::S),
         (Modifiers::COMMAND, Key::O),
     ] {
