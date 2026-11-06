@@ -24,6 +24,9 @@ Langue : documentation, commentaires et messages en français ; identifiants de 
 ## Méthode
 
 - Code écrit par des agents (Opus 5.5) en workflow, cadrés par un cahier des charges écrit ; la session principale relit, fait tourner les checks et fusionne.
+- Compte rendu d'agent : séparer ce qui a été **observé** (commande lancée, résultat lu), ce qui est **déduit** et ce qui reste **inconnu** ; ne jamais annoncer un test qui n'a pas été lancé. Après un défaut confirmé, chercher le même défaut dans les modules voisins et corriger à la source (le module qui produit la donnée), pas en aval (ADR-0023).
+- Aucun outil de rétro-ingénierie sur MS Project, ses fichiers `.mpp` ou les logiciels exclus par la règle 1 : la parité se mesure en boîte noire (ADR-0023).
+- Machine à mémoire partagée (serveurdvp) : une seule commande cargo lourde à la fois, sous `ramwait` et `memlimit`, jamais en arrière-plan ; pas de `cargo test --workspace` ni de suite complète de `plannercraft-ui-egui` en local, tests filtrés, la CI de la PR passe le reste (ADR-0022).
 - Avant chaque jalon : plan court dans `docs/decisions.md`, choix structurants signalés au propriétaire. Règle MS Project incertaine : hypothèse consignée, on avance.
 - Commits petits et testés. Jamais `git push --force` sur `main`. Chaque jalon finit par `docs/scorecard.md` à jour et un tag `jN`.
 - Checks avant tout commit : `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo deny check`, `cargo check -p plannercraft-core --target wasm32-unknown-unknown`, `cargo xtask layers`, `cargo xtask panics`. Lister les checks exécutés et leur résultat dans chaque compte-rendu.
