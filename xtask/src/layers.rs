@@ -26,6 +26,25 @@ const RENDER_LAYER: &[&str] = &["plannercraft-render", "plannercraft-pdf"];
 /// Paquets interdits à la couche du rendu, en plus des paquets d'interface.
 const RENDER_FORBIDDEN: &[&str] = &["plannercraft-automation"];
 
+/// Assistant IA (ADR-0024, lot A1) : sous `plannercraft-ui-egui`, donc
+/// sans paquet d'interface (règle commune), et client du registre, pas du
+/// serveur MCP (ADR-0002 : pas de serveur MCP embarqué).
+const ASSISTANT_LAYER: &[&str] = &["plannercraft-assistant"];
+
+/// Paquets interdits à l'assistant, en plus des paquets d'interface.
+const ASSISTANT_FORBIDDEN: &[&str] = &["plannercraft-mcp", "rmcp"];
+
+/// Couches sous l'assistant : aucune ne dépend de lui (réseau, trousseau,
+/// OAuth restent hors du cœur, du rendu et du registre).
+const BELOW_ASSISTANT: &[&str] = &[
+    "plannercraft-core",
+    "plannercraft-mspdi",
+    "plannercraft-render",
+    "plannercraft-pdf",
+    "plannercraft-automation",
+    "plannercraft-mcp",
+];
+
 pub fn run() -> ExitCode {
     // Toutes les features : une dépendance optionnelle (`dep:egui` derrière une
     // feature) doit être vue même si aucune feature par défaut ne l'active.
@@ -137,7 +156,14 @@ impl Graph {
     /// Parcours en largeur depuis `member` ; un chemin par paquet interdit atteint.
     fn forbidden_paths_from(&self, member: &str) -> Vec<Violation> {
         let render = RENDER_LAYER.contains(&self.name(member));
-        let forbidden = |name: &str| is_gui_package(name) || (render && RENDER_FORBIDDEN.contains(&name));
+        let assistant = ASSISTANT_LAYER.contains(&self.name(member));
+        let below = BELOW_ASSISTANT.contains(&self.name(member));
+        let forbidden = |name: &str| {
+            is_gui_package(name)
+                || (render && RENDER_FORBIDDEN.contains(&name))
+                || (assistant && ASSISTANT_FORBIDDEN.contains(&name))
+                || (below && ASSISTANT_LAYER.contains(&name))
+        };
         let mut parent: BTreeMap<&str, &str> = BTreeMap::new();
         let mut seen: BTreeSet<&str> = BTreeSet::from([member]);
         let mut queue: VecDeque<&str> = VecDeque::from([member]);
@@ -310,5 +336,29 @@ mod tests {
                 path: names(&["plannercraft-render", "helper", "winit"]),
             }]
         );
+    }
+
+    #[test]
+    fn assistant_layer_rules() {
+        let graph = graph(
+            &["plannercraft-assistant", "plannercraft-automation"],
+            &[
+                (
+                    "plannercraft-assistant",
+                    &["plannercraft-automation", "plannercraft-mcp"],
+                ),
+                ("plannercraft-automation", &["plannercraft-assistant"]),
+            ],
+        );
+        let found: Vec<(String, String)> = graph
+            .violations()
+            .into_iter()
+            .map(|v| (v.member, v.forbidden))
+            .collect();
+        assert!(found.contains(&("plannercraft-assistant".to_owned(), "plannercraft-mcp".to_owned())));
+        assert!(found.contains(&(
+            "plannercraft-automation".to_owned(),
+            "plannercraft-assistant".to_owned()
+        )));
     }
 }

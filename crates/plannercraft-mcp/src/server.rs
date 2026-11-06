@@ -512,35 +512,8 @@ impl PlannerCraftServer {
 
     /// Consignes du serveur pour l'agent.
     const fn instructions(&self) -> &'static str {
-        tr(
-            self.lang,
-            "plannercraft : moteur de planification compatible MS Project. Règles : les tâches sont désignées par \
-             leur UID stable (jamais par leur ID de ligne) ; toute date, durée ou marge vient du moteur, ne \
-             jamais en calculer ni en estimer une soi-même ; les outils d'écriture acceptent dry_run:true pour \
-             voir le diff du planning sans rien modifier ; dans apply_batch, nommer une tâche créée par \
-             \"as\":\"$x\" et la désigner par \"$x\" dans les opérations suivantes (de même pour une \
-             ressource créée par add_resource) ; travail, surutilisation et utilisation des ressources viennent \
-             aussi du moteur (list_resources, resource_usage) ; justifier une date par explain_date (pilote, \
-             calendrier, avancement, chaîne des causes, résumé prêt à citer) ; comparer des options par \
-             what_if (lot simulé sans rien modifier : diff, écart de fin à une ligne de base, explications) ; \
-             suivre l'avancement par update_progress et set_status_date, les écarts par set_baseline puis \
-             baseline_variance. Si l'application plannercraft tient le projet, les appels lui sont relayés : chaque \
-             écriture attend la validation de l'utilisateur (control.rejected s'il refuse) ; ui_state, ui_action \
-             et screenshot ne servent qu'ainsi. Commencer par new_project, open_project ou import_csv.",
-            "plannercraft: an MS Project-compatible scheduling engine. Rules: tasks are designated by their stable \
-             UID (never by their row ID); every date, duration and slack comes from the engine, never compute \
-             or estimate one yourself; write tools accept dry_run:true to preview the schedule diff without \
-             changing anything; in apply_batch, name a created task with \"as\":\"$x\" and refer to it as \
-             \"$x\" in later operations (likewise for a resource created by add_resource); resource work, \
-             overallocation and usage also come from the engine (list_resources, resource_usage); justify a date \
-             with explain_date (driver, calendar, progress, chain of causes, ready-to-quote summary); compare \
-             options with what_if (simulated batch, nothing changed: diff, finish variance from a baseline, \
-             explanations); track progress with update_progress and set_status_date, variances with \
-             set_baseline then baseline_variance. When the plannercraft application holds the project, calls are \
-             relayed to it: every write waits for the user's approval (control.rejected if refused); \
-             ui_state, ui_action and screenshot only work then. Start with new_project, open_project or \
-             import_csv.",
-        )
+        // Texte partagé avec l'assistant intégré (ADR-0024, lot A1).
+        plannercraft_automation::agent::mcp_instructions(self.lang)
     }
 }
 

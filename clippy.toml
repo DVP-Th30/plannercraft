@@ -6,4 +6,4 @@
 
 # Nom du produit (ADR-0020) écrit sans backticks dans la documentation ;
 # `..` garde la liste par défaut de clippy.
-doc-valid-idents = ["PlannerCraft", ".."]
+doc-valid-idents = ["PlannerCraft", "OpenRouter", ".."]
