@@ -25,6 +25,7 @@ use crate::theme::Palette;
 
 pub mod approval;
 pub mod assistant;
+pub mod assistant_account;
 pub mod chrome;
 pub mod details;
 pub mod diagnostics;

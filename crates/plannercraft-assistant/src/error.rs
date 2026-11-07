@@ -61,6 +61,27 @@ pub enum AssistantError {
         /// Détail du système.
         detail: String,
     },
+    /// Mode « Compte PlannerCraft » sans session : l'utilisateur doit se
+    /// connecter à son compte (lot A4).
+    NoSession,
+    /// Session du compte refusée par le relais (`auth.expired`,
+    /// `auth.invalid`, `auth.required`) : retour à l'écran de connexion.
+    SessionEnded {
+        /// Vrai pour une session expirée (`auth.expired`), faux pour une
+        /// session inconnue, révoquée ou un compte bloqué.
+        expired: bool,
+    },
+    /// Crédits du compte PlannerCraft épuisés (`credits.insufficient`).
+    CreditsExhausted,
+    /// Autre refus du relais (`{ code, message }`) : `model.not_allowed`,
+    /// `upstream.error`, `upstream.unavailable`, `payment.unavailable`,
+    /// `request.invalid`, `mail.unavailable`, `internal`…
+    Relay {
+        /// Code stable du relais.
+        relay_code: String,
+        /// Message du relais (français), tronqué.
+        message: String,
+    },
 }
 
 /// Longueur au plus d'un message de serveur gardé (caractères).
@@ -93,6 +114,10 @@ impl AssistantError {
             Self::Busy => "busy",
             Self::Login { .. } => "login",
             Self::Keyring { .. } => "keyring",
+            Self::NoSession => "no-session",
+            Self::SessionEnded { .. } => "session-ended",
+            Self::CreditsExhausted => "credits-exhausted",
+            Self::Relay { .. } => "relay",
         }
     }
 
@@ -107,9 +132,15 @@ impl AssistantError {
             | Self::Protocol { detail }
             | Self::Login { detail }
             | Self::Keyring { detail } => Some(detail.clone()),
-            Self::NoKey | Self::Unauthorized | Self::PaymentRequired | Self::TooManyRounds | Self::Busy => {
-                None
-            }
+            Self::Relay { relay_code, message } => Some(format!("{relay_code} {message}")),
+            Self::NoKey
+            | Self::Unauthorized
+            | Self::PaymentRequired
+            | Self::TooManyRounds
+            | Self::Busy
+            | Self::NoSession
+            | Self::SessionEnded { .. }
+            | Self::CreditsExhausted => None,
         }
     }
 }

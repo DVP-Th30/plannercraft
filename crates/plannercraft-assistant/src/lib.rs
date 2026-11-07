@@ -1,5 +1,6 @@
-//! Assistant IA de PlannerCraft (ADR-0024, mode « ma propre clé » ; lot
-//! A1 : lectures ; lot A2 : propositions soumises à validation).
+//! Assistant IA de PlannerCraft (ADR-0024 ; modes « ma propre clé » et,
+//! depuis le lot A4, « Compte PlannerCraft » ; lot A1 : lectures ; lot
+//! A2 : propositions soumises à validation).
 //!
 //! Sous `plannercraft-ui-egui` dans les couches (règle 9) : ni egui ni
 //! eframe ici. Le même code sert le desktop et le web :
@@ -18,7 +19,10 @@
 //! - [`archive`] : conversations gardées par document, hors du fichier
 //!   projet et de `UiState` (lot A1b) ;
 //! - [`pkce`], [`login`], `web` : connexion OAuth PKCE d'OpenRouter ;
-//! - [`secrets`] : clé dans le trousseau du système, jamais dans `UiState`.
+//! - [`secrets`] : clé et jeton de session dans le trousseau du système,
+//!   jamais dans `UiState` ;
+//! - [`relay`] : relais de PlannerCraft (mode « Compte PlannerCraft »,
+//!   lot A4) : connexion par e-mail, solde, achat de crédits, chat relayé.
 //!
 //! Documentation : `docs/features/assistant.md`.
 
@@ -34,6 +38,7 @@ pub mod openrouter;
 pub mod pkce;
 pub mod platform;
 pub mod proposal;
+pub mod relay;
 pub mod secrets;
 pub mod sse;
 pub mod stream;
@@ -43,7 +48,7 @@ pub mod tools;
 pub mod web;
 
 pub use conversation::{
-    Activity, Conversation, RequestConfig, SavedConversation, ToolStep, Turn, TurnState, Waker,
+    Activity, Conversation, Endpoint, RequestConfig, SavedConversation, ToolStep, Turn, TurnState, Waker,
 };
 pub use error::AssistantError;
 pub use http::{EhttpTransport, HttpEvent, HttpRequest, SharedTransport, Transport};

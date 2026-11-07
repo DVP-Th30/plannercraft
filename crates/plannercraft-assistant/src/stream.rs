@@ -53,8 +53,15 @@ pub struct Usage {
     /// compris dans `completion_tokens`.
     pub reasoning_tokens: u64,
     /// Coût en crédits OpenRouter (dollars US), s'il est donné : coût réel,
-    /// cache compris.
+    /// cache compris. Mode « ma clé » seulement (en mode compte, ce que
+    /// paie l'utilisateur est [`Usage::cost_cents`]).
     pub cost: Option<f64>,
+    /// Coût débité par le relais de PlannerCraft, en centimes d'euro
+    /// (évènement `: plannercraft-cost <centimes> <solde>`, lot A4) ; somme
+    /// des complétions de la demande. Mode « Compte PlannerCraft »
+    /// seulement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_cents: Option<i64>,
 }
 
 /// Ajouts d'un morceau : texte de la réponse et texte du raisonnement.
@@ -86,6 +93,10 @@ impl Usage {
             reasoning_tokens: self.reasoning_tokens.saturating_add(other.reasoning_tokens),
             cost: match (self.cost, other.cost) {
                 (Some(a), Some(b)) => Some(a + b),
+                (a, b) => a.or(b),
+            },
+            cost_cents: match (self.cost_cents, other.cost_cents) {
+                (Some(a), Some(b)) => Some(a.saturating_add(b)),
                 (a, b) => a.or(b),
             },
         }
@@ -417,6 +428,7 @@ fn read_usage(usage: &Value) -> Usage {
             .get("cost")
             .and_then(Value::as_f64)
             .filter(|c| c.is_finite() && *c >= 0.0),
+        cost_cents: None,
     }
 }
 
@@ -526,6 +538,7 @@ mod tests {
             completion_tokens: 2,
             cached_tokens: 1,
             cost: Some(0.5),
+            cost_cents: Some(3),
             ..Usage::default()
         };
         let b = Usage {
@@ -533,6 +546,7 @@ mod tests {
             completion_tokens: 4,
             cached_tokens: 2,
             cost: None,
+            cost_cents: Some(2),
             ..Usage::default()
         };
         assert_eq!(
@@ -542,6 +556,7 @@ mod tests {
                 completion_tokens: 6,
                 cached_tokens: 3,
                 cost: Some(0.5),
+                cost_cents: Some(5),
                 ..Usage::default()
             }
         );

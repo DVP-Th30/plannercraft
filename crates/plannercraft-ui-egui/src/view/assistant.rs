@@ -14,7 +14,7 @@ use egui::{
 };
 use plannercraft_assistant::conversation::{Activity, ToolStep, Turn, TurnState};
 use plannercraft_assistant::error::AssistantError;
-use plannercraft_assistant::openrouter::{self, MODELS};
+use plannercraft_assistant::openrouter::MODELS;
 use plannercraft_assistant::proposal::{PROPOSE_TOOL, ProposalCard, ProposalStatus};
 use plannercraft_assistant::stream::Usage;
 
@@ -27,7 +27,9 @@ use crate::assistant::{
 use crate::i18n::{Arg, Language, TextId, Texts};
 use crate::ribbon::Icon;
 use crate::ribbon::icons::paint_icon;
+use crate::state::AssistantAccess;
 use crate::theme::ChatTokens;
+use crate::view::assistant_account;
 
 /// Marge latérale de la conversation.
 const MARGIN: f32 = 14.0;
@@ -38,7 +40,7 @@ const QA_GAP: f32 = 10.0;
 /// Texte des messages.
 const BODY_SIZE: f32 = 14.0;
 /// Méta (pied, lignes d'outils, barre d'état).
-const META_SIZE: f32 = 12.0;
+pub(crate) const META_SIZE: f32 = 12.0;
 /// Texte du raisonnement déplié.
 const REASONING_SIZE: f32 = 12.5;
 /// Hauteur de l'en-tête.
@@ -90,7 +92,7 @@ pub fn regenerate_id() -> Id {
     Id::unique("plannercraft.assistant.regenerate")
 }
 
-fn push(fc: &mut FrameCtx<'_>, op: AssistantOp) {
+pub(crate) fn push(fc: &mut FrameCtx<'_>, op: AssistantOp) {
     fc.actions.push(Action::Assistant(op));
 }
 
@@ -115,7 +117,14 @@ pub fn tab(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel)
         return;
     }
     header(ui, fc, panel, &t);
-    if !panel.connected() {
+    let account = fc.state.assistant.access == AssistantAccess::Account;
+    if account {
+        if panel.account().signed_in() {
+            assistant_account::balance_bar(ui, fc, panel, &t);
+        } else {
+            assistant_account::login(ui, fc, panel, &t);
+        }
+    } else if !panel.connected() {
         connection(ui, fc, panel);
     }
     if let Some(notice) = &panel.notice {
@@ -124,6 +133,13 @@ pub fn tab(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel)
             Notice::Error(error) => (error_text(fc.texts, error), t.error_text),
         };
         ui.label(RichText::new(text).size(META_SIZE).color(color));
+    }
+    if account {
+        assistant_account::info(ui, fc, panel, &t);
+        if panel.account().usage_open && panel.account().signed_in() {
+            assistant_account::usage_view(ui, fc, panel, &t);
+            return;
+        }
     }
     let mut events = Vec::new();
     let height = egui::Panel::bottom("plannercraft_assistant_bottom")
@@ -189,14 +205,12 @@ fn intro(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, t: &ChatTokens) {
     ui.label(texts.get(TextId::AssistantDisclosure));
     ui.add_space(4.0);
     ui.label(RichText::new(texts.get(TextId::AssistantReadOnly)).color(t.meta));
-    ui.add_space(10.0);
-    if ui.button(texts.get(TextId::AssistantEnable)).clicked() {
-        push(fc, AssistantOp::Enable);
-    }
+    // Lot A4 (H-UI-155) : l'activation passe par le choix de l'accès.
+    assistant_account::access_choice(ui, fc, t);
 }
 
 /// Bouton carré à icône, focusable, libellé accessible et infobulle.
-fn icon_button(
+pub(crate) fn icon_button(
     ui: &mut egui::Ui,
     id: Id,
     icon: Icon,
@@ -259,7 +273,7 @@ fn header(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel, t: &
         {
             push(fc, AssistantOp::Clear);
         }
-        model_combo(ui, fc);
+        model_combo(ui, fc, panel);
     });
     ui.painter().hline(
         rect.x_range(),
@@ -283,7 +297,11 @@ fn options_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel
     );
     egui::Popup::menu(&response).show(|ui| {
         ui.set_min_width(220.0);
-        if panel.connected() {
+        let account = fc.state.assistant.access == AssistantAccess::Account;
+        if account {
+            assistant_account::menu_items(ui, fc, panel, t);
+        }
+        if !account && panel.connected() {
             let status = if panel.key_persistent() {
                 TextId::AssistantConnected
             } else {
@@ -295,6 +313,7 @@ fn options_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel
             }
             ui.separator();
         }
+        assistant_account::access_items(ui, fc, t);
         let mut show = fc.state.assistant.show_reasoning;
         if ui
             .checkbox(&mut show, texts.get(TextId::AssistantReasoningToggle))
@@ -310,23 +329,62 @@ fn options_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel
     });
 }
 
-/// Liste fermée des modèles (H-UI-140), nom court.
-fn model_combo(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    let current = openrouter::model_or_default(&fc.state.assistant.model);
-    let label = fc.texts.get(TextId::AssistantModel);
-    let mut chosen = None;
+/// Nom court d'un modèle (pied, consommation) : celui de la liste fermée,
+/// sinon l'identifiant.
+#[must_use]
+pub fn model_short(id: &str) -> String {
+    MODELS
+        .iter()
+        .find(|m| m.id == id)
+        .map_or_else(|| id.to_owned(), |m| m.short.to_owned())
+}
+
+/// Liste fermée des modèles (H-UI-140), nom court ; en mode compte, celle
+/// du relais (`/v1/me`), prix en infobulle (H-UI-157).
+fn model_combo(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel) {
+    let texts = fc.texts;
+    let current = panel.model_for(&fc.state.assistant);
+    let label = texts.get(TextId::AssistantModel);
+    let relay_models = (fc.state.assistant.access == AssistantAccess::Account)
+        .then(|| panel.account().me.as_ref().map(|m| m.models.clone()))
+        .flatten()
+        .filter(|models| !models.is_empty());
+    let mut chosen: Option<String> = None;
     let response = egui::ComboBox::from_id_salt("plannercraft.assistant.model")
-        .selected_text(current.short)
-        .show_ui(ui, |ui| {
-            for model in MODELS {
-                if ui.selectable_label(model.id == current.id, model.label).clicked() {
-                    chosen = Some(model.id);
+        .selected_text(model_short(&current))
+        .show_ui(ui, |ui| match &relay_models {
+            Some(models) => {
+                for model in models {
+                    let price = texts.get_args(
+                        TextId::AssistantModelPrice,
+                        &[
+                            ("input", Arg::Str(euros(texts, model.input_cents_per_mtok).into())),
+                            (
+                                "output",
+                                Arg::Str(euros(texts, model.output_cents_per_mtok).into()),
+                            ),
+                        ],
+                    );
+                    if ui
+                        .selectable_label(model.id == current, &model.label)
+                        .on_hover_text(price)
+                        .clicked()
+                    {
+                        chosen = Some(model.id.clone());
+                    }
+                }
+            }
+            None => {
+                for model in MODELS {
+                    if ui.selectable_label(model.id == current, model.label).clicked() {
+                        chosen = Some(model.id.to_owned());
+                    }
                 }
             }
         })
         .response;
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, label.clone()));
-    if let Some(id) = chosen.filter(|id| *id != current.id) {
+    if let Some(id) = chosen.filter(|id| *id != current) {
         push(fc, AssistantOp::SetModel(id));
     }
 }
@@ -400,7 +458,12 @@ fn conversation(
     events: &mut Vec<ChatEvent>,
 ) {
     if panel.conversation.is_empty() {
-        empty_state(ui, fc, t, events);
+        // Défile si l'écran de connexion au compte (lot A4) laisse peu de
+        // hauteur : l'état vide ne recouvre jamais la saisie.
+        egui::ScrollArea::vertical()
+            .id_salt("plannercraft_assistant_empty")
+            .auto_shrink([false, false])
+            .show(ui, |ui| empty_state(ui, fc, t, events));
         return;
     }
     let now = ui.input(|i| i.time);
@@ -1193,9 +1256,20 @@ fn error_box(
             ui.label(RichText::new(error_text(fc.texts, error)).color(t.error_text));
             if last {
                 ui.add_space(4.0);
-                if ui.button(fc.texts.get(TextId::AssistantRetry)).clicked() {
-                    events.push(ChatEvent::Op(AssistantOp::Regenerate));
-                }
+                ui.horizontal(|ui| {
+                    // Lot A4 (H-UI-158) : crédits épuisés ⇒ « Acheter des
+                    // crédits » à côté de « Réessayer ».
+                    if *error == AssistantError::CreditsExhausted {
+                        for pack in plannercraft_assistant::relay::PACKS {
+                            if ui.button(pack_label(fc.texts, pack)).clicked() {
+                                events.push(ChatEvent::Op(AssistantOp::Checkout(pack.id)));
+                            }
+                        }
+                    }
+                    if ui.button(fc.texts.get(TextId::AssistantRetry)).clicked() {
+                        events.push(ChatEvent::Op(AssistantOp::Regenerate));
+                    }
+                });
             }
         });
 }
@@ -1238,7 +1312,7 @@ fn footer(
     ui.horizontal(|ui| {
         ui.set_height(26.0);
         if let Some(usage) = turn.usage {
-            let model = openrouter::model_or_default(&turn.model).short;
+            let model = model_short(&turn.model);
             let text = format!("{model} · {}", usage_text(texts, usage));
             let response = ui.label(RichText::new(text).size(META_SIZE).color(t.meta));
             response.on_hover_text(usage_detail(texts, usage));
@@ -1290,6 +1364,10 @@ fn empty_state(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, events: &mu
                     .size(META_SIZE)
                     .color(t.meta),
             );
+            if fc.state.assistant.access == AssistantAccess::Account {
+                ui.add_space(2.0);
+                assistant_account::relay_notice(ui, fc, t);
+            }
             if fc.doc.is_none() {
                 ui.add_space(6.0);
                 ui.label(
@@ -1525,6 +1603,15 @@ pub fn usage_text(texts: &Texts, usage: Usage) -> String {
             &[("count", Arg::Count(i64::try_from(tokens).unwrap_or(i64::MAX)))],
         )
     };
+    if let Some(cents) = usage.cost_cents {
+        // Lot A4 : coût débité par le relais, en euros.
+        let cost = if cents == 0 {
+            texts.get(TextId::AssistantCostUnderCent)
+        } else {
+            euros(texts, cents)
+        };
+        return format!("{tokens} · {cost}");
+    }
     match usage.cost {
         Some(cost) => {
             let digits = if cost >= 1.0 {
@@ -1554,6 +1641,25 @@ pub fn usage_detail(texts: &Texts, usage: Usage) -> String {
             ("output", count(usage.completion_tokens)),
         ],
     )
+}
+
+/// Montant en euros (« 4,37 € », « €4.37 ») à partir de centimes.
+#[must_use]
+pub fn euros(texts: &Texts, cents: i64) -> String {
+    let sign = if cents < 0 { "-" } else { "" };
+    let abs = cents.unsigned_abs();
+    let value = decimal(texts, &format!("{sign}{}.{:02}", abs / 100, abs % 100));
+    texts.get_args(TextId::AssistantEuros, &[("value", Arg::Str(value.into()))])
+}
+
+/// « 20 € de crédits » : pack à l'achat (prix entier, sans centimes).
+#[must_use]
+pub fn pack_label(texts: &Texts, pack: &plannercraft_assistant::relay::Pack) -> String {
+    let value = texts.get_args(
+        TextId::AssistantEuros,
+        &[("value", Arg::Str(pack.euros.to_string().into()))],
+    );
+    texts.get_args(TextId::AssistantBuyPack, &[("value", Arg::Str(value.into()))])
 }
 
 /// Séparateur décimal de la langue.
@@ -1599,5 +1705,23 @@ pub fn error_text(texts: &Texts, error: &AssistantError) -> String {
         AssistantError::Keyring { detail: d } => {
             texts.get_args(TextId::AssistantErrorKeyring, &detail(d.clone()))
         }
+        AssistantError::NoSession => texts.get(TextId::AssistantErrorNoSession),
+        AssistantError::SessionEnded { expired: true } => texts.get(TextId::AssistantErrorSessionExpired),
+        AssistantError::SessionEnded { expired: false } => texts.get(TextId::AssistantErrorSessionInvalid),
+        AssistantError::CreditsExhausted => texts.get(TextId::AssistantErrorCredits),
+        AssistantError::Relay { relay_code, message } => match relay_code.as_str() {
+            "model.not_allowed" => texts.get(TextId::AssistantErrorModelNotAllowed),
+            "upstream.unavailable" => texts.get(TextId::AssistantErrorUpstreamUnavailable),
+            "upstream.error" => texts.get_args(TextId::AssistantErrorUpstream, &detail(message.clone())),
+            "payment.unavailable" => texts.get(TextId::AssistantErrorPaymentUnavailable),
+            "mail.unavailable" => texts.get(TextId::AssistantErrorMailUnavailable),
+            "auth.invalid" | "auth.expired" => {
+                texts.get_args(TextId::AssistantErrorCodeRefused, &detail(message.clone()))
+            }
+            _ => texts.get_args(
+                TextId::AssistantErrorRelay,
+                &detail(format!("{relay_code} {message}")),
+            ),
+        },
     }
 }

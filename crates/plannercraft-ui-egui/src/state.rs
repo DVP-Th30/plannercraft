@@ -171,6 +171,19 @@ pub struct UiState {
 /// Longueur au plus de l'identifiant de modèle mémorisé.
 pub const MAX_ASSISTANT_MODEL_CHARS: usize = 100;
 
+/// Accès à l'assistant (lot A4, H-UI-155) : compte PlannerCraft (relais
+/// de l'éditeur, crédits prépayés) ou clé OpenRouter de l'utilisateur.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssistantAccess {
+    /// Compte PlannerCraft : jeton de session vers le relais, jamais de clé.
+    Account,
+    /// Ma clé OpenRouter (défaut : un état enregistré avant le lot A4
+    /// gardait une clé OpenRouter).
+    #[default]
+    OwnKey,
+}
+
 /// Préférences de l'assistant IA (ADR-0024, lot A1, H-UI-138).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -178,6 +191,9 @@ pub struct AssistantPrefs {
     /// Activé par l'utilisateur après la mention « vous échangez avec une
     /// IA » (AI Act art. 50) ; faux par défaut.
     pub enabled: bool,
+    /// Accès choisi à l'activation (lot A4) ; jamais de clé ni de jeton
+    /// ici.
+    pub access: AssistantAccess,
     /// Modèle OpenRouter de la liste fermée ; un identifiant inconnu est
     /// remplacé par le défaut à l'usage.
     pub model: String,
@@ -190,6 +206,7 @@ impl Default for AssistantPrefs {
     fn default() -> Self {
         Self {
             enabled: false,
+            access: AssistantAccess::OwnKey,
             model: plannercraft_assistant::openrouter::DEFAULT_MODEL.to_owned(),
             show_reasoning: false,
         }

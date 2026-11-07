@@ -1,6 +1,6 @@
 # Assistant IA (`crates/plannercraft-assistant`, volet Assistant)
 
-État au 2026-11-07 (lots A1 et A2 du cahier `docs/plans/assistant.md`, lot A1b du cahier `docs/plans/assistant-chat.md`, début du lot A3, ADR-0024) : mode « ma propre clé » (OpenRouter), conversation suivie (mémoire, réflexion, défilement ancré, conversation gardée par document, § 8). L'assistant répond en langage courant sur le planning ouvert et **propose** des modifications : un seul outil d'écriture, `propose_changes`, qui ne s'applique jamais directement ; chaque proposition passe par le panneau Opérations IA (avant/après, Accepter / Refuser, une annulation, § 9). Le mode payant (relais de l'éditeur, lots R1, R2, A4) n'existe pas encore.
+État au 2026-11-07 (lots A1 et A2 du cahier `docs/plans/assistant.md`, lot A1b du cahier `docs/plans/assistant-chat.md`, début du lot A3, ADR-0024) : mode « ma propre clé » (OpenRouter), conversation suivie (mémoire, réflexion, défilement ancré, conversation gardée par document, § 8). L'assistant répond en langage courant sur le planning ouvert et **propose** des modifications : un seul outil d'écriture, `propose_changes`, qui ne s'applique jamais directement ; chaque proposition passe par le panneau Opérations IA (avant/après, Accepter / Refuser, une annulation, § 9). Lot A4 (2026-11-07) : second accès « Compte PlannerCraft » par le relais de l'éditeur (§ 10) ; le relais lui-même (lot R1) est dans le dépôt privé `plannercraft-relay`, l'encaissement réel (lot R2) n'est pas encore en service.
 
 ## 1. Architecture
 
@@ -13,7 +13,11 @@ Conversation (plannercraft-assistant::conversation) ── outils en lecture ─
    ▼                                                        workspace::call_with)
 Transport (http.rs)
    ├─ EhttpTransport : ureq dans un fil (desktop), fetch du navigateur (web)
-   └─ ScriptedTransport : réponses écrites à la main (tests, aucun réseau)
+   ├─ ScriptedTransport : réponses écrites à la main (tests, aucun réseau)
+   └─ FakeRelay : faux relais de PlannerCraft, contrat v1 (tests, lot A4)
+
+Destination (`conversation::Endpoint`, lot A4) : OpenRouter (mode « ma clé »)
+ou relais de PlannerCraft (mode « Compte PlannerCraft », § 10).
 ```
 
 - Couches (règle 9, `cargo xtask layers`) : la crate est sous `plannercraft-ui-egui`, sans egui ni eframe ; elle ne dépend ni de `plannercraft-mcp` ni de `rmcp` (ce n'est pas un serveur MCP embarqué, ADR-0002), et aucune crate du cœur, du rendu, du registre ou du MCP ne dépend d'elle.
@@ -71,7 +75,8 @@ Docs relues le 2026-11-06 : `api-reference/streaming`, `use-cases/usage-accounti
 - Crate (`cargo test -p plannercraft-assistant`, aucun réseau) : SSE (commentaires, coupures, CRLF, octet par octet, ligne trop longue, UTF-8), assemblage (texte, `usage`, appels fragmentés, erreur en flux, bornes), protocole (corps, en-têtes, erreurs 401/402/429, échange), PKCE (RFC 7636 annexe B, `state`), écouteur local (404, code, `state` faux, délai), connexion desktop de bout en bout avec un faux navigateur, outils (liste blanche, refus des écritures, troncature, budget), boucle sur un vrai projet (`tests/conversation.rs` : appel → `explain_date` du moteur → réponse, `ui_state`, refus sans clé, erreurs HTTP, coupure réseau, erreur du fournisseur, borne des tours, flux pas à pas et arrêt). Essai réel facultatif `live_openrouter_round_trip` (`#[ignore]`, lit `OPENROUTER_API_KEY`).
 - Crate, lot A1b : raisonnement (`reasoning_details_streamed_and_merged`, `plain_reasoning_field`, `reasoning_bounded`), `usage` du cache (`usage_reads_cache_and_reasoning_details`), mémoire (`memory::tests` : fixture JSON de l'ordre et des points de cache `request_order_and_cache_points`, pas de marque pour Gemini, 20 tours, budget de 16 k jetons, tour sans réponse), archive (`archive::tests` : une conversation active par document, 20 au plus, tailles bornées, JSON illisible), conversation (`tests/conversation.rs` : second tour avec historique et contexte en dernier message seulement, raisonnement chronométré et renvoyé avec l'appel d'outil, Arrêter puis Continuer, Régénérer, `no_secret_in_archive`).
 - Crate, lot A2 : `proposal::tests` (liste fermée = écritures du registre, budget du schéma, lot accepté, dates et opérations hors liste refusées, notes de décision, consigne de correction), `tests/proposals.rs` (proposition mise en file sans rien appliquer, refus du registre puis deux corrections au plus, une proposition par demande, décision jointe au message suivant ou entre deux tours d'outils, proposition en attente expirée à la relecture, `reasoning` seulement sur demande, outil décrit).
-- Interface : `cargo test -p plannercraft-ui-egui --test ui -- assistant` (§ 1.40 à § 1.42 de `docs/features/ui.md`, dont le banc rejoué du § 9.5) ; mesure `assistant_stream_5000` de `tests/perf.rs` (release, ignorée par défaut).
+- Interface : `cargo test -p plannercraft-ui-egui --test ui -- assistant` (§ 1.40 à § 1.43 de `docs/features/ui.md`, dont le banc rejoué du § 9.5) ; mesure `assistant_stream_5000` de `tests/perf.rs` (release, ignorée par défaut).
+- Lot A4 : `relay::tests` (requêtes du contrat, `provider` retiré, en-têtes de demande, UUID v4, erreurs `{ code, message }` traduites, lectures de `/me`, `/usage`, `/checkout`, adresse de paiement `https` seulement, formes d'adresse et de code), `sse::tests::relay_cost_comment_read`, `tests/relay.rs` (demande relayée de deux complétions : même identifiant, tours 1 et 2, coût en centimes additionné, solde lu, coût en dollars écarté ; `credits.insufficient`, `auth.expired` signalé une fois, `NoSession`) ; essai réel facultatif `live_relay_round_trip` (`#[ignore]`, lit `PLANNERCRAFT_RELAY_URL` et `PLANNERCRAFT_RELAY_SESSION`). Interface : `tests/ui/assistant_account.rs` (§ 1.43 de `docs/features/ui.md`).
 
 ## 8. Conversation (lot A1b, cahier `docs/plans/assistant-chat.md`)
 
@@ -137,3 +142,34 @@ Une seule écriture, soumise à validation ; « ne calcule jamais une date : pro
 | « Fixe la livraison au 15 mars 2027 » (exemple) | échéance de la tâche 49 au 12 mars (date déduite, refusée), puis au 15 mars, puis texte | motif « ne figure pas dans la demande » rendu au modèle (compte comme une correction), une seule date dans les arguments acceptés, échéance posée puis annulée d'un coup |
 
 Chaque scénario, accepté puis refusé : aucune date dans les arguments du modèle (`assert_no_date` ; scénario 4 : seulement celle de l'utilisateur) ; chaque date d'après du `DiffView` égale celle d'une application **indépendante** du même lot sur une copie de la session ; acceptation = une entrée d'annulation, Annuler rend l'état d'avant ; refus = génération et historique intacts.
+
+## 10. Mode « Compte PlannerCraft » (lot A4, cahier `docs/plans/relay.md`)
+
+Second accès, à côté de « Ma clé OpenRouter » : l'utilisateur se connecte par e-mail à son compte PlannerCraft et paie des crédits prépayés à l'éditeur ; **aucune clé OpenRouter** n'est utilisée dans ce mode (la clé de l'éditeur reste sur le relais, ADR-0024). Choix à l'activation, changeable dans le menu « … » ; réglage `UiState.assistant.access` (`account` | `own_key`, défaut `own_key` pour un état enregistré avant le lot A4), jamais de jeton dedans. Écrans : `docs/features/ui.md` § 1.43.
+
+### 10.1 Protocole (contrat d'API v1, `plannercraft-assistant::relay`)
+
+Lu dans le dépôt du relais (`plannercraft-relay`, `src/routes/*.rs`, `src/error.rs`, `docs/DECISIONS.md`) le 2026-11-07.
+
+- Adresse : `relay::RELAY_URL` (`https://api.plannercraft.app`), remplacée sur le desktop par la variable d'environnement `PLANNERCRAFT_RELAY_URL` (essais contre un relais local), lue une fois à la création des services ; sans `/` final.
+- Connexion : `POST /v1/auth/magic-link { email }` (toujours `204`) ; l'e-mail porte un lien `<app>/login?token=…` et un code à 8 caractères ; `POST /v1/auth/exchange` avec `{ email, code }` (desktop et web) ou `{ token }` (web : lien ouvert dans le navigateur) → `{ session_token, expires_at, account }` ; `POST /v1/auth/logout` (Bearer) révoque le jeton.
+- Compte : `GET /v1/me` (Bearer) → `{ email, balance_cents, currency, models: [{ id, label, input_cents_per_mtok, output_cents_per_mtok }], low_balance }`, lu à la connexion, à la fin de chaque demande, sur « Actualiser le solde » et au retour du focus après l'ouverture de la page de paiement ; `GET /v1/usage` (sans bornes : les 30 derniers jours, calculés par le relais ; aucune horloge lue dans l'app) → `{ items, total_cents }`.
+- Chat : `POST /v1/assistant/chat`, `Authorization: Bearer <jeton>`, `X-PlannerCraft-Request: <UUID v4>` (tiré à chaque envoi, régénération ou reprise ; les tours d'outils de la demande le gardent), `X-PlannerCraft-Turn: <n>` (1 au premier tour d'API, le relais en permet 8, la boucle de l'app en fait 6 au plus), `Accept: text/event-stream` ; corps = celui du mode « ma clé » **sans `provider`** (le relais refuse toute clé hors `model`, `messages`, `stream`, `max_tokens`, `reasoning`, `tools`, `tool_choice`, et impose lui-même `zdr` et `data_collection: "deny"`). Le cache de prompt (`cache_control` des messages, § 8.3) part tel quel.
+- Flux : SSE d'OpenRouter relayé, plus le commentaire `: plannercraft-cost <centimes> <solde>` avant `data: [DONE]` (`sse::parse_relay_cost` ; solde `-1` = inconnu). Le lecteur SSE ignore toujours les autres commentaires. Les trailers `X-PlannerCraft-Cost-Cents` / `-Balance-Cents` ne sont pas lus : ni `ehttp` (ureq) ni `fetch` ne les rendent. Coût de la demande : somme des centimes de ses complétions (`Usage::cost_cents`) ; le `usage.cost` en dollars d'OpenRouter, relayé tel quel, n'est **jamais** affiché dans ce mode (ce n'est pas ce que paie l'utilisateur). Une complétion peut coûter 0 centime (reste reporté par le relais, sa décision D2) : pied « < 0,01 € ».
+- Achat : `POST /v1/credits/checkout { pack: "p5" | "p20" | "p50" }` → `{ url }` (Stripe Checkout) ; seule une adresse `https://` est ouverte : navigateur du système (crate `webbrowser`, desktop), nouvel onglet (web).
+- Erreurs `{ code, message }` (`relay::api_error`) : `auth.expired` ⇒ `SessionEnded { expired: true }`, `auth.invalid` / `auth.required` ⇒ `SessionEnded { expired: false }` (retour à l'écran de connexion, jeton oublié) ; `credits.insufficient` ⇒ `CreditsExhausted` (« Crédits épuisés » et les packs dans la conversation) ; `rate.limited` ⇒ `RateLimited` (`Retry-After`) ; `turn.limit` ⇒ `TooManyRounds` ; autres (`model.not_allowed`, `upstream.error`, `upstream.unavailable`, `payment.unavailable`, `mail.unavailable`, `request.invalid`, `internal`) ⇒ `Relay { relay_code, message }`, traduit par code. À l'échange, un refus `auth.*` est un code ou un lien refusé (`relay::exchange_error`), pas une session terminée.
+
+### 10.2 Jeton de session
+
+- Desktop : trousseau du système, entrée `PlannerCraft` / `plannercraft-session-token` (distincte de `openrouter-api-key`), lue hors du fil de l'interface quand l'assistant est activé en mode compte ; trousseau absent : mémoire pour la session, avec l'avertissement du § 4. Web : mémoire seulement (un rechargement de la page oublie la session ; le lien du courriel la rouvre).
+- Jamais dans `UiState`, `app.ui_state`, le stockage des conversations, un `Debug` (`relay::Session`, `Account`, `HttpRequest` masqués) ni un journal (test `h_ui_156_sign_in_by_email_code_token_never_stored`).
+- Déconnexion : `POST /v1/auth/logout` (sans attendre la réponse), puis jeton oublié ici et effacé du magasin ; un résultat arrivé après coup est ignoré (génération de session).
+- Web : `?token=` lu au démarrage de la page (`web::take_magic_token`), adresse nettoyée (`history.replaceState`, chemin `/login` et requête retirés) comme pour PKCE ; l'accès passe au compte et l'assistant est activé (le lien a été demandé depuis l'onglet, après la mention de transparence). Retour de paiement `…/credits/success` ou `…/credits/cancel` (`web::take_credits_return`) : message, adresse nettoyée.
+
+### 10.3 Limites connues (lot A4)
+
+- **CORS** : le relais (lot R1) n'envoie pas d'en-têtes CORS ; le web ne peut l'appeler que s'il est servi sur la même origine ou si le relais les ajoute (à faire côté relais, lot R2). Le desktop n'est pas concerné.
+- Web : la page de paiement s'ouvre dans un nouvel onglet ; le retour Stripe (`/credits/success`) arrive dans cet onglet, qui n'a pas la session (mémoire de l'autre onglet) : il affiche « Paiement enregistré » ; l'onglet d'origine relit le solde au retour du focus ou sur « Actualiser le solde ».
+- Le serveur web doit servir l'application sur `/login`, `/credits/success` et `/credits/cancel` (repli sur `index.html`) : à vérifier au déploiement (lot R2).
+- Le solde affiché suit le relais (centimes entiers) ; l'alerte « Solde bas » suit `low_balance` du relais ou un solde sous 0,50 €.
+- Les heures de « Consommation » sont en UTC (texte du relais), sans conversion.
