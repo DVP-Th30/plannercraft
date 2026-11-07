@@ -410,7 +410,7 @@ fn diff_row(
     muted: egui::Color32,
 ) {
     let texts = fc.texts;
-    ui.label(row.id.map(|id| id.get().to_string()).unwrap_or_default());
+    ui.add(egui::Label::new(row.id.map(|id| id.get().to_string()).unwrap_or_default()).extend());
     let name = match row.change {
         RowChange::Added => texts.get_args(TextId::AiAdded, &[("name", Arg::Str(row.name.as_str().into()))]),
         RowChange::Removed => {
@@ -418,7 +418,7 @@ fn diff_row(
         }
         RowChange::Changed | RowChange::CriticalOnly => row.name.clone(),
     };
-    ui.label(name);
+    ui.add(egui::Label::new(name).extend());
     let date = |m: Option<Moment>| m.map(|m| format_date(m, labels)).unwrap_or_default();
     let slack = |m: Option<Minutes>| m.map(|m| format_slack(m, &factors, labels)).unwrap_or_default();
     pair_cell(ui, &date(row.start.0), &date(row.start.1), muted);
@@ -435,14 +435,18 @@ fn diff_row(
 /// Cellule avant/après : la valeur d'après, puis celle d'avant barrée si
 /// elle diffère.
 fn pair_cell(ui: &mut egui::Ui, before: &str, after: &str, muted: egui::Color32) {
+    // Jamais coupée sur plusieurs lignes (« mar / 23/03/ / 27 ») : la
+    // table défile horizontalement si le volet est étroit (lot A2).
     ui.vertical(|ui| {
         if after.is_empty() {
-            ui.label(egui::RichText::new(before).strikethrough().color(muted));
+            ui.add(egui::Label::new(egui::RichText::new(before).strikethrough().color(muted)).extend());
             return;
         }
-        ui.label(after);
+        ui.add(egui::Label::new(after).extend());
         if before != after && !before.is_empty() {
-            ui.label(egui::RichText::new(before).strikethrough().small().color(muted));
+            ui.add(
+                egui::Label::new(egui::RichText::new(before).strikethrough().small().color(muted)).extend(),
+            );
         }
     });
 }

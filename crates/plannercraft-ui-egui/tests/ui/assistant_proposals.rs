@@ -630,3 +630,51 @@ fn bench_fix_after_registry_refusal() {
         decide(&mut harness, accept);
     }
 }
+
+// --- Captures ------------------------------------------------------------
+
+/// Conversation d'une proposition en attente (exemple, clair).
+fn proposal_capture() -> Harness<'static, App> {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let args = json!({ "label": "Décaler le second œuvre de 2 semaines", "ops": [
+        { "op": "task.shift", "tasks": [29], "by": { "text": "10d" } }
+    ] });
+    let transport = Arc::new(ScriptedTransport::new(vec![
+        read("r1", "list_tasks"),
+        propose("p1", &args),
+        say(
+            "Je propose de **décaler le second œuvre** (tâches 30 à 35) de **10 jours ouvrés**. Le moteur \
+             recalcule les dates des tâches qui suivent.\n\nLa proposition attend votre validation : rien \
+             n'est appliqué avant.",
+        ),
+    ]));
+    let mut harness = crate::assistant::chat_capture_harness(transport, LanguagePref::Fr, ThemePref::Light);
+    crate::assistant::send_now(&mut harness, "Décale le second œuvre de deux semaines");
+    for _ in 0..12 {
+        harness.run();
+    }
+    assert!(!harness.state().assistant().conversation.busy());
+    assert_eq!(harness.state().approvals().pending().len(), 1);
+    harness
+}
+
+/// Capture : carte de la proposition dans la conversation.
+#[test]
+fn snapshot_assistant_proposal_fr_light() {
+    let mut harness = proposal_capture();
+    crate::common::snapshot(&mut harness, "assistant_proposal_fr_light");
+}
+
+/// Capture : onglet Opérations IA ouvert par « Voir », sur l'avant/après
+/// de la même proposition (origine « Assistant »).
+#[test]
+fn snapshot_assistant_proposal_panel_fr_light() {
+    let mut harness = proposal_capture();
+    harness
+        .state_mut()
+        .dispatch(Action::Proposal(ProposalOp::View(1)));
+    for _ in 0..4 {
+        harness.run();
+    }
+    crate::common::snapshot(&mut harness, "assistant_proposal_panel_fr_light");
+}

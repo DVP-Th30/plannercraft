@@ -1018,6 +1018,15 @@ fn proposal_card(
     let texts = fc.texts;
     let pending = card.status.is_pending();
     let stroke = if pending { t.accent } else { t.border };
+    // Titre en Inter SemiBold (vraie graisse) quand la police est chargée.
+    let title_font = if crate::theme::plan_fonts_ready(ui.ctx()) {
+        FontId::new(
+            BODY_SIZE,
+            egui::FontFamily::Name(crate::theme::PLAN_FAMILY_STRONG.into()),
+        )
+    } else {
+        FontId::proportional(BODY_SIZE)
+    };
     let response = egui::Frame::new()
         .fill(t.surface)
         .stroke(Stroke::new(1.0, stroke))
@@ -1034,9 +1043,8 @@ fn proposal_card(
                             TextId::AssistantProposalTitle,
                             &[("name", Arg::Str(card.label.as_str().into()))],
                         ))
-                        .size(BODY_SIZE)
-                        .strong()
-                        .color(t.strong),
+                        .font(title_font)
+                        .color(t.text),
                     )
                     .wrap(),
                 );
@@ -1107,13 +1115,21 @@ fn proposal_actions(
     });
     ui.add_space(4.0);
     let hint = texts.get(TextId::AssistantProposalReason);
-    let response = ui.add(
-        egui::TextEdit::singleline(&mut reason)
-            .id(reason_id.with("field"))
-            .char_limit(crate::assistant::MAX_REASON_CHARS)
-            .hint_text(hint.as_str())
-            .desired_width(f32::INFINITY),
-    );
+    let response = egui::Frame::new()
+        .stroke(Stroke::new(1.0, t.border))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(8, 4))
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut reason)
+                    .id(reason_id.with("field"))
+                    .frame(egui::Frame::NONE)
+                    .char_limit(crate::assistant::MAX_REASON_CHARS)
+                    .hint_text(hint.as_str())
+                    .desired_width(f32::INFINITY),
+            )
+        })
+        .inner;
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, hint.clone()));
     if response.changed() {
         ui.data_mut(|d| d.insert_temp(reason_id, reason));

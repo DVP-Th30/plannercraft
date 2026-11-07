@@ -118,6 +118,17 @@ impl PendingApproval {
         }
     }
 
+    /// Échéance d'une proposition de l'assistant (`None` pour un agent :
+    /// l'écouteur tranche).
+    #[must_use]
+    pub const fn deadline(&self) -> Option<f64> {
+        match &self.origin {
+            #[cfg(not(target_arch = "wasm32"))]
+            ApprovalOrigin::Agent(_) => None,
+            ApprovalOrigin::Assistant { deadline } => Some(*deadline),
+        }
+    }
+
     /// Prend la réponse (un seul côté tranche : l'écouteur de l'agent peut
     /// l'avoir prise à l'expiration). Toujours vrai pour l'assistant.
     fn claim(&self) -> bool {
@@ -132,7 +143,11 @@ impl PendingApproval {
     /// dite par la conversation).
     #[cfg_attr(
         target_arch = "wasm32",
-        allow(clippy::unused_self, reason = "web : aucun agent à qui répondre")
+        allow(
+            clippy::unused_self,
+            clippy::needless_pass_by_value,
+            reason = "web : aucun agent à qui répondre"
+        )
     )]
     fn answer(&self, result: Result<Value, &ToolError>) {
         #[cfg(not(target_arch = "wasm32"))]
@@ -469,7 +484,7 @@ impl App {
                 }
                 continue;
             }
-            if let ApprovalOrigin::Assistant { deadline } = pending.origin {
+            if let Some(deadline) = pending.deadline() {
                 next_deadline = Some(next_deadline.map_or(deadline, |d: f64| d.min(deadline)));
             }
             self.approvals.pending.push_back(pending);

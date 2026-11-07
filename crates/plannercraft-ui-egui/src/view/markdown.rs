@@ -155,7 +155,9 @@ impl Renderer<'_> {
             return;
         }
         let bullet = self.bullet.take();
-        if self.job.is_empty() && bullet.is_none() {
+        // Élément sans texte (flux en cours, ou sous-liste seule) : pas de
+        // puce orpheline.
+        if self.job.is_empty() {
             return;
         }
         let mut job = std::mem::take(&mut self.job);
