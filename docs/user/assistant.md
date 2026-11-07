@@ -1,4 +1,4 @@
-# Assistant IA : se connecter, ce qui est envoyé
+# Assistant IA : se connecter, acheter des crédits, ce qui est envoyé
 
 Guide court de l'assistant intégré (version « ma propre clé »). Référence technique : `docs/features/assistant.md`, ADR-0024 (`docs/decisions.md`).
 
@@ -14,9 +14,41 @@ Vous lui posez une question en langage courant sur le planning ouvert : « Quand
 
 1. **Affichage → Fractionner l'affichage → Assistant IA** (ou menu Affichage → Assistant IA) : le volet s'ouvre à droite, onglet « Assistant ».
 2. Lisez la mention : *les réponses sont générées par une IA et peuvent contenir des erreurs ; votre planning est envoyé à OpenRouter et au fournisseur du modèle*. Elle reste affichée tant que la conversation est vide.
-3. Cliquez **Activer l'assistant**. Rien n'est envoyé avant ce clic et votre première question. « Désactiver l'assistant » (menu « … » en haut à droite du volet) revient en arrière et oublie la conversation du projet.
+3. Choisissez votre **accès** :
+   - **Compte PlannerCraft** (recommandé) : aucune clé à gérer, vous achetez des crédits à PlannerCraft (§ 3 bis) ;
+   - **Ma clé OpenRouter** : vous connectez votre propre compte OpenRouter et lui payez directement vos appels (§ 3).
 
-## 3. Se connecter à OpenRouter
+   Rien n'est envoyé avant ce choix et votre première question. Le choix se change à tout moment dans le menu « … » (en haut à droite du volet), rubrique « Accès à l'assistant ». « Désactiver l'assistant » (même menu) revient en arrière et oublie la conversation du projet.
+
+## 3 bis. Compte PlannerCraft
+<a id="compte-plannercraft"></a>
+
+### Créer un compte, se connecter
+
+Pas de mot de passe : vous recevez un lien et un code par e-mail.
+
+1. Saisissez votre adresse e-mail et cliquez **Recevoir le lien**. Le compte est créé à la première connexion réussie (un compte neuf reçoit un petit crédit d'essai).
+2. Ouvrez l'e-mail « PlannerCraft » (le code figure aussi dans son objet) :
+   - **sur ordinateur**, saisissez le **code à 8 caractères** dans le volet, puis **Valider** (majuscules, espaces et tirets indifférents) ;
+   - **dans la version web**, cliquez simplement le lien : la page de PlannerCraft s'ouvre connectée (le code marche aussi).
+3. Le lien et le code valent 15 minutes et une seule fois ; « Renvoyer le code » en envoie un nouveau (l'ancien ne vaut plus), « Changer d'adresse » revient à la saisie.
+
+Une fois connecté, le **solde** s'affiche sous le titre du volet (« Solde : 4,37 € ») ; une alerte discrète « Solde bas » apparaît quand il reste peu de crédits. Le menu « … » donne l'adresse du compte, **Consommation**, **Actualiser le solde** et **Se déconnecter du compte**.
+
+### Acheter des crédits
+
+- **Acheter des crédits ▾** (sous le titre, ou dans la conversation quand les crédits sont épuisés) : packs de **5 €, 20 € ou 50 €**. La page de paiement (Stripe) s'ouvre dans votre navigateur ; PlannerCraft ne voit jamais votre carte.
+- Au retour dans l'application, le solde se met à jour ; sinon, **Actualiser le solde** (bouton ⟳ à côté, ou menu « … »). Dans la version web, la page de paiement s'ouvre dans un nouvel onglet : revenez à l'onglet de PlannerCraft.
+- Chaque réponse indique son coût en euros dans son pied (« Sonnet 5.5 · 2,3 k jetons · 0,03 € » ; « < 0,01 € » pour une toute petite réponse : les fractions de centime sont reportées sur la suivante). **Consommation** liste vos demandes des 30 derniers jours et leur total (heures en temps universel).
+- Le prix des modèles (par million de jetons) s'affiche au survol de la liste des modèles.
+
+### Sécurité et confidentialité
+
+- **Aucune clé** de fournisseur d'IA dans l'application : vos questions passent par le serveur PlannerCraft, qui les transmet à OpenRouter puis au fournisseur du modèle, sans conservation ni entraînement imposés. **Le serveur PlannerCraft ne conserve pas vos conversations** : il ne garde que la date, le modèle, le nombre de jetons et le coût de chaque demande (comptabilité, 13 mois).
+- Votre **session** (jeton de connexion, valable 90 jours) est gardée dans le trousseau du système sur ordinateur, en mémoire dans la version web (un rechargement de la page demande de se reconnecter) ; jamais dans les préférences ni dans vos fichiers.
+- **Se déconnecter du compte** révoque la session sur le serveur et l'efface de l'appareil. Une session expirée ou refusée ramène à l'écran de connexion avec un message.
+
+## 3. Se connecter à OpenRouter (accès « Ma clé OpenRouter »)
 
 L'assistant passe par [OpenRouter](https://openrouter.ai), un service qui donne accès à plusieurs modèles d'IA. Il vous faut un compte OpenRouter avec des crédits : **OpenRouter vous facture vos questions**, PlannerCraft ne touche rien et ne voit pas vos échanges.
 
@@ -33,9 +65,9 @@ L'assistant passe par [OpenRouter](https://openrouter.ai), un service qui donne 
 - La barre au-dessus du champ dit ce que fait l'assistant (« Réflexion… », « Lecture : le chemin critique… », « Rédaction… ») et depuis combien de secondes. Sous la question, les lignes « A lu : … » disent ce qu'il a consulté (regroupées en « 3 lectures du planning » au-delà de deux : cliquez pour les voir).
 - **Réflexion** : coupée par défaut. Menu « … » → **Montrer la réflexion** demande au modèle une courte réflexion visible (environ 1 000 jetons de plus par réponse, donc un peu plus cher) ; elle est repliée sous « Réflexion · 6 s », cliquez pour la lire. Certains modèles (Gemini) en montrent parfois d'eux-mêmes.
 - **Arrêter** (le bouton carré, ou Échap dans le champ) coupe la réponse en cours (et sa facturation chez la plupart des fournisseurs) ; le début reste affiché, **Continuer** reprend là où elle s'est arrêtée.
-- Sous chaque réponse : le modèle, le nombre de jetons et le **coût** annoncé par OpenRouter en dollars (survolez pour le détail, dont la part lue dans le cache, moins chère). Au survol (ou au clavier avec Tab) : **Copier** (le texte de la réponse) et **Régénérer** (dernière réponse).
+- Sous chaque réponse : le modèle, le nombre de jetons et le **coût** : en euros débités de votre solde avec un compte PlannerCraft, en dollars annoncés par OpenRouter avec votre clé (survolez pour le détail, dont la part lue dans le cache, moins chère). Au survol (ou au clavier avec Tab) : **Copier** (le texte de la réponse) et **Régénérer** (dernière réponse).
 - **Erreur** : un encadré explique ce qui s'est passé ; **Réessayer** renvoie la question.
-- **Modèle** (liste en haut du volet) : Claude Sonnet 5.5 (par défaut, le plus sûr), Claude Haiku 5.5 (beaucoup moins cher, plus simple), Gemini 3.8 Flash. Le choix est mémorisé.
+- **Modèle** (liste en haut du volet) : Claude Sonnet 5.5 (par défaut, le plus sûr), Claude Haiku 5.5 (beaucoup moins cher, plus simple), Gemini 3.8 Flash. Le choix est mémorisé. Avec un compte PlannerCraft, la liste vient du serveur et le prix s'affiche au survol.
 
 ## 5. La conversation
 
@@ -58,7 +90,7 @@ Demandez en langage courant : « Crée le planning d'une maison de 120 m² », �
 
 ## 6. Ce qui est envoyé
 
-À chaque question partent chez OpenRouter, puis chez le fournisseur du modèle choisi (Anthropic pour Claude, Google pour Gemini) :
+À chaque question partent chez OpenRouter, puis chez le fournisseur du modèle choisi (Anthropic pour Claude, Google pour Gemini) — avec un compte PlannerCraft, en passant d'abord par le serveur PlannerCraft, qui ne conserve pas vos conversations (§ 3 bis) :
 
 - vos questions et les réponses précédentes de la conversation (les plus anciennes allégées : sans ce que l'assistant avait lu) ;
 - la tâche active, la sélection et la vue au moment de la question ;
@@ -78,7 +110,12 @@ Si vos plannings contiennent des noms de personnes ou d'entreprises que vous ne 
 | Trop de demandes | Attendez le délai indiqué, puis renvoyez la question. |
 | Connexion impossible | Vérifiez votre accès à Internet (ou le pare-feu de l'entreprise). |
 | L'assistant a fait trop d'étapes | Posez une question plus simple ou plus précise. |
-| Trousseau du système indisponible | La clé marche pour cette session ; il faudra la redonner au prochain lancement. |
+| Trousseau du système indisponible | La clé (ou la session) marche pour cette session ; il faudra la redonner au prochain lancement. |
+| Crédits épuisés | Compte PlannerCraft : cliquez un pack (5 €, 20 €, 50 €) sous le message, payez, puis **Réessayer**. |
+| Votre session a expiré / Session refusée | Compte PlannerCraft : reconnectez-vous (adresse, puis code reçu par e-mail). |
+| Code ou lien refusé | Code mal saisi, expiré (15 minutes) ou déjà utilisé : « Renvoyer le code ». |
+| Ce modèle n'est pas proposé avec le compte | Choisissez un autre modèle dans la liste. |
+| Le service d'IA est momentanément indisponible | Réessayez dans un instant. |
 
 ## 8. Confort
 

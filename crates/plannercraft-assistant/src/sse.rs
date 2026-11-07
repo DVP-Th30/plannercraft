@@ -8,6 +8,11 @@
 //! émis à la ligne vide. Les autres champs (`event`, `id`, `retry`) sont
 //! ignorés : l'API Chat Completions n'en a pas l'usage.
 //!
+//! Exception (lot A4) : le commentaire `: plannercraft-cost <centimes>
+//! <solde>` que le relais de PlannerCraft ajoute avant `data: [DONE]` est
+//! lu ([`SseParser::take_relay_cost`]) : coût débité de la complétion et
+//! solde du compte après débit, en centimes d'euro.
+//!
 //! Règle 10 : une ligne de plus de [`MAX_LINE_BYTES`] octets est une
 //! erreur, pas une allocation sans fin ; un texte non UTF-8 est remplacé
 //! (U+FFFD) puis refusé par le lecteur JSON en aval.
@@ -29,6 +34,40 @@ pub enum SseError {
     TooLong,
 }
 
+/// Préfixe du commentaire de coût du relais (après `:` et les espaces).
+pub const RELAY_COST_COMMENT: &str = "plannercraft-cost";
+
+/// Coût d'une complétion relayée (commentaire `: plannercraft-cost`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RelayCost {
+    /// Centimes d'euro débités (peut valoir 0 : le reste de moins d'un
+    /// centime est reporté à la complétion suivante).
+    pub cents: i64,
+    /// Solde après débit, en centimes ; `None` si le relais ne le connaît
+    /// pas (il envoie alors `-1`).
+    pub balance: Option<i64>,
+}
+
+/// Lit `plannercraft-cost <centimes> <solde>` (texte d'un commentaire, sans
+/// les deux-points) ; `None` pour tout autre commentaire ou un nombre
+/// illisible.
+#[must_use]
+pub fn parse_relay_cost(comment: &str) -> Option<RelayCost> {
+    let mut words = comment.split_ascii_whitespace();
+    if words.next()? != RELAY_COST_COMMENT {
+        return None;
+    }
+    let cents: i64 = words.next()?.parse().ok()?;
+    let balance: i64 = words.next()?.parse().ok()?;
+    if cents < 0 || words.next().is_some() {
+        return None;
+    }
+    Some(RelayCost {
+        cents,
+        balance: (balance >= 0).then_some(balance),
+    })
+}
+
 /// Lecteur incrémental.
 #[derive(Debug, Default)]
 pub struct SseParser {
@@ -36,6 +75,8 @@ pub struct SseParser {
     pending: Vec<u8>,
     /// Lignes `data` de l'évènement en cours.
     data: Option<String>,
+    /// Coût annoncé par le relais, pas encore lu.
+    relay_cost: Option<RelayCost>,
 }
 
 impl SseParser {
@@ -90,12 +131,20 @@ impl SseParser {
         self.data = None;
     }
 
+    /// Coût annoncé par le relais depuis la dernière lecture (une fois).
+    pub const fn take_relay_cost(&mut self) -> Option<RelayCost> {
+        self.relay_cost.take()
+    }
+
     /// Une ligne complète (sans sa fin de ligne).
     fn line(&mut self, line: &[u8]) -> Result<Option<SseEvent>, SseError> {
         if line.is_empty() {
             return Ok(self.data.take().map(|data| SseEvent { data }));
         }
-        if line.first() == Some(&b':') {
+        if let Some(comment) = line.strip_prefix(b":") {
+            if let Some(cost) = std::str::from_utf8(comment).ok().and_then(parse_relay_cost) {
+                self.relay_cost = Some(cost);
+            }
             return Ok(None);
         }
         let (field, value) = match line.iter().position(|b| *b == b':') {
@@ -169,6 +218,41 @@ mod tests {
             ],
         );
         assert_eq!(got, ["{\"a\":1}", "[DONE]"]);
+    }
+
+    /// Lot A4 : le commentaire de coût du relais est lu, les autres
+    /// commentaires restent ignorés, rien n'apparaît dans les données.
+    #[test]
+    fn relay_cost_comment_read() {
+        let mut p = SseParser::new();
+        let got = all(
+            &mut p,
+            &[
+                b": OPENROUTER PROCESSING\n\ndata: {}\n\n",
+                b": plannercraft-co",
+                b"st 3 437\n\ndata: [DONE]\n\n",
+            ],
+        );
+        assert_eq!(got, ["{}", "[DONE]"]);
+        assert_eq!(
+            p.take_relay_cost(),
+            Some(RelayCost {
+                cents: 3,
+                balance: Some(437)
+            })
+        );
+        assert_eq!(p.take_relay_cost(), None);
+        assert_eq!(
+            parse_relay_cost("plannercraft-cost 0 -1"),
+            Some(RelayCost {
+                cents: 0,
+                balance: None
+            })
+        );
+        assert_eq!(parse_relay_cost("plannercraft-cost x 1"), None);
+        assert_eq!(parse_relay_cost("plannercraft-cost -2 1"), None);
+        assert_eq!(parse_relay_cost("plannercraft-cost 1 2 3"), None);
+        assert_eq!(parse_relay_cost(" OPENROUTER PROCESSING"), None);
     }
 
     #[test]

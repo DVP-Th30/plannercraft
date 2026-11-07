@@ -37,6 +37,7 @@ use crate::http::{HttpEvent, Transport};
 use crate::memory;
 use crate::openrouter;
 use crate::proposal::{self, PROPOSE_TOOL, ProposalCard, ProposalStatus};
+use crate::relay;
 use crate::sse::SseParser;
 use crate::stream::{StreamAccumulator, ToolCall, Usage};
 use crate::tools::{self, ToolHost};
@@ -59,12 +60,50 @@ pub const SAVED_VERSION: u32 = 1;
 /// Réveil de l'interface (egui : `Context::request_repaint`).
 pub type Waker = Arc<dyn Fn() + Send + Sync>;
 
+/// Destination des complétions.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum Endpoint {
+    /// Mode « ma clé » : OpenRouter directement, avec la clé de
+    /// l'utilisateur.
+    #[default]
+    OpenRouter,
+    /// Mode « Compte PlannerCraft » (lot A4) : relais de l'éditeur, avec
+    /// le jeton de session ; aucune clé OpenRouter.
+    Relay {
+        /// Adresse du relais, sans `/` final.
+        base_url: String,
+        /// Identifiant de la demande (`X-PlannerCraft-Request`), tiré à
+        /// chaque envoi, régénération ou reprise ; vide avant.
+        request_id: String,
+    },
+}
+
+impl Endpoint {
+    /// Relais de PlannerCraft d'adresse `base_url`.
+    #[must_use]
+    pub fn relay(base_url: &str) -> Self {
+        Self::Relay {
+            base_url: relay::normalize_base(base_url),
+            request_id: String::new(),
+        }
+    }
+
+    /// Complétions par le relais.
+    #[must_use]
+    pub const fn is_relay(&self) -> bool {
+        matches!(self, Self::Relay { .. })
+    }
+}
+
 /// Réglages d'une demande. La clé n'apparaît jamais dans `Debug` et n'est
 /// jamais gardée dans un tour.
 #[derive(Clone)]
 pub struct RequestConfig {
-    /// Clé OpenRouter.
+    /// Clé OpenRouter (mode « ma clé ») ou jeton de session du relais
+    /// (mode « Compte PlannerCraft »).
     pub api_key: String,
+    /// Destination des complétions.
+    pub endpoint: Endpoint,
     /// Modèle (liste fermée).
     pub model: String,
     /// Langue de l'interface (invite système, messages des outils).
@@ -87,6 +126,7 @@ impl RequestConfig {
     pub fn new(api_key: &str, model: &str, lang: Language, max_tokens: u32) -> Self {
         Self {
             api_key: api_key.to_owned(),
+            endpoint: Endpoint::OpenRouter,
             model: model.to_owned(),
             lang,
             max_tokens,
@@ -101,6 +141,7 @@ impl fmt::Debug for RequestConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RequestConfig")
             .field("api_key", &"<masquée>")
+            .field("endpoint", &self.endpoint)
             .field("model", &self.model)
             .field("lang", &self.lang)
             .field("max_tokens", &self.max_tokens)
@@ -285,6 +326,20 @@ struct Running {
     started_at: f64,
 }
 
+impl Running {
+    /// Jetons et coût de la demande (tours précédents et tour en cours).
+    /// Relais : le coût d'OpenRouter en dollars (`usage.cost`, relayé tel
+    /// quel) n'est pas ce que paie l'utilisateur ; seul le coût débité
+    /// ([`Usage::cost_cents`]) est gardé.
+    fn total_usage(&self) -> Usage {
+        let mut usage = self.usage.plus(self.acc.usage().unwrap_or_default());
+        if self.config.endpoint.is_relay() {
+            usage.cost = None;
+        }
+        usage
+    }
+}
+
 /// Conversation.
 pub struct Conversation {
     turns: Vec<Turn>,
@@ -299,6 +354,12 @@ pub struct Conversation {
     /// Décisions de l'utilisateur sur des propositions (libellé, issue),
     /// pas encore dites au modèle : jointes au prochain message envoyé.
     decisions: Vec<(String, ProposalStatus)>,
+    /// Solde annoncé par le relais (centimes), pas encore lu par
+    /// l'interface (lot A4).
+    balance: Option<i64>,
+    /// Une demande vient d'échouer sur une session refusée par le relais
+    /// (lot A4) : l'interface revient à l'écran de connexion.
+    session_ended: bool,
 }
 
 impl Default for Conversation {
@@ -330,7 +391,21 @@ impl Conversation {
             now: 0.0,
             revision: 0,
             decisions: Vec::new(),
+            balance: None,
+            session_ended: false,
         }
+    }
+
+    /// Solde du compte annoncé par le relais depuis la dernière lecture
+    /// (centimes, une fois ; lot A4).
+    pub const fn take_balance(&mut self) -> Option<i64> {
+        self.balance.take()
+    }
+
+    /// Vrai une fois après un échec `SessionEnded` (session du relais
+    /// expirée ou refusée, lot A4).
+    pub const fn take_session_ended(&mut self) -> bool {
+        std::mem::replace(&mut self.session_ended, false)
     }
 
     /// Réveil appelé à chaque évènement reçu.
@@ -459,6 +534,7 @@ impl Conversation {
         if text.is_empty() {
             return Ok(());
         }
+        let config = Self::fresh_request(config)?;
         self.push_turn(Turn::new(text, &config.model, config.asked_at.clone()));
         self.start_round(0, config, Usage::default(), false, transport);
         Ok(())
@@ -469,9 +545,22 @@ impl Conversation {
             return Err(AssistantError::Busy);
         }
         if config.api_key.trim().is_empty() {
-            return Err(AssistantError::NoKey);
+            return Err(if config.endpoint.is_relay() {
+                AssistantError::NoSession
+            } else {
+                AssistantError::NoKey
+            });
         }
         Ok(())
+    }
+
+    /// Relais : identifiant neuf de la demande (envoi, régénération,
+    /// reprise) ; les tours d'outils qui suivent le gardent.
+    fn fresh_request(mut config: RequestConfig) -> Result<RequestConfig, AssistantError> {
+        if let Endpoint::Relay { request_id, .. } = &mut config.endpoint {
+            *request_id = relay::new_request_id()?;
+        }
+        Ok(config)
     }
 
     /// Régénère la dernière réponse (ou réessaie après une erreur) : le
@@ -514,6 +603,10 @@ impl Conversation {
         if turn.state != TurnState::Stopped {
             return Ok(());
         }
+        let config = Self::fresh_request(config)?;
+        let Some(turn) = self.turns.last_mut() else {
+            return Ok(());
+        };
         turn.state = TurnState::Streaming;
         turn.wire.push(json!({ "role": "user", "content": prompt }));
         let usage = turn.usage.take().unwrap_or_default();
@@ -531,7 +624,7 @@ impl Conversation {
         };
         running.cancel.store(true, Ordering::Relaxed);
         let now = self.now;
-        let usage = running.usage.plus(running.acc.usage().unwrap_or_default());
+        let usage = running.total_usage();
         if let Some(turn) = self.turns.last_mut() {
             let text = running.acc.text();
             if !text.is_empty() {
@@ -715,9 +808,23 @@ impl Conversation {
             });
             return;
         };
+        self.read_relay_cost();
         for event in events {
             if !self.data(&event.data) {
                 return;
+            }
+        }
+    }
+
+    /// Coût et solde annoncés par le relais (`: plannercraft-cost`).
+    fn read_relay_cost(&mut self) {
+        let Some(r) = self.running.as_mut() else {
+            return;
+        };
+        if let Some(cost) = r.sse.take_relay_cost() {
+            r.usage.cost_cents = Some(r.usage.cost_cents.unwrap_or(0).saturating_add(cost.cents));
+            if cost.balance.is_some() {
+                self.balance = cost.balance;
             }
         }
     }
@@ -775,13 +882,16 @@ impl Conversation {
         };
         running.cancel.store(true, Ordering::Relaxed);
         let now = self.now;
-        let usage = running.usage.plus(running.acc.usage().unwrap_or_default());
+        let usage = running.total_usage();
         if let Some(turn) = self.turns.last_mut() {
             let text = running.acc.text();
             if !text.is_empty() {
                 turn.wire.push(json!({ "role": "assistant", "content": text }));
             }
             turn.reasoning_end(now);
+            if matches!(error, AssistantError::SessionEnded { .. }) {
+                self.session_ended = true;
+            }
             turn.state = TurnState::Failed(error);
             turn.usage = (usage != Usage::default()).then_some(usage);
         }
@@ -793,13 +903,18 @@ impl Conversation {
         };
         let status = r.status.unwrap_or(0);
         if !(200..300).contains(&status) {
-            let error = openrouter::http_error(status, &r.headers, &r.error_body);
+            let error = if r.config.endpoint.is_relay() {
+                relay::api_error(status, &r.headers, &r.error_body)
+            } else {
+                openrouter::http_error(status, &r.headers, &r.error_body)
+            };
             self.running = Some(r);
             self.fail(error);
             return;
         }
         let tail = r.sse.finish();
         self.running = Some(r);
+        self.read_relay_cost();
         match tail {
             Ok(Some(event)) => {
                 if !self.data(&event.data) {
@@ -825,7 +940,7 @@ impl Conversation {
             return;
         }
         let now = self.now;
-        let usage = r.usage.plus(r.acc.usage().unwrap_or_default());
+        let usage = r.total_usage();
         let text = r.acc.text().to_owned();
         let calls = r.acc.tool_calls();
         let next = r.round.saturating_add(1);
@@ -1007,7 +1122,16 @@ impl Conversation {
             allow_tools,
         );
         openrouter::with_reasoning(&mut body, config.reasoning_budget);
-        let request = openrouter::chat_request(&config.api_key, &body);
+        let request = match &config.endpoint {
+            Endpoint::OpenRouter => openrouter::chat_request(&config.api_key, &body),
+            Endpoint::Relay { base_url, request_id } => relay::chat_request(
+                base_url,
+                &config.api_key,
+                request_id,
+                round.saturating_add(1),
+                &body,
+            ),
+        };
         let id = self.next_request;
         self.next_request = self.next_request.saturating_add(1);
         let cancel = Arc::new(AtomicBool::new(false));

@@ -40,7 +40,7 @@ pub(crate) fn assistant_harness(transport: Arc<ScriptedTransport>) -> Harness<'s
 
 /// Active l'assistant et saisit la clé (connexion simulée).
 pub(crate) fn enable_with_key(harness: &mut Harness<'static, App>) {
-    click(harness, &fr(TextId::AssistantEnable));
+    click(harness, &fr(TextId::AssistantUseOwnKey));
     harness.run();
     wait_key_loaded(harness);
     KEY.clone_into(&mut harness.state_mut().assistant_mut().key_draft);
@@ -106,7 +106,7 @@ fn h_ui_138_explicit_activation_with_disclosure() {
     assert!(!harness.state().state.assistant.enabled);
     harness.get_by_label(&fr(TextId::AssistantDisclosure));
     assert!(harness.query_by_label(&fr(TextId::AssistantLogin)).is_none());
-    click(&mut harness, &fr(TextId::AssistantEnable));
+    click(&mut harness, &fr(TextId::AssistantUseOwnKey));
     harness.run();
     wait_key_loaded(&mut harness);
     assert!(harness.state().state.assistant.enabled);
@@ -122,7 +122,7 @@ fn h_ui_138_explicit_activation_with_disclosure() {
     click(&mut harness, &fr(TextId::AssistantDisable));
     harness.run();
     assert!(!harness.state().state.assistant.enabled);
-    harness.get_by_label(&fr(TextId::AssistantEnable));
+    harness.get_by_label(&fr(TextId::AssistantUseAccount));
 }
 
 /// H-UI-138 : Affichage → Assistant IA (ruban et menu) ouvre et referme
@@ -161,7 +161,7 @@ fn h_ui_138_ribbon_toggles_assistant_tab() {
 fn h_ui_139_key_never_in_ui_state() {
     let transport = Arc::new(ScriptedTransport::new(vec![]));
     let mut harness = assistant_harness(transport);
-    click(&mut harness, &fr(TextId::AssistantEnable));
+    click(&mut harness, &fr(TextId::AssistantUseOwnKey));
     harness.run();
     wait_key_loaded(&mut harness);
     click(&mut harness, &fr(TextId::AssistantEnterKey));
@@ -204,7 +204,7 @@ fn h_ui_139_key_never_in_ui_state() {
 fn h_ui_139_refused_without_key() {
     let transport = Arc::new(ScriptedTransport::new(vec![]));
     let mut harness = assistant_harness(Arc::clone(&transport));
-    click(&mut harness, &fr(TextId::AssistantEnable));
+    click(&mut harness, &fr(TextId::AssistantUseOwnKey));
     harness.run();
     wait_key_loaded(&mut harness);
     harness.state_mut().assistant_mut().draft = "Quand finit le projet ?".to_owned();
@@ -269,7 +269,7 @@ fn h_ui_139_login_simulated() {
         .state_mut()
         .dispatch(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
     harness.run();
-    click(&mut harness, &fr(TextId::AssistantEnable));
+    click(&mut harness, &fr(TextId::AssistantUseOwnKey));
     harness.run();
     wait_key_loaded(&mut harness);
     click(&mut harness, &fr(TextId::AssistantLogin));
@@ -466,7 +466,7 @@ fn h_ui_140_model_choice_remembered() {
     harness
         .state_mut()
         .dispatch(Action::Assistant(AssistantOp::SetModel(
-            "google/gemini-3.8-flash",
+            "google/gemini-3.8-flash".to_owned(),
         )));
     harness.run();
     assert_eq!(harness.state().state.assistant.model, "google/gemini-3.8-flash");
@@ -826,22 +826,33 @@ fn h_ui_148_keyboard_actions() {
     assert!(!harness.state().assistant().conversation.busy());
 }
 
-/// Harnais de capture : volet Assistant activé, clé saisie, exemple ouvert.
-pub(crate) fn chat_capture_harness(
-    transport: Arc<ScriptedTransport>,
+/// Harnais de capture : exemple ouvert, volet sur l'onglet Assistant (pas
+/// encore activé), services sur `transport`.
+pub(crate) fn capture_harness(
+    transport: plannercraft_assistant::http::SharedTransport,
     language: plannercraft_ui_egui::LanguagePref,
     theme: plannercraft_ui_egui::ThemePref,
 ) -> Harness<'static, App> {
     let mut harness = crate::common::harness(language, theme);
     harness
         .state_mut()
-        .set_assistant_services(AssistantServices::with_transport(transport as _));
+        .set_assistant_services(AssistantServices::with_transport(transport));
     harness.run();
     harness.state_mut().open_demo();
     harness.run();
     harness
         .state_mut()
         .dispatch(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
+    harness
+}
+
+/// Harnais de capture : volet Assistant activé, clé saisie, exemple ouvert.
+pub(crate) fn chat_capture_harness(
+    transport: Arc<ScriptedTransport>,
+    language: plannercraft_ui_egui::LanguagePref,
+    theme: plannercraft_ui_egui::ThemePref,
+) -> Harness<'static, App> {
+    let mut harness = capture_harness(transport, language, theme);
     harness
         .state_mut()
         .dispatch(Action::Assistant(AssistantOp::Enable));

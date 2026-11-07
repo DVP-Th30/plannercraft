@@ -1,5 +1,7 @@
 //! Connexion OAuth du web : redirection de la page vers OpenRouter, retour
-//! sur la même page avec `?code=…&state=…`.
+//! sur la même page avec `?code=…&state=…`. Lot A4 : lien magique du
+//! compte PlannerCraft (`?token=…`), retour de la page de paiement, nouvel
+//! onglet.
 //!
 //! Le vérifieur PKCE et l'état doivent survivre au rechargement de la
 //! page : ils sont gardés dans `sessionStorage` (propre à l'onglet) le
@@ -83,4 +85,69 @@ pub fn take_callback() -> Option<Result<(String, String), AssistantError>> {
         return Some(Err(fail("connexion commencée dans un autre onglet")));
     };
     Some(callback_code(query, &state).map(|code| (code, verifier)))
+}
+
+/// Lien magique du compte PlannerCraft dans l'adresse (`…/login?token=…`,
+/// lot A4) : le jeton à échanger. L'adresse est nettoyée (requête et
+/// chemin `/login` retirés) pour que le jeton ne reste ni dans la barre
+/// d'adresse ni dans l'historique.
+#[must_use]
+pub fn take_magic_token() -> Option<String> {
+    let window = web_sys::window()?;
+    let location = window.location();
+    let search = location.search().ok()?;
+    let query = search.strip_prefix('?').unwrap_or(&search);
+    let token = query_param(query, "token")?;
+    clean_url(&window, &location, "/login");
+    (!token.trim().is_empty()).then_some(token)
+}
+
+/// Retour de la page de paiement (`…/credits/success` ou
+/// `…/credits/cancel`, lot A4) : `Some(true)` pour un paiement abouti,
+/// `Some(false)` pour un abandon ; l'adresse est nettoyée.
+#[must_use]
+pub fn take_credits_return() -> Option<bool> {
+    let window = web_sys::window()?;
+    let location = window.location();
+    let path = location.pathname().ok()?;
+    let outcome = if path.ends_with("/credits/success") {
+        true
+    } else if path.ends_with("/credits/cancel") {
+        false
+    } else {
+        return None;
+    };
+    let suffix = if outcome {
+        "/credits/success"
+    } else {
+        "/credits/cancel"
+    };
+    clean_url(&window, &location, suffix);
+    Some(outcome)
+}
+
+/// Remplace l'adresse par l'origine et le chemin sans `suffix` ni requête.
+fn clean_url(window: &web_sys::Window, location: &web_sys::Location, suffix: &str) {
+    let (Ok(origin), Ok(path)) = (location.origin(), location.pathname()) else {
+        return;
+    };
+    let path = path.strip_suffix(suffix).unwrap_or(&path);
+    let path = if path.is_empty() { "/" } else { path };
+    if let Ok(history) = window.history() {
+        let _ = history.replace_state_with_url(&JsValue::NULL, "", Some(&format!("{origin}{path}")));
+    }
+}
+
+/// Ouvre `url` dans un nouvel onglet (page de paiement, lot A4).
+///
+/// # Errors
+///
+/// Le navigateur a bloqué l'ouverture.
+pub fn open_tab(url: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or_else(|| "pas de fenêtre".to_owned())?;
+    match window.open_with_url_and_target(url, "_blank") {
+        Ok(Some(_)) => Ok(()),
+        Ok(None) => Err("fenêtre bloquée par le navigateur".to_owned()),
+        Err(_) => Err("ouverture refusée".to_owned()),
+    }
 }

@@ -1614,10 +1614,10 @@ impl App {
         self.assistant.ensure_waker(ctx);
         self.assistant.conversation.set_now(self.clock);
         self.sync_assistant_document();
-        if self.state.assistant.enabled {
-            self.assistant.start_key_load();
-        }
-        let mut changed = self.assistant.poll_services();
+        self.assistant.start_loads(&self.state.assistant);
+        self.assistant.set_focused(ctx.input(|i| i.focused));
+        let mut changed = self.assistant.poll_services(&mut self.state.assistant);
+        let was_busy = self.assistant.conversation.busy();
         if self.assistant.conversation.busy() {
             let lang = self.text_language();
             let mut host = plannercraft_assistant::tools::SessionHost::new(
@@ -1633,6 +1633,10 @@ impl App {
             drop(host);
             self.queue_proposals(proposals);
         }
+        // Lot A4 : solde annoncé par le relais, session refusée, compte
+        // relu à la fin de chaque demande.
+        self.assistant
+            .after_conversation_poll(was_busy, self.state.assistant.access);
         if changed {
             ctx.request_repaint();
         }

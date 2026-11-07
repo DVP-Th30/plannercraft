@@ -21,12 +21,18 @@
 //!   ancré ([`ChatScroll`]), conversation gardée par document
 //!   ([`Archive`], stockage local de l'application, jamais dans le fichier
 //!   projet ni dans `UiState`).
+//! - Lot A4 (H-UI-155 à H-UI-160) : deux accès, « Compte PlannerCraft »
+//!   (relais de l'éditeur, [`account`]) et « Ma clé OpenRouter ».
+
+mod account;
+
+pub use account::{Account, AccountInfo, AccountStage};
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use plannercraft_assistant::archive::Archive;
-use plannercraft_assistant::conversation::{Conversation, RequestConfig, Waker};
+use plannercraft_assistant::conversation::{Conversation, Endpoint, RequestConfig, Waker};
 use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::http::{EventSink, HttpEvent, HttpRequest, SharedTransport, Transport};
 #[cfg(target_arch = "wasm32")]
@@ -36,10 +42,31 @@ use plannercraft_assistant::platform::Background;
 use plannercraft_assistant::secrets::{MemoryStore, SharedSecrets};
 
 /// Commande du volet Assistant (réducteur d'`App`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AssistantOp {
-    /// Active l'assistant (après la mention de transparence).
+    /// Active l'assistant (après la mention de transparence) avec l'accès
+    /// mémorisé.
     Enable,
+    /// Choisit l'accès et active l'assistant (lot A4, écran d'activation).
+    ChooseAccess(crate::state::AssistantAccess),
+    /// Change d'accès (menu « … », lot A4) ; la conversation reste.
+    SetAccess(crate::state::AssistantAccess),
+    /// « Recevoir le lien » (compte PlannerCraft, lot A4).
+    AccountSendLink,
+    /// « Renvoyer le code ».
+    AccountResend,
+    /// « Valider » le code reçu par e-mail.
+    AccountVerify,
+    /// « Changer d'adresse ».
+    AccountChangeEmail,
+    /// « Se déconnecter du compte » (jeton révoqué puis oublié).
+    AccountLogout,
+    /// « Actualiser le solde » (`/v1/me`).
+    AccountRefresh,
+    /// « Acheter des crédits » : pack (`p5`, `p20`, `p50`).
+    Checkout(&'static str),
+    /// Ouvre ou ferme la vue « Consommation ».
+    ShowUsage(bool),
     /// Désactive l'assistant (la conversation est oubliée).
     Disable,
     /// Envoie la question saisie.
@@ -58,8 +85,9 @@ pub enum AssistantOp {
     SaveKey,
     /// « Se déconnecter » : clé oubliée et effacée du magasin.
     Logout,
-    /// Choisit un modèle de la liste fermée.
-    SetModel(&'static str),
+    /// Choisit un modèle de la liste fermée (celle d'OpenRouter, ou celle
+    /// du relais en mode compte).
+    SetModel(String),
     /// Régénère la dernière réponse, ou réessaie après une erreur (lot
     /// A1b).
     Regenerate,
@@ -191,8 +219,13 @@ pub struct AssistantServices {
     /// Magasin de la clé ; `None` : trousseau du système ouvert à la
     /// première activation (hors du fil de l'interface).
     pub secrets: Option<SharedSecrets>,
-    /// Navigateur de la connexion OAuth (desktop) ; `None` : bouton
-    /// « Se connecter » grisé.
+    /// Magasin du jeton de session du compte PlannerCraft (lot A4) ;
+    /// `None` : entrée du trousseau ouverte à la première activation.
+    pub session_secrets: Option<SharedSecrets>,
+    /// Adresse du relais de PlannerCraft (lot A4).
+    pub relay_url: String,
+    /// Navigateur de la connexion OAuth et de la page de paiement
+    /// (desktop) ; `None` : bouton « Se connecter » grisé.
     #[cfg(not(target_arch = "wasm32"))]
     pub browser: Option<Arc<dyn plannercraft_assistant::platform::BrowserOpener>>,
     /// Connexion par redirection de la page (web).
@@ -214,12 +247,15 @@ impl AssistantServices {
         Self::with_transport(Arc::new(OfflineTransport))
     }
 
-    /// Transport donné, clé en mémoire, sans navigateur (tests).
+    /// Transport donné, clé et jeton en mémoire, sans navigateur, relais
+    /// fictif `https://relay.test` (tests).
     #[must_use]
     pub fn with_transport(transport: SharedTransport) -> Self {
         Self {
             transport,
             secrets: Some(Arc::new(MemoryStore::default())),
+            session_secrets: Some(Arc::new(MemoryStore::default())),
+            relay_url: TEST_RELAY_URL.to_owned(),
             #[cfg(not(target_arch = "wasm32"))]
             browser: None,
             #[cfg(target_arch = "wasm32")]
@@ -234,6 +270,8 @@ impl AssistantServices {
         Self {
             transport: Arc::new(plannercraft_assistant::EhttpTransport),
             secrets: None,
+            session_secrets: None,
+            relay_url: plannercraft_assistant::relay::base_url(),
             browser: Some(Arc::new(plannercraft_assistant::platform::SystemBrowser)),
         }
     }
@@ -246,6 +284,8 @@ impl AssistantServices {
         Self {
             transport: Arc::new(plannercraft_assistant::EhttpTransport),
             secrets: Some(Arc::new(MemoryStore::default())),
+            session_secrets: Some(Arc::new(MemoryStore::default())),
+            relay_url: plannercraft_assistant::relay::base_url(),
             web_login: true,
         }
     }
@@ -255,6 +295,13 @@ impl AssistantServices {
     #[must_use]
     pub fn with_browser(mut self, browser: Arc<dyn plannercraft_assistant::platform::BrowserOpener>) -> Self {
         self.browser = Some(browser);
+        self
+    }
+
+    /// Adresse du relais donnée (essais).
+    #[must_use]
+    pub fn with_relay_url(mut self, url: &str) -> Self {
+        self.relay_url = plannercraft_assistant::relay::normalize_base(url);
         self
     }
 
@@ -271,6 +318,9 @@ impl AssistantServices {
         }
     }
 }
+
+/// Adresse du relais des services de test.
+pub const TEST_RELAY_URL: &str = "https://relay.test";
 
 /// Avis affiché sous la connexion.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -340,12 +390,18 @@ pub struct AssistantPanel {
     waker: Option<Waker>,
     #[cfg(target_arch = "wasm32")]
     callback_checked: bool,
+    /// Compte PlannerCraft (lot A4).
+    account: Account,
+    /// Lien magique et retour de paiement lus dans l'adresse (web).
+    #[cfg(target_arch = "wasm32")]
+    account_returns_checked: bool,
 }
 
 impl std::fmt::Debug for AssistantPanel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AssistantPanel")
             .field("connected", &self.key.is_some())
+            .field("account", &self.account)
             .field("conversation", &self.conversation)
             .field("notice", &self.notice)
             .finish_non_exhaustive()
@@ -383,6 +439,9 @@ impl AssistantPanel {
             waker: None,
             #[cfg(target_arch = "wasm32")]
             callback_checked: false,
+            account: Account::default(),
+            #[cfg(target_arch = "wasm32")]
+            account_returns_checked: false,
         }
     }
 
@@ -533,10 +592,11 @@ impl AssistantPanel {
         ));
     }
 
-    /// Lit les résultats en attente (magasin, connexion, enregistrement) ;
-    /// vrai si quelque chose a changé.
-    pub fn poll_services(&mut self) -> bool {
-        let mut changed = false;
+    /// Lit les résultats en attente (magasin, connexion, enregistrement,
+    /// appels au relais du compte) ; vrai si quelque chose a changé.
+    /// `prefs` : le lien magique du web choisit l'accès « compte ».
+    pub fn poll_services(&mut self, prefs: &mut crate::state::AssistantPrefs) -> bool {
+        let mut changed = self.poll_account(prefs);
         #[cfg(target_arch = "wasm32")]
         if !self.callback_checked {
             self.callback_checked = true;
@@ -633,8 +693,31 @@ impl AssistantPanel {
         match op {
             AssistantOp::Enable => {
                 prefs.enabled = true;
-                self.start_key_load();
+                self.start_loads(prefs);
             }
+            AssistantOp::ChooseAccess(access) => {
+                prefs.access = access;
+                prefs.enabled = true;
+                self.start_loads(prefs);
+            }
+            AssistantOp::SetAccess(access) => {
+                if prefs.access != access {
+                    self.conversation.stop();
+                    self.cancel_login();
+                    self.notice = self.notice.take().filter(|n| *n == Notice::KeyringMissing);
+                    self.account.usage_open = false;
+                    prefs.access = access;
+                    self.start_loads(prefs);
+                }
+            }
+            AssistantOp::AccountSendLink => self.send_link(false),
+            AssistantOp::AccountResend => self.send_link(true),
+            AssistantOp::AccountVerify => self.verify_code(),
+            AssistantOp::AccountChangeEmail => self.change_email(),
+            AssistantOp::AccountLogout => self.account_logout(),
+            AssistantOp::AccountRefresh => self.refresh_account(),
+            AssistantOp::Checkout(pack) => self.checkout(pack),
+            AssistantOp::ShowUsage(open) => self.show_usage(open),
             AssistantOp::Disable => {
                 prefs.enabled = false;
                 // « Désactiver » oublie la conversation du document.
@@ -679,22 +762,59 @@ impl AssistantPanel {
                 }
             }
             AssistantOp::SetModel(id) => {
-                id.clone_into(&mut prefs.model);
+                prefs.model = id.chars().take(crate::state::MAX_ASSISTANT_MODEL_CHARS).collect();
             }
             AssistantOp::ToggleReasoning => prefs.show_reasoning = !prefs.show_reasoning,
         }
     }
 
-    /// Réglages d'une demande ; sans clé : avis « connectez-vous ».
+    /// Modèle d'une demande : en mode compte, un modèle de la liste du
+    /// relais (`/v1/me`), sinon le premier de cette liste ; en mode clé, la
+    /// liste fermée d'OpenRouter.
+    #[must_use]
+    pub fn model_for(&self, prefs: &crate::state::AssistantPrefs) -> String {
+        if prefs.access == crate::state::AssistantAccess::Account
+            && let Some(me) = &self.account.me
+            && let Some(first) = me.models.first()
+        {
+            return me
+                .models
+                .iter()
+                .find(|m| m.id == prefs.model)
+                .unwrap_or(first)
+                .id
+                .clone();
+        }
+        openrouter::model_or_default(&prefs.model).id.to_owned()
+    }
+
+    /// Réglages d'une demande ; sans clé ou sans session : avis
+    /// « connectez-vous ».
     fn config(&mut self, prefs: &crate::state::AssistantPrefs, env: &AssistantEnv) -> Option<RequestConfig> {
-        let Some(api_key) = self.key.clone() else {
-            self.notice = Some(Notice::Error(AssistantError::NoKey));
+        let account = prefs.access == crate::state::AssistantAccess::Account;
+        let secret = if account {
+            self.account.token()
+        } else {
+            self.key.clone()
+        };
+        let Some(api_key) = secret else {
+            self.notice = Some(Notice::Error(if account {
+                AssistantError::NoSession
+            } else {
+                AssistantError::NoKey
+            }));
             return None;
+        };
+        let endpoint = if account {
+            Endpoint::relay(&self.services.relay_url)
+        } else {
+            Endpoint::OpenRouter
         };
         let reasoning = prefs.show_reasoning.then_some(openrouter::REASONING_BUDGET);
         Some(RequestConfig {
             api_key,
-            model: openrouter::model_or_default(&prefs.model).id.to_owned(),
+            endpoint,
+            model: self.model_for(prefs),
             lang: env.lang,
             max_tokens: openrouter::max_tokens_for(reasoning),
             context: env.context.clone(),

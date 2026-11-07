@@ -1,5 +1,6 @@
-//! Garde de la clé OpenRouter, **hors** de l'état d'interface (`UiState`
-//! est envoyé aux agents MCP rattachés) et des journaux.
+//! Garde de la clé OpenRouter et du jeton de session du compte
+//! PlannerCraft (lot A4, entrée distincte), **hors** de l'état d'interface
+//! (`UiState` est envoyé aux agents MCP rattachés) et des journaux.
 //!
 //! - Desktop : trousseau du système par `keyring-core` (Secret Service
 //!   par zbus sous Linux, Trousseau de macOS, Gestionnaire
@@ -14,8 +15,11 @@ use crate::error::AssistantError;
 
 /// Service et compte de l'entrée du trousseau.
 pub const KEYRING_SERVICE: &str = "PlannerCraft";
-/// Compte de l'entrée du trousseau.
+/// Compte de l'entrée du trousseau (clé OpenRouter, mode « ma clé »).
 pub const KEYRING_USER: &str = "openrouter-api-key";
+/// Compte de l'entrée du jeton de session du relais (mode « Compte
+/// PlannerCraft », lot A4).
+pub const KEYRING_SESSION_USER: &str = "plannercraft-session-token";
 
 /// Magasin de la clé.
 pub trait SecretStore: Send + Sync {
@@ -80,11 +84,26 @@ fn poisoned() -> AssistantError {
     }
 }
 
-/// Magasin du système, ou en mémoire s'il manque (avec la raison).
+/// Magasin du système pour la clé OpenRouter, ou en mémoire s'il manque
+/// (avec la raison).
 #[must_use]
 pub fn open_default() -> (SharedSecrets, Option<AssistantError>) {
+    open_entry(KEYRING_USER)
+}
+
+/// Magasin du système pour le jeton de session du relais, ou en mémoire
+/// s'il manque (avec la raison).
+#[must_use]
+pub fn open_session() -> (SharedSecrets, Option<AssistantError>) {
+    open_entry(KEYRING_SESSION_USER)
+}
+
+/// Entrée `user` du trousseau (service [`KEYRING_SERVICE`]), ou magasin en
+/// mémoire s'il manque.
+#[must_use]
+pub fn open_entry(user: &str) -> (SharedSecrets, Option<AssistantError>) {
     #[cfg(not(target_arch = "wasm32"))]
-    match keyring::KeyringStore::open() {
+    match keyring::KeyringStore::open(user) {
         Ok(store) => (Arc::new(store), None),
         Err(error) => {
             log::warn!("trousseau du système indisponible, clé en mémoire : {error}");
@@ -92,7 +111,10 @@ pub fn open_default() -> (SharedSecrets, Option<AssistantError>) {
         }
     }
     #[cfg(target_arch = "wasm32")]
-    (Arc::new(MemoryStore::default()), None)
+    {
+        let _ = user;
+        (Arc::new(MemoryStore::default()), None)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -101,7 +123,7 @@ mod keyring {
 
     use keyring_core::{CredentialStore, Entry, Error};
 
-    use super::{KEYRING_SERVICE, KEYRING_USER, SecretStore};
+    use super::{KEYRING_SERVICE, SecretStore};
     use crate::error::AssistantError;
 
     /// Entrée du trousseau du système.
@@ -144,13 +166,11 @@ mod keyring {
     }
 
     impl KeyringStore {
-        /// Ouvre l'entrée de PlannerCraft dans le trousseau, et vérifie
-        /// qu'il répond (lecture).
-        pub fn open() -> Result<Self, AssistantError> {
+        /// Ouvre l'entrée `user` de PlannerCraft dans le trousseau, et
+        /// vérifie qu'il répond (lecture).
+        pub fn open(user: &str) -> Result<Self, AssistantError> {
             let store = platform_store().map_err(|e| fail(&e))?;
-            let entry = store
-                .build(KEYRING_SERVICE, KEYRING_USER, None)
-                .map_err(|e| fail(&e))?;
+            let entry = store.build(KEYRING_SERVICE, user, None).map_err(|e| fail(&e))?;
             let this = Self { entry };
             this.load()?;
             Ok(this)
