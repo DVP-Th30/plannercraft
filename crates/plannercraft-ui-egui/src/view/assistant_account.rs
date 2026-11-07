@@ -139,10 +139,33 @@ pub fn relay_notice(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens) {
 
 /// Connexion au compte (H-UI-156) : adresse, puis code reçu par e-mail.
 pub fn login(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel, t: &ChatTokens) {
+    let stage = panel.account().stage();
+    if stage == AccountStage::SignedIn {
+        return;
+    }
+    ui.add_space(6.0);
+    egui::Frame::new()
+        .fill(t.surface)
+        .stroke(Stroke::new(1.0, t.border))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(12))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            login_form(ui, fc, panel, t, stage);
+        });
+    ui.add_space(4.0);
+}
+
+fn login_form(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    panel: &mut AssistantPanel,
+    t: &ChatTokens,
+    stage: AccountStage,
+) {
     let texts = fc.texts;
     let working = panel.account().working();
-    ui.add_space(4.0);
-    match panel.account().stage() {
+    match stage {
         AccountStage::SignedIn => {}
         AccountStage::Loading => {
             ui.label(RichText::new(texts.get(TextId::AssistantKeyLoading)).color(t.meta));
@@ -235,7 +258,6 @@ pub fn login(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPane
             });
         }
     }
-    ui.add_space(4.0);
 }
 
 /// Bouton « Acheter des crédits » et son menu des packs (H-UI-158).

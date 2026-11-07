@@ -458,7 +458,12 @@ fn conversation(
     events: &mut Vec<ChatEvent>,
 ) {
     if panel.conversation.is_empty() {
-        empty_state(ui, fc, t, events);
+        // Défile si l'écran de connexion au compte (lot A4) laisse peu de
+        // hauteur : l'état vide ne recouvre jamais la saisie.
+        egui::ScrollArea::vertical()
+            .id_salt("plannercraft_assistant_empty")
+            .auto_shrink([false, false])
+            .show(ui, |ui| empty_state(ui, fc, t, events));
         return;
     }
     let now = ui.input(|i| i.time);
