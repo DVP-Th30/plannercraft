@@ -1284,3 +1284,16 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 **Lot A2 — arbitrages du propriétaire (2026-11-07), amendant le paragraphe précédent.**
 - *Délai* : une proposition d'origine `Assistant` **n'expire plus** (aucun agent n'attend) ; elle attend Accepter, Refuser, une nouvelle conversation, une régénération, ou devient périmée si le document est remplacé ; la garde « génération changée ⇒ nouvel aperçu » reste. Les écritures d'origine `Agent` (MCP) gardent les 120 s d'ADR-0015 D10. `ApprovalOrigin::Assistant` n'a plus d'échéance ; test `h_ui_153_assistant_proposal_never_expires` (plus de 200 s simulées).
 - *Dates* : toujours aucune date **calculée** ; mais une date **citée par l'utilisateur** peut servir d'échéance (`task.set_deadline`) ou de contrainte (`task.set_constraint`, type et date), ajoutées à la liste fermée avec la consigne « uniquement une date écrite par l'utilisateur dans sa demande, jamais une date que tu déduis » (schéma : 3 214 octets, ≈ 800 jetons). Garde-fou `proposal::check_cited_dates` : toute date ISO des arguments doit figurer dans la question du tour (formes reconnues : ISO, `15/03/2027` et sa lecture mois/jour, `15 mars 2027`, `1er avril`, `March 15, 2027` ; sans année écrite, toute année est admise — limite : l'année est alors choisie par le modèle) ; sinon refus au modèle avec le motif, qui compte comme une correction. Début, fin et réels saisis, ancre, date d'état et calendriers restent exclus. Banc : scénario `bench_deadline_cited_by_user` (« fixe la livraison au 15 mars 2027 » : date déduite refusée, échéance posée à la date citée, aucune autre date).
+
+## ADR-0025 — 2026-11-07 — Relais privé : pile, comptes, crédits
+
+**Contexte.** ADR-0024 accepté ; le propriétaire valide la création du dépôt privé `DVP-Th30/plannercraft-relay` (2026-11-07) et ne souhaite pas de demande préalable à OpenRouter. Cahier : `docs/plans/relay.md`.
+
+**Décisions.**
+- **Pile : Rust (axum, tokio, sqlx) + Postgres**, un binaire, Dockerfile, déployé par Coolify sur l'infrastructure de l'éditeur. Pourquoi : même langage et mêmes agents que l'application, types partagés possibles plus tard, un seul binaire à surveiller. Écartés : Node/TypeScript (deuxième écosystème à maintenir), fonctions Supabase (envoi d'e-mails bridé sur l'offre gratuite, logique de crédits moins contrôlable).
+- **Connexion par lien magique e-mail** (+ code court pour le desktop), jetons opaques révocables de 90 jours ; aucun mot de passe. Envoi SMTP par `lettre` avec un mailer « console » en développement ; fournisseur à choisir par le propriétaire.
+- **Crédits en centimes entiers**, grand livre en ajout seul (achats, débits, remboursements), débit au coût réel × marge (paramètre, 2 au départ), 0,50 € d'essai par compte neuf.
+- **Endpoint métier unique** `POST /v1/assistant/chat`, jamais de proxy générique (ADR-0024) ; modèle, `max_tokens`, `provider` (ZDR, pas d'entraînement), nombre de complétions par demande et débit imposés par le relais ; aucun contenu de conversation conservé.
+- **CI du dépôt privé réduite au minimum** (`workflow_dispatch` seulement) : les Actions d'un dépôt privé consomment les crédits GitHub du propriétaire ; les vérifications tournent en local sous `memlimit`.
+- **Stripe en mode test** jusqu'à l'éligibilité Managed Payments ; packs 5 / 20 / 50 €.
+
