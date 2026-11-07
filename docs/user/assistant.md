@@ -51,10 +51,10 @@ Demandez en langage courant : « Crée le planning d'une maison de 120 m² », �
 - **Voir** ouvre l'onglet Opérations IA : la table avant/après (début, fin, marge, chemin critique), les nouvelles valeurs, les anciennes barrées. Les dates sont celles du moteur de PlannerCraft : l'assistant ne donne jamais de date, il propose des durées (en jours ouvrés) et des liens, le moteur place les dates.
 - **Accepter** applique tout le lot d'un coup ; **Annuler** (Ctrl+Z / Cmd+Z) le défait d'un coup.
 - **Refuser** n'applique rien. Vous pouvez écrire un **motif** dans le champ de la carte (« garde les durées actuelles ») : il est transmis à l'assistant avec votre message suivant, comme la décision elle-même. Il peut alors proposer autre chose.
-- Si vous modifiez le planning avant de décider, Accepter montre d'abord un **nouvel aperçu** (rien n'est appliqué sur l'ancien). Si vous fermez ou changez de projet, la proposition est **périmée** ; sans réponse en 2 minutes, elle **expire** ; une nouvelle conversation la retire. Dans tous ces cas rien n'est appliqué.
+- Une proposition attend votre décision **sans limite de temps**. Si vous modifiez le planning avant de décider, Accepter montre d'abord un **nouvel aperçu** (rien n'est appliqué sur l'ancien). Si vous fermez ou changez de projet, la proposition est **périmée** ; une nouvelle conversation la retire. Dans ces cas rien n'est appliqué.
 - Si le moteur refuse le lot (un lien qui ferait une boucle, par exemple), l'assistant voit l'erreur et corrige (deux fois au plus) ; la ligne « Proposition refusée par le moteur » le signale.
 - **Plannings de chantier** : l'assistant connaît les phases usuelles (études et permis, terrassement et fondations, gros œuvre, clos couvert, second œuvre, finitions, réception), met les jalons (permis obtenu, hors d'eau hors d'air, réception), des durées en jours ouvrés et des liens fin-début ; si votre champ Texte1 s'appelle « Lot », il y range le corps d'état. Relisez ses durées : ce sont des estimations à ajuster.
-- Il ne pose ni contrainte ni échéance datée : une date imposée (livraison le 15 mars) se règle dans l'application.
+- **Dates** : l'assistant ne calcule jamais une date. Il ne pose une échéance ou une contrainte qu'à une date **que vous avez écrite** dans votre demande (« fixe la livraison au 15 mars 2027 ») ; s'il essaie une autre date, l'application la refuse et il doit corriger.
 
 ## 6. Ce qui est envoyé
 

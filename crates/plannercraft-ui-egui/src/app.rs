@@ -3089,7 +3089,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.drain_relay(&ctx);
         self.poll_assistant(&ctx);
-        self.tick_approvals(&ctx);
+        self.tick_approvals();
         self.poll_io();
         self.poll_save(&ctx);
         self.poll_export();

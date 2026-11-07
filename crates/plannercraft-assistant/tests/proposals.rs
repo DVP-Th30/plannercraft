@@ -311,3 +311,32 @@ fn propose_tool_described() {
     let system = req["messages"][0]["content"][0]["text"].as_str().unwrap();
     assert!(system.contains("Ne calcule jamais une date"));
 }
+
+/// Une échéance à la date écrite par l'utilisateur passe ; une date que le
+/// modèle déduit est refusée et compte comme une correction.
+#[test]
+fn deadline_only_at_cited_date() {
+    let ws = workspace();
+    let inferred = json!({ "label": "Échéance", "ops": [
+        { "op": "task.set_deadline", "uid": 2, "deadline": "2026-11-20T17:00" }
+    ] });
+    let cited = json!({ "label": "Échéance", "ops": [
+        { "op": "task.set_deadline", "uid": 2, "deadline": "2026-11-27T17:00" }
+    ] });
+    let t = ScriptedTransport::new(vec![
+        propose("p1", &inferred),
+        propose("p2", &cited),
+        answer("Proposé."),
+    ]);
+    let mut conv = Conversation::new();
+    conv.send("B doit finir au plus tard le 27/11/2026", config(), &t)
+        .unwrap();
+    let mut h = host(&ws);
+    run(&mut conv, &mut h, &t);
+    let refused = tool_result(&body(&t.requests()[1]), "p1");
+    assert_eq!(refused["error"]["code"], "param.invalid");
+    assert!(refused["hint"].as_str().unwrap().contains("2 correction"));
+    let ok = tool_result(&body(&t.requests()[2]), "p2");
+    assert_eq!(ok["status"], "pending_approval");
+    assert_eq!(h.proposals.len(), 1);
+}

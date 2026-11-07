@@ -12,8 +12,10 @@
 //! Gardes communes (C-CTL-02 à C-CTL-04, C-CTL-07) : document remplacé ⇒
 //! périmée, rien d'appliqué ; génération changée depuis l'aperçu ⇒ nouvel
 //! aperçu, rien d'appliqué (jamais un aperçu périmé) ; délai écoulé ⇒
-//! expirée (agent : délai de l'écouteur ; assistant :
-//! [`APPROVAL_TIMEOUT_SECS`] sur l'horloge de l'interface) ; acceptée ⇒ une
+//! expirée **pour un agent seulement** (délai de l'écouteur, 120 s) : une
+//! proposition de l'assistant n'expire pas (personne n'attend sa réponse ;
+//! arbitrage du 2026-11-07), elle attend Accepter, Refuser, une nouvelle
+//! conversation, une régénération ou un autre document ; acceptée ⇒ une
 //! seule entrée d'annulation, origine `Agent`. Le diff affiché
 //! ([`DiffView`]) est calculé **une fois** par aperçu
 //! ([`Session::simulate`]). Chaque issue entre dans l'historique de session
@@ -22,7 +24,7 @@
 
 use std::collections::VecDeque;
 
-use plannercraft_assistant::proposal::{APPROVAL_TIMEOUT_SECS, ProposalStatus};
+use plannercraft_assistant::proposal::ProposalStatus;
 use plannercraft_assistant::tools::QueuedProposal;
 use plannercraft_automation::command::params::ApplyBatchParams;
 use plannercraft_automation::diff::{DiffSide, DiffView};
@@ -48,12 +50,8 @@ pub enum ApprovalOrigin {
     /// Agent MCP rattaché (desktop) : réponse sur sa connexion.
     #[cfg(not(target_arch = "wasm32"))]
     Agent(crate::relay::AgentLink),
-    /// Assistant intégré (lot A2) : proposition retirée après
-    /// `deadline` (secondes de l'horloge de l'interface).
-    Assistant {
-        /// Échéance.
-        deadline: f64,
-    },
+    /// Assistant intégré (lot A2) : sans délai (aucun agent n'attend).
+    Assistant,
 }
 
 /// Écriture proposée en attente de la réponse de l'utilisateur.
@@ -95,7 +93,7 @@ impl PendingApproval {
     /// Proposition de l'assistant intégré.
     #[must_use]
     pub const fn is_assistant(&self) -> bool {
-        matches!(self.origin, ApprovalOrigin::Assistant { .. })
+        matches!(self.origin, ApprovalOrigin::Assistant)
     }
 
     /// Clé de la proposition (Accepter / Refuser).
@@ -107,25 +105,14 @@ impl PendingApproval {
         }
     }
 
-    /// Toujours attendue : agent encore en attente, ou échéance de
-    /// l'assistant pas atteinte à `clock`.
+    /// Toujours attendue : agent encore en attente (l'écouteur tranche
+    /// l'expiration) ; une proposition de l'assistant l'est toujours.
     #[must_use]
-    pub fn live(&self, clock: f64) -> bool {
+    pub fn live(&self) -> bool {
         match &self.origin {
             #[cfg(not(target_arch = "wasm32"))]
             ApprovalOrigin::Agent(link) => link.is_pending(),
-            ApprovalOrigin::Assistant { deadline } => clock < *deadline,
-        }
-    }
-
-    /// Échéance d'une proposition de l'assistant (`None` pour un agent :
-    /// l'écouteur tranche).
-    #[must_use]
-    pub const fn deadline(&self) -> Option<f64> {
-        match &self.origin {
-            #[cfg(not(target_arch = "wasm32"))]
-            ApprovalOrigin::Agent(_) => None,
-            ApprovalOrigin::Assistant { deadline } => Some(*deadline),
+            ApprovalOrigin::Assistant => true,
         }
     }
 
@@ -135,7 +122,7 @@ impl PendingApproval {
         match &self.origin {
             #[cfg(not(target_arch = "wasm32"))]
             ApprovalOrigin::Agent(link) => link.claim(),
-            ApprovalOrigin::Assistant { .. } => true,
+            ApprovalOrigin::Assistant => true,
         }
     }
 
@@ -415,12 +402,11 @@ impl App {
 
     /// Met en attente les propositions de l'assistant essayées pendant ce
     /// passage (lot A2) : résumé du `dry_run`, diff affiché calculé une
-    /// fois, échéance. Le volet n'est pas basculé (l'utilisateur lit la
+    /// fois ; sans délai. Le volet n'est pas basculé (l'utilisateur lit la
     /// conversation ; la carte porte « Voir »).
     pub(crate) fn queue_proposals(&mut self, proposals: Vec<QueuedProposal>) {
         let lang = self.text_language();
         let now = (self.env.now)();
-        let clock = self.clock;
         for proposal in proposals {
             let Some(document) = &self.document else {
                 // Document fermé pendant la demande : périmée aussitôt.
@@ -441,35 +427,30 @@ impl App {
                 generation: document.generation(),
                 opening: document.opening,
                 now,
-                origin: ApprovalOrigin::Assistant {
-                    deadline: clock + APPROVAL_TIMEOUT_SECS,
-                },
+                origin: ApprovalOrigin::Assistant,
             };
             self.approvals.diff_builds = self.approvals.diff_builds.saturating_add(1);
             self.approvals.pending.push_back(pending);
         }
     }
 
-    /// Gardes de début d'image : écritures expirées retirées, celles d'un
-    /// document remplacé refusées (périmées), propositions de l'assistant
-    /// retirées de la conversation (nouvelle conversation, régénération,
-    /// désactivation) abandonnées ; rappel de l'image à la prochaine
-    /// échéance.
-    pub(crate) fn tick_approvals(&mut self, ctx: &egui::Context) {
+    /// Gardes de début d'image : écritures d'agent expirées retirées,
+    /// celles d'un document remplacé refusées (périmées), propositions de
+    /// l'assistant retirées de la conversation (nouvelle conversation,
+    /// régénération, désactivation) abandonnées.
+    pub(crate) fn tick_approvals(&mut self) {
         if self.approvals.pending.is_empty() {
             return;
         }
         let opening = self.document.as_ref().map(|document| document.opening);
-        let clock = self.clock;
         let live_proposals = self.assistant.conversation.pending_proposals();
         let drained: Vec<PendingApproval> = self.approvals.pending.drain(..).collect();
-        let mut next_deadline: Option<f64> = None;
         for pending in drained {
             if pending.is_assistant() && !live_proposals.contains(&pending.id) {
                 self.approvals.record(&pending, AiOutcome::Expired, None);
                 continue;
             }
-            if !pending.live(clock) {
+            if !pending.live() {
                 self.conclude(&pending, AiOutcome::Expired, None, None);
                 continue;
             }
@@ -484,14 +465,7 @@ impl App {
                 }
                 continue;
             }
-            if let Some(deadline) = pending.deadline() {
-                next_deadline = Some(next_deadline.map_or(deadline, |d: f64| d.min(deadline)));
-            }
             self.approvals.pending.push_back(pending);
-        }
-        if let Some(deadline) = next_deadline {
-            let wait = (deadline - clock).clamp(0.05, APPROVAL_TIMEOUT_SECS);
-            ctx.request_repaint_after(std::time::Duration::from_secs_f64(wait));
         }
     }
 
@@ -500,7 +474,7 @@ impl App {
         let Some(mut pending) = self.approvals.take(key) else {
             return;
         };
-        if !pending.live(self.clock) {
+        if !pending.live() {
             self.conclude(&pending, AiOutcome::Expired, None, None);
             return;
         }

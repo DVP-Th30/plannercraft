@@ -321,10 +321,10 @@ fn h_ui_152_guards_stale_preview_document_conversation() {
     assert_eq!(task_name(harness.state(), 6), "Consultation des entreprises");
 }
 
-/// H-UI-153 : sans réponse en 120 s, la proposition expire (rien
-/// d'appliqué, carte « expirée »).
+/// H-UI-153 (amendé le 2026-11-07) : une proposition de l'assistant
+/// n'expire pas ; après plus de 120 s elle attend toujours et s'accepte.
 #[test]
-fn h_ui_153_timeout_expires() {
+fn h_ui_153_assistant_proposal_never_expires() {
     let transport = Arc::new(ScriptedTransport::new(vec![
         propose("p1", &rename("Renommer", 3, "X")),
         say("Proposé."),
@@ -354,15 +354,22 @@ fn h_ui_153_timeout_expires() {
     for _ in 0..6 {
         harness.run();
     }
-    for _ in 0..10 {
+    let start = harness.ctx.input(|i| i.time);
+    for _ in 0..12 {
         harness.step();
-        if harness.state().approvals().pending().is_empty() {
-            break;
-        }
     }
-    assert!(harness.state().approvals().pending().is_empty());
-    assert_eq!(card_status(harness.state()), Some(ProposalStatus::Expired));
+    let waited = harness.ctx.input(|i| i.time) - start;
+    assert!(waited > 200.0, "{waited} s");
+    // Toujours en attente : aucun agent n'attend, pas de délai.
+    assert_eq!(harness.state().approvals().pending().len(), 1);
+    assert_eq!(card_status(harness.state()), Some(ProposalStatus::Pending));
     assert_eq!(task_name(harness.state(), 3), "Plans de l'architecte");
+    harness
+        .state_mut()
+        .dispatch(Action::Proposal(ProposalOp::Accept(1)));
+    harness.run();
+    assert_eq!(card_status(harness.state()), Some(ProposalStatus::Accepted));
+    assert_eq!(task_name(harness.state(), 3), "X");
 }
 
 /// H-UI-154 : « Montrer la réflexion » (menu « … ») : coupé par défaut,
@@ -681,4 +688,88 @@ fn snapshot_assistant_proposal_panel_fr_light() {
         harness.run();
     }
     crate::common::snapshot(&mut harness, "assistant_proposal_panel_fr_light");
+}
+
+/// Scénario 4 : « fixe la livraison au 15 mars 2027 ». Le modèle tente
+/// d'abord une date qu'il a déduite (refusée, motif rendu, compte comme une
+/// correction), puis pose l'échéance à la date écrite par l'utilisateur ;
+/// aucune autre date dans les arguments.
+#[test]
+fn bench_deadline_cited_by_user() {
+    for accept in [true, false] {
+        let inferred = json!({ "label": "Échéance de livraison", "ops": [
+            { "op": "task.set_deadline", "uid": 49, "deadline": "2027-03-12T17:00" }
+        ] });
+        let cited = json!({ "label": "Échéance de livraison au 15 mars 2027", "ops": [
+            { "op": "task.set_deadline", "uid": 49, "deadline": "2027-03-15T17:00" }
+        ] });
+        let responses = vec![
+            propose("p1", &inferred),
+            propose("p2", &cited),
+            say("L'échéance de la remise des clés est proposée au 15 mars 2027, à valider."),
+        ];
+        let (mut harness, transport) = scenario(responses, false, "Fixe la livraison au 15 mars 2027");
+        // Date déduite : refusée avant tout appel, motif rendu au modèle.
+        let req = body(&transport, 1);
+        let msg = req["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["tool_call_id"] == "p1")
+            .unwrap()
+            .clone();
+        let refused: Value = serde_json::from_str(msg["content"].as_str().unwrap()).unwrap();
+        assert!(
+            refused["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("ne figure pas dans la demande"),
+            "{refused}"
+        );
+        assert!(
+            refused["hint"].as_str().unwrap().contains("2 correction"),
+            "{refused}"
+        );
+        // Seule date des arguments acceptés : celle de l'utilisateur.
+        let text = cited.to_string();
+        assert_eq!(text.matches("2027-").count(), 1);
+        let turn = &harness.state().assistant().conversation.turns()[0];
+        assert!(turn.tools[0].error.is_some() && turn.tools[0].proposal.is_none());
+        assert!(turn.tools[1].proposal.is_some());
+        assert_eq!(harness.state().approvals().pending().len(), 1);
+        let deadline = |app: &App| {
+            app.document
+                .as_ref()
+                .unwrap()
+                .project()
+                .tasks
+                .iter()
+                .find(|t| t.uid() == TaskUid::new(49))
+                .unwrap()
+                .deadline
+        };
+        assert_eq!(deadline(harness.state()), None);
+        let id = harness.state().approvals().pending()[0].id;
+        if accept {
+            let entries = history_len(harness.state());
+            harness
+                .state_mut()
+                .dispatch(Action::Proposal(ProposalOp::Accept(id)));
+            harness.run();
+            assert_eq!(
+                deadline(harness.state()),
+                Some("2027-03-15T17:00".parse().unwrap())
+            );
+            assert_eq!(history_len(harness.state()), entries.saturating_add(1));
+            harness.state_mut().dispatch(Action::Undo);
+            harness.run();
+            assert_eq!(deadline(harness.state()), None);
+        } else {
+            harness
+                .state_mut()
+                .dispatch(Action::Proposal(ProposalOp::Reject(id)));
+            harness.run();
+            assert_eq!(deadline(harness.state()), None);
+        }
+    }
 }

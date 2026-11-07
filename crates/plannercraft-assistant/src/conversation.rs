@@ -927,7 +927,7 @@ impl Conversation {
             return (proposal::blocked_result(submitted, lang).to_string(), None);
         }
         let left = proposal::MAX_CORRECTIONS.saturating_sub(refused);
-        let outcome = proposal::check(&call.arguments, lang)
+        let outcome = proposal::check(&call.arguments, lang, &turn.question)
             .and_then(|checked| host.propose(&checked.label, checked.params));
         match outcome {
             Ok(done) => {

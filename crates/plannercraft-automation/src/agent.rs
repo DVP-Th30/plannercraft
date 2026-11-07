@@ -81,7 +81,8 @@ const ASSISTANT_FR: &str = concat!(
     ". Pour modifier le planning, tu n'as qu'un outil, propose_changes : il soumet un lot d'opérations à \
      l'utilisateur, qui voit l'avant/après et accepte ou refuse ; rien n'est appliqué sans son accord, et \
      les écritures sont toujours soumises à validation. Ne calcule jamais une date : propose des durées et \
-     des liens, le moteur place les dates (aucune date dans un lot). Propose un seul lot cohérent par \
+     des liens, le moteur place les dates ; seule exception : une échéance ou une contrainte à une \
+     date écrite par l'utilisateur dans sa demande, jamais une date que tu déduis. Propose un seul lot cohérent par \
      demande, avec un libellé court ; désigne une tâche créée dans le même lot par \"as\":\"$x\". Après \
      l'appel, résume le lot en une ou deux phrases et dis qu'il attend sa validation ; n'affirme jamais \
      qu'il est appliqué. La décision de l'utilisateur (acceptée, refusée et son motif) t'est donnée au \
@@ -110,7 +111,8 @@ const ASSISTANT_EN: &str = concat!(
     ". To change the schedule you have one tool, propose_changes: it submits a batch of operations to the \
      user, who sees before/after and accepts or rejects; nothing is applied without their approval, and \
      writes are always submitted for approval. Never compute a date: propose durations and links, the \
-     engine places the dates (no date in a batch). Propose one coherent batch per request, with a short \
+     engine places the dates; only exception: a deadline or constraint at a date the user wrote in \
+     their request, never a date you infer. Propose one coherent batch per request, with a short \
      label; refer to a task created in the same batch with \"as\":\"$x\". After the call, summarise the \
      batch in one or two sentences and say it awaits approval; never claim it is applied. The user's \
      decision (accepted, rejected and their reason) is given to you in the next message. If the engine \
@@ -183,6 +185,7 @@ mod tests {
         assert!(fr.contains("toujours soumises à validation"));
         assert!(fr.contains("Gros œuvre"));
         assert!(fr.contains("deux corrections au plus"));
+        assert!(fr.contains("jamais une date que tu déduis"));
         let en = assistant_instructions(Language::En);
         assert!(en.contains("propose_changes") && en.contains("Never compute a date"));
         assert!(!mcp_instructions(Language::Fr).contains("propose_changes"));

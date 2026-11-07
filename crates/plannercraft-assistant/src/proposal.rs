@@ -10,9 +10,11 @@
 //!
 //! Garde-fous écrits ici, sans interface (testés seuls) :
 //! - liste fermée d'opérations ([`ALLOWED_OPS`]) ;
-//! - **aucune date** dans un lot (règle 3 : le modèle propose des durées et
-//!   des liens, le moteur place les dates) : les champs datés
-//!   ([`DATE_FIELDS`]) sont refusés avec un message que le modèle lit ;
+//! - **aucune date calculée** (règle 3 : le modèle propose des durées et
+//!   des liens, le moteur place les dates) : les champs datés de
+//!   [`DATE_FIELDS`] sont refusés ; seule une échéance ou une contrainte
+//!   peut porter une date, et seulement une date **écrite par
+//!   l'utilisateur** dans sa demande ([`check_cited_dates`]) ;
 //! - bornes (libellé, nombre d'opérations) ;
 //! - au plus [`MAX_CORRECTIONS`] corrections après un refus, et une seule
 //!   proposition soumise par demande (appliqué par la conversation).
@@ -46,6 +48,8 @@ pub const ALLOWED_OPS: &[&str] = &[
     "custom_field.rename",
     "style.set_group_by",
     "baseline.set",
+    "task.set_deadline",
+    "task.set_constraint",
 ];
 
 /// Champs datés refusés dans une proposition (règle 3), par opération.
@@ -61,9 +65,6 @@ pub const MAX_OPS: usize = 400;
 pub const MAX_LABEL_CHARS: usize = 80;
 /// Corrections au plus après un refus du registre, par demande.
 pub const MAX_CORRECTIONS: usize = 2;
-/// Validation de l'utilisateur attendue au plus (secondes, ADR-0015 D10 :
-/// même délai que pour un agent rattaché).
-pub const APPROVAL_TIMEOUT_SECS: f64 = 120.0;
 
 /// Issue d'une proposition, affichée sur sa carte et dite au modèle.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -154,8 +155,10 @@ pub struct CheckedProposal {
 ///
 /// `param.invalid` en langage clair (le modèle le lit pour se corriger) :
 /// JSON illisible, libellé absent, aucune opération, opération hors de la
-/// liste, champ daté, trop d'opérations.
-pub fn check(arguments: &str, lang: Language) -> Result<CheckedProposal, ToolError> {
+/// liste, champ daté, trop d'opérations, date absente de `user_text` (la
+/// demande de l'utilisateur : seule une date qu'il a écrite peut servir
+/// d'échéance ou de contrainte).
+pub fn check(arguments: &str, lang: Language, user_text: &str) -> Result<CheckedProposal, ToolError> {
     let value: Value = serde_json::from_str(arguments).map_err(|e| {
         invalid(match lang {
             Language::Fr => format!("arguments JSON invalides : {e}"),
@@ -226,6 +229,7 @@ pub fn check(arguments: &str, lang: Language) -> Result<CheckedProposal, ToolErr
     for (index, op) in ops.iter().enumerate() {
         check_op(index, op, lang)?;
     }
+    check_cited_dates(&ops, user_text, lang)?;
     let mut params = Map::new();
     params.insert("ops".to_owned(), Value::Array(ops));
     params.insert("label".to_owned(), Value::String(label.clone()));
@@ -272,6 +276,170 @@ fn check_op(index: usize, op: &Value, lang: Language) -> Result<(), ToolError> {
             ),
         })
         .with_field(field)));
+    }
+    Ok(())
+}
+
+/// Dates ISO (`AAAA-MM-JJ`) contenues dans `text` : (année, mois, jour).
+fn iso_dates(text: &str) -> Vec<(i32, u32, u32)> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = Vec::new();
+    let digits = |from: usize, n: usize| -> Option<u32> {
+        let part: String = chars.get(from..from.checked_add(n)?)?.iter().collect();
+        if part.chars().all(|c| c.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let mut i = 0usize;
+    while i.saturating_add(10) <= chars.len() {
+        let dashes =
+            chars.get(i.saturating_add(4)) == Some(&'-') && chars.get(i.saturating_add(7)) == Some(&'-');
+        let before_ok = i == 0 || !chars.get(i.saturating_sub(1)).is_some_and(char::is_ascii_digit);
+        if dashes
+            && before_ok
+            && let (Some(y), Some(m), Some(d)) = (
+                digits(i, 4),
+                digits(i.saturating_add(5), 2),
+                digits(i.saturating_add(8), 2),
+            )
+        {
+            out.push((i32::try_from(y).unwrap_or(0), m, d));
+            i = i.saturating_add(10);
+            continue;
+        }
+        i = i.saturating_add(1);
+    }
+    out
+}
+
+/// Mois d'un mot (français ou anglais, accents et point final ignorés).
+fn month_of(word: &str) -> Option<u32> {
+    let w: String = word
+        .trim_end_matches('.')
+        .chars()
+        .map(|c| match c {
+            'é' | 'è' | 'ê' => 'e',
+            'û' | 'ù' => 'u',
+            'ô' => 'o',
+            other => other,
+        })
+        .collect();
+    Some(match w.as_str() {
+        "janvier" | "janv" | "january" | "jan" => 1,
+        "fevrier" | "fevr" | "fev" | "february" | "feb" => 2,
+        "mars" | "march" | "mar" => 3,
+        "avril" | "avr" | "april" | "apr" => 4,
+        "mai" | "may" => 5,
+        "juin" | "june" | "jun" => 6,
+        "juillet" | "juil" | "july" | "jul" => 7,
+        "aout" | "august" | "aug" => 8,
+        "septembre" | "sept" | "september" | "sep" => 9,
+        "octobre" | "oct" | "october" => 10,
+        "novembre" | "nov" | "november" => 11,
+        "decembre" | "dec" | "december" => 12,
+        _ => return None,
+    })
+}
+
+/// Jour d'un mot (« 15 », « 1er », « 15th »), de 1 à 31.
+fn day_of(word: &str) -> Option<u32> {
+    let digits: String = word.chars().take_while(char::is_ascii_digit).collect();
+    let rest = word.get(digits.len()..).unwrap_or_default();
+    if !matches!(rest, "" | "er" | "st" | "nd" | "rd" | "th" | ",") {
+        return None;
+    }
+    digits.parse().ok().filter(|d| (1..=31).contains(d))
+}
+
+/// Année d'un mot de quatre chiffres.
+fn year_of(word: &str) -> Option<i32> {
+    let w = word.trim_end_matches([',', '.']);
+    (w.len() == 4 && w.chars().all(|c| c.is_ascii_digit()))
+        .then(|| w.parse().ok())
+        .flatten()
+}
+
+/// Dates écrites par l'utilisateur dans `text` : (année si donnée, mois,
+/// jour). Formes lues : ISO, `15/03/2027` (et `03/15/2027` : les deux
+/// lectures sont gardées), `15 mars 2027`, `1er avril`, `March 15, 2027`.
+#[must_use]
+pub fn cited_dates(text: &str) -> Vec<(Option<i32>, u32, u32)> {
+    let mut out: Vec<(Option<i32>, u32, u32)> = iso_dates(text)
+        .into_iter()
+        .map(|(y, m, d)| (Some(y), m, d))
+        .collect();
+    let lower = text.to_lowercase();
+    let words: Vec<&str> = lower
+        .split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '«' | '»' | '"' | ';' | '!' | '?'))
+        .map(|w| w.trim_matches(|c: char| matches!(c, ',' | ':' | '\'')))
+        .filter(|w| !w.is_empty())
+        .collect();
+    for (i, word) in words.iter().enumerate() {
+        let parts: Vec<&str> = word.trim_end_matches('.').split(['/', '.']).collect();
+        if (2..=3).contains(&parts.len())
+            && parts
+                .iter()
+                .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+        {
+            let num = |k: usize| parts.get(k).and_then(|p| p.parse::<u32>().ok());
+            let year = parts.get(2).and_then(|p| match p.len() {
+                4 => p.parse::<i32>().ok(),
+                2 => p.parse::<i32>().ok().map(|y| y.saturating_add(2000)),
+                _ => None,
+            });
+            if let (Some(a), Some(b)) = (num(0), num(1)) {
+                for (m, d) in [(b, a), (a, b)] {
+                    if (1..=12).contains(&m) && (1..=31).contains(&d) {
+                        out.push((year, m, d));
+                    }
+                }
+            }
+            continue;
+        }
+        let next = |k: usize| words.get(i.saturating_add(k)).copied().unwrap_or_default();
+        if let (Some(d), Some(m)) = (day_of(word), month_of(next(1))) {
+            out.push((year_of(next(2)), m, d));
+        } else if let (Some(m), Some(d)) = (month_of(word), day_of(next(1))) {
+            out.push((year_of(next(2)), m, d));
+        }
+    }
+    out
+}
+
+/// Garde-fou de la règle 3 : toute date des opérations doit figurer dans
+/// la demande de l'utilisateur (`user_text`) ; une date déduite par le
+/// modèle est refusée (le refus compte comme une correction).
+///
+/// # Errors
+///
+/// `param.invalid` sur l'opération qui porte la date, en langage clair.
+pub fn check_cited_dates(ops: &[Value], user_text: &str, lang: Language) -> Result<(), ToolError> {
+    let cited = cited_dates(user_text);
+    for (index, op) in ops.iter().enumerate() {
+        for (y, m, d) in iso_dates(&op.to_string()) {
+            let quoted = cited
+                .iter()
+                .any(|(cy, cm, cd)| *cm == m && *cd == d && cy.is_none_or(|cy| cy == y));
+            if !quoted {
+                return Err(ToolError {
+                    op_index: Some(index),
+                    ..invalid(match lang {
+                        Language::Fr => format!(
+                            "opération {index} : la date {y:04}-{m:02}-{d:02} ne figure pas dans la demande de \
+                             l'utilisateur ; n'utilise qu'une date qu'il a écrite (échéance ou contrainte), jamais \
+                             une date que tu déduis : propose des durées et des liens, le moteur place les dates"
+                        ),
+                        Language::En => format!(
+                            "operation {index}: the date {y:04}-{m:02}-{d:02} is not in the user's request; only use a \
+                             date the user wrote (deadline or constraint), never one you infer: propose durations and \
+                             links, the engine places the dates"
+                        ),
+                    })
+                });
+            }
+        }
     }
     Ok(())
 }
@@ -417,15 +585,16 @@ pub fn definition(lang: Language) -> Value {
     let (description, ops_doc, label_doc) = match lang {
         Language::Fr => (
             "Propose un lot de modifications du planning. Rien n'est appliqué : l'utilisateur voit l'avant/après \
-             et accepte ou refuse. Un seul lot cohérent par demande. Jamais de date : des durées et des liens, le \
-             moteur place les dates.",
+             et accepte ou refuse. Un seul lot cohérent par demande. Jamais de date calculée : des durées et des liens, \
+             le moteur place les dates (seule exception : une échéance ou une contrainte à une date écrite \
+             par l'utilisateur).",
             OPS_DOC_FR,
             "Libellé court du lot (« Planning maison 120 m² », « Décaler le second œuvre de 2 semaines »).",
         ),
         Language::En => (
             "Propose a batch of schedule changes. Nothing is applied: the user sees before/after and accepts or \
-             rejects. One coherent batch per request. Never a date: durations and links, the engine places the \
-             dates.",
+             rejects. One coherent batch per request. Never a computed date: durations and links, the engine \
+             places the dates (only exception: a deadline or constraint at a date the user wrote).",
             OPS_DOC_EN,
             "Short batch label (\"House plan 120 m²\", \"Shift finishing works by 2 weeks\").",
         ),
@@ -480,7 +649,10 @@ progress.update {task:T, percent_complete:{\"text\":\"50%\"}}\n\
 custom_field.rename {field:\"text1\", alias:\"Lot\"}\n\
 style.set_group_by {group_by:{\"custom\":\"text1\"}|\"resource\"|\"critical\"|\"milestone\"|null}\n\
 baseline.set {number?:0..10, tasks?:[T]}\n\
-Interdits : start, finish, actual_start, actual_finish et toute autre date.";
+task.set_deadline {uid:T, deadline:\"2027-03-15T17:00\"|null} / task.set_constraint {uid:T, \
+kind:\"asap\"|\"alap\"|\"mso\"|\"mfo\"|\"snet\"|\"snlt\"|\"fnet\"|\"fnlt\", date?:\"2027-03-15T08:00\"} : \
+uniquement une date écrite par l'utilisateur dans sa demande, jamais une date que tu déduis.\n\
+Interdits : start, finish, actual_start, actual_finish et toute date que l'utilisateur n'a pas écrite.";
 
 /// Opérations, une ligne chacune (anglais).
 const OPS_DOC_EN: &str = "Operations in order, one transaction. T = task: UID (integer) or \"$x\" of a task \
@@ -504,7 +676,10 @@ progress.update {task:T, percent_complete:{\"text\":\"50%\"}}\n\
 custom_field.rename {field:\"text1\", alias:\"Trade\"}\n\
 style.set_group_by {group_by:{\"custom\":\"text1\"}|\"resource\"|\"critical\"|\"milestone\"|null}\n\
 baseline.set {number?:0..10, tasks?:[T]}\n\
-Forbidden: start, finish, actual_start, actual_finish and any other date.";
+task.set_deadline {uid:T, deadline:\"2027-03-15T17:00\"|null} / task.set_constraint {uid:T, \
+kind:\"asap\"|\"alap\"|\"mso\"|\"mfo\"|\"snet\"|\"snlt\"|\"fnet\"|\"fnlt\", date?:\"2027-03-15T08:00\"}: \
+only a date the user wrote in their request, never a date you infer.\n\
+Forbidden: start, finish, actual_start, actual_finish and any date the user did not write.";
 
 #[cfg(test)]
 mod tests {
@@ -549,7 +724,7 @@ mod tests {
             {"op":"task.add","name":"Études","as":"$a","duration":{"text":"10d"}},
             {"op":"task.add","name":"Permis obtenu","as":"$b","milestone":true,"duration":{"text":"0d"}},
             {"op":"link.add","pred":"$a","succ":"$b"}]}"#;
-        let checked = check(args, Language::Fr).unwrap();
+        let checked = check(args, Language::Fr, "").unwrap();
         assert_eq!(checked.label, "Petit planning");
         assert_eq!(checked.params["ops"].as_array().unwrap().len(), 3);
         assert_eq!(checked.params["label"], "Petit planning");
@@ -558,14 +733,14 @@ mod tests {
     #[test]
     fn check_refuses_dates_and_foreign_ops() {
         let dated = r#"{"label":"x","ops":[{"op":"task.add","name":"A","start":"2026-11-02T08:00"}]}"#;
-        let e = check(dated, Language::Fr).unwrap_err();
+        let e = check(dated, Language::Fr, "").unwrap_err();
         assert_eq!(e.code, "param.invalid");
         assert_eq!(e.op_index, Some(0));
         assert_eq!(e.field.as_deref(), Some("start"));
         assert!(e.message.contains("le moteur place les dates"), "{}", e.message);
         let anchor = r#"{"label":"x","ops":[{"op":"project.set_anchor","start":"2026-11-02T08:00"}]}"#;
         assert!(
-            check(anchor, Language::En)
+            check(anchor, Language::En, "")
                 .unwrap_err()
                 .message
                 .contains("not allowed")
@@ -573,7 +748,7 @@ mod tests {
         let progress =
             r#"{"label":"x","ops":[{"op":"progress.update","task":1,"actual_finish":"2026-11-02T08:00"}]}"#;
         assert_eq!(
-            check(progress, Language::Fr).unwrap_err().field.as_deref(),
+            check(progress, Language::Fr, "").unwrap_err().field.as_deref(),
             Some("actual_finish")
         );
     }
@@ -591,9 +766,57 @@ mod tests {
                 "dry_run",
             ),
         ] {
-            let e = check(args, Language::Fr).unwrap_err();
+            let e = check(args, Language::Fr, "").unwrap_err();
             assert!(e.message.contains(needle), "{args} : {}", e.message);
         }
+    }
+
+    /// Une date écrite par l'utilisateur peut servir d'échéance ; une
+    /// date déduite est refusée.
+    #[test]
+    fn cited_date_only() {
+        let args = r#"{"label":"Livraison","ops":[{"op":"task.set_deadline","uid":49,"deadline":"2027-03-15T17:00"}]}"#;
+        for text in [
+            "Fixe la livraison au 15 mars 2027",
+            "fixe la livraison au 15/03/2027",
+            "deadline March 15, 2027",
+            "livraison le 2027-03-15",
+            "livraison le 15 mars",
+        ] {
+            assert!(check(args, Language::Fr, text).is_ok(), "{text}");
+        }
+        for text in [
+            "Fixe la livraison deux semaines après le permis",
+            "le 16 mars 2027",
+            "15 mars 2026",
+        ] {
+            let e = check(args, Language::Fr, text).unwrap_err();
+            assert_eq!(e.op_index, Some(0));
+            assert!(
+                e.message.contains("ne figure pas dans la demande"),
+                "{}",
+                e.message
+            );
+        }
+        let constraint = r#"{"label":"x","ops":[{"op":"task.set_constraint","uid":9,"kind":"snet","date":"2027-01-04T08:00"}]}"#;
+        assert!(
+            check(
+                constraint,
+                Language::En,
+                "start site works not before 4 January 2027"
+            )
+            .is_ok()
+        );
+        assert!(check(constraint, Language::En, "start site works next week").is_err());
+    }
+
+    #[test]
+    fn cited_dates_forms() {
+        assert_eq!(cited_dates("le 1er avril"), vec![(None, 4, 1)]);
+        assert_eq!(cited_dates("Sept 3rd 2027"), vec![(Some(2027), 9, 3)]);
+        assert!(cited_dates("05/03/27").contains(&(Some(2027), 3, 5)));
+        assert!(cited_dates("05/03/27").contains(&(Some(2027), 5, 3)));
+        assert_eq!(iso_dates("a2027-03-15T08:00 et 2026-1-1"), vec![(2027, 3, 15)]);
     }
 
     #[test]
