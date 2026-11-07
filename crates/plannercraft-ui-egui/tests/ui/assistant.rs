@@ -42,6 +42,7 @@ pub(crate) fn assistant_harness(transport: Arc<ScriptedTransport>) -> Harness<'s
 pub(crate) fn enable_with_key(harness: &mut Harness<'static, App>) {
     click(harness, &fr(TextId::AssistantEnable));
     harness.run();
+    wait_key_loaded(harness);
     KEY.clone_into(&mut harness.state_mut().assistant_mut().key_draft);
     harness
         .state_mut()
@@ -70,6 +71,22 @@ pub(crate) fn settle(harness: &mut Harness<'static, App>) {
     assert!(!harness.state().assistant().conversation.busy());
 }
 
+/// Attend la fin de la lecture du trousseau (fil de fond : sur un
+/// exécuteur lent, elle peut dépasser une image).
+pub(crate) fn wait_key_loaded(harness: &mut Harness<'static, App>) {
+    for _ in 0..50 {
+        if !harness.state().assistant().key_loading() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        harness.run();
+    }
+    assert!(
+        !harness.state().assistant().key_loading(),
+        "lecture du trousseau trop longue"
+    );
+}
+
 /// Ouvre le menu « … » des options de l'assistant.
 fn open_options(harness: &mut Harness<'static, App>) {
     click(harness, &fr(TextId::AssistantMenu));
@@ -92,6 +109,7 @@ fn h_ui_138_explicit_activation_with_disclosure() {
     click(&mut harness, &fr(TextId::AssistantEnable));
     harness.run();
     assert!(harness.state().state.assistant.enabled);
+    wait_key_loaded(&mut harness);
     // Mention toujours visible une fois activé ; connexion proposée.
     harness.get_by_label(&fr(TextId::AssistantDisclosure));
     harness.get_by_label(&fr(TextId::AssistantLogin));
