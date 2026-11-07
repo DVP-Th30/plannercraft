@@ -326,6 +326,8 @@ fn h_ui_159_usage_access_switch_and_logout() {
     click(&mut harness, &fr(TextId::AssistantAccessOwnKey));
     harness.run();
     assert_eq!(harness.state().state.assistant.access, AssistantAccess::OwnKey);
+    // La lecture du trousseau est asynchrone (voir `assistant::wait_key_loaded`).
+    super::assistant::wait_key_loaded(&mut harness);
     harness.get_by_label(&fr(TextId::AssistantEnterKey));
     harness
         .state_mut()
