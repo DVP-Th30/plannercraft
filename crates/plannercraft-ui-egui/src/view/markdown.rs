@@ -458,6 +458,61 @@ mod tests {
         harness.get_by_label_contains("Fondations");
     }
 
+    /// Lot A2 : le gras prend la famille Inter `SemiBold` (vraie graisse,
+    /// couleur du texte) quand les polices du planning sont chargées ;
+    /// sinon repli sur la couleur appuyée.
+    #[test]
+    fn h_ui_146_bold_uses_semibold_family() {
+        use egui::{Color32, FontFamily};
+        let fonts = |weighted: bool| super::Fonts {
+            regular: FontFamily::Name(crate::theme::PLAN_FAMILY.into()),
+            strong: FontFamily::Name(crate::theme::PLAN_FAMILY_STRONG.into()),
+            weighted,
+            size: 14.0,
+            text: Color32::from_gray(40),
+            strong_color: Color32::BLACK,
+            weak: Color32::GRAY,
+            link: Color32::BLUE,
+            code_bg: Color32::WHITE,
+        };
+        for weighted in [true, false] {
+            let f = fonts(weighted);
+            let mut r = super::Renderer {
+                fonts: &f,
+                span: super::Span::default(),
+                job: egui::text::LayoutJob::default(),
+                bullet: None,
+                lists: Vec::new(),
+                quotes: 0,
+                table: None,
+                code_block: None,
+            };
+            let plain = r.format();
+            assert_eq!(plain.font_id.family, f.regular);
+            r.span.strong = 1;
+            let bold = r.format();
+            assert_eq!(bold.font_id.family, f.strong);
+            let expected = if weighted { f.text } else { f.strong_color };
+            assert_eq!(bold.color, expected);
+            assert_eq!(bold.line_height, Some((14.0_f32 * 1.45).round()));
+        }
+    }
+
+    /// Le rendu complet (listes imbriquées, tableau, code, citation) ne
+    /// perd aucun texte.
+    #[test]
+    fn h_ui_146_markdown_blocks() {
+        let harness = Harness::new_ui(|ui| {
+            super::render_markdown(
+                ui,
+                "# Titre\n\n1. un\n2. deux\n   - imbriqué\n\n> citée\n\n| A | B |\n|---|---|\n| x | y |\n\n`code`\n\n---\n\n```\nbloc\n```\n",
+            );
+        });
+        for text in ["Titre", "un", "imbriqué", "citée", "x", "y", "code", "bloc"] {
+            assert!(harness.query_all_by_label_contains(text).count() >= 1, "{text}");
+        }
+    }
+
     #[test]
     fn plain_text_drops_marks() {
         assert_eq!(

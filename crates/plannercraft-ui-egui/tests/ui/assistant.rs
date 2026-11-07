@@ -25,7 +25,7 @@ use crate::{click, click_where, fr, harness, open_demo};
 const KEY: &str = "sk-or-v1-0123456789abcdef-test";
 
 /// Exemple ouvert, volet sur l'onglet Assistant, services sur `transport`.
-fn assistant_harness(transport: Arc<ScriptedTransport>) -> Harness<'static, App> {
+pub(crate) fn assistant_harness(transport: Arc<ScriptedTransport>) -> Harness<'static, App> {
     let mut harness = harness();
     harness
         .state_mut()
@@ -39,7 +39,7 @@ fn assistant_harness(transport: Arc<ScriptedTransport>) -> Harness<'static, App>
 }
 
 /// Active l'assistant et saisit la clé (connexion simulée).
-fn enable_with_key(harness: &mut Harness<'static, App>) {
+pub(crate) fn enable_with_key(harness: &mut Harness<'static, App>) {
     click(harness, &fr(TextId::AssistantEnable));
     harness.run();
     KEY.clone_into(&mut harness.state_mut().assistant_mut().key_draft);
@@ -52,7 +52,7 @@ fn enable_with_key(harness: &mut Harness<'static, App>) {
 }
 
 /// Écrit `question` et clique Envoyer.
-fn ask(harness: &mut Harness<'static, App>, question: &str) {
+pub(crate) fn ask(harness: &mut Harness<'static, App>, question: &str) {
     question.clone_into(&mut harness.state_mut().assistant_mut().draft);
     harness.run();
     click(harness, &fr(TextId::AssistantSend));
@@ -60,7 +60,7 @@ fn ask(harness: &mut Harness<'static, App>, question: &str) {
 }
 
 /// Mène la conversation jusqu'à la fin (transport immédiat).
-fn settle(harness: &mut Harness<'static, App>) {
+pub(crate) fn settle(harness: &mut Harness<'static, App>) {
     for _ in 0..20 {
         harness.run();
         if !harness.state().assistant().conversation.busy() {
@@ -76,7 +76,7 @@ fn open_options(harness: &mut Harness<'static, App>) {
     harness.run();
 }
 
-fn body(transport: &ScriptedTransport, i: usize) -> Value {
+pub(crate) fn body(transport: &ScriptedTransport, i: usize) -> Value {
     serde_json::from_slice(&transport.requests()[i].body).unwrap()
 }
 
@@ -327,7 +327,7 @@ fn h_ui_141_tool_loop_on_demo_read_only() {
     assert!(!harness.state().document.as_ref().unwrap().is_dirty());
 }
 
-fn fr_args(id: TextId, args: &[(&'static str, &str)]) -> String {
+pub(crate) fn fr_args(id: TextId, args: &[(&'static str, &str)]) -> String {
     let args: Vec<(&str, Arg<'_>)> = args.iter().map(|(k, v)| (*k, Arg::Str((*v).into()))).collect();
     Texts::new(Language::Fr).get_args(id, &args)
 }
@@ -805,7 +805,7 @@ fn h_ui_148_keyboard_actions() {
 }
 
 /// Harnais de capture : volet Assistant activé, clé saisie, exemple ouvert.
-fn chat_capture_harness(
+pub(crate) fn chat_capture_harness(
     transport: Arc<ScriptedTransport>,
     language: plannercraft_ui_egui::LanguagePref,
     theme: plannercraft_ui_egui::ThemePref,
@@ -832,7 +832,7 @@ fn chat_capture_harness(
     harness
 }
 
-fn send_now(harness: &mut Harness<'static, App>, question: &str) {
+pub(crate) fn send_now(harness: &mut Harness<'static, App>, question: &str) {
     question.clone_into(&mut harness.state_mut().assistant_mut().draft);
     harness.state_mut().dispatch(Action::Assistant(AssistantOp::Send));
 }

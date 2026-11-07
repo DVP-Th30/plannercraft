@@ -3180,8 +3180,13 @@ impl App {
                     .map_or("", |document| document.origin.name.as_str());
                 let banner = crate::approvals::banner_for(&self.approvals, document);
                 // Volet « Opérations IA » visible : il porte la décision, le
-                // bandeau J7 se retire (H-UI-41).
-                if !self.side.shows_ai() {
+                // bandeau J7 se retire (H-UI-41) ; de même pour une
+                // proposition de l'assistant quand sa conversation est
+                // affichée (la carte porte la décision, lot A2).
+                let card_visible = banner.is_some_and(|b| b.assistant)
+                    && self.side.open
+                    && self.side.tab == view::side_panel::SideTab::Assistant;
+                if !self.side.shows_ai() && !card_visible {
                     view::approval::approval_banner(ui, &mut fc, banner);
                 }
                 #[cfg(not(target_arch = "wasm32"))]

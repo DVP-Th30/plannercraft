@@ -45,6 +45,7 @@
 mod ai_panel;
 mod assign;
 mod assistant;
+mod assistant_proposals;
 mod cells;
 mod clipboard;
 mod columns;
