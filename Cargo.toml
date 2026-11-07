@@ -65,12 +65,9 @@ bytes = "1.12.1"
 getrandom = "0.3.4"
 egui = "0.37.0"
 eframe = "0.37.0"
-# Rendu Markdown des réponses de l'assistant (lot A1b d'ADR-0024) :
-# MIT OR Apache-2.0, egui 0.37 ; sans images (`load-images`), sans `regex`
-# ni coloration syntaxique (`better_syntax_highlighting`, syntect).
-egui_commonmark = { version = "0.26.0", default-features = false, features = ["pulldown_cmark"] }
-# Texte brut des réponses (accessibilité) : l'analyseur d'egui_commonmark,
-# déjà au lock.
+# Rendu Markdown des réponses de l'assistant (lot A2 d'ADR-0024 : rendu
+# écrit sur cet analyseur, à la place d'egui_commonmark du lot A1b, pour le
+# vrai gras en Inter SemiBold) et texte brut accessible. MIT.
 pulldown-cmark = { version = "0.13.6", default-features = false }
 # Capture relayée (`app.screenshot`, J7 lot L14) : PNG par `image` (format
 # PNG seul) puis base64, côté application native. Déjà au lock (tirés par

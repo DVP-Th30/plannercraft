@@ -15,10 +15,12 @@ use egui::{
 use plannercraft_assistant::conversation::{Activity, ToolStep, Turn, TurnState};
 use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::openrouter::{self, MODELS};
+use plannercraft_assistant::proposal::{PROPOSE_TOOL, ProposalCard, ProposalStatus};
 use plannercraft_assistant::stream::Usage;
 
 use super::FrameCtx;
 use crate::action::Action;
+use crate::approvals::ProposalOp;
 use crate::assistant::{
     AssistantOp, AssistantPanel, ChatLayout, MAX_KEY_CHARS, MAX_QUESTION_CHARS, Notice, ScrollMode,
 };
@@ -99,6 +101,10 @@ enum ChatEvent {
     Op(AssistantOp),
     Suggest(String),
     Jump,
+    /// Geste sur la carte d'une proposition (lot A2).
+    Proposal(ProposalOp),
+    /// Refuser, avec le motif saisi sur la carte.
+    RejectWith(u64, String),
 }
 
 /// Dessine l'onglet.
@@ -156,6 +162,11 @@ fn apply_events(ui: &egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel
                 ui.memory_mut(|m| m.request_focus(question_id()));
             }
             ChatEvent::Jump => panel.scroll.mode = ScrollMode::Following,
+            ChatEvent::Proposal(op) => fc.actions.push(Action::Proposal(op)),
+            ChatEvent::RejectWith(id, reason) => {
+                panel.reject_reason = Some((id, reason));
+                fc.actions.push(Action::Proposal(ProposalOp::Reject(id)));
+            }
         }
     }
 }
@@ -284,6 +295,15 @@ fn options_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel
             }
             ui.separator();
         }
+        let mut show = fc.state.assistant.show_reasoning;
+        if ui
+            .checkbox(&mut show, texts.get(TextId::AssistantReasoningToggle))
+            .on_hover_text(texts.get(TextId::AssistantReasoningToggleHint))
+            .clicked()
+        {
+            push(fc, AssistantOp::ToggleReasoning);
+        }
+        ui.separator();
         if ui.button(texts.get(TextId::AssistantDisable)).clicked() {
             push(fc, AssistantOp::Disable);
         }
@@ -668,6 +688,10 @@ fn turn_ui(
     if !turn.answer.is_empty() {
         answer(ui, fc, t, turn);
     }
+    for card in turn.tools.iter().filter_map(|step| step.proposal.as_ref()) {
+        ui.add_space(6.0);
+        proposal_card(ui, fc, t, card, events);
+    }
     match &turn.state {
         TurnState::Failed(error) => error_box(ui, fc, t, error, ctx.last, events),
         TurnState::Stopped => stopped(ui, fc, t, ctx.last, events),
@@ -827,6 +851,30 @@ pub fn tool_subject(texts: &Texts, name: &str) -> String {
     })
 }
 
+/// Libellé d'une proposition : celui de sa carte, sinon celui des
+/// arguments (appel refusé), sinon rien.
+fn proposal_label(step: &ToolStep) -> Option<String> {
+    if let Some(card) = &step.proposal {
+        return Some(card.label.clone());
+    }
+    serde_json::from_str::<serde_json::Value>(&step.arguments)
+        .ok()?
+        .get("label")?
+        .as_str()
+        .map(str::to_owned)
+}
+
+/// Texte de la barre d'état ou d'une ligne en cours pour l'outil `name`.
+fn reading_text(texts: &Texts, name: &str) -> String {
+    if name == PROPOSE_TOOL {
+        return texts.get(TextId::AssistantToolProposing);
+    }
+    texts.get_args(
+        TextId::AssistantToolReading,
+        &[("what", Arg::Str(tool_subject(texts, name).into()))],
+    )
+}
+
 /// Lignes d'outils (H-UI-143) : une ligne de 22 points par lecture, au
 /// passé, état (en cours, ✓, ⚠ avec infobulle) ; à partir de 3 lectures,
 /// une ligne « ▸ 4 lectures du planning » dépliable.
@@ -865,6 +913,30 @@ fn tools(
 fn tool_rows(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, done: &[ToolStep], pending: &[String]) {
     let texts = fc.texts;
     for step in done {
+        if step.name == PROPOSE_TOOL {
+            match (&step.error, proposal_label(step)) {
+                (None, label) => tool_row(
+                    ui,
+                    Icon::Sparkles,
+                    t.accent,
+                    &texts.get_args(
+                        TextId::AssistantToolPropose,
+                        &[("what", Arg::Str(label.unwrap_or_default().into()))],
+                    ),
+                    t,
+                    None,
+                ),
+                (Some(message), _) => tool_row(
+                    ui,
+                    Icon::TriangleAlert,
+                    t.warn,
+                    &texts.get(TextId::AssistantToolProposeFailed),
+                    t,
+                    Some(message),
+                ),
+            }
+            continue;
+        }
         let what = Arg::Str(tool_subject(texts, &step.name).into());
         match &step.error {
             None => tool_row(
@@ -886,15 +958,7 @@ fn tool_rows(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, done: &[ToolS
         }
     }
     for name in pending {
-        let what = Arg::Str(tool_subject(texts, name).into());
-        tool_row(
-            ui,
-            Icon::Ellipsis,
-            t.meta,
-            &texts.get_args(TextId::AssistantToolReading, &[("what", what)]),
-            t,
-            None,
-        );
+        tool_row(ui, Icon::Ellipsis, t.meta, &reading_text(texts, name), t, None);
     }
 }
 
@@ -936,6 +1000,177 @@ fn answer(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, turn: &Turn) {
         )
     };
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Article, true, label.clone()));
+}
+
+/// Carte d'une proposition (lot A2) : « Proposition : <libellé> —
+/// n tâche(s) touchée(s) » ; en attente : Voir (onglet Opérations IA),
+/// Accepter, Refuser (mêmes actions que le panneau) et un motif de refus
+/// facultatif ; ensuite, l'issue (acceptée, refusée, périmée, expirée,
+/// échouée). La carte ne calcule rien : le nombre de tâches vient du
+/// `dry_run` du moteur.
+fn proposal_card(
+    ui: &mut egui::Ui,
+    fc: &FrameCtx<'_>,
+    t: &ChatTokens,
+    card: &ProposalCard,
+    events: &mut Vec<ChatEvent>,
+) {
+    let texts = fc.texts;
+    let pending = card.status.is_pending();
+    let stroke = if pending { t.accent } else { t.border };
+    // Titre en Inter SemiBold (vraie graisse) quand la police est chargée.
+    let title_font = if crate::theme::plan_fonts_ready(ui.ctx()) {
+        FontId::new(
+            BODY_SIZE,
+            egui::FontFamily::Name(crate::theme::PLAN_FAMILY_STRONG.into()),
+        )
+    } else {
+        FontId::proportional(BODY_SIZE)
+    };
+    let response = egui::Frame::new()
+        .fill(t.surface)
+        .stroke(Stroke::new(1.0, stroke))
+        .corner_radius(10.0)
+        .inner_margin(egui::Margin::symmetric(12, 10))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                let (icon, _) = ui.allocate_exact_size(Vec2::splat(16.0), Sense::hover());
+                paint_icon(ui.painter(), icon, Icon::Sparkles, t.accent);
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(texts.get_args(
+                            TextId::AssistantProposalTitle,
+                            &[("name", Arg::Str(card.label.as_str().into()))],
+                        ))
+                        .font(title_font)
+                        .color(t.text),
+                    )
+                    .wrap(),
+                );
+            });
+            let changed = texts.get_args(
+                TextId::AssistantProposalChanged,
+                &[("count", Arg::Count(i64::from(card.changed_tasks)))],
+            );
+            ui.label(RichText::new(changed).size(META_SIZE).color(t.meta));
+            ui.add_space(6.0);
+            if pending {
+                proposal_actions(ui, fc, t, card.id, events);
+            } else {
+                proposal_outcome(ui, texts, t, &card.status);
+            }
+        })
+        .response;
+    let label = texts.get_args(
+        TextId::AssistantProposalTitle,
+        &[("name", Arg::Str(card.label.as_str().into()))],
+    );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Group, true, label.clone()));
+}
+
+/// Boutons d'une proposition en attente et motif de refus facultatif.
+fn proposal_actions(
+    ui: &mut egui::Ui,
+    fc: &FrameCtx<'_>,
+    t: &ChatTokens,
+    id: u64,
+    events: &mut Vec<ChatEvent>,
+) {
+    let texts = fc.texts;
+    let reason_id = Id::unique(("plannercraft.assistant.reason", id));
+    let mut reason = ui.data(|d| d.get_temp::<String>(reason_id)).unwrap_or_default();
+    ui.horizontal_wrapped(|ui| {
+        let accept =
+            egui::Button::new(RichText::new(texts.get(TextId::AssistantProposalAccept)).color(t.send_fg))
+                .fill(t.send_bg)
+                .corner_radius(6.0);
+        if ui
+            .push_id(("plannercraft.assistant.proposal.accept", id), |ui| {
+                ui.add(accept)
+            })
+            .inner
+            .clicked()
+        {
+            events.push(ChatEvent::Proposal(ProposalOp::Accept(id)));
+        }
+        if ui
+            .push_id(("plannercraft.assistant.proposal.reject", id), |ui| {
+                ui.button(texts.get(TextId::AssistantProposalReject))
+            })
+            .inner
+            .clicked()
+        {
+            events.push(ChatEvent::RejectWith(id, reason.clone()));
+        }
+        if ui
+            .push_id(("plannercraft.assistant.proposal.view", id), |ui| {
+                ui.button(texts.get(TextId::AssistantProposalView))
+            })
+            .inner
+            .clicked()
+        {
+            events.push(ChatEvent::Proposal(ProposalOp::View(id)));
+        }
+    });
+    ui.add_space(4.0);
+    let hint = texts.get(TextId::AssistantProposalReason);
+    let response = egui::Frame::new()
+        .stroke(Stroke::new(1.0, t.border))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(8, 4))
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut reason)
+                    .id(reason_id.with("field"))
+                    .frame(egui::Frame::NONE)
+                    .char_limit(crate::assistant::MAX_REASON_CHARS)
+                    .hint_text(hint.as_str())
+                    .desired_width(f32::INFINITY),
+            )
+        })
+        .inner;
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, hint.clone()));
+    if response.changed() {
+        ui.data_mut(|d| d.insert_temp(reason_id, reason));
+    }
+    ui.label(
+        RichText::new(texts.get(TextId::AssistantProposalPending))
+            .size(META_SIZE)
+            .color(t.meta),
+    );
+}
+
+/// Issue d'une proposition traitée.
+fn proposal_outcome(ui: &mut egui::Ui, texts: &Texts, t: &ChatTokens, status: &ProposalStatus) {
+    let (icon, color, text) = match status {
+        ProposalStatus::Pending => return,
+        ProposalStatus::Accepted => (Icon::Check, t.ok, texts.get(TextId::AssistantProposalAccepted)),
+        ProposalStatus::Rejected { .. } => (
+            Icon::CircleX,
+            t.meta,
+            texts.get(TextId::AssistantProposalRejected),
+        ),
+        ProposalStatus::Stale => (Icon::CircleOff, t.meta, texts.get(TextId::AssistantProposalStale)),
+        ProposalStatus::Expired => (
+            Icon::CircleOff,
+            t.meta,
+            texts.get(TextId::AssistantProposalExpired),
+        ),
+        ProposalStatus::Failed { code } => (
+            Icon::TriangleAlert,
+            t.warn,
+            texts.get_args(
+                TextId::AssistantProposalFailed,
+                &[("detail", Arg::Str(code.as_str().into()))],
+            ),
+        ),
+    };
+    ui.horizontal(|ui| {
+        let (mark, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
+        paint_icon(ui.painter(), mark, icon, color);
+        ui.add(egui::Label::new(RichText::new(text).size(META_SIZE).color(color)).wrap());
+    });
 }
 
 /// Encadré d'erreur (ce qui s'est passé) et « Réessayer » (dernier tour).
@@ -1105,10 +1340,7 @@ fn status_bar(ui: &mut egui::Ui, fc: &FrameCtx<'_>, panel: &AssistantPanel, t: &
         }
         Activity::Waiting => texts.get(TextId::AssistantThinking),
         Activity::Reasoning => texts.get(TextId::AssistantReasoningLive),
-        Activity::Reading(name) => texts.get_args(
-            TextId::AssistantToolReading,
-            &[("what", Arg::Str(tool_subject(texts, &name).into()))],
-        ),
+        Activity::Reading(name) => reading_text(texts, &name),
         Activity::Writing => texts.get(TextId::AssistantWriting),
     };
     let width = ui.available_width();

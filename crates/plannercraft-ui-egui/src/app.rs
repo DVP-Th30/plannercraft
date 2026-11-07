@@ -427,6 +427,11 @@ pub struct App {
     /// [`App::control_inbox`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) relay: Option<crate::relay::Relay>,
+    /// Écritures proposées en attente (agents rattachés et assistant
+    /// intégré, lot A2 d'ADR-0024) ; desktop et web.
+    pub(crate) approvals: crate::approvals::Approvals,
+    /// Numéro de la prochaine proposition de l'assistant.
+    next_proposal: u64,
     /// Volet latéral : opérations IA et « Pourquoi cette date ? » (J8 lot
     /// L12) ; jamais persisté.
     pub(crate) side: crate::view::side_panel::SidePanelState,
@@ -503,6 +508,8 @@ impl App {
             popup_open: false,
             #[cfg(not(target_arch = "wasm32"))]
             relay: None,
+            approvals: crate::approvals::Approvals::default(),
+            next_proposal: 1,
             side: crate::view::side_panel::SidePanelState::default(),
             assistant: crate::assistant::AssistantPanel::new(crate::assistant::AssistantServices::offline()),
             #[cfg(not(target_arch = "wasm32"))]
@@ -1613,13 +1620,18 @@ impl App {
         let mut changed = self.assistant.poll_services();
         if self.assistant.conversation.busy() {
             let lang = self.text_language();
-            let mut host = plannercraft_assistant::tools::SessionHost {
-                session: self.document.as_ref().map(|d| &d.session),
-                env: plannercraft_automation::CallEnv::new((self.env.now)(), lang),
-                ui_state: self.assistant_ui_state(),
-            };
+            let mut host = plannercraft_assistant::tools::SessionHost::new(
+                self.document.as_ref().map(|d| &d.session),
+                plannercraft_automation::CallEnv::new((self.env.now)(), lang),
+                self.assistant_ui_state(),
+            );
+            host.next_proposal = self.next_proposal;
             let transport = self.assistant.transport();
             changed |= self.assistant.conversation.poll(&mut host, transport.as_ref());
+            self.next_proposal = host.next_proposal;
+            let proposals = std::mem::take(&mut host.proposals);
+            drop(host);
+            self.queue_proposals(proposals);
         }
         if changed {
             ctx.request_repaint();
@@ -2177,8 +2189,9 @@ impl App {
                 }
                 self.clamp_table_scroll();
             }
-            Action::Approve(id) => self.approve_relayed(id),
-            Action::Reject(id) => self.reject_relayed(id),
+            Action::Approve(id) => self.approve(crate::approvals::ApprovalKey::agent(id)),
+            Action::Reject(id) => self.reject(crate::approvals::ApprovalKey::agent(id), None),
+            Action::Proposal(op) => self.proposal_op(op),
             Action::Ui(op) => self.apply_ui(op, ctx),
             Action::TaskView(op) => self.apply_task_view(op),
             // J8, lot L10 : presse-papiers et import CSV.
@@ -2361,35 +2374,20 @@ impl App {
         }
     }
 
-    /// Accepte l'écriture relayée `id` (bandeau, H-UI-27) ; sans canal
-    /// (web), rien.
-    #[cfg_attr(
-        target_arch = "wasm32",
-        allow(
-            clippy::unused_self,
-            reason = "web : aucun canal, même signature que le desktop"
-        )
-    )]
-    fn approve_relayed(&mut self, id: u64) {
-        #[cfg(not(target_arch = "wasm32"))]
-        self.approve(id);
-        #[cfg(target_arch = "wasm32")]
-        let _ = id;
-    }
-
-    /// Refuse l'écriture relayée `id` ; sans canal (web), rien.
-    #[cfg_attr(
-        target_arch = "wasm32",
-        allow(
-            clippy::unused_self,
-            reason = "web : aucun canal, même signature que le desktop"
-        )
-    )]
-    fn reject_relayed(&mut self, id: u64) {
-        #[cfg(not(target_arch = "wasm32"))]
-        self.reject(id);
-        #[cfg(target_arch = "wasm32")]
-        let _ = id;
+    /// Geste sur une proposition de l'assistant (carte de la conversation,
+    /// lot A2) : Accepter, Refuser (motif facultatif de la carte), Voir.
+    fn proposal_op(&mut self, op: crate::approvals::ProposalOp) {
+        use crate::approvals::{ApprovalKey, ProposalOp};
+        match op {
+            ProposalOp::Accept(id) => self.approve(ApprovalKey::assistant(id)),
+            ProposalOp::Reject(id) => {
+                let reason = self.assistant.take_reject_reason(id);
+                self.reject(ApprovalKey::assistant(id), reason);
+            }
+            ProposalOp::View(_) => self.side.apply(view::side_panel::SideOp::Open(
+                view::side_panel::SideTab::AiOperations,
+            )),
+        }
     }
 
     /// Action d'interface d'un agent (`app.ui`), sans historique ni effet
@@ -3091,6 +3089,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.drain_relay(&ctx);
         self.poll_assistant(&ctx);
+        self.tick_approvals();
         self.poll_io();
         self.poll_save(&ctx);
         self.poll_export();
@@ -3174,38 +3173,27 @@ impl App {
             view::search::search_bar(ui, &mut fc);
             view::chrome::status_bar(ui, &mut fc, &self.messages);
             view::chrome::confirm_banner(ui, &mut fc, confirm_name.as_deref());
-            #[cfg(not(target_arch = "wasm32"))]
             {
                 let document = self
                     .document
                     .as_ref()
                     .map_or("", |document| document.origin.name.as_str());
-                let banner = self
-                    .relay
-                    .as_ref()
-                    .and_then(|relay| crate::relay::banner_for(relay, document));
+                let banner = crate::approvals::banner_for(&self.approvals, document);
                 // Volet « Opérations IA » visible : il porte la décision, le
-                // bandeau J7 se retire (H-UI-41).
-                if !self.side.shows_ai() {
+                // bandeau J7 se retire (H-UI-41) ; de même pour une
+                // proposition de l'assistant quand sa conversation est
+                // affichée (la carte porte la décision, lot A2).
+                let card_visible = banner.is_some_and(|b| b.assistant)
+                    && self.side.open
+                    && self.side.tab == view::side_panel::SideTab::Assistant;
+                if !self.side.shows_ai() && !card_visible {
                     view::approval::approval_banner(ui, &mut fc, banner);
                 }
+                #[cfg(not(target_arch = "wasm32"))]
                 view::recovery::recovery_banner(ui, &mut fc, recovery_offer);
-                let ai = self
-                    .relay
-                    .as_ref()
-                    .map_or(view::side_panel::AiPanelInput::EMPTY, |relay| {
-                        crate::relay::panel_input(relay, banner)
-                    });
+                let ai = crate::approvals::panel_input(&self.approvals, banner);
                 view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant);
             }
-            #[cfg(target_arch = "wasm32")]
-            view::side_panel::panel(
-                ui,
-                &mut fc,
-                &self.side,
-                view::side_panel::AiPanelInput::EMPTY,
-                &mut self.assistant,
-            );
             if self.state.diagnostics_open {
                 view::diagnostics::panel(ui, &mut fc);
             }

@@ -159,6 +159,9 @@ pub enum Action {
     Approve(u64),
     /// Refuse l'écriture relayée `id` (lot L3).
     Reject(u64),
+    /// Geste sur une proposition de l'assistant (carte de la conversation
+    /// ou panneau Opérations IA ; lot A2 d'ADR-0024).
+    Proposal(crate::approvals::ProposalOp),
     /// Ouvre le fichier récent d'indice donné (H-UI-28, lot L14).
     OpenRecent(usize),
     /// Réponse au bandeau de reprise après plantage (lot L15).

@@ -342,7 +342,8 @@ pub struct ChatTokens {
     pub panel: Color32,
     /// Texte des messages.
     pub text: Color32,
-    /// Texte appuyé (gras du Markdown : egui l'affiche par la couleur).
+    /// Texte appuyé (gras du Markdown par la couleur : repli tant que les
+    /// familles Inter ne sont pas chargées, lot A2).
     pub strong: Color32,
     /// Méta : pied de message, lignes d'outils, barre d'état, réflexion.
     pub meta: Color32,
@@ -726,6 +727,24 @@ pub fn install_plan_fonts(ctx: &egui::Context) {
             }],
         ));
     }
+}
+
+/// Vrai si les familles Inter sont chargées dans `ctx` ; sinon les
+/// installe (prises en compte à l'image suivante, ou aussitôt si aucun
+/// texte n'a encore été mis en page) et rend faux : l'appelant garde la
+/// police d'egui pour cette image (une famille inconnue ne doit jamais
+/// être demandée à egui).
+#[must_use]
+pub fn plan_fonts_ready(ctx: &egui::Context) -> bool {
+    let ready = ctx.fonts(|f| {
+        let families = &f.definitions().families;
+        families.contains_key(&egui::FontFamily::Name(PLAN_FAMILY.into()))
+            && families.contains_key(&egui::FontFamily::Name(PLAN_FAMILY_STRONG.into()))
+    });
+    if !ready {
+        install_plan_fonts(ctx);
+    }
+    ready
 }
 
 /// Style du planning lu par l'écran à une image (J8, lot L11, ADR-0016

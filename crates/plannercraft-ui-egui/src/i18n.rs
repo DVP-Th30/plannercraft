@@ -1581,6 +1581,26 @@ text_ids! {
     AssistantJumpLast => "assistant-jump-last",
     AssistantContinuePrompt => "assistant-continue-prompt",
     AssistantContext => "assistant-context",
+    // --- Lot A2 (ADR-0024) ---
+    ApprovalTitleAssistant => "approval-title-assistant",
+    AiHistoryLineAssistant => "ai-history-line-assistant",
+    AssistantToolPropose => "assistant-tool-propose",
+    AssistantToolProposeFailed => "assistant-tool-propose-failed",
+    AssistantToolProposing => "assistant-tool-proposing",
+    AssistantProposalTitle => "assistant-proposal-title",
+    AssistantProposalChanged => "assistant-proposal-changed",
+    AssistantProposalView => "assistant-proposal-view",
+    AssistantProposalAccept => "assistant-proposal-accept",
+    AssistantProposalReject => "assistant-proposal-reject",
+    AssistantProposalReason => "assistant-proposal-reason",
+    AssistantProposalPending => "assistant-proposal-pending",
+    AssistantProposalAccepted => "assistant-proposal-accepted",
+    AssistantProposalRejected => "assistant-proposal-rejected",
+    AssistantProposalStale => "assistant-proposal-stale",
+    AssistantProposalExpired => "assistant-proposal-expired",
+    AssistantProposalFailed => "assistant-proposal-failed",
+    AssistantReasoningToggle => "assistant-reasoning-toggle",
+    AssistantReasoningToggleHint => "assistant-reasoning-toggle-hint",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

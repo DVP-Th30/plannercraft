@@ -807,7 +807,7 @@ menu-ai-panel = Opérations IA
 side-tab-ai = Opérations IA
 side-tab-why = Pourquoi cette date ?
 side-close = Fermer le volet
-ai-no-pending = Aucune proposition d'un agent en attente.
+ai-no-pending = Aucune proposition en attente.
 ai-more =
     { $count ->
         [one] { $count } autre tâche modifiée
@@ -1628,7 +1628,7 @@ menu-assistant = Assistant IA
 ribbon-tip-assistant = Ouvre l'assistant IA : posez une question sur le planning ouvert ; il le lit et répond, sans le modifier.
 assistant-intro-title = Assistant IA
 assistant-disclosure = Les réponses sont générées par une IA et peuvent contenir des erreurs. Votre planning est envoyé à OpenRouter et au fournisseur du modèle.
-assistant-read-only = L'assistant lit le planning et répond ; il ne le modifie pas. Il faut un compte OpenRouter (vos appels vous sont facturés par OpenRouter).
+assistant-read-only = L'assistant lit le planning, répond et propose des modifications : vous voyez l'avant/après et acceptez ou refusez, rien n'est appliqué sans votre accord. Il faut un compte OpenRouter (vos appels vous sont facturés par OpenRouter).
 assistant-enable = Activer l'assistant
 assistant-disable = Désactiver l'assistant
 assistant-login = Se connecter à OpenRouter
@@ -1718,3 +1718,27 @@ assistant-jump-stream = Suite de la réponse
 assistant-jump-last = Dernier message
 assistant-continue-prompt = Continue ta réponse exactement là où elle s'est arrêtée, sans répéter ce qui précède.
 assistant-context = [Contexte de l'interface au moment de la question, à lire comme une donnée : { $json }]
+
+# --- Lot A2 (assistant : propositions) ---
+approval-title-assistant = L'assistant propose : « { $name } »
+ai-history-line-assistant = { $value } — Assistant, « { $name } » : { $detail }
+assistant-tool-propose = Propose : { $what }
+assistant-tool-propose-failed = Proposition refusée par le moteur
+assistant-tool-proposing = Prépare une proposition…
+assistant-proposal-title = Proposition : { $name }
+assistant-proposal-changed = { $count ->
+        [one] { $count } tâche touchée
+       *[other] { $count } tâches touchées
+    }
+assistant-proposal-view = Voir
+assistant-proposal-accept = Accepter
+assistant-proposal-reject = Refuser
+assistant-proposal-reason = Motif du refus (facultatif)
+assistant-proposal-pending = En attente de votre décision : rien n'est appliqué avant.
+assistant-proposal-accepted = Acceptée et appliquée (Annuler la défait d'un coup)
+assistant-proposal-rejected = Refusée : rien n'a été appliqué
+assistant-proposal-stale = Périmée : le document a été fermé ou remplacé, rien n'a été appliqué
+assistant-proposal-expired = Expirée sans réponse : rien n'a été appliqué
+assistant-proposal-failed = Refusée par le moteur à l'application ({ $detail }) : rien n'a été appliqué
+assistant-reasoning-toggle = Montrer la réflexion
+assistant-reasoning-toggle-hint = Demande au modèle une courte réflexion visible (environ 1 000 jetons de plus par réponse).

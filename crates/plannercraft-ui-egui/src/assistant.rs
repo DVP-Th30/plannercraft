@@ -13,8 +13,10 @@
 //!   par une file, le trousseau est lu et écrit par
 //!   [`plannercraft_assistant::platform::Background`], la connexion du
 //!   desktop tourne dans son propre fil.
-//! - Lecture seule : les outils travaillent sur une copie de la session
-//!   (`SessionHost`), le document n'est jamais modifié par l'assistant.
+//! - Les outils travaillent sur une copie de la session (`SessionHost`) :
+//!   l'assistant ne modifie jamais le document lui-même ; ses propositions
+//!   (lot A2) attendent la décision de l'utilisateur dans la file commune
+//!   (`crate::approvals`).
 //! - Lot A1b (H-UI-143 à H-UI-148) : conversation par tours, défilement
 //!   ancré ([`ChatScroll`]), conversation gardée par document
 //!   ([`Archive`], stockage local de l'application, jamais dans le fichier
@@ -29,7 +31,7 @@ use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::http::{EventSink, HttpEvent, HttpRequest, SharedTransport, Transport};
 #[cfg(target_arch = "wasm32")]
 use plannercraft_assistant::login::{PendingResponse, key_of};
-use plannercraft_assistant::openrouter::{self, MAX_TOKENS};
+use plannercraft_assistant::openrouter;
 use plannercraft_assistant::platform::Background;
 use plannercraft_assistant::secrets::{MemoryStore, SharedSecrets};
 
@@ -63,6 +65,8 @@ pub enum AssistantOp {
     Regenerate,
     /// Reprend une réponse arrêtée (lot A1b).
     Continue,
+    /// « Montrer la réflexion » (menu « … », lot A2).
+    ToggleReasoning,
 }
 
 /// Environnement d'une commande : langue, contexte de l'interface joint à
@@ -330,6 +334,9 @@ pub struct AssistantPanel {
     doc_key: Option<(String, String)>,
     /// Tour copié et heure (retour « Copié »).
     pub copied: Option<(usize, f64)>,
+    /// Motif de refus en cours de saisie sur la carte d'une proposition
+    /// (identifiant, texte ; lot A2).
+    pub reject_reason: Option<(u64, String)>,
     waker: Option<Waker>,
     #[cfg(target_arch = "wasm32")]
     callback_checked: bool,
@@ -347,6 +354,8 @@ impl std::fmt::Debug for AssistantPanel {
 
 /// Longueur au plus d'une question (caractères).
 pub const MAX_QUESTION_CHARS: usize = 4_000;
+/// Longueur au plus d'un motif de refus (caractères).
+pub const MAX_REASON_CHARS: usize = 300;
 /// Longueur au plus d'une clé saisie (caractères).
 pub const MAX_KEY_CHARS: usize = 512;
 
@@ -370,6 +379,7 @@ impl AssistantPanel {
             archive: Archive::default(),
             doc_key: None,
             copied: None,
+            reject_reason: None,
             waker: None,
             #[cfg(target_arch = "wasm32")]
             callback_checked: false,
@@ -446,6 +456,14 @@ impl AssistantPanel {
         }
         self.conversation = conversation;
         self.copied = None;
+    }
+
+    /// Motif de refus saisi pour la proposition `id` (vidé), `None` s'il
+    /// est vide.
+    pub fn take_reject_reason(&mut self, id: u64) -> Option<String> {
+        let (for_id, text) = self.reject_reason.take()?;
+        let text: String = text.trim().chars().take(MAX_REASON_CHARS).collect();
+        (for_id == id && !text.is_empty()).then_some(text)
     }
 
     /// Conversations gardées (tests).
@@ -663,6 +681,7 @@ impl AssistantPanel {
             AssistantOp::SetModel(id) => {
                 id.clone_into(&mut prefs.model);
             }
+            AssistantOp::ToggleReasoning => prefs.show_reasoning = !prefs.show_reasoning,
         }
     }
 
@@ -672,13 +691,15 @@ impl AssistantPanel {
             self.notice = Some(Notice::Error(AssistantError::NoKey));
             return None;
         };
+        let reasoning = prefs.show_reasoning.then_some(openrouter::REASONING_BUDGET);
         Some(RequestConfig {
             api_key,
             model: openrouter::model_or_default(&prefs.model).id.to_owned(),
             lang: env.lang,
-            max_tokens: MAX_TOKENS,
+            max_tokens: openrouter::max_tokens_for(reasoning),
             context: env.context.clone(),
             asked_at: env.asked_at.clone(),
+            reasoning_budget: reasoning,
         })
     }
 

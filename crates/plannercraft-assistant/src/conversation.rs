@@ -36,6 +36,7 @@ use crate::error::AssistantError;
 use crate::http::{HttpEvent, Transport};
 use crate::memory;
 use crate::openrouter;
+use crate::proposal::{self, PROPOSE_TOOL, ProposalCard, ProposalStatus};
 use crate::sse::SseParser;
 use crate::stream::{StreamAccumulator, ToolCall, Usage};
 use crate::tools::{self, ToolHost};
@@ -75,6 +76,9 @@ pub struct RequestConfig {
     pub context: Option<String>,
     /// Heure de la question, affichée en infobulle (« 14:32 »).
     pub asked_at: Option<String>,
+    /// Budget de réflexion demandé (`reasoning.max_tokens`), `None` : le
+    /// paramètre n'est pas envoyé (défaut, lot A2).
+    pub reasoning_budget: Option<u32>,
 }
 
 impl RequestConfig {
@@ -88,6 +92,7 @@ impl RequestConfig {
             max_tokens,
             context: None,
             asked_at: None,
+            reasoning_budget: None,
         }
     }
 }
@@ -131,6 +136,10 @@ pub struct ToolStep {
     /// réussi.
     #[serde(default)]
     pub error: Option<String>,
+    /// Proposition soumise par cet appel (outil
+    /// [`crate::proposal::PROPOSE_TOOL`] accepté en file, lot A2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal: Option<ProposalCard>,
 }
 
 /// Tour de conversation : une question et ce qui y répond.
@@ -287,6 +296,9 @@ pub struct Conversation {
     now: f64,
     /// Compteur de modifications (persistance, cache de rendu).
     revision: u64,
+    /// Décisions de l'utilisateur sur des propositions (libellé, issue),
+    /// pas encore dites au modèle : jointes au prochain message envoyé.
+    decisions: Vec<(String, ProposalStatus)>,
 }
 
 impl Default for Conversation {
@@ -317,6 +329,7 @@ impl Conversation {
             requests_sent: 0,
             now: 0.0,
             revision: 0,
+            decisions: Vec::new(),
         }
     }
 
@@ -619,8 +632,56 @@ impl Conversation {
             if turn.streaming() {
                 turn.state = TurnState::Stopped;
             }
+            // La file des propositions n'est pas gardée : une proposition
+            // en attente à la fermeture est expirée (rien d'appliqué).
+            for step in &mut turn.tools {
+                if let Some(card) = &mut step.proposal
+                    && card.status.is_pending()
+                {
+                    card.status = ProposalStatus::Expired;
+                }
+            }
         }
         conversation
+    }
+
+    /// Identifiants des propositions en attente dans la conversation.
+    #[must_use]
+    pub fn pending_proposals(&self) -> Vec<u64> {
+        self.turns
+            .iter()
+            .flat_map(|t| &t.tools)
+            .filter_map(|s| s.proposal.as_ref())
+            .filter(|c| c.status.is_pending())
+            .map(|c| c.id)
+            .collect()
+    }
+
+    /// Issue de la proposition `id` (encore en attente seulement) : la
+    /// carte change et la décision sera dite au modèle au prochain message
+    /// (ou au prochain tour d'API de la demande en cours). Rend vrai si une
+    /// proposition en attente portait cet identifiant.
+    pub fn set_proposal_status(&mut self, id: u64, status: ProposalStatus) -> bool {
+        let card = self
+            .turns
+            .iter_mut()
+            .flat_map(|t| &mut t.tools)
+            .filter_map(|s| s.proposal.as_mut())
+            .find(|c| c.id == id && c.status.is_pending());
+        let Some(card) = card else {
+            return false;
+        };
+        card.status = status.clone();
+        let label = card.label.clone();
+        self.decisions.push((label, status));
+        self.touch();
+        true
+    }
+
+    /// Décisions pas encore dites au modèle (tests).
+    #[must_use]
+    pub fn untold_decisions(&self) -> usize {
+        self.decisions.len()
     }
 
     fn push_turn(&mut self, turn: Turn) {
@@ -834,15 +895,65 @@ impl Conversation {
         }
         turn.wire.push(message);
         for call in calls {
-            let result = tools::execute(host, call, lang);
+            let (result, proposal) = if call.name == PROPOSE_TOOL {
+                Self::propose(turn, call, host, lang)
+            } else {
+                (tools::execute(host, call, lang), None)
+            };
             turn.tools.push(ToolStep {
                 name: call.name.clone(),
                 arguments: call.arguments.chars().take(MAX_SHOWN_ARGUMENTS).collect(),
                 error: tool_error(&result),
+                proposal,
             });
             turn.wire
                 .push(json!({ "role": "tool", "tool_call_id": call.id, "content": result }));
         }
+    }
+
+    /// Appel de [`PROPOSE_TOOL`] : garde-fous, puis l'hôte (`dry_run`, mise
+    /// en attente). Une seule proposition soumise par demande ; au plus
+    /// [`proposal::MAX_CORRECTIONS`] corrections après un refus.
+    fn propose(
+        turn: &Turn,
+        call: &ToolCall,
+        host: &mut dyn ToolHost,
+        lang: Language,
+    ) -> (String, Option<ProposalCard>) {
+        let mine = turn.tools.iter().filter(|s| s.name == PROPOSE_TOOL);
+        let submitted = mine.clone().any(|s| s.proposal.is_some());
+        let refused = mine.filter(|s| s.error.is_some()).count();
+        if submitted || refused > proposal::MAX_CORRECTIONS {
+            return (proposal::blocked_result(submitted, lang).to_string(), None);
+        }
+        let left = proposal::MAX_CORRECTIONS.saturating_sub(refused);
+        let outcome = proposal::check(&call.arguments, lang, &turn.question)
+            .and_then(|checked| host.propose(&checked.label, checked.params));
+        match outcome {
+            Ok(done) => {
+                let card = ProposalCard {
+                    id: done.id,
+                    label: done.label,
+                    changed_tasks: done.changed_tasks,
+                    status: ProposalStatus::Pending,
+                };
+                (done.result.to_string(), Some(card))
+            }
+            Err(error) => (proposal::refused_result(&error, left, lang).to_string(), None),
+        }
+    }
+
+    /// Décisions en attente, en une note dans la langue `lang` (vidées).
+    fn take_notes(&mut self, lang: Language) -> Option<String> {
+        if self.decisions.is_empty() {
+            return None;
+        }
+        let notes: Vec<String> = self
+            .decisions
+            .drain(..)
+            .map(|(label, status)| proposal::decision_note(&label, &status, lang))
+            .collect();
+        Some(notes.join("\n"))
     }
 
     fn start_round(
@@ -853,6 +964,29 @@ impl Conversation {
         separate: bool,
         transport: &dyn Transport,
     ) {
+        // Décisions de l'utilisateur pas encore dites : jointes au message
+        // envoyé (question ou consigne de reprise) au premier tour d'API,
+        // ou en message à part entre deux tours d'outils.
+        if let Some(note) = self.take_notes(config.lang)
+            && let Some(turn) = self.turns.last_mut()
+        {
+            let last_user = turn
+                .wire
+                .iter_mut()
+                .rev()
+                .find(|m| m.get("role").and_then(Value::as_str) == Some("user"));
+            match last_user {
+                Some(Value::Object(message)) if round == 0 => {
+                    let text = message
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned();
+                    message.insert("content".to_owned(), Value::String(format!("{note}\n\n{text}")));
+                }
+                _ => turn.wire.push(json!({ "role": "user", "content": note })),
+            }
+        }
         let (previous, current) = match self.turns.split_last() {
             Some((current, previous)) => (previous, current.wire.as_slice()),
             None => (&[][..], &[][..]),
@@ -865,13 +999,14 @@ impl Conversation {
             memory::supports_cache_control(&config.model),
         );
         let allow_tools = round.saturating_add(1) < MAX_ROUNDS;
-        let body = openrouter::chat_body(
+        let mut body = openrouter::chat_body(
             &config.model,
             &messages,
             &tools::definitions(config.lang),
             config.max_tokens,
             allow_tools,
         );
+        openrouter::with_reasoning(&mut body, config.reasoning_budget);
         let request = openrouter::chat_request(&config.api_key, &body);
         let id = self.next_request;
         self.next_request = self.next_request.saturating_add(1);

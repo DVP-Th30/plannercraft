@@ -944,7 +944,7 @@ fn approval_banner() {
     .unwrap();
     bench.settle(&mut app);
     assert_eq!(replies.try_recv().unwrap(), Reply::PendingApproval { id: 1 });
-    assert_eq!(app.relay().unwrap().pending().len(), 1);
+    assert_eq!(app.approvals().pending().len(), 1);
     for _ in 0..WARMUP {
         bench.frame(&mut app, wheel_events(-WHEEL_STEP));
     }
@@ -954,11 +954,7 @@ fn approval_banner() {
             bench.frame(&mut app, wheel_events(dy))
         })
         .collect();
-    assert_eq!(
-        app.relay().unwrap().pending().len(),
-        1,
-        "bandeau toujours affiché"
-    );
+    assert_eq!(app.approvals().pending().len(), 1, "bandeau toujours affiché");
     assert_budget("approval_banner", samples, bench.last);
 }
 
@@ -1717,7 +1713,7 @@ fn ai_panel() {
     .unwrap();
     bench.settle(&mut app);
     assert_eq!(replies.try_recv().unwrap(), Reply::PendingApproval { id: 1 });
-    let relay = app.relay().unwrap();
+    let relay = app.approvals();
     assert_eq!(relay.diff_builds(), 1);
     assert_eq!(
         relay.pending()[0].diff.as_ref().map(|d| d.rows.len()),
@@ -1733,7 +1729,7 @@ fn ai_panel() {
             bench.frame(&mut app, wheel_events(dy))
         })
         .collect();
-    assert_eq!(app.relay().unwrap().diff_builds(), 1, "diff calculé une fois");
+    assert_eq!(app.approvals().diff_builds(), 1, "diff calculé une fois");
     assert_budget("ai_panel", samples, bench.last);
 }
 
