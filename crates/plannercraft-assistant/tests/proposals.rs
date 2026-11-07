@@ -153,7 +153,7 @@ fn registry_refusal_then_two_corrections_at_most() {
     assert!(third["hint"].as_str().unwrap().contains("Plus de correction"));
     let fourth = tool_result(&body(&reqs[4]), "p4");
     assert_eq!(fourth["error"]["code"], "proposal.blocked");
-    assert!(h.proposals.is_empty());
+    assert_eq!(h.proposals.len(), 0);
     assert!(conv.turns()[0].tools.iter().all(|s| s.proposal.is_none()));
     assert_eq!(conv.turns()[0].state, TurnState::Done);
 }
@@ -265,7 +265,7 @@ fn restored_pending_proposal_expires() {
     let restored = Conversation::restore(saved);
     let card = restored.turns()[0].tools[0].proposal.clone().unwrap();
     assert_eq!(card.status, ProposalStatus::Expired);
-    assert!(restored.pending_proposals().is_empty());
+    assert_eq!(restored.pending_proposals(), Vec::<u64>::new());
 }
 
 /// « Montrer la réflexion » : `reasoning.max_tokens` et plafond relevé ;

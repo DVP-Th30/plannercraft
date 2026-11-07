@@ -74,7 +74,7 @@ fn card_status(app: &App) -> Option<ProposalStatus> {
         .iter()
         .flat_map(|t| &t.tools)
         .filter_map(|s| s.proposal.as_ref())
-        .last()
+        .next_back()
         .map(|c| c.status.clone())
 }
 
@@ -85,7 +85,7 @@ fn rename(label: &str, uid: u32, name: &str) -> Value {
 /// Dernier message envoyé au modèle (texte).
 fn last_user_text(transport: &ScriptedTransport) -> String {
     let n = transport.requests().len();
-    let req = body(transport, n - 1);
+    let req = body(transport, n.saturating_sub(1));
     req["messages"].as_array().unwrap().last().unwrap()["content"]
         .as_str()
         .unwrap()
@@ -172,7 +172,11 @@ fn h_ui_150_accept_single_undo_and_told() {
     assert_eq!(task_name(app, 3), "Plans définitifs");
     assert_eq!(task_name(app, 4), "Dépôt du permis (PC)");
     let history = app.document.as_ref().unwrap().session.history();
-    assert_eq!(history.entries.len(), entries + 1, "une seule entrée");
+    assert_eq!(
+        history.entries.len(),
+        entries.saturating_add(1),
+        "une seule entrée"
+    );
     assert_eq!(history.entries.last().unwrap().source, EditSource::Agent);
     assert_eq!(card_status(app), Some(ProposalStatus::Accepted));
     assert!(app.approvals().pending().is_empty());
@@ -381,7 +385,7 @@ fn h_ui_154_show_reasoning_option() {
     settle(&mut harness);
     let req = body(&transport, 1);
     assert_eq!(req["reasoning"], json!({ "max_tokens": 1024 }));
-    assert_eq!(req["max_tokens"], 8192 + 1024);
+    assert_eq!(req["max_tokens"], 9216);
     // Mémorisé, mais jamais rendu aux agents MCP (`app.ui_state`).
     let json = harness.state().state.to_json().unwrap();
     assert!(json.contains("\"show_reasoning\":true"));
@@ -432,7 +436,7 @@ fn check_diff(app: &App, args: &Value) -> Vec<(String, RowChange)> {
     let expected = engine_dates(app, args);
     let pending = &app.approvals().pending()[0];
     let diff = pending.diff.as_ref().unwrap();
-    assert!(!diff.rows.is_empty());
+    assert_ne!(diff.rows.len(), 0);
     for row in &diff.rows {
         let (start, finish) = expected[&row.name];
         assert_eq!(row.start.1, Some(start), "{}", row.name);
@@ -473,7 +477,7 @@ fn decide(harness: &mut Harness<'static, App>, accept: bool) {
         harness.run();
         assert_eq!(
             history_len(harness.state()),
-            before_entries + 1,
+            before_entries.saturating_add(1),
             "une seule annulation"
         );
         assert_eq!(card_status(harness.state()), Some(ProposalStatus::Accepted));
