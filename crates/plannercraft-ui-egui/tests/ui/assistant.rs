@@ -108,6 +108,7 @@ fn h_ui_138_explicit_activation_with_disclosure() {
     assert!(harness.query_by_label(&fr(TextId::AssistantLogin)).is_none());
     click(&mut harness, &fr(TextId::AssistantEnable));
     harness.run();
+    wait_key_loaded(&mut harness);
     assert!(harness.state().state.assistant.enabled);
     wait_key_loaded(&mut harness);
     // Mention toujours visible une fois activé ; connexion proposée.
@@ -162,6 +163,7 @@ fn h_ui_139_key_never_in_ui_state() {
     let mut harness = assistant_harness(transport);
     click(&mut harness, &fr(TextId::AssistantEnable));
     harness.run();
+    wait_key_loaded(&mut harness);
     click(&mut harness, &fr(TextId::AssistantEnterKey));
     harness.run();
     harness
@@ -204,6 +206,7 @@ fn h_ui_139_refused_without_key() {
     let mut harness = assistant_harness(Arc::clone(&transport));
     click(&mut harness, &fr(TextId::AssistantEnable));
     harness.run();
+    wait_key_loaded(&mut harness);
     harness.state_mut().assistant_mut().draft = "Quand finit le projet ?".to_owned();
     harness.state_mut().dispatch(Action::Assistant(AssistantOp::Send));
     harness.run();
@@ -268,6 +271,7 @@ fn h_ui_139_login_simulated() {
     harness.run();
     click(&mut harness, &fr(TextId::AssistantEnable));
     harness.run();
+    wait_key_loaded(&mut harness);
     click(&mut harness, &fr(TextId::AssistantLogin));
     harness.run();
     for _ in 0..200 {
