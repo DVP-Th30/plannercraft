@@ -121,7 +121,7 @@ fn generation(app: &App) -> u64 {
 }
 
 fn pending_ids(app: &App) -> Vec<u64> {
-    app.relay().unwrap().pending().iter().map(|p| p.id).collect()
+    app.approvals().pending().iter().map(|p| p.id).collect()
 }
 
 fn rename(uid: u32, name: &str) -> Value {
@@ -147,7 +147,7 @@ fn c_ctl_02_pending_then_ok() {
     let history = app.document.as_ref().unwrap().session.history();
     assert_eq!(history.entries.len(), 1);
     assert_eq!(history.entries[0].source, EditSource::Agent);
-    assert_eq!(app.relay().unwrap().pending().len(), 0);
+    assert_eq!(app.approvals().pending().len(), 0);
 }
 
 /// C-CTL-03 : Refuser ⇒ `control.rejected` ; projet, historique,
@@ -237,7 +237,7 @@ fn relay_cancel_same_id_other_agent_kept() {
     assert!(second.state.expire());
     cancel(&tx, &second);
     harness.run();
-    let relay = harness.state().relay().unwrap();
+    let relay = harness.state().approvals();
     assert_eq!(relay.pending().len(), 1);
     assert_eq!(first.drain(), [Reply::PendingApproval { id }]);
     harness.state_mut().dispatch(Action::Approve(id));
@@ -299,10 +299,7 @@ fn c_ctl_07_stale_generation_new_preview() {
         json!({ "uid": 3, "duration": { "text": "20j" } }),
     );
     harness.run();
-    let first = harness.state().relay().unwrap().pending()[0]
-        .preview
-        .clone()
-        .unwrap();
+    let first = harness.state().approvals().pending()[0].preview.clone().unwrap();
     assert!(first.changed_tasks > 0);
     // L'utilisateur modifie le projet entre-temps.
     let batch = plannercraft_automation::Batch::from_json_str(
@@ -317,7 +314,7 @@ fn c_ctl_07_stale_generation_new_preview() {
     harness.run();
     let app = harness.state();
     assert_eq!(project_json(app), after_user, "aperçu périmé : rien d'appliqué");
-    let pending = &app.relay().unwrap().pending()[0];
+    let pending = &app.approvals().pending()[0];
     assert_eq!((pending.id, pending.generation), (sent.id, 1));
     assert_ne!(pending.preview.as_ref().unwrap(), &first, "nouvel aperçu");
     assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
@@ -679,9 +676,7 @@ mod socket {
             let read = client.call("history.list", json!({}), Duration::from_secs(30));
             (write, read)
         });
-        pump(&mut harness, |app| {
-            app.relay().is_some_and(|relay| !relay.pending().is_empty())
-        });
+        pump(&mut harness, |app| !app.approvals().pending().is_empty());
         let id = pending_ids(harness.state())[0];
         harness.state_mut().dispatch(Action::Approve(id));
         pump(&mut harness, |_| agent.is_finished());
@@ -706,18 +701,14 @@ mod socket {
                 .with_margin(Duration::from_secs(5));
             client.call("task.update", rename(3, "Trop tard"), Duration::from_secs(1))
         });
-        pump(&mut harness, |app| {
-            app.relay().is_some_and(|relay| !relay.pending().is_empty())
-        });
+        pump(&mut harness, |app| !app.approvals().pending().is_empty());
         let id = pending_ids(harness.state())[0];
         pump(&mut harness, |_| agent.is_finished());
         match agent.join().unwrap() {
             Err(RelayError::App(error)) => assert_eq!(error["code"], codes::CONTROL_APPROVAL_TIMEOUT),
             other => panic!("délai de l'application attendu : {other:?}"),
         }
-        pump(&mut harness, |app| {
-            app.relay().is_some_and(|relay| relay.pending().is_empty())
-        });
+        pump(&mut harness, |app| app.approvals().pending().is_empty());
         harness.state_mut().dispatch(Action::Approve(id));
         harness.run();
         assert_eq!(
@@ -735,9 +726,7 @@ mod socket {
             let mut client = RelayClient::connect(&rendezvous, Duration::from_secs(5)).unwrap();
             client.call("task.update", rename(3, "Trop tard"), Duration::from_secs(30))
         });
-        pump(&mut harness, |app| {
-            app.relay().is_some_and(|relay| !relay.pending().is_empty())
-        });
+        pump(&mut harness, |app| !app.approvals().pending().is_empty());
         let id = pending_ids(harness.state())[0];
         pump(&mut harness, |_| agent.is_finished());
         match agent.join().unwrap() {
@@ -745,9 +734,7 @@ mod socket {
             other => panic!("délai attendu : {other:?}"),
         }
         // Bandeau retiré ; Accepter ensuite n'applique rien.
-        pump(&mut harness, |app| {
-            app.relay().is_some_and(|relay| relay.pending().is_empty())
-        });
+        pump(&mut harness, |app| app.approvals().pending().is_empty());
         harness.state_mut().dispatch(Action::Approve(id));
         harness.run();
         assert_eq!(generation(harness.state()), 0);

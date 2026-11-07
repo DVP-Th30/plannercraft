@@ -19,8 +19,35 @@ pub const REFERER: &str = "https://github.com/DVP-Th30/plannercraft";
 /// Titre d'attribution (`X-OpenRouter-Title`).
 pub const TITLE: &str = "PlannerCraft";
 
-/// Jetons de sortie au plus par tour.
-pub const MAX_TOKENS: u32 = 2048;
+/// Jetons de sortie au plus par tour (lot A2 : 8 192, une proposition de
+/// planning complet tient dans les arguments d'un seul appel ; facturé au
+/// réel, pas au plafond).
+pub const MAX_TOKENS: u32 = 8192;
+
+/// Budget de réflexion demandé quand « Montrer la réflexion » est coché
+/// (`reasoning.max_tokens`) : le minimum d'Anthropic (1 024), doc
+/// `use-cases/reasoning-tokens` relue le 2026-11-07. Le plafond de sortie
+/// est relevé d'autant ([`max_tokens_for`]) : il doit rester strictement
+/// supérieur au budget.
+pub const REASONING_BUDGET: u32 = 1024;
+
+/// Plafond de sortie d'un tour, réflexion comprise.
+#[must_use]
+pub const fn max_tokens_for(reasoning: Option<u32>) -> u32 {
+    match reasoning {
+        Some(budget) => MAX_TOKENS.saturating_add(budget),
+        None => MAX_TOKENS,
+    }
+}
+
+/// Ajoute `reasoning: { max_tokens }` au corps si un budget est demandé ;
+/// rien sinon (réflexion coupée par défaut : le paramètre n'est pas
+/// envoyé).
+pub fn with_reasoning(body: &mut Value, budget: Option<u32>) {
+    if let (Some(budget), Value::Object(map)) = (budget, body) {
+        map.insert("reasoning".to_owned(), json!({ "max_tokens": budget }));
+    }
+}
 
 /// Modèle de la liste fermée (identifiants vérifiés sur
 /// `https://openrouter.ai/api/v1/models` le 2026-11-06).

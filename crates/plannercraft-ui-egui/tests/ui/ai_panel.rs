@@ -81,12 +81,11 @@ fn generation(app: &App) -> u64 {
 }
 
 fn pending_ids(app: &App) -> Vec<u64> {
-    app.relay().unwrap().pending().iter().map(|p| p.id).collect()
+    app.approvals().pending().iter().map(|p| p.id).collect()
 }
 
 fn outcomes(app: &App) -> Vec<AiOutcome> {
-    app.relay()
-        .unwrap()
+    app.approvals()
         .history()
         .iter()
         .map(|e| e.outcome.clone())
@@ -146,7 +145,7 @@ fn h_ui_41_diff_rows_and_more() {
     harness.run();
     assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
     let app = harness.state();
-    let diff = app.relay().unwrap().pending()[0].diff.clone().unwrap();
+    let diff = app.approvals().pending()[0].diff.clone().unwrap();
     let added = diff.rows.iter().find(|r| r.change == RowChange::Added).unwrap();
     assert_eq!(added.name, "Nettoyage");
     assert!(
@@ -188,7 +187,7 @@ fn h_ui_41_diff_rows_and_more() {
     harness.run();
     assert_eq!(many.drain(), [Reply::PendingApproval { id: many.id }]);
     let app = harness.state();
-    let diff = app.relay().unwrap().pending()[0].diff.clone().unwrap();
+    let diff = app.approvals().pending()[0].diff.clone().unwrap();
     assert_eq!(diff.rows.len(), MAX_DIFF_ROWS);
     assert_eq!(diff.more, 50);
     let more = app.texts().get_args(TextId::AiMore, &[("count", Arg::Count(50))]);
@@ -228,11 +227,11 @@ fn h_ui_41_accept_reject_head_only() {
     // Ctrl/Cmd+Entrée, volet ouvert : l'aperçu du troisième date d'avant
     // le premier lot accepté, d'où un nouvel aperçu (C-CTL-07, diff
     // recalculé), puis l'application au second appui.
-    let builds = harness.state().relay().unwrap().diff_builds();
+    let builds = harness.state().approvals().diff_builds();
     harness.key_press_modifiers(Modifiers::COMMAND, Key::Enter);
     harness.run();
     assert_eq!(pending_ids(harness.state()), [third.id], "nouvel aperçu");
-    assert_eq!(harness.state().relay().unwrap().diff_builds(), builds + 1);
+    assert_eq!(harness.state().approvals().diff_builds(), builds + 1);
     assert_eq!(generation(harness.state()), 1);
     harness.key_press_modifiers(Modifiers::COMMAND, Key::Enter);
     harness.run();
@@ -291,7 +290,7 @@ fn h_ui_41_history_outcomes() {
         ]
     );
     let app = harness.state();
-    let entry = &app.relay().unwrap().history()[0];
+    let entry = &app.approvals().history()[0];
     assert_eq!(entry.tool, "task.update");
     assert_eq!(entry.at, crate::now());
     for id in [
@@ -310,7 +309,7 @@ fn h_ui_41_history_outcomes() {
         harness.state_mut().dispatch(Action::Reject(sent.id));
         harness.run();
     }
-    let history = harness.state().relay().unwrap().history();
+    let history = harness.state().approvals().history();
     assert_eq!(history.len(), MAX_HISTORY);
     assert!(history.iter().all(|e| e.outcome == AiOutcome::Rejected));
 }
@@ -329,7 +328,7 @@ fn h_ui_41_diff_computed_once() {
     for _ in 0..30 {
         harness.run();
     }
-    let relay = harness.state().relay().unwrap();
+    let relay = harness.state().approvals();
     assert_eq!(relay.diff_builds(), 1);
     assert!(relay.pending()[0].diff.is_some());
     // L'utilisateur modifie le projet pendant l'attente : Accepter donne un
@@ -345,7 +344,7 @@ fn h_ui_41_diff_computed_once() {
     for _ in 0..10 {
         harness.run();
     }
-    let relay = harness.state().relay().unwrap();
+    let relay = harness.state().approvals();
     assert_eq!(relay.diff_builds(), 2);
     assert_eq!(pending_ids(harness.state()), [sent.id]);
     // Sans aperçu (enregistrer) : rien n'est calculé.
@@ -354,7 +353,7 @@ fn h_ui_41_diff_computed_once() {
     let save = execute(&tx, "project.save", json!({}));
     harness.run();
     assert_eq!(save.drain(), [Reply::PendingApproval { id: save.id }]);
-    let relay = harness.state().relay().unwrap();
+    let relay = harness.state().approvals();
     assert_eq!(relay.diff_builds(), 2);
     assert!(relay.pending()[0].diff.is_none());
     let no_preview = harness.state().texts().get_args(
@@ -523,10 +522,7 @@ fn relay_j8_scenario(transport: plannercraft_automation::control::Transport, tag
                 result = Some(r);
                 break;
             }
-            let pending = harness
-                .state()
-                .relay()
-                .is_some_and(|relay| !relay.pending().is_empty());
+            let pending = !harness.state().approvals().pending().is_empty();
             if pending && !decided {
                 harness.run();
                 assert!(harness.state().side_panel().shows_ai(), "volet ouvert d'office");

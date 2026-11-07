@@ -15,6 +15,7 @@
 use egui::{Key, Modifiers};
 
 use crate::action::Action;
+use crate::approvals::ProposalOp;
 use crate::i18n::{Arg, TextId};
 use crate::view::FrameCtx;
 
@@ -42,6 +43,11 @@ pub struct ApprovalBanner<'a> {
     pub id: u64,
     /// Outil demandé (`task.update`, `project.save`…).
     pub tool: &'a str,
+    /// Libellé d'une proposition de l'assistant (lot A2).
+    pub label: Option<&'a str>,
+    /// Proposition de l'assistant intégré (origine « Assistant », et non
+    /// un agent MCP) : Accepter et Refuser poussent [`Action::Proposal`].
+    pub assistant: bool,
     /// Nom du document visé (relecture finale J7, relais F2 : l'utilisateur
     /// voit sur quel document l'écriture porte).
     pub document: &'a str,
@@ -92,13 +98,20 @@ pub fn banner_text(fc: &FrameCtx<'_>, banner: &ApprovalBanner<'_>) -> String {
             }
         }
     }
-    let head = texts.get_args(
-        TextId::ApprovalTitle,
-        &[
-            ("name", Arg::Str(banner.tool.into())),
-            ("document", Arg::Str(banner.document.into())),
-        ],
-    );
+    let head = if banner.assistant {
+        texts.get_args(
+            TextId::ApprovalTitleAssistant,
+            &[("name", Arg::Str(banner.label.unwrap_or(banner.tool).into()))],
+        )
+    } else {
+        texts.get_args(
+            TextId::ApprovalTitle,
+            &[
+                ("name", Arg::Str(banner.tool.into())),
+                ("document", Arg::Str(banner.document.into())),
+            ],
+        )
+    };
     if parts.is_empty() {
         head
     } else {
@@ -146,10 +159,18 @@ pub fn decision_row(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, banner: ApprovalBa
         // touche reste à la zone de saisie).
         let shortcut = !ui.ctx().text_edit_focused()
             && ui.input_mut(|input| input.consume_key(Modifiers::COMMAND, Key::Enter));
+        let (on_accept, on_reject) = if banner.assistant {
+            (
+                Action::Proposal(ProposalOp::Accept(banner.id)),
+                Action::Proposal(ProposalOp::Reject(banner.id)),
+            )
+        } else {
+            (Action::Approve(banner.id), Action::Reject(banner.id))
+        };
         if accept.clicked() || shortcut {
-            fc.actions.push(Action::Approve(banner.id));
+            fc.actions.push(on_accept);
         } else if reject.clicked() || escape {
-            fc.actions.push(Action::Reject(banner.id));
+            fc.actions.push(on_reject);
         }
     });
 }

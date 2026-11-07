@@ -795,8 +795,7 @@ pub(crate) mod relay_app {
     }
 
     fn pending(app: &App) -> Option<(u64, u64)> {
-        app.relay()
-            .and_then(|relay| relay.pending().front().map(|p| (p.id, p.generation)))
+        app.approvals().pending().front().map(|p| (p.id, p.generation))
     }
 
     /// Fait tourner l'interface jusqu'au résultat de l'appel en cours, en
@@ -1003,6 +1002,6 @@ pub(crate) mod relay_app {
         // Appel 2 (agent), édition de l'utilisateur, appel 4 (agent) annulé par l'appel 9.
         assert_eq!(sources, [EditSource::Agent, EditSource::User], "{sources:?}");
         assert_eq!(session.history().redo.len(), 1);
-        assert!(app.relay().unwrap().pending().is_empty());
+        assert!(app.approvals().pending().is_empty());
     }
 }

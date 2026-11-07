@@ -23,12 +23,13 @@
 //! (C-CTL-05). Le web n'a pas de canal : ce module n'y est pas compilé.
 //!
 //! Panneau d'opérations IA (J8 lot L12, H-UI-41) : à l'arrivée d'une
-//! écriture, le diff affiché ([`DiffView`], au plus 200 lignes) est calculé
-//! **une fois** sur l'état simulé du même lot ([`Session::simulate`], diff
-//! détaillé) et gardé dans [`PendingApproval::diff`] ; le volet latéral
-//! s'ouvre sur l'onglet « Opérations IA ». Chaque issue (acceptée, refusée,
-//! expirée, périmée, échouée) entre dans l'historique de session
-//! ([`Relay::history`], 50 entrées au plus).
+//! écriture, le diff affiché (au plus 200 lignes) est calculé **une fois**
+//! sur l'état simulé du même lot et gardé dans [`PendingApproval::diff`] ;
+//! le volet latéral s'ouvre sur l'onglet « Opérations IA ». Depuis le lot
+//! A2 (ADR-0024), la file, Accepter, Refuser, les gardes et l'historique
+//! sont communs avec l'assistant intégré et vivent dans
+//! [`crate::approvals`] (compilé aussi sur le web) ; ce module ne garde que
+//! le canal de l'agent ([`AgentLink`]).
 //!
 //! Capture (`app.screenshot`, C-CTL-08, lot L14) : permise seulement si
 //! l'application l'active ([`App::enable_screenshots`], desktop) ; sinon,
@@ -41,36 +42,30 @@
 
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::Duration;
 
 use base64::Engine as _;
-use plannercraft_automation::command::params::ApplyBatchParams;
 use plannercraft_automation::command::params::{
     ScreenshotParams, ThemeJson, UiActionParams, UiLanguageJson, ViewJson, ZoomJson,
 };
 use plannercraft_automation::control::{CallState, RelayCall, RelayKind, Reply};
-use plannercraft_automation::diff::{DiffSide, DiffView};
 use plannercraft_automation::error::codes;
 use plannercraft_automation::registry::{Kind, lookup};
-use plannercraft_automation::text::{Language as ToolLanguage, TextContext};
 use plannercraft_automation::workspace::relayable;
-use plannercraft_automation::{
-    ApplyOptions, Batch, CallEnv, Command, EditSource, Patch, Session, ToolError, call_with,
-};
+use plannercraft_automation::{CallEnv, EditSource, Patch, ToolError, call_with};
 use plannercraft_core::{Moment, TaskUid};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use crate::action::{Action, UiOp};
-use crate::app::{App, DocOrigin};
+use crate::app::App;
+use crate::approvals::{ApprovalOrigin, PendingApproval, dry_params, preview_diff, summary_of};
 use crate::geom;
 use crate::state::{LanguagePref, ThemePref, ViewKind};
 use crate::timescale::TimeScaleZoom;
-use crate::view::side_panel::{AiHistoryEntry, AiOutcome, AiPanelInput, SideOp, SideTab, push_history};
-use crate::view::{ApprovalBanner, ApprovalSummary};
+use crate::view::side_panel::{AiOutcome, SideOp, SideTab};
 
 /// Écritures qui demandent une validation sans être du genre `Write`.
 const APPROVED_TOOLS: [&str; 5] = [
@@ -81,40 +76,42 @@ const APPROVED_TOOLS: [&str; 5] = [
     "project.save",
 ];
 
-/// Écriture relayée en attente de la réponse de l'utilisateur.
+/// Lien vers l'agent d'une écriture relayée en attente : état partagé
+/// avec l'écouteur et canal de la réponse finale.
 #[derive(Debug)]
-pub struct PendingApproval {
-    /// Identifiant de la requête de l'agent.
-    pub id: u64,
-    /// Outil demandé.
-    pub tool: String,
-    /// Paramètres de l'appel.
-    pub params: Value,
-    /// Résumé du `dry_run` (`None` : appel sans aperçu).
-    pub preview: Option<ApprovalSummary>,
-    /// Diff affiché par le panneau d'opérations IA (H-UI-41), calculé une
-    /// fois à l'arrivée (et à chaque nouvel aperçu) ; `None` : appel sans
-    /// aperçu, ou lot non simulable.
-    pub diff: Option<DiffView>,
-    /// Nom du document visé à l'arrivée (historique du panneau).
-    pub document: String,
-    /// Génération de la session à l'aperçu.
-    pub generation: u64,
-    /// Numéro d'ouverture du document visé.
-    pub opening: u64,
-    /// « Maintenant » de la demande, repris à l'acceptation (règle 5).
-    pub now: Moment,
+pub struct AgentLink {
     /// État partagé avec l'écouteur.
     state: Arc<CallState>,
     /// Réponse finale.
     reply: SyncSender<Reply>,
 }
 
-impl PendingApproval {
-    /// Chemin visé par un enregistrement ou un export.
+impl AgentLink {
+    /// L'appel attend toujours (ni expiré ni abandonné).
     #[must_use]
-    pub fn path(&self) -> Option<&str> {
-        self.params.get("path").and_then(Value::as_str)
+    pub fn is_pending(&self) -> bool {
+        self.state.is_pending()
+    }
+
+    /// Prend la réponse (faux si l'écouteur l'a déjà prise).
+    pub(crate) fn claim(&self) -> bool {
+        self.state.claim()
+    }
+
+    /// Réponse finale de l'appel `id`.
+    pub(crate) fn answer(&self, id: u64, result: Result<Value, &ToolError>) {
+        send(
+            &self.reply,
+            match result {
+                Ok(result) => Reply::Ok { id, result },
+                Err(e) => tool_reply(id, e),
+            },
+        );
+    }
+
+    /// Même appel que celui que porte `state`.
+    fn is(&self, state: &Arc<CallState>) -> bool {
+        Arc::ptr_eq(&self.state, state)
     }
 }
 
@@ -155,76 +152,11 @@ impl Default for ScreenshotConfig {
 pub struct Relay {
     /// File remplie par l'écouteur.
     inbox: Receiver<RelayCall>,
-    /// Écritures en attente, la première au bandeau.
-    pending: VecDeque<PendingApproval>,
     /// Dossier des rendez-vous (garde ADR-0002 d'un enregistrement relayé) ;
     /// `None` : celui de la plateforme.
     control_dir: Option<PathBuf>,
     /// Capture permise (desktop) ; `None` : `control.screenshot_unavailable`.
     screenshots: Option<ScreenshotConfig>,
-    /// Historique de session du panneau d'opérations IA (H-UI-41), le
-    /// plus ancien d'abord, 50 entrées au plus.
-    history: VecDeque<AiHistoryEntry>,
-    /// Diffs affichés calculés depuis le branchement (H-UI-41 : un par
-    /// aperçu, jamais par image).
-    diff_builds: u64,
-}
-
-impl Relay {
-    /// Écritures en attente, la première au bandeau.
-    #[must_use]
-    pub const fn pending(&self) -> &VecDeque<PendingApproval> {
-        &self.pending
-    }
-
-    /// Historique de session du panneau (le plus ancien d'abord).
-    #[must_use]
-    pub const fn history(&self) -> &VecDeque<AiHistoryEntry> {
-        &self.history
-    }
-
-    /// Diffs affichés calculés depuis le branchement du relais.
-    #[must_use]
-    pub const fn diff_builds(&self) -> u64 {
-        self.diff_builds
-    }
-
-    /// Inscrit l'issue de `pending` dans l'historique.
-    fn record(&mut self, pending: &PendingApproval, outcome: AiOutcome, undo: Option<(u64, u64)>) {
-        push_history(
-            &mut self.history,
-            AiHistoryEntry {
-                tool: pending.tool.clone(),
-                document: pending.document.clone(),
-                at: pending.now,
-                outcome,
-                undo,
-            },
-        );
-    }
-
-    /// Retire l'écriture affichée au bandeau (tête de file) si c'est
-    /// l'appel `id` : Accepter et Refuser ne visent que ce qui est affiché
-    /// (deux agents peuvent avoir des appels de même `id`, relecture finale
-    /// J7, relais F3).
-    fn take_front(&mut self, id: u64) -> Option<PendingApproval> {
-        if self.pending.front().is_some_and(|p| p.id == id) {
-            self.pending.pop_front()
-        } else {
-            None
-        }
-    }
-
-    /// Retire l'appel abandonné par l'écouteur : même `id` **et** même
-    /// état partagé (celui que porte le `Cancel`), jamais l'appel d'un
-    /// autre agent au même `id`.
-    fn take_cancelled(&mut self, id: u64, state: &Arc<CallState>) -> Option<PendingApproval> {
-        let pos = self
-            .pending
-            .iter()
-            .position(|p| p.id == id && Arc::ptr_eq(&p.state, state))?;
-        self.pending.remove(pos)
-    }
 }
 
 /// Réponse d'erreur d'outil.
@@ -240,24 +172,6 @@ fn send(reply: &SyncSender<Reply>, value: Reply) {
     }
 }
 
-/// Résumé d'un `dry_run` (JSON d'`ApplyOutcome`), sans calcul.
-#[must_use]
-pub fn summary_of(outcome: &Value) -> ApprovalSummary {
-    let at = |path: &str| outcome.pointer(path);
-    let len = |path: &str| at(path).and_then(Value::as_array).map_or(0, Vec::len);
-    ApprovalSummary {
-        changed_tasks: at("/diff/changed_total")
-            .and_then(Value::as_u64)
-            .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX)),
-        finish_delta: at("/diff/finish_delta/minutes").and_then(Value::as_i64),
-        finish_delta_text: at("/diff/finish_delta/text")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
-        critical_changed: len("/diff/critical_entered") > 0 || len("/diff/critical_left") > 0,
-        warnings: u32::try_from(len("/warnings")).unwrap_or(u32::MAX),
-    }
-}
-
 /// Erreur d'outil simple.
 fn error(code: &'static str, message: &str) -> ToolError {
     ToolError::simple(code, message.to_owned())
@@ -268,22 +182,6 @@ fn error(code: &'static str, message: &str) -> ToolError {
 fn needs_approval(tool: &str, params: &Value) -> bool {
     let write = lookup(tool).is_some_and(|spec| spec.kind == Kind::Write) || APPROVED_TOOLS.contains(&tool);
     write && params.get("dry_run").and_then(Value::as_bool) != Some(true)
-}
-
-/// Paramètres d'un `dry_run` (objet, `dry_run: true`), si l'appel en a un.
-fn dry_params(tool: &str, params: &Value) -> Option<Value> {
-    let batch = tool == "batch.apply" || lookup(tool).is_some_and(|spec| spec.kind == Kind::Write);
-    if !batch {
-        return None;
-    }
-    let mut map = match params {
-        Value::Null => Map::new(),
-        Value::Object(map) => map.clone(),
-        // Mal formé : le `dry_run` le refusera tel quel.
-        other => return Some(other.clone()),
-    };
-    map.insert("dry_run".to_owned(), Value::Bool(true));
-    Some(Value::Object(map))
 }
 
 /// Actions d'interface d'`app.ui`, dans l'ordre du schéma.
@@ -351,11 +249,8 @@ impl App {
     pub fn control_inbox(&mut self, inbox: Receiver<RelayCall>) {
         self.relay = Some(Relay {
             inbox,
-            pending: VecDeque::new(),
             control_dir: None,
             screenshots: None,
-            history: VecDeque::new(),
-            diff_builds: 0,
         });
     }
 
@@ -390,8 +285,7 @@ impl App {
     }
 
     /// Vide la file des appels relayés (début d'image) : sert les
-    /// lectures, met les écritures en attente, retire les appels expirés
-    /// et ceux d'un document remplacé.
+    /// lectures, met les écritures en attente.
     pub(crate) fn drain_relay(&mut self, ctx: &egui::Context) {
         let Some(relay) = &self.relay else {
             return;
@@ -400,29 +294,7 @@ impl App {
         for call in calls {
             self.serve_call(call, ctx);
         }
-        let opening = self.document.as_ref().map(|document| document.opening);
-        let Some(relay) = &mut self.relay else {
-            return;
-        };
-        let mut kept = VecDeque::new();
-        let drained: Vec<PendingApproval> = relay.pending.drain(..).collect();
-        for pending in drained {
-            if !pending.state.is_pending() {
-                relay.record(&pending, AiOutcome::Expired, None);
-                continue;
-            }
-            if Some(pending.opening) == opening {
-                kept.push_back(pending);
-            } else if pending.state.claim() {
-                let e = error(
-                    codes::CONTROL_REJECTED,
-                    "document fermé ou remplacé : rien n'a été appliqué",
-                );
-                send(&pending.reply, tool_reply(pending.id, &e));
-                relay.record(&pending, AiOutcome::Stale, None);
-            }
-        }
-        relay.pending = kept;
+        // Expirés et documents remplacés : `App::tick_approvals`.
     }
 
     /// Sert un appel relayé.
@@ -434,10 +306,13 @@ impl App {
             reply,
         } = call;
         if let RelayKind::Cancel(target) = kind {
-            if let Some(relay) = &mut self.relay
-                && let Some(cancelled) = relay.take_cancelled(target, &state)
-            {
-                relay.record(&cancelled, AiOutcome::Expired, None);
+            // Même `id` **et** même état partagé (celui que porte le
+            // `Cancel`) : jamais l'appel d'un autre agent au même `id`.
+            let pos = self.approvals.pending.iter().position(|p| {
+                p.id == target && matches!(&p.origin, ApprovalOrigin::Agent(link) if link.is(&state))
+            });
+            if let Some(cancelled) = pos.and_then(|pos| self.approvals.pending.remove(pos)) {
+                self.approvals.record(&cancelled, AiOutcome::Expired, None);
             }
             return;
         }
@@ -604,26 +479,24 @@ impl App {
         let diff = preview
             .as_ref()
             .and_then(|_| preview_diff(&document.session, &tool, &params, env.lang));
+        send(&reply, Reply::PendingApproval { id });
         let pending = PendingApproval {
             id,
             tool,
             params,
+            label: None,
             preview,
             diff,
             document: document.origin.name.clone(),
             generation: document.generation(),
             opening: document.opening,
             now,
-            state,
-            reply,
+            origin: ApprovalOrigin::Agent(AgentLink { state, reply }),
         };
-        send(&pending.reply, Reply::PendingApproval { id });
-        if let Some(relay) = &mut self.relay {
-            if pending.preview.is_some() {
-                relay.diff_builds = relay.diff_builds.saturating_add(1);
-            }
-            relay.pending.push_back(pending);
+        if pending.preview.is_some() {
+            self.approvals.diff_builds = self.approvals.diff_builds.saturating_add(1);
         }
+        self.approvals.pending.push_back(pending);
         // Volet ouvert d'office à chaque demande (H-UI-41), sans prendre le
         // focus clavier.
         self.side.apply(SideOp::Open(SideTab::AiOperations));
@@ -728,148 +601,6 @@ impl App {
             "generation": self.document.as_ref().map(crate::app::OpenDocument::generation),
             "opening": self.document.as_ref().map(|document| document.opening),
         })
-    }
-
-    /// Accepter (C-CTL-02, C-CTL-07) : voir l'en-tête du module.
-    pub(crate) fn approve(&mut self, id: u64) {
-        let Some(relay) = &mut self.relay else {
-            return;
-        };
-        let Some(mut pending) = relay.take_front(id) else {
-            return;
-        };
-        if !pending.state.is_pending() {
-            relay.record(&pending, AiOutcome::Expired, None);
-            return;
-        }
-        let lang = self.text_language();
-        let Some(document) = &mut self.document else {
-            return self.reject_pending(
-                &pending,
-                "aucun document : rien n'a été appliqué",
-                AiOutcome::Stale,
-            );
-        };
-        if document.opening != pending.opening {
-            return self.reject_pending(
-                &pending,
-                "document fermé ou remplacé : rien n'a été appliqué",
-                AiOutcome::Stale,
-            );
-        }
-        if document.generation() != pending.generation {
-            // Aperçu périmé : nouvel aperçu (diff affiché compris), rien
-            // d'appliqué.
-            let env = CallEnv::new(pending.now, lang);
-            if let Some(dry) = dry_params(&pending.tool, &pending.params) {
-                match call_with(&mut document.session, &env, &pending.tool, dry) {
-                    Ok(outcome) => {
-                        pending.preview = Some(summary_of(&outcome));
-                        pending.diff = preview_diff(&document.session, &pending.tool, &pending.params, lang);
-                    }
-                    Err(e) => {
-                        if pending.state.claim() {
-                            send(&pending.reply, tool_reply(pending.id, &e));
-                            if let Some(relay) = &mut self.relay {
-                                relay.record(&pending, AiOutcome::Failed(e.code.to_owned()), None);
-                            }
-                        }
-                        return;
-                    }
-                }
-            }
-            pending.generation = document.generation();
-            if let Some(relay) = &mut self.relay {
-                if pending.preview.is_some() {
-                    relay.diff_builds = relay.diff_builds.saturating_add(1);
-                }
-                relay.pending.push_front(pending);
-            }
-            return;
-        }
-        if !pending.state.claim() {
-            if let Some(relay) = &mut self.relay {
-                relay.record(&pending, AiOutcome::Expired, None);
-            }
-            return;
-        }
-        let env = CallEnv {
-            source: EditSource::Agent,
-            ..CallEnv::new(pending.now, lang)
-        };
-        let before = document.generation();
-        let result = call_with(&mut document.session, &env, &pending.tool, pending.params.clone());
-        let changed = document.generation() != before;
-        let undo = changed.then(|| (document.opening, document.session.history_position()));
-        let outcome = match &result {
-            Ok(_) => AiOutcome::Accepted,
-            Err(e) => AiOutcome::Failed(e.code.to_owned()),
-        };
-        let origin = document.session.origin().clone();
-        if origin.path != document.origin.path {
-            document.origin = DocOrigin {
-                name: origin.name,
-                path: origin.path,
-                demo: false,
-            };
-        }
-        send(
-            &pending.reply,
-            match result {
-                Ok(result) => Reply::Ok { id, result },
-                Err(e) => tool_reply(id, &e),
-            },
-        );
-        if let Some(relay) = &mut self.relay {
-            relay.record(&pending, outcome, undo);
-        }
-        if changed {
-            self.refresh();
-        } else {
-            self.notify_observer();
-        }
-        self.after_banner();
-    }
-
-    /// Refuser (C-CTL-03) : rien n'est appliqué.
-    pub(crate) fn reject(&mut self, id: u64) {
-        let Some(relay) = &mut self.relay else {
-            return;
-        };
-        let Some(pending) = relay.take_front(id) else {
-            return;
-        };
-        self.reject_pending(
-            &pending,
-            "refusé par l'utilisateur : rien n'a été appliqué",
-            AiOutcome::Rejected,
-        );
-    }
-
-    /// Répond `control.rejected` à une écriture en attente ; l'issue
-    /// `outcome` entre dans l'historique (expirée si l'appel l'était déjà).
-    fn reject_pending(&mut self, pending: &PendingApproval, message: &str, outcome: AiOutcome) {
-        let outcome = if pending.state.claim() {
-            send(
-                &pending.reply,
-                tool_reply(pending.id, &error(codes::CONTROL_REJECTED, message)),
-            );
-            outcome
-        } else {
-            AiOutcome::Expired
-        };
-        if let Some(relay) = &mut self.relay {
-            relay.record(pending, outcome, None);
-        }
-        self.after_banner();
-    }
-
-    /// Plus aucun bandeau : le focus clavier revient à la table.
-    fn after_banner(&mut self) {
-        let empty = self.relay.as_ref().is_none_or(|relay| relay.pending.is_empty());
-        if empty && self.document.is_some() {
-            self.view.focus_table_pending = true;
-        }
     }
 }
 
@@ -1006,82 +737,4 @@ pub fn encode_screenshot(
         halvings = halvings.saturating_add(1);
         extra = extra.saturating_add(1);
     }
-}
-
-/// Lot d'un appel d'écriture relayé (`batch.apply` ou une commande du
-/// genre `Write`), lu comme le routeur de `call_with` le lit ; `None` pour
-/// tout autre appel ou des paramètres mal formés (le `dry_run` les a déjà
-/// refusés).
-fn relayed_batch(tool: &str, params: &Value) -> Option<Batch> {
-    let mut map = match params {
-        Value::Object(map) => map.clone(),
-        Value::Null => Map::new(),
-        _ => return None,
-    };
-    map.remove("dry_run");
-    map.remove("detail");
-    if tool == "batch.apply" {
-        let p: ApplyBatchParams = serde_json::from_value(Value::Object(map)).ok()?;
-        return Some(p.into_batch());
-    }
-    if !lookup(tool).is_some_and(|spec| spec.kind == Kind::Write) || map.contains_key("op") {
-        return None;
-    }
-    map.insert("op".to_owned(), Value::String(tool.to_owned()));
-    let op: Command = serde_json::from_value(Value::Object(map)).ok()?;
-    Some(Batch {
-        format_version: Batch::FORMAT_VERSION,
-        lang: None,
-        ops: vec![op],
-        label: None,
-    })
-}
-
-/// Diff affiché d'une écriture proposée (H-UI-41) : le même lot simulé sur
-/// une copie ([`Session::simulate`], diff détaillé), comparé à l'état
-/// courant ; `None` si l'appel n'est pas un lot ou si la simulation échoue
-/// (le résumé du bandeau reste).
-fn preview_diff(session: &Session, tool: &str, params: &Value, lang: ToolLanguage) -> Option<DiffView> {
-    let batch = relayed_batch(tool, params)?;
-    let options = ApplyOptions {
-        detail: true,
-        ..ApplyOptions::default()
-    };
-    let sim = session.simulate(&batch, options).ok()?;
-    let before = DiffSide {
-        project: session.project(),
-        schedule: session.schedule(),
-    };
-    let after = DiffSide {
-        project: &sim.project,
-        schedule: &sim.schedule,
-    };
-    let text = TextContext::for_project(session.project(), lang);
-    Some(DiffView::new(&sim.outcome.diff, before, after, &text))
-}
-
-/// Données du panneau d'opérations IA : tête de file (`banner`), son diff
-/// affiché et l'historique de session.
-#[must_use]
-pub fn panel_input<'a>(relay: &'a Relay, banner: Option<ApprovalBanner<'a>>) -> AiPanelInput<'a> {
-    AiPanelInput {
-        banner,
-        diff: relay.pending.front().and_then(|p| p.diff.as_ref()),
-        history: Some(&relay.history),
-    }
-}
-
-/// Bandeau de l'écriture en tête de `relay`, sur le document `document`
-/// (il ne prend jamais le focus clavier, voir `view::approval`).
-#[must_use]
-pub fn banner_for<'a>(relay: &'a Relay, document: &'a str) -> Option<ApprovalBanner<'a>> {
-    let front = relay.pending.front()?;
-    Some(ApprovalBanner {
-        id: front.id,
-        tool: &front.tool,
-        document,
-        summary: front.preview.as_ref(),
-        path: front.path(),
-        queued: relay.pending.len().saturating_sub(1),
-    })
 }

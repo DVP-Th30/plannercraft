@@ -10,6 +10,8 @@
 //!   imposée, erreurs HTTP, liste fermée de modèles ;
 //! - [`tools`] : outils en lecture pris dans le registre, exécutés sur une
 //!   copie de la session (règle 3 : les dates viennent du moteur) ;
+//! - [`proposal`] : l'outil d'écriture « `propose_changes` » (lot A2) : lot
+//!   contrôlé (aucune date), soumis à la validation de l'utilisateur ;
 //! - [`conversation`] : tours (question, raisonnement, lectures, réponse),
 //!   boucle d'outils bornée, menée par l'interface ;
 //! - [`memory`] : historique renvoyé, allégé, points de cache (lot A1b) ;
@@ -31,6 +33,7 @@ pub mod memory;
 pub mod openrouter;
 pub mod pkce;
 pub mod platform;
+pub mod proposal;
 pub mod secrets;
 pub mod sse;
 pub mod stream;

@@ -181,6 +181,9 @@ pub struct AssistantPrefs {
     /// Modèle OpenRouter de la liste fermée ; un identifiant inconnu est
     /// remplacé par le défaut à l'usage.
     pub model: String,
+    /// « Montrer la réflexion » (menu « … », lot A2) : demande un budget
+    /// de réflexion minimal au modèle ; coupé par défaut.
+    pub show_reasoning: bool,
 }
 
 impl Default for AssistantPrefs {
@@ -188,6 +191,7 @@ impl Default for AssistantPrefs {
         Self {
             enabled: false,
             model: plannercraft_assistant::openrouter::DEFAULT_MODEL.to_owned(),
+            show_reasoning: false,
         }
     }
 }

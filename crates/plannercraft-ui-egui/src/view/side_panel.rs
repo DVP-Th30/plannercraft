@@ -73,7 +73,7 @@ pub enum SideOp {
     ToggleTab(SideTab),
 }
 
-/// Issue d'une proposition d'un agent (H-UI-41).
+/// Issue d'une proposition d'un agent ou de l'assistant (H-UI-41).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AiOutcome {
     /// Acceptée et appliquée.
@@ -93,6 +93,9 @@ pub enum AiOutcome {
 pub struct AiHistoryEntry {
     /// Outil demandé.
     pub tool: String,
+    /// Libellé d'une proposition de l'assistant (origine « Assistant »,
+    /// lot A2) ; `None` pour un agent MCP.
+    pub label: Option<String>,
     /// Nom du document visé.
     pub document: String,
     /// « Maintenant » injecté de la demande (règle 5).
@@ -336,6 +339,16 @@ fn history_line(fc: &FrameCtx<'_>, labels: &FormatLabels, entry: &AiHistoryEntry
     };
     let time = entry.at.to_naive().time().format("%H:%M").to_string();
     let at = format!("{} {time}", format_date(entry.at, labels));
+    if let Some(label) = &entry.label {
+        return texts.get_args(
+            TextId::AiHistoryLineAssistant,
+            &[
+                ("value", Arg::Str(at.into())),
+                ("name", Arg::Str(label.as_str().into())),
+                ("detail", Arg::Str(outcome.into())),
+            ],
+        );
+    }
     texts.get_args(
         TextId::AiHistoryLine,
         &[

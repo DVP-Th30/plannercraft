@@ -1,4 +1,6 @@
-//! Outils donnés au modèle (lot A1 : **lecture seule**), pris dans le
+//! Outils donnés au modèle (lot A1 : lectures ; lot A2 : plus une seule
+//! écriture, [`crate::proposal::PROPOSE_TOOL`], qui ne s'applique jamais
+//! directement), pris dans le
 //! registre des commandes (ADR-0012 D7) : mêmes noms que les outils MCP,
 //! mêmes schémas allégés (sans `$schema` ni `title`, descriptions
 //! raccourcies), exécutés par [`plannercraft_automation::call_with`] sur une
@@ -45,10 +47,31 @@ pub trait ToolHost {
     ///
     /// L'erreur structurée de la commande (rendue au modèle).
     fn call(&mut self, id: &str, params: Value) -> Result<Value, ToolError>;
+
+    /// Soumet une proposition d'écriture (lot A2) : `label` et paramètres
+    /// de `batch.apply` déjà contrôlés ([`crate::proposal::check`]). L'hôte
+    /// fait le `dry_run`, met la proposition en attente de l'utilisateur et
+    /// rend son identifiant ; rien n'est appliqué. Défaut : refus (hôte en
+    /// lecture seule).
+    ///
+    /// # Errors
+    ///
+    /// Le refus du registre (validation, boucle, champ calculé…), rendu au
+    /// modèle pour qu'il corrige.
+    fn propose(&mut self, label: &str, params: Value) -> Result<crate::proposal::Proposed, ToolError> {
+        let _ = (label, params);
+        Err(ToolError::simple(
+            "tool.unknown",
+            "propositions indisponibles ici".to_owned(),
+        ))
+    }
 }
 
 /// Hôte sur une session tenue par l'interface : chaque appel travaille sur
-/// une copie (règle « lecture seule » du lot A1).
+/// une copie (règle « lecture seule » du lot A1). Une proposition (lot A2)
+/// est essayée en `dry_run` sur une copie puis **mise de côté**
+/// ([`SessionHost::proposals`]) : l'interface en fait une écriture en
+/// attente de validation ; rien n'est jamais appliqué ici.
 pub struct SessionHost<'a> {
     /// Session du document ouvert, s'il y en a un.
     pub session: Option<&'a Session>,
@@ -56,6 +79,39 @@ pub struct SessionHost<'a> {
     pub env: CallEnv,
     /// État de l'interface rendu par `ui_state`.
     pub ui_state: Value,
+    /// Identifiant de la prochaine proposition.
+    pub next_proposal: u64,
+    /// Propositions acceptées en file pendant ce passage, à reprendre par
+    /// l'interface.
+    pub proposals: Vec<QueuedProposal>,
+}
+
+impl<'a> SessionHost<'a> {
+    /// Hôte sur `session` ; propositions numérotées à partir de 1.
+    #[must_use]
+    pub const fn new(session: Option<&'a Session>, env: CallEnv, ui_state: Value) -> Self {
+        Self {
+            session,
+            env,
+            ui_state,
+            next_proposal: 1,
+            proposals: Vec::new(),
+        }
+    }
+}
+
+/// Proposition essayée et mise en file (lot A2) : à valider par
+/// l'utilisateur.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QueuedProposal {
+    /// Identifiant.
+    pub id: u64,
+    /// Libellé.
+    pub label: String,
+    /// Paramètres de `batch.apply` (sans `dry_run`).
+    pub params: Value,
+    /// Résultat du `dry_run` (JSON de `batch.apply`).
+    pub outcome: Value,
 }
 
 impl ToolHost for SessionHost<'_> {
@@ -64,17 +120,53 @@ impl ToolHost for SessionHost<'_> {
             return Ok(self.ui_state.clone());
         }
         let Some(session) = self.session else {
-            return Err(ToolError::simple(
-                "session.none",
-                match self.env.lang {
-                    Language::Fr => "aucun projet ouvert dans l'application".to_owned(),
-                    Language::En => "no project open in the application".to_owned(),
-                },
-            ));
+            return Err(no_session(self.env.lang));
         };
         let mut copy = session.clone();
         call_with(&mut copy, &self.env, id, params)
     }
+
+    fn propose(&mut self, label: &str, params: Value) -> Result<crate::proposal::Proposed, ToolError> {
+        let Some(session) = self.session else {
+            return Err(no_session(self.env.lang));
+        };
+        let mut dry = params.clone();
+        if let Value::Object(map) = &mut dry {
+            map.insert("dry_run".to_owned(), Value::Bool(true));
+        }
+        let mut copy = session.clone();
+        let outcome = call_with(&mut copy, &self.env, "batch.apply", dry)?;
+        let id = self.next_proposal;
+        self.next_proposal = self.next_proposal.saturating_add(1);
+        let changed = outcome
+            .pointer("/diff/changed_total")
+            .and_then(Value::as_u64)
+            .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX));
+        let result = crate::proposal::pending_result(id, label, &outcome, self.env.lang);
+        self.proposals.push(QueuedProposal {
+            id,
+            label: label.to_owned(),
+            params,
+            outcome,
+        });
+        Ok(crate::proposal::Proposed {
+            id,
+            label: label.to_owned(),
+            changed_tasks: changed,
+            result,
+        })
+    }
+}
+
+/// Refus sans projet ouvert.
+fn no_session(lang: Language) -> ToolError {
+    ToolError::simple(
+        "session.none",
+        match lang {
+            Language::Fr => "aucun projet ouvert dans l'application".to_owned(),
+            Language::En => "no project open in the application".to_owned(),
+        },
+    )
 }
 
 /// Entrée du registre d'un outil exposé, par son nom.
@@ -111,6 +203,7 @@ pub fn definitions(lang: Language) -> Vec<Value> {
         ui,
         &json!({ "type": "object", "properties": {} }),
     ));
+    tools.push(crate::proposal::definition(lang));
     tools
 }
 
@@ -252,7 +345,7 @@ mod tests {
     fn definitions_light_and_under_budget() {
         for lang in [Language::Fr, Language::En] {
             let defs = definitions(lang);
-            assert_eq!(defs.len(), READ_TOOL_IDS.len() + 1);
+            assert_eq!(defs.len(), READ_TOOL_IDS.len() + 2);
             let text = Value::Array(defs).to_string();
             assert!(!text.contains("$schema"), "{text}");
             assert!(!text.contains("\"title\""));

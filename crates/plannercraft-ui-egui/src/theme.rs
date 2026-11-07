@@ -728,6 +728,24 @@ pub fn install_plan_fonts(ctx: &egui::Context) {
     }
 }
 
+/// Vrai si les familles Inter sont chargées dans `ctx` ; sinon les
+/// installe (prises en compte à l'image suivante, ou aussitôt si aucun
+/// texte n'a encore été mis en page) et rend faux : l'appelant garde la
+/// police d'egui pour cette image (une famille inconnue ne doit jamais
+/// être demandée à egui).
+#[must_use]
+pub fn plan_fonts_ready(ctx: &egui::Context) -> bool {
+    let ready = ctx.fonts(|f| {
+        let families = &f.definitions().families;
+        families.contains_key(&egui::FontFamily::Name(PLAN_FAMILY.into()))
+            && families.contains_key(&egui::FontFamily::Name(PLAN_FAMILY_STRONG.into()))
+    });
+    if !ready {
+        install_plan_fonts(ctx);
+    }
+    ready
+}
+
 /// Style du planning lu par l'écran à une image (J8, lot L11, ADR-0016
 /// D5) : style effectif du document (modèle par défaut des préférences pour
 /// un document sans style, H-UI-43) et variante du thème résolu.

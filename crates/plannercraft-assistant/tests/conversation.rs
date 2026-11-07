@@ -63,11 +63,11 @@ fn last_state(conv: &Conversation) -> TurnState {
 }
 
 fn host(ws: &Workspace) -> SessionHost<'_> {
-    SessionHost {
-        session: ws.session(),
-        env: CallEnv::new(now(), Language::Fr),
-        ui_state: json!({ "active": 3, "view": "gantt" }),
-    }
+    SessionHost::new(
+        ws.session(),
+        CallEnv::new(now(), Language::Fr),
+        json!({ "active": 3, "view": "gantt" }),
+    )
 }
 
 fn body(req: &plannercraft_assistant::HttpRequest) -> Value {
