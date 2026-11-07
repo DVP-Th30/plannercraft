@@ -13,8 +13,10 @@
 //!   par une file, le trousseau est lu et écrit par
 //!   [`plannercraft_assistant::platform::Background`], la connexion du
 //!   desktop tourne dans son propre fil.
-//! - Lecture seule : les outils travaillent sur une copie de la session
-//!   (`SessionHost`), le document n'est jamais modifié par l'assistant.
+//! - Les outils travaillent sur une copie de la session (`SessionHost`) :
+//!   l'assistant ne modifie jamais le document lui-même ; ses propositions
+//!   (lot A2) attendent la décision de l'utilisateur dans la file commune
+//!   (`crate::approvals`).
 //! - Lot A1b (H-UI-143 à H-UI-148) : conversation par tours, défilement
 //!   ancré ([`ChatScroll`]), conversation gardée par document
 //!   ([`Archive`], stockage local de l'application, jamais dans le fichier

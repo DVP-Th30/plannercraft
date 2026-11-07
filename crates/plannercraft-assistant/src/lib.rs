@@ -1,5 +1,5 @@
-//! Assistant IA de PlannerCraft (ADR-0024, lot A1 : mode « ma propre
-//! clé », lecture seule).
+//! Assistant IA de PlannerCraft (ADR-0024, mode « ma propre clé » ; lot
+//! A1 : lectures ; lot A2 : propositions soumises à validation).
 //!
 //! Sous `plannercraft-ui-egui` dans les couches (règle 9) : ni egui ni
 //! eframe ici. Le même code sert le desktop et le web :
