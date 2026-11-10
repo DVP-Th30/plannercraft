@@ -581,6 +581,9 @@ impl App {
             // « Réduire les animations » (lot A1b) : préférence d'affichage
             // sans effet sur l'agent ; réponse inchangée pour les rejeux.
             map.remove("reduce_motion");
+            // Volet latéral (lot A5) : ouvert ou fermé et largeur,
+            // préférences d'affichage ; réponse inchangée pour les rejeux.
+            map.remove("side_panel");
         }
         let mut selection: Vec<u32> = self.selected.click_order().iter().map(|uid| uid.get()).collect();
         selection.sort_unstable();

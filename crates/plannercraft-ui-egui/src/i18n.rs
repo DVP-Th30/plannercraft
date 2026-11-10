@@ -1654,6 +1654,12 @@ text_ids! {
     AssistantErrorMailUnavailable => "assistant-error-mail-unavailable",
     AssistantErrorCodeRefused => "assistant-error-code-refused",
     AssistantErrorRelay => "assistant-error-relay",
+    // --- Lot A5 (H-UI-161 à H-UI-166) : volet toujours à portée.
+    AssistantButton => "assistant-button",
+    AssistantButtonTip => "assistant-button-tip",
+    AssistantButtonBadge => "assistant-button-badge",
+    AssistantButtonBusy => "assistant-button-busy",
+    SideSplitterTip => "side-splitter-tip",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

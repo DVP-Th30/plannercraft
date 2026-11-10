@@ -152,6 +152,10 @@ pub enum UiBinding {
     ToggleBold,
     /// Ctrl/Cmd+I : italique (finitions P4, H-UI-135).
     ToggleItalic,
+    // --- Lot A5 d'ADR-0024 (H-UI-162).
+    /// Ctrl/Cmd+J : ouvre (focus sur la saisie) ou ferme le volet de
+    /// l'assistant ; lu aussi pendant une saisie de texte (`App::read_keys`).
+    ToggleAssistant,
 }
 
 /// Liaison d'un raccourci.
@@ -424,6 +428,16 @@ pub const KEYMAP: &[(KeyContext, Shortcut, Binding)] = &[
     // --- Finitions P2 (ADR-0022, H-UI-127) : gras en Ctrl/Cmd+B
     // (hypothèse : convention d'Office ; touche libre dans cette table).
     doc_ui(COMMAND, Key::B, UiBinding::ToggleBold),
+    // --- Lot A5 d'ADR-0024 (H-UI-162) : volet de l'assistant, partout,
+    // accueil compris (hypothèse : convention de « Ctrl+J » des volets de
+    // conversation ; touche libre dans cette table). Sur le web, retenue
+    // au navigateur (Chrome et Firefox : téléchargements) quand l'image la
+    // lit, saisie de texte comprise (`KeyScope::Typing`).
+    (
+        KeyContext::Global,
+        Shortcut::new(COMMAND, Key::J),
+        Binding::Ui(UiBinding::ToggleAssistant),
+    ),
 ];
 
 /// Raccourcis que le navigateur ne rend jamais à la page (Ctrl/Cmd+N, W,
@@ -477,6 +491,10 @@ pub enum KeyScope {
     /// Fenêtre non modale ouverte : seuls les raccourcis gardés à côté
     /// d'elle (enregistrer, annuler, ouvrir…).
     BesideWindow(KeyState),
+    /// Saisie de texte en cours (cellule, recherche, question de
+    /// l'assistant), sans fenêtre : seul Ctrl/Cmd+J (volet de
+    /// l'assistant, lot A5) ; tout le reste au navigateur.
+    Typing,
     /// Tous les raccourcis des contextes actifs.
     All(KeyState),
 }
@@ -487,6 +505,7 @@ impl KeyScope {
     pub fn reads(self, context: KeyContext, binding: Binding) -> bool {
         match self {
             Self::Nothing => false,
+            Self::Typing => binding == Binding::Ui(UiBinding::ToggleAssistant),
             Self::BesideWindow(keys) => keys.allows(context) && BESIDE_WINDOW.contains(&binding),
             Self::All(keys) => keys.allows(context),
         }
@@ -615,6 +634,7 @@ pub const fn ui_action(binding: UiBinding) -> Action {
         UiBinding::FocusPreviousPane => Action::Pane(crate::action::PaneOp::FocusNext { back: true }),
         UiBinding::ToggleBold => Action::TextStyle(crate::action::TextStyleOp::ToggleBold),
         UiBinding::ToggleItalic => Action::TextStyle(crate::action::TextStyleOp::ToggleItalic),
+        UiBinding::ToggleAssistant => Action::SidePanel(crate::view::side_panel::SideOp::Toggle),
     }
 }
 

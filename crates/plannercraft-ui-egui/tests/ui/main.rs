@@ -23,7 +23,9 @@
 //! actions et état posés par L0.
 //!
 //! Assistant IA (ADR-0024, lot A1) : `assistant` (activation, connexion
-//! simulée, flux, arrêt, erreurs, modèle, capture).
+//! simulée, flux, arrêt, erreurs, modèle, capture) ; lot A5 :
+//! `assistant_panel` (bouton, Ctrl/Cmd+J, Échap, pastille, largeur,
+//! volet par-dessus la vue).
 //!
 //! Cible unique `ui` (un seul binaire lié à wgpu, ADR-0011, décision 12).
 //! Les libellés cherchés sont construits par `Texts` (jamais en dur : le
@@ -46,6 +48,7 @@ mod ai_panel;
 mod assign;
 mod assistant;
 mod assistant_account;
+mod assistant_panel;
 mod assistant_proposals;
 mod cells;
 mod clipboard;
@@ -282,6 +285,13 @@ fn in_ribbon(harness: &Harness<'static, App>, node: &egui_kittest::Node<'_>) -> 
     if node.accesskit_node().role() == egui::accesskit::Role::Tab && drawn.panel.contains(rect.center()) {
         return true;
     }
+    // Bouton de l'assistant (lot A5), homonyme d'Affichage → Assistant IA.
+    if drawn
+        .assistant
+        .is_some_and(|(button, _)| button.min.distance(rect.min) < 0.5 && button.max.distance(rect.max) < 0.5)
+    {
+        return true;
+    }
     drawn
         .items
         .iter()
@@ -364,11 +374,17 @@ fn ribbon_click(harness: &mut Harness<'static, App>, tab: RibbonTab, label: &str
         harness.run();
     }
     assert_eq!(harness.state().state.ribbon.tab, tab);
-    let panel = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx).panel;
+    let drawn = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx);
+    let panel = drawn.panel;
+    // Bouton de l'assistant (lot A5) : homonyme d'Affichage → Assistant IA,
+    // hors du corps du ruban.
+    let button = drawn.assistant.map(|(rect, _)| rect);
     {
-        let mut found = harness
-            .query_all_by_label(label)
-            .filter(|n| n.accesskit_node().role() != Role::Tab && panel.contains(n.rect().center()));
+        let mut found = harness.query_all_by_label(label).filter(|n| {
+            n.accesskit_node().role() != Role::Tab
+                && panel.contains(n.rect().center())
+                && button.is_none_or(|b| !b.contains(n.rect().center()))
+        });
         let node = found
             .next()
             .unwrap_or_else(|| panic!("« {label} » absent de l'onglet {tab:?} du ruban"));

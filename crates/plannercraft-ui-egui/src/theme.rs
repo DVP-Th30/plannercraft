@@ -262,6 +262,9 @@ pub struct ChromeTokens {
     /// Gantt des modèles à sélection bleue d'origine (H-UI-136) : l'accent
     /// en clair, un violet plus clair en sombre (≥ 3:1 sur la teinte).
     pub table_cursor: Color32,
+    /// Chiffre de la pastille du bouton de l'assistant, sur l'accent (lot
+    /// A5, H-UI-166).
+    pub on_accent: Color32,
 }
 
 impl ChromeTokens {
@@ -285,6 +288,7 @@ impl ChromeTokens {
         selection_fg: BRAND_VIOLET,
         logo_ring: Color32::from_rgb(0xFF, 0xFF, 0xFF),
         table_cursor: BRAND_VIOLET,
+        on_accent: Color32::WHITE,
     };
 
     /// Thème sombre.
@@ -307,6 +311,9 @@ impl ChromeTokens {
         selection_fg: Color32::from_rgb(0xD4, 0xAE, 0xF0),
         logo_ring: Color32::from_rgb(0x4C, 0x4D, 0x55),
         table_cursor: Color32::from_rgb(0xD4, 0xAE, 0xF0),
+        // Accent clair du sombre : chiffre foncé (≈ 6:1), le blanc n'y
+        // atteint pas 3:1.
+        on_accent: Color32::from_rgb(0x1E, 0x1F, 0x22),
     };
 
     /// Jetons du thème résolu.

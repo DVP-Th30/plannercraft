@@ -59,10 +59,11 @@ fn side_open_id() -> egui::Id {
     egui::Id::unique("plannercraft.side-open")
 }
 
-/// Clé de la mémoire d'egui de l'état « volet ouvert sur l'Assistant »
-/// (case Affichage → Assistant IA, ADR-0024 lot A1).
-fn assistant_open_id() -> egui::Id {
-    egui::Id::unique("plannercraft.assistant-open")
+/// Clé de la mémoire d'egui de l'état « volet ouvert sur Opérations IA »
+/// (case Affichage → Opérations IA ; lot A5 : la case Assistant IA suit le
+/// volet, ouvert ou fermé).
+fn ai_open_id() -> egui::Id {
+    egui::Id::unique("plannercraft.ai-open")
 }
 
 /// État du volet latéral déposé par [`menu_bar`] à cette image.
@@ -72,15 +73,17 @@ fn side_open(ctx: &egui::Context) -> bool {
 }
 
 /// État d'une case ou d'une bascule (H-UI-74) : [`RibbonCmd::checked`],
-/// sauf le volet Opérations IA, dont l'état est relu ici (même source pour
-/// le menu et le ruban).
+/// sauf le volet latéral, dont l'état est relu ici (même source pour le
+/// menu, le ruban et le bouton de l'assistant) : Opérations IA cochée
+/// quand son onglet est affiché, Assistant IA quand le volet est ouvert
+/// (lot A5, H-UI-161).
 pub(crate) fn item_checked(ctx: &egui::Context, fc: &FrameCtx<'_>, cmd: RibbonCmd) -> Option<bool> {
     match cmd {
-        RibbonCmd::AiPanel => Some(side_open(ctx)),
-        RibbonCmd::Assistant => Some(
-            ctx.data(|data| data.get_temp::<bool>(assistant_open_id()))
+        RibbonCmd::AiPanel => Some(
+            ctx.data(|data| data.get_temp::<bool>(ai_open_id()))
                 .unwrap_or(false),
         ),
+        RibbonCmd::Assistant => Some(side_open(ctx)),
         _ => cmd.checked(fc),
     }
 }
@@ -202,11 +205,11 @@ fn twin_cmd(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: RibbonCmd) {
 /// Barre de menus (Fichier, Édition, Affichage, Tâche, Projet, Format,
 /// Aide) ; `side_open` : volet latéral ouvert (case du menu Affichage, J8
 /// lot L12), déposé aussi pour le ruban de la même image.
-pub fn menu_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, side_open: bool, assistant_open: bool) {
+pub fn menu_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, side_open: bool, ai_open: bool) {
     let texts = fc.texts;
     ui.ctx().data_mut(|data| {
         data.insert_temp(side_open_id(), side_open);
-        data.insert_temp(assistant_open_id(), assistant_open);
+        data.insert_temp(ai_open_id(), ai_open);
     });
     // Finitions P4 (H-UI-132) : même surface que le ruban, sans filet entre
     // les deux (le filet est sous le ruban).
@@ -279,8 +282,14 @@ fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, _side_open: bool) {
         // Bascule du volet latéral (H-UI-41) : sans document aussi
         // (l'historique de session reste lisible).
         twin(ui, fc, RibbonCmd::AiPanel, None);
-        // --- ADR-0024, lot A1 : assistant IA (H-UI-138).
-        twin(ui, fc, RibbonCmd::Assistant, None);
+        // --- ADR-0024, lot A1 : assistant IA (H-UI-138) ; lot A5 : bascule
+        // du volet, Ctrl/Cmd+J (H-UI-161, H-UI-162).
+        twin(
+            ui,
+            fc,
+            RibbonCmd::Assistant,
+            Some(Binding::Ui(UiBinding::ToggleAssistant)),
+        );
         // --- J8 L15 : galerie, mise en page ---
         ui.separator();
         // Bascule du panneau des diagnostics : les compteurs de la

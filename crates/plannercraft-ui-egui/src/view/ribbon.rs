@@ -28,6 +28,12 @@
 //! [`GroupSpec::shrink_rank`] (petits boutons sans libellé, puis groupe
 //! replié en un bouton à menu).
 //!
+//! Bouton de l'assistant (lot A5, H-UI-161, H-UI-166) : en haut à droite
+//! de la bande d'onglets, toujours visible (ruban replié, accueil sans
+//! document) ; bascule le volet latéral, enfoncé quand il est ouvert,
+//! pastille des nouveautés arrivées volet fermé, pulsation discrète
+//! pendant une réponse ([`AssistantButton`]).
+//!
 //! Repli (H-UI-72) : seule la bande d'onglets reste ; un clic sur un onglet
 //! ouvre le corps dans une `egui::Area` au premier plan, sous la bande
 //! (la vue ne bouge pas), refermée par une action du ruban, Échap ou un
@@ -41,7 +47,7 @@ use egui::{
 };
 
 use crate::action::Action;
-use crate::i18n::{Arg, Language, Texts};
+use crate::i18n::{Arg, Language, TextId, Texts};
 use crate::keymap::{Binding, shortcut_for_os, shortcut_text};
 use crate::ribbon::spec::{GroupSpec, ItemSize, ItemSpec, QUICK_ACCESS, RibbonCmd, percent_value};
 use crate::ribbon::{Icon, RibbonOp, RibbonPrefs, RibbonTab, paint_icon};
@@ -49,6 +55,26 @@ use crate::theme::{ChromeTokens, logo_shapes};
 
 use super::FrameCtx;
 use super::chrome::{dropdown_contents, item_checked, push_cmd, twin_item};
+
+/// Largeur du bouton de l'assistant (lot A5), en points.
+pub const ASSISTANT_W: f32 = 28.0;
+/// Hauteur du bouton de l'assistant.
+const ASSISTANT_H: f32 = 22.0;
+/// Côté de l'icône du bouton de l'assistant.
+const ASSISTANT_ICON: f32 = 16.0;
+/// Pastille au-delà de ce nombre : « 9+ ».
+const BADGE_MAX: u32 = 9;
+
+/// État du bouton de l'assistant à l'image (lot A5).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AssistantButton {
+    /// Volet latéral ouvert (bouton enfoncé).
+    pub open: bool,
+    /// Nouveautés arrivées volet fermé (pastille si > 0, volet fermé).
+    pub badge: u32,
+    /// Réponse en cours (pulsation).
+    pub busy: bool,
+}
 
 /// Hauteur de la bande d'onglets (barre d'accès rapide comprise).
 pub const TAB_BAND_H: f32 = 26.0;
@@ -616,6 +642,8 @@ pub struct RibbonDrawn {
     pub items: Vec<DrawnItem>,
     /// Groupes : nom, palier, rectangle.
     pub groups: Vec<(String, Stage, Rect)>,
+    /// Bouton de l'assistant (lot A5) et sa pastille, si dessinée.
+    pub assistant: Option<(Rect, Option<Rect>)>,
 }
 
 impl Default for RibbonDrawn {
@@ -625,6 +653,7 @@ impl Default for RibbonDrawn {
             body: None,
             items: Vec::new(),
             groups: Vec::new(),
+            assistant: None,
         }
     }
 }
@@ -648,8 +677,15 @@ fn keep_id() -> Id {
 }
 
 /// Dessine le ruban sous la barre de menus. `prefs` : onglet et repli
-/// persistés ; `overlay` : onglet ouvert en surimpression (ruban replié).
-pub fn show(ui: &mut Ui, fc: &mut FrameCtx<'_>, prefs: &RibbonPrefs, overlay: Option<RibbonTab>) {
+/// persistés ; `overlay` : onglet ouvert en surimpression (ruban replié) ;
+/// `assistant` : état du bouton de l'assistant (lot A5).
+pub fn show(
+    ui: &mut Ui,
+    fc: &mut FrameCtx<'_>,
+    prefs: &RibbonPrefs,
+    overlay: Option<RibbonTab>,
+    assistant: AssistantButton,
+) {
     let ctx = ui.ctx().clone();
     ctx.data_mut(|data| data.insert_temp(drawn_id(), RibbonDrawn::default()));
     if overlay.is_some() {
@@ -672,6 +708,7 @@ pub fn show(ui: &mut Ui, fc: &mut FrameCtx<'_>, prefs: &RibbonPrefs, overlay: Op
                 .hline(rect.x_range(), rect.bottom() - 0.5, Stroke::new(1.0, tokens.rule));
             let band = Rect::from_min_size(rect.min, vec2(rect.width(), TAB_BAND_H));
             tab_band(ui, fc, band, *prefs, overlay);
+            assistant_button(ui, fc, band, assistant);
             if !prefs.collapsed {
                 let body = Rect::from_min_max(pos2(rect.left(), band.bottom()), rect.max);
                 body_ui(ui, fc, body, prefs.tab);
@@ -801,6 +838,110 @@ fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, 
             ui.add_space(2.0);
         }
     });
+}
+
+/// Bouton de l'assistant (lot A5, H-UI-161, H-UI-166), au bord droit de
+/// la bande `band` : icône `sparkles` ; survol, appui et bascule enfoncée
+/// comme les éléments du ruban (jetons du lifting P4) ; pastille à
+/// l'accent (nombre au-delà d'une nouveauté, « 9+ » au-delà de neuf) si
+/// le volet est fermé ; pendant une réponse, contour à l'accent qui
+/// pulse (fixe si « Réduire les animations »). Clic ⇒ `SideOp::Toggle`.
+fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: AssistantButton) {
+    if !band.is_finite() {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    let tokens = ChromeTokens::for_theme(ctx.theme());
+    let texts = fc.texts;
+    let center = pos2(band.right() - BODY_PAD - ASSISTANT_W / 2.0, band.center().y);
+    let rect = Rect::from_center_size(center, vec2(ASSISTANT_W, ASSISTANT_H));
+    let response = ui.interact(rect, Id::unique("plannercraft.ribbon.assistant"), Sense::click());
+    let badge = if b.open { 0 } else { b.badge };
+    let name = texts.get(TextId::AssistantButton);
+    let news = (badge > 0).then(|| {
+        texts.get_args(
+            TextId::AssistantButtonBadge,
+            &[("count", Arg::Count(i64::from(badge)))],
+        )
+    });
+    let label = match &news {
+        Some(news) => format!("{name} ({news})"),
+        None => name.clone(),
+    };
+    response.widget_info(|| WidgetInfo::selected(Role::Button, true, b.open, &label));
+    let down = response.is_pointer_button_down_on();
+    let bg = if down {
+        Some(tokens.pressed)
+    } else if b.open {
+        Some(tokens.toggle_bg)
+    } else if response.hovered() {
+        Some(tokens.hover)
+    } else {
+        None
+    };
+    let painter = ui.painter().clone();
+    paint_frame(&painter, &tokens, rect, bg, response.has_focus());
+    let icon = Rect::from_center_size(rect.center(), Vec2::splat(ASSISTANT_ICON));
+    let ink = if b.open { tokens.accent } else { tokens.text };
+    paint_icon(&painter, icon, Icon::Sparkles, ink);
+    if b.busy {
+        let reduce = fc.state.reduce_motion;
+        let alpha = if reduce {
+            0.7
+        } else {
+            let t = ctx.input(|i| i.time);
+            // Une pulsation toutes les 1,6 s environ, entre 25 et 85 %.
+            #[allow(clippy::cast_possible_truncation, reason = "phase d'une animation")]
+            let phase = ((t * 4.0).sin() * 0.5 + 0.5) as f32;
+            0.25 + 0.6 * phase
+        };
+        painter.rect_stroke(
+            rect,
+            CORNER,
+            Stroke::new(1.5, tokens.accent.gamma_multiply(alpha)),
+            StrokeKind::Inside,
+        );
+        if !reduce {
+            ctx.request_repaint_after(std::time::Duration::from_millis(50));
+        }
+    }
+    let dot = (badge > 0).then(|| {
+        let text = if badge > BADGE_MAX {
+            format!("{BADGE_MAX}+")
+        } else {
+            badge.to_string()
+        };
+        let galley = painter.layout_no_wrap(text, FontId::proportional(9.0), tokens.on_accent);
+        // Une nouveauté : point de 8 px ; plus : pastille de 13 px de haut
+        // portant le nombre.
+        let c = pos2(rect.right() - 4.0, rect.top() + 5.0);
+        let disk = if badge == 1 {
+            Rect::from_center_size(c, Vec2::splat(8.0))
+        } else {
+            Rect::from_center_size(c, vec2((galley.size().x + 6.0).max(13.0), 13.0))
+        };
+        painter.rect_filled(disk, disk.height() / 2.0, tokens.accent);
+        if badge > 1 {
+            painter.galley(
+                Rect::from_center_size(c, galley.size()).min,
+                galley,
+                tokens.on_accent,
+            );
+        }
+        disk
+    });
+    record(&ctx, |d| d.assistant = Some((rect, dot)));
+    let binding = crate::keymap::Binding::Ui(crate::keymap::UiBinding::ToggleAssistant);
+    let title = tooltip_title(&ctx, &name, Some(binding));
+    let mut tip = texts.get(TextId::AssistantButtonTip);
+    if b.busy {
+        tip = format!("{tip}\n{}", texts.get(TextId::AssistantButtonBusy));
+    }
+    let response = response.on_hover_ui(|ui| tooltip(ui, &title, &tip, news.as_deref()));
+    if response.clicked() {
+        fc.actions
+            .push(Action::SidePanel(crate::view::side_panel::SideOp::Toggle));
+    }
 }
 
 /// Onglet (H-UI-132) : texte seul ; survol en fond très léger ; actif à

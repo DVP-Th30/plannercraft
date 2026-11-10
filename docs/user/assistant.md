@@ -12,7 +12,7 @@ Vous lui posez une question en langage courant sur le planning ouvert : « Quand
 
 ## 2. Ouvrir et activer
 
-1. **Affichage → Fractionner l'affichage → Assistant IA** (ou menu Affichage → Assistant IA) : le volet s'ouvre à droite, onglet « Assistant ».
+1. Cliquez le bouton **✦ Assistant IA**, en haut à droite de la barre des onglets du ruban (toujours visible, même ruban réduit ou sans projet ouvert), ou appuyez sur **Ctrl+J** (**Cmd+J** sur macOS) ; aussi **Affichage → Fractionner l'affichage → Assistant IA** ou menu Affichage → Assistant IA. Le volet s'ouvre à droite, onglet « Assistant ». Le même bouton, le même raccourci ou **Échap** (question vide, rien en cours) le referment ; § 7 bis.
 2. Lisez la mention : *les réponses sont générées par une IA et peuvent contenir des erreurs ; votre planning est envoyé à OpenRouter et au fournisseur du modèle*. Elle reste affichée tant que la conversation est vide.
 3. Choisissez votre **accès** :
    - **Compte PlannerCraft** (recommandé) : aucune clé à gérer, vous achetez des crédits à PlannerCraft (§ 3 bis) ;
@@ -117,6 +117,14 @@ Si vos plannings contiennent des noms de personnes ou d'entreprises que vous ne 
 | Ce modèle n'est pas proposé avec le compte | Choisissez un autre modèle dans la liste. |
 | Le service d'IA est momentanément indisponible | Réessayez dans un instant. |
 
+## 7 bis. Le volet, toujours à portée
+
+- **Ouvrir, fermer** : bouton ✦ en haut à droite du ruban (enfoncé quand le volet est ouvert), **Ctrl+J** / **Cmd+J** (même pendant que vous tapez la question), menu Affichage → Assistant IA. À l'ouverture, le curseur est dans la question. **Échap** ferme le volet quand la question est vide et qu'aucune réponse n'est en cours (sinon Échap arrête la réponse, ou ferme d'abord la fenêtre ou le menu ouvert). Sur la version web, Ctrl+J ouvre l'assistant et non les téléchargements du navigateur.
+- **Fermer n'interrompt rien** : une réponse en cours continue volet fermé. Le bouton pulse doucement tant qu'elle s'écrit (fixe avec « Réduire les animations ») ; une **pastille** s'allume quand elle est terminée, en erreur, ou qu'une proposition vous attend (un nombre s'il y en a plusieurs). Elle s'efface à l'ouverture du volet.
+- **Largeur** : tirez le bord gauche du volet (de 320 points à la moitié de la fenêtre) ; double-clic sur ce bord : largeur par défaut. La largeur et le volet ouvert ou fermé sont retrouvés au lancement suivant.
+- **Petite fenêtre** (moins de 900 points de large) : le volet s'ouvre par-dessus le planning, sans rétrécir la table.
+- Le volet s'ouvre toujours sur l'onglet **Assistant** ; « Opérations IA » et « Pourquoi cette date ? » restent à côté. Une proposition de l'assistant reste dans la conversation (carte) ; une demande d'un agent MCP externe ouvre « Opérations IA » comme avant.
+
 ## 8. Confort
 
-**Affichage → Thème → Réduire les animations** coupe les défilements animés, la pulsation de « Réflexion… » et les animations de l'interface.
+**Affichage → Thème → Réduire les animations** coupe les défilements animés, la pulsation de « Réflexion… » (et celle du bouton ✦ pendant une réponse) et les animations de l'interface.
