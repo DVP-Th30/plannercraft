@@ -61,6 +61,7 @@ Finitions avant `v1.0.0` (ADR-0022, cahier `docs/plans/polish.md`) : les manques
 - Suppr efface le contenu des cellules sélectionnées ; il supprime les tâches sur des lignes entières ou depuis l'ID et le Nom (message « n tâche(s) supprimée(s) ») ; valider une cellule vide l'efface au lieu d'un refus.
 - Un clic dans le Gantt laisse le clavier à la table (flèches, frappe, presse-papiers) ; glisser la barre d'une tâche d'une sélection multiple garde la sélection.
 - Sélection plus visible en clair et en sombre (teinte, bordure de 2 px, ID appuyés) ; un clic simple ne teinte plus toute la ligne ; survol discret de la ligne.
+- Serveur MCP : SDK `rmcp` monté de 3.5.1 à 3.9.0 (alertes RUSTSEC-2026-0457, 0461 et 0462 ; la seconde touchait `plannercraft mcp --http` : mémoire sans borne sur des appels d'outils inconnus). Aucun changement d'outil ni de réponse.
 
 ### Corrigé
 - Appliquer un modèle de la galerie vidait la liste de la chronologie du document ; elle est gardée, comme les couleurs de phase, et n'est jamais enregistrée dans un modèle personnel.
