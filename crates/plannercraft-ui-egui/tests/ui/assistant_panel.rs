@@ -38,6 +38,11 @@ fn button(harness: &Harness<'static, App>) -> (Rect, Option<Rect>) {
         .expect("bouton de l'assistant dessiné")
 }
 
+/// Contour « réponse en cours » dessiné autour du bouton (H-UI-166).
+fn ring(harness: &Harness<'static, App>) -> bool {
+    plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx).assistant_ring
+}
+
 /// Clic (appui, relâcher) en `p`.
 fn click_at(harness: &mut Harness<'static, App>, p: Pos2) {
     harness.hover_at(p);
@@ -267,13 +272,16 @@ fn h_ui_166_answer_continues_closed_then_badge() {
     enable_with_key(&mut harness);
     ask(&mut harness, "compte");
     assert!(harness.state().assistant().conversation.busy());
+    // Volet ouvert : la réponse s'écrit sous les yeux, le bouton reste fixe.
+    assert!(!ring(&harness), "pas de contour volet ouvert");
     // Fermé pendant la réponse : rien n'est interrompu, pas de pastille
-    // tant qu'elle court ; pulsation (bouton « réponse en cours »).
+    // tant qu'elle court ; contour du bouton (« réponse en cours »).
     press_button(&mut harness);
     assert!(!open(&harness));
     assert!(harness.state().assistant().conversation.busy());
     assert_eq!(harness.state().assistant_badge(), 0);
     assert!(button(&harness).1.is_none());
+    assert!(ring(&harness), "contour pendant la réponse, volet fermé");
     transport.step(40);
     settle(&mut harness);
     harness.run();
@@ -282,6 +290,7 @@ fn h_ui_166_answer_continues_closed_then_badge() {
         "un deux trois quatre"
     );
     assert_eq!(harness.state().assistant_badge(), 1);
+    assert!(!ring(&harness), "plus de contour, réponse terminée");
     let (rect, dot) = button(&harness);
     let dot = dot.expect("pastille dessinée");
     assert!(rect.intersects(dot), "{rect:?} {dot:?}");
