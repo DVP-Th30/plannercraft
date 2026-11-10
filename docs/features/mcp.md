@@ -1,6 +1,6 @@
 # Serveur MCP (`crates/plannercraft-mcp`, `plannercraft mcp`)
 
-État au 2026-10-20 (lots L8, L17 et L18 de J4, ADR-0012 D7, D8 ; outils J5 et J6, ADR-0013, ADR-0014 ; scénario de suivi et harnais de l'essai n° 3 : lot L10 de J6). Le serveur expose les commandes de `plannercraft-automation` à un agent IA par le SDK officiel `rmcp` (=3.5.1). Il ne calcule aucune date et ne renvoie jamais de résultat estimé (règle 3) : chaque appel passe par `Workspace::call` (`docs/features/workspace.md`), toute date, durée ou marge de la réponse vient du moteur.
+État au 2026-10-20 (lots L8, L17 et L18 de J4, ADR-0012 D7, D8 ; outils J5 et J6, ADR-0013, ADR-0014 ; scénario de suivi et harnais de l'essai n° 3 : lot L10 de J6). Le serveur expose les commandes de `plannercraft-automation` à un agent IA par le SDK officiel `rmcp` (=3.9.0 depuis le 2026-11-11). Il ne calcule aucune date et ne renvoie jamais de résultat estimé (règle 3) : chaque appel passe par `Workspace::call` (`docs/features/workspace.md`), toute date, durée ou marge de la réponse vient du moteur.
 
 ## 1. Lancement
 
