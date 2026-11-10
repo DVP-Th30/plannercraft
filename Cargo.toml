@@ -46,7 +46,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 quick-xml = { version = "0.42.0", features = ["serialize"] }
 # rmcp épinglé exactement (ADR-0005 : API mouvante) ; toute montée est un commit dédié.
-rmcp = { version = "=3.5.1", default-features = false, features = ["server", "macros", "transport-io"] }
+rmcp = { version = "=3.9.0", default-features = false, features = ["server", "macros", "transport-io"] }
 # J4 (ADR-0012) : schémas JSON des commandes (plannercraft-automation), déjà tirés
 # par rmcp `server` à la même version ; le cœur n'en dépend pas.
 schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }
