@@ -9,7 +9,7 @@ Chaque release (`https://github.com/DVP-Th30/plannercraft/releases`) porte cinq 
 
 La première version publique est la pré-version `1.0.0-rc.1` (marquée « Pre-release » sur GitHub) : `<version>` vaut alors `1.0.0-rc.1` dans les noms de fichiers ci-dessous.
 
-Les binaires ne sont ni notarisés (macOS) ni signés par un certificat (Windows) : chaque système demande une confirmation au premier lancement, détaillée ci-dessous.
+Sous Windows, les binaires ne sont pas signés par un certificat. Sous macOS, le DMG est soit signé par l'éditeur (Developer ID) et notarisé par Apple, soit seulement signé « ad hoc » (préversion construite sans le certificat de l'éditeur). Windows, et macOS pour un DMG ad hoc, demandent une confirmation au premier lancement, détaillée ci-dessous.
 
 ## Vérifier le téléchargement
 
@@ -26,10 +26,11 @@ Avec la CLI GitHub, la provenance (fichier construit par le workflow `release.ym
 Fichier : `plannercraft-<version>-macos-universal.dmg`.
 
 1. Ouvrir le DMG et glisser `PlannerCraft.app` dans `Applications`.
-2. Premier lancement (macOS 15 et plus récents) : ouvrir `PlannerCraft.app` ; macOS refuse, car l'application n'est pas notarisée. Ouvrir **Réglages Système → Confidentialité et sécurité**, descendre jusqu'au message sur PlannerCraft et cliquer **« Ouvrir quand même »**, puis confirmer. Les lancements suivants sont normaux. (Sur les versions plus anciennes, clic droit sur l'application puis « Ouvrir » suffit.)
-3. Ligne de commande : copier `cli/plannercraft` du DMG, par exemple dans `/usr/local/bin`, puis lever la quarantaine : `xattr -d com.apple.quarantine /usr/local/bin/plannercraft`.
+2. Premier lancement, DMG signé et notarisé : `PlannerCraft.app` s'ouvre après la confirmation habituelle d'une application téléchargée ; rien d'autre à faire.
+   Premier lancement, DMG ad hoc (macOS 15 et plus récents) : ouvrir `PlannerCraft.app` ; macOS refuse, car l'application n'est pas notarisée. Ouvrir **Réglages Système → Confidentialité et sécurité**, descendre jusqu'au message sur PlannerCraft et cliquer **« Ouvrir quand même »**, puis confirmer. Les lancements suivants sont normaux. (Sur les versions plus anciennes, clic droit sur l'application puis « Ouvrir » suffit.)
+3. Ligne de commande : copier `cli/plannercraft` du DMG, par exemple dans `/usr/local/bin`, puis, pour un DMG ad hoc, lever la quarantaine : `xattr -d com.apple.quarantine /usr/local/bin/plannercraft`.
 
-L'application est signée « ad hoc » (signature locale, sans identité Apple) : elle est intègre, mais Gatekeeper ne connaît pas son auteur.
+Pour savoir lequel des deux on a : `codesign -dv --verbose=2 /Applications/PlannerCraft.app` affiche une ligne `Authority=Developer ID Application: …` pour un DMG signé par l'éditeur, et `Signature=adhoc` sinon. Une application signée « ad hoc » (signature locale, sans identité Apple) est intègre, mais Gatekeeper ne connaît pas son auteur ; macOS lui redemande aussi l'accès au trousseau (clé ou session de l'assistant) après chaque mise à jour, sa signature changeant à chaque build.
 
 ## Windows (10 et 11, x86_64)
 
