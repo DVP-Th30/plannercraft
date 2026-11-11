@@ -108,6 +108,10 @@ fn h_ui_149_proposal_card_and_panel() {
     // Carte et ligne d'outil.
     let card = fr_args(TextId::AssistantProposalTitle, &[("name", "Renommer les plans")]);
     assert!(harness.query_all_by_label(&card).count() >= 1);
+    // Compteurs du `dry_run` (R-163 amendée) : le renommage touche une
+    // tâche sans déplacer de date (défaut du 2026-11-10 : « 0 tâche »).
+    let counts = "1 tâche modifiée · aucune date déplacée";
+    assert!(harness.query_all_by_label(counts).count() >= 1);
     harness.get_by_label(&fr_args(
         TextId::AssistantToolPropose,
         &[("what", "Renommer les plans")],
@@ -138,6 +142,13 @@ fn h_ui_149_proposal_card_and_panel() {
     harness.run();
     assert_eq!(harness.state().side_panel().tab, SideTab::AiOperations);
     harness.get_by_label_contains(&title);
+    // Même ligne dans la phrase du bandeau repris en tête du volet.
+    assert!(
+        harness
+            .query_all_by_label_contains(&format!("\u{2014} {counts}, "))
+            .count()
+            >= 1
+    );
     assert!(harness.query_by_label_contains("L'agent propose").is_none());
 }
 

@@ -1,10 +1,12 @@
 //! R-163 — Diff de planning d'un lot (définition, tri, N).
 
-use plannercraft_automation::{ApplyMode, ApplyOptions};
+use plannercraft_automation::text::Language;
+use plannercraft_automation::{ApplyMode, ApplyOptions, Workspace};
 use plannercraft_core::{TaskId, TaskUid};
 use plannercraft_tests::moment;
 use plannercraft_tests::mspdi::new_project;
 use plannercraft_tests::session::{add_task, commit, delete_task, link, push_tasks, session, set_days};
+use serde_json::{Value, json};
 
 #[test]
 fn r163_diff_example() {
@@ -20,6 +22,8 @@ fn r163_diff_example() {
     let o = commit(&mut s, "a", &[set_days(1, 7)]);
     let d = &o.diff;
     assert_eq!(d.changed_total, 2);
+    // A (durée) et B (dates) : touchées = changées.
+    assert_eq!(d.touched_total, 2);
     assert!(!d.truncated);
     let uids: Vec<u32> = d.changed.iter().map(|c| c.uid.get()).collect();
     assert_eq!(uids, vec![1, 2]);
@@ -67,6 +71,7 @@ fn r163_diff_sorted_and_truncated() {
         )
         .unwrap();
     assert_eq!(o.diff.changed_total, 15);
+    assert_eq!(o.diff.touched_total, 15);
     assert_eq!(o.diff.changed.len(), 10);
     assert!(o.diff.truncated);
     let first: Vec<u32> = o.diff.changed.iter().take(4).map(|c| c.uid.get()).collect();
@@ -111,6 +116,7 @@ fn r163_critical_entered_left() {
     // A n'a pas bougé : sa marge seule a changé, elle n'est pas « changée ».
     let uids: Vec<u32> = o.diff.changed.iter().map(|c| c.uid.get()).collect();
     assert_eq!(uids, vec![2]);
+    assert_eq!(o.diff.touched_total, 1);
 }
 
 #[test]
@@ -123,6 +129,7 @@ fn r163_added_and_deleted_tasks() {
     let o = commit(&mut s, "a", &[delete_task(1), add_task("N", 2)]);
     let d = &o.diff;
     assert_eq!(d.changed_total, 2);
+    assert_eq!(d.touched_total, 2);
     let added = &d.changed[0];
     assert_eq!(added.uid, TaskUid::new(3));
     assert_eq!((added.id_before, added.id_after), (None, Some(TaskId::new(2))));
@@ -138,4 +145,155 @@ fn r163_added_and_deleted_tasks() {
     assert_eq!(deleted.finish.1, None);
     assert_eq!(d.critical_left, vec![TaskUid::new(1), TaskUid::new(2)]);
     assert_eq!(d.critical_entered, vec![TaskUid::new(3)]);
+}
+
+// --- R-163 amendée (2026-11-11) : tâches touchées (`touched_total`) ---
+
+/// Espace de travail : projet « P » (lun 02/11/2026 08:00, calendrier
+/// standard) et le lot `ops` commité.
+fn workspace(ops: &Value) -> Workspace {
+    let mut ws = Workspace::new(moment("2026-11-02T08:00"), Language::Fr);
+    ws.call("project.new", json!({ "name": "P", "start": "2026-11-02T08:00" }))
+        .unwrap();
+    ws.call("batch.apply", json!({ "ops": ops })).unwrap();
+    ws
+}
+
+/// (`touched_total`, `changed_total`) d'un diff JSON.
+fn counts(diff: &Value) -> (u64, u64) {
+    (
+        diff["touched_total"].as_u64().unwrap(),
+        diff["changed_total"].as_u64().unwrap(),
+    )
+}
+
+/// `dry_run`, `what_if` puis commit du lot `ops` sur `ws` : les trois
+/// diffs sont identiques (même pipeline) ; rend ses deux compteurs.
+fn touched_and_changed(ws: &mut Workspace, ops: &Value) -> (u64, u64) {
+    let dry = ws
+        .call("batch.apply", json!({ "ops": ops, "dry_run": true }))
+        .unwrap();
+    let what_if = ws.call("analysis.what_if", json!({ "ops": ops })).unwrap();
+    assert_eq!(what_if["accepted"], json!(true));
+    assert_eq!(what_if["diff"], dry["diff"]);
+    let committed = ws.call("batch.apply", json!({ "ops": ops })).unwrap();
+    assert_eq!(committed["diff"], dry["diff"]);
+    let (touched, changed) = counts(&dry["diff"]);
+    assert!(touched >= changed, "{touched} < {changed}");
+    (touched, changed)
+}
+
+/// Cinq tâches indépendantes de 2 j et une sixième, laissée à 0 %.
+fn six_tasks() -> Workspace {
+    let ops: Vec<Value> = (1..=6)
+        .map(|i| json!({ "op": "task.add", "name": format!("T{i}"), "duration": { "text": "2j" } }))
+        .collect();
+    workspace(&Value::Array(ops))
+}
+
+#[test]
+fn r163_touched_progress_only() {
+    // Exemple de la règle : cinq tâches passées à 100 % sans que leurs
+    // dates bougent ⇒ `touched_total` 5, `changed_total` 0 (« 5 tâches
+    // modifiées · aucune date déplacée »).
+    let mut ws = six_tasks();
+    let ops: Vec<Value> = (1..=5)
+        .map(|uid| json!({ "op": "progress.update", "task": uid, "percent_complete": { "text": "100%" } }))
+        .collect();
+    assert_eq!(touched_and_changed(&mut ws, &Value::Array(ops)), (5, 0));
+}
+
+#[test]
+fn r163_touched_rename_only() {
+    let mut ws = six_tasks();
+    let ops = json!([{ "op": "task.update", "uid": 3, "name": "Autre nom", "notes": "n" }]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (1, 0));
+}
+
+#[test]
+fn r163_touched_union_with_moved_dates() {
+    // A 5 j → B 1 j → C 1 j, D indépendante. A passe à 7 j (A, B, C
+    // décalées) et D est renommée : touchées = {A, B, C} ∪ {D} = 4, dates
+    // déplacées = 3. B et C sont touchées par leurs dates seules.
+    let mut ws = workspace(&json!([
+        { "op": "task.add", "name": "A", "as": "$a", "duration": { "text": "5j" } },
+        { "op": "task.add", "name": "B", "as": "$b", "duration": { "text": "1j" } },
+        { "op": "task.add", "name": "C", "as": "$c", "duration": { "text": "1j" } },
+        { "op": "task.add", "name": "D", "duration": { "text": "1j" } },
+        { "op": "link.add", "pred": "$a", "succ": "$b" },
+        { "op": "link.add", "pred": "$b", "succ": "$c" }
+    ]));
+    let ops = json!([
+        { "op": "task.update", "uid": 1, "duration": { "text": "7j" } },
+        { "op": "task.update", "uid": 4, "name": "D bis" }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (4, 3));
+}
+
+#[test]
+fn r163_touched_added_and_deleted() {
+    let mut ws = six_tasks();
+    let add = json!([{ "op": "task.add", "name": "N", "duration": { "text": "1j" } }]);
+    assert_eq!(touched_and_changed(&mut ws, &add), (1, 1));
+    let delete = json!([{ "op": "task.delete", "uid": 2 }]);
+    assert_eq!(touched_and_changed(&mut ws, &delete), (1, 1));
+}
+
+#[test]
+fn r163_touched_assignment_counts_its_task() {
+    // Une ressource ajoutée ne touche aucune tâche ; son affectation touche
+    // la tâche affectée (donnée de la tâche : ses affectations).
+    let mut ws = six_tasks();
+    let resource = json!([{ "op": "resource.add", "name": "Maçon" }]);
+    assert_eq!(touched_and_changed(&mut ws, &resource), (0, 0));
+    let assign = json!([{ "op": "assignment.add", "task": 2, "resource": 1 }]);
+    let (touched, _) = touched_and_changed(&mut ws, &assign);
+    assert_eq!(touched, 1);
+}
+
+#[test]
+fn r163_touched_empty_batch() {
+    let mut ws = six_tasks();
+    assert_eq!(touched_and_changed(&mut ws, &json!([])), (0, 0));
+}
+
+#[test]
+fn r163_touched_undo_redo() {
+    // Annuler et rétablir rendent le diff du delta de l'entrée : mêmes
+    // tâches touchées que le lot.
+    let mut ws = six_tasks();
+    let ops: Vec<Value> = (1..=5)
+        .map(|uid| json!({ "op": "progress.update", "task": uid, "percent_complete": { "text": "100%" } }))
+        .collect();
+    ws.call("batch.apply", json!({ "ops": ops })).unwrap();
+    let undo = ws.call("history.undo", json!({})).unwrap();
+    assert_eq!(counts(&undo["diff"]), (5, 0));
+    let redo = ws.call("history.redo", json!({})).unwrap();
+    assert_eq!(counts(&redo["diff"]), (5, 0));
+}
+
+#[test]
+fn r163_touched_summary_and_order() {
+    // Deux sous-tâches passées à 100 % : la récapitulative, dont
+    // l'avancement est calculé et non enregistré, n'est pas touchée.
+    // Déplacer une tâche dans la liste sans changer de niveau ne change
+    // que l'ordre (et les ID) : aucune tâche touchée (règle consignée).
+    let mut ws = workspace(&json!([
+        { "op": "task.add", "name": "S", "duration": { "text": "1j" } },
+        { "op": "task.add", "name": "a", "duration": { "text": "2j" } },
+        { "op": "task.add", "name": "b", "duration": { "text": "2j" } },
+        { "op": "task.add", "name": "c", "duration": { "text": "2j" } }
+    ]));
+    ws.call(
+        "batch.apply",
+        json!({ "ops": [{ "op": "task.indent", "uid": 2 }, { "op": "task.indent", "uid": 3 }] }),
+    )
+    .unwrap();
+    let ops = json!([
+        { "op": "progress.update", "task": 2, "percent_complete": { "text": "100%" } },
+        { "op": "progress.update", "task": 3, "percent_complete": { "text": "100%" } }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (2, 0));
+    let order_only = json!([{ "op": "task.move", "uid": 4, "to": { "before": 1 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &order_only), (0, 0));
 }

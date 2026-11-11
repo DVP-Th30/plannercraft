@@ -301,6 +301,7 @@ fn c_ctl_07_stale_generation_new_preview() {
     harness.run();
     let first = harness.state().approvals().pending()[0].preview.clone().unwrap();
     assert!(first.changed_tasks > 0);
+    assert!(first.touched_tasks >= first.changed_tasks);
     // L'utilisateur modifie le projet entre-temps.
     let batch = plannercraft_automation::Batch::from_json_str(
         r#"{"format_version":1,"ops":[{"op":"task.update","uid":2,"duration":{"text":"1j"}}]}"#,

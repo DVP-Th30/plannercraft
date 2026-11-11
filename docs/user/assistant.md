@@ -79,7 +79,7 @@ L'assistant passe par [OpenRouter](https://openrouter.ai), un service qui donne 
 
 Demandez en langage courant : « Crée le planning d'une maison de 120 m² », « Décale le second œuvre de deux semaines », « Lie la plomberie à l'électricité », « Mets les jalons en gras », « Regroupe par lot ».
 
-- L'assistant prépare **un lot** de modifications et l'affiche sous sa réponse : une carte « Proposition : <libellé> — 18 tâches touchées ». **Rien n'est encore appliqué.**
+- L'assistant prépare **un lot** de modifications et l'affiche sous sa réponse : une carte « Proposition : <libellé> » avec « 18 tâches modifiées · aucune date déplacée » (tâches que le lot change, puis tâches dont les dates bougent). **Rien n'est encore appliqué.**
 - **Voir** ouvre l'onglet Opérations IA : la table avant/après (début, fin, marge, chemin critique), les nouvelles valeurs, les anciennes barrées. Les dates sont celles du moteur de PlannerCraft : l'assistant ne donne jamais de date, il propose des durées (en jours ouvrés) et des liens, le moteur place les dates.
 - **Accepter** applique tout le lot d'un coup ; **Annuler** (Ctrl+Z / Cmd+Z) le défait d'un coup.
 - **Refuser** n'applique rien. Vous pouvez écrire un **motif** dans le champ de la carte (« garde les durées actuelles ») : il est transmis à l'assistant avec votre message suivant, comme la décision elle-même. Il peut alors proposer autre chose.

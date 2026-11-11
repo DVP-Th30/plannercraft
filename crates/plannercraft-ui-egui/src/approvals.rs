@@ -262,10 +262,17 @@ fn status_of(outcome: &AiOutcome, reason: Option<String>) -> ProposalStatus {
 pub fn summary_of(outcome: &Value) -> ApprovalSummary {
     let at = |path: &str| outcome.pointer(path);
     let len = |path: &str| at(path).and_then(Value::as_array).map_or(0, Vec::len);
-    ApprovalSummary {
-        changed_tasks: at("/diff/changed_total")
+    let count = |path: &str| {
+        at(path)
             .and_then(Value::as_u64)
-            .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX)),
+            .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX))
+    };
+    let changed_tasks = count("/diff/changed_total");
+    ApprovalSummary {
+        changed_tasks,
+        // Un `dry_run` sans le champ (relais d'un serveur plus ancien) :
+        // au moins les tâches aux dates déplacées.
+        touched_tasks: count("/diff/touched_total").max(changed_tasks),
         finish_delta: at("/diff/finish_delta/minutes").and_then(Value::as_i64),
         finish_delta_text: at("/diff/finish_delta/text")
             .and_then(Value::as_str)

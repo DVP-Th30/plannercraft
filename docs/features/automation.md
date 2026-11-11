@@ -24,7 +24,7 @@ Format versionné unique pour la CLI (`plannercraft apply`), le MCP (`apply_batc
 2. **Un recalcul** (`plannercraft_core::schedule`) en fin de lot.
 3. **Refus sur nouvelle erreur** (R-160) : le lot est refusé (`batch.would_create_errors`, avec `op_index` et les diagnostics) si une erreur absente avant apparaît (comparée par code et sujet ; un `link.cycle` n'est nouveau que si sa composante n'était contenue dans aucune d'avant). Les avertissements sont rendus sans bloquer.
 4. `Commit` : échange du clone et du projet, **delta par entité** (pré- et post-images des seules entités changées, R-164) poussé dans l'historique, `Extras` des entités modifiées invalidés (R-161), valeurs relues du fichier jetées au premier commit (R-162). `DryRun` : clone jeté, session intacte, aucune entrée d'historique.
-5. Réponse (`ApplyOutcome`, vue `OutcomeView`) : diff du planning (R-163 : fin avant/après, tâches entrées ou sorties du chemin critique, 10 tâches les plus décalées, `detail` jusqu'à 1 000), UID créés, table des étiquettes, effets de bord, longueur de l'historique.
+5. Réponse (`ApplyOutcome`, vue `OutcomeView`) : diff du planning (R-163 : fin avant/après, tâches entrées ou sorties du chemin critique, nombre de tâches aux dates déplacées `changed_total` et de tâches touchées `touched_total`, 10 tâches les plus décalées, `detail` jusqu'à 1 000), UID créés, table des étiquettes, effets de bord, longueur de l'historique.
 
 ## 4. Historique (R-164, P30)
 

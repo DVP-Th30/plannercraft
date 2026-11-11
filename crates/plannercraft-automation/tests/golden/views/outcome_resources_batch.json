@@ -210,6 +210,7 @@
     },
     "start_after": "2026-10-19T08:00",
     "start_before": "2026-10-19T08:00",
+    "touched_total": 3,
     "truncated": false
   },
   "history_len": 1,

@@ -413,8 +413,13 @@ pub struct DiffView {
     pub critical_entered: Vec<u32>,
     /// Tâches qui ne sont plus critiques.
     pub critical_left: Vec<u32>,
-    /// Tâches changées, en tout.
+    /// Tâches aux dates déplacées (début ou fin), apparues ou disparues,
+    /// en tout (R-163).
     pub changed_total: usize,
+    /// Tâches touchées par le lot, en tout (R-163 amendée) : donnée
+    /// enregistrée changée, ajoutées, supprimées, ou dates déplacées ;
+    /// toujours `>= changed_total`.
+    pub touched_total: usize,
     /// Tâches changées, les plus décalées d'abord.
     pub changed: Vec<TaskChangeView>,
     /// Vrai si `changed` est coupé.
@@ -1139,6 +1144,7 @@ impl<'a> ViewCtx<'a> {
             critical_entered: d.critical_entered.iter().map(|u| u.get()).collect(),
             critical_left: d.critical_left.iter().map(|u| u.get()).collect(),
             changed_total: d.changed_total,
+            touched_total: d.touched_total,
             truncated: d.truncated || changed.len() < d.changed.len(),
             changed,
             overallocated: OverallocationView {

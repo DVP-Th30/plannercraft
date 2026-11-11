@@ -173,6 +173,7 @@ fn session_empty_batch_noop() {
         assert!(!o.committed);
         assert_eq!(o.history_len, 0);
         assert_eq!(o.diff.changed_total, 0);
+        assert_eq!(o.diff.touched_total, 0);
     }
     assert_eq!(snap(&s), before);
 }

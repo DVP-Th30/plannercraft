@@ -108,10 +108,25 @@ pub struct ProposalCard {
     pub id: u64,
     /// Libellé court donné par le modèle.
     pub label: String,
-    /// Tâches touchées selon le `dry_run` du moteur.
+    /// Tâches aux dates déplacées selon le `dry_run` du moteur
+    /// (`diff.changed_total`).
     pub changed_tasks: u32,
+    /// Tâches touchées selon le `dry_run` du moteur (`diff.touched_total`,
+    /// R-163 amendée) ; absent d'une conversation enregistrée avant le
+    /// 2026-11-11 (lire [`ProposalCard::touched`]).
+    #[serde(default)]
+    pub touched_tasks: u32,
     /// Issue.
     pub status: ProposalStatus,
+}
+
+impl ProposalCard {
+    /// Tâches touchées, jamais moins que les tâches aux dates déplacées :
+    /// une carte enregistrée avant le champ `touched_tasks` le lit à 0.
+    #[must_use]
+    pub fn touched(&self) -> u32 {
+        self.touched_tasks.max(self.changed_tasks)
+    }
 }
 
 /// Proposition acceptée en file par l'hôte : identifiant, libellé, tâches
@@ -122,8 +137,10 @@ pub struct Proposed {
     pub id: u64,
     /// Libellé.
     pub label: String,
-    /// Tâches touchées (`dry_run`).
+    /// Tâches aux dates déplacées (`dry_run`, `diff.changed_total`).
     pub changed_tasks: u32,
+    /// Tâches touchées (`dry_run`, `diff.touched_total`).
+    pub touched_tasks: u32,
     /// Résultat JSON rendu au modèle (résumé du `dry_run`).
     pub result: Value,
 }
@@ -464,6 +481,7 @@ pub fn pending_result(id: u64, label: &str, outcome: &Value, lang: Language) -> 
         "status": "pending_approval",
         "proposal": id,
         "label": label,
+        "touched_tasks": at("/diff/touched_total"),
         "changed_tasks": at("/diff/changed_total"),
         "created_tasks": len("/created_uids"),
         "finish_delta": at("/diff/finish_delta/text"),

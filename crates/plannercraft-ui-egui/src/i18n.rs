@@ -2120,6 +2120,9 @@ mod tests {
             ("alias", Arg::Str("Lot".into())),
             ("text", Arg::Str("4 jours".into())),
             ("count", Arg::Count(3)),
+            // Tâches touchées et dates déplacées (R-163 amendée).
+            ("touched", Arg::Count(3)),
+            ("moved", Arg::Count(3)),
             ("start", Arg::Str("lun 02/11/26".into())),
             ("finish", Arg::Str("lun 17/05/27".into())),
             ("detail", Arg::Str("détail".into())),

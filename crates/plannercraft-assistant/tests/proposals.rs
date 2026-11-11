@@ -115,6 +115,37 @@ fn proposal_queued_never_applied() {
     assert_eq!(after.history().entries.len(), before.history().entries.len());
 }
 
+/// Lot d'avancement seul (défaut du 2026-11-10, « 0 tâche touchée ») : la
+/// carte et le résultat rendu au modèle portent les tâches touchées
+/// (`touched_tasks`, R-163 amendée) à côté des dates déplacées
+/// (`changed_tasks`, inchangé).
+#[test]
+fn proposal_counts_touched_tasks_without_moved_dates() {
+    let ws = workspace();
+    let args = json!({ "label": "Avancement", "ops": [
+        { "op": "progress.update", "task": 1, "percent_complete": { "text": "100%" } },
+        { "op": "progress.update", "task": 2, "percent_complete": { "text": "100%" } }
+    ] });
+    let t = ScriptedTransport::new(vec![propose("p1", &args), answer("Je propose l'avancement.")]);
+    let mut conv = Conversation::new();
+    conv.send("Passe A et B à 100 %", config(), &t).unwrap();
+    let mut h = host(&ws);
+    run(&mut conv, &mut h, &t);
+    let result = tool_result(&body(&t.requests()[1]), "p1");
+    assert_eq!(result["touched_tasks"], 2);
+    assert_eq!(result["changed_tasks"], 0);
+    let card = conv.turns()[0].tools[0].proposal.clone().unwrap();
+    assert_eq!((card.touched_tasks, card.changed_tasks), (2, 0));
+    assert_eq!(card.touched(), 2);
+    // Carte enregistrée avant le champ : relue à 0, jamais sous les dates
+    // déplacées.
+    let mut old = serde_json::to_value(&card).unwrap();
+    old.as_object_mut().unwrap().remove("touched_tasks");
+    old["changed_tasks"] = json!(3);
+    let old: plannercraft_assistant::proposal::ProposalCard = serde_json::from_value(old).unwrap();
+    assert_eq!((old.touched_tasks, old.touched()), (0, 3));
+}
+
 /// Refus du registre (boucle) rendu en clair ; deux corrections au plus,
 /// puis plus d'appel à l'hôte.
 #[test]

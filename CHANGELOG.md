@@ -65,6 +65,7 @@ Finitions avant `v1.0.0` (ADR-0022, cahier `docs/plans/polish.md`) : les manques
 - Serveur MCP : SDK `rmcp` monté de 3.5.1 à 3.9.0 (alertes RUSTSEC-2026-0457, 0461 et 0462 ; la seconde touchait `plannercraft mcp --http` : mémoire sans borne sur des appels d'outils inconnus). Aucun changement d'outil ni de réponse.
 
 ### Corrigé
+- La carte de proposition de l'assistant et le bandeau d'approbation affichaient « 0 tâche touchée » pour un lot qui change des tâches sans déplacer leurs dates (avancement passé à 100 %, renommage…) : ils disent maintenant « 10 tâches modifiées · aucune date déplacée » (« 3 dates déplacées » quand des dates bougent). Le diff des écritures (MCP, `apply`) gagne `touched_total` à côté de `changed_total` (dates déplacées, inchangé), et l'assistant reçoit `touched_tasks` (R-163 amendée).
 - Appliquer un modèle de la galerie vidait la liste de la chronologie du document ; elle est gardée, comme les couleurs de phase, et n'est jamais enregistrée dans un modèle personnel.
 - On ne pouvait pas sélectionner plusieurs cellules d'un coup à la souris (Maj obligatoire) ; coller « 7j » sur une Durée créait une tâche ; copier une cellule copiait la ligne entière.
 - Coller dans des cellules Prédécesseurs une ligne copiée créait une tâche (« Fouilles des fondations » en double) ; Lier refusait tout le lot dès qu'une paire était déjà liée ; un bandeau rose persistant affichait des noms de commandes et des numéros d'opération.

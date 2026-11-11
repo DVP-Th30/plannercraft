@@ -61,6 +61,7 @@
     },
     "start_after": "2026-11-02T08:00",
     "start_before": "2026-11-02T08:00",
+    "touched_total": 2,
     "truncated": false
   },
   "explanations": [

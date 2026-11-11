@@ -335,10 +335,14 @@ nav-cursor-empty-value = vide
 # --- J7 L3 ---
 approval-title = L'agent propose sur « { $document } » : { $name }
 approval-changed =
-    { $count ->
+    { $touched ->
         [0] aucune tâche modifiée
-        [one] { $count } tâche modifiée
-       *[other] { $count } tâches modifiées
+        [one] { $touched } tâche modifiée
+       *[other] { $touched } tâches modifiées
+    } · { $moved ->
+        [0] aucune date déplacée
+        [one] { $moved } date déplacée
+       *[other] { $moved } dates déplacées
     }
 approval-finish = fin { $value }
 approval-finish-same = fin inchangée
@@ -1726,9 +1730,15 @@ assistant-tool-propose = Propose : { $what }
 assistant-tool-propose-failed = Proposition refusée par le moteur
 assistant-tool-proposing = Prépare une proposition…
 assistant-proposal-title = Proposition : { $name }
-assistant-proposal-changed = { $count ->
-        [one] { $count } tâche touchée
-       *[other] { $count } tâches touchées
+assistant-proposal-changed =
+    { $touched ->
+        [0] aucune tâche modifiée
+        [one] { $touched } tâche modifiée
+       *[other] { $touched } tâches modifiées
+    } · { $moved ->
+        [0] aucune date déplacée
+        [one] { $moved } date déplacée
+       *[other] { $moved } dates déplacées
     }
 assistant-proposal-view = Voir
 assistant-proposal-accept = Accepter
