@@ -433,6 +433,12 @@ pub struct DiffView {
     pub critical_entered: usize,
     /// Tâches qui ne sont plus critiques.
     pub critical_left: usize,
+    /// Vrai si une ligne affichée a des dates déplacées (tâche aux dates
+    /// changées, ajoutée ou supprimée) : l'interface place alors la colonne
+    /// « Modification » en dernier, sur une ligne, pour ne pas masquer les
+    /// dates avant/après (H-UI-189, ADR-0028 D2). Calculé une fois avec le
+    /// diff.
+    pub dates_moved: bool,
 }
 
 /// Affectations par tâche, dans l'ordre du projet.
@@ -447,7 +453,7 @@ struct RowChanges<'a> {
     moved: BTreeSet<TaskUid>,
     assignment_tasks: BTreeSet<TaskUid>,
     assignments: (ByTask<'a>, ByTask<'a>),
-    writer: Writer<'a>,
+    writer: Writer,
 }
 
 impl<'a> RowChanges<'a> {
@@ -475,7 +481,6 @@ impl<'a> RowChanges<'a> {
             assignment_tasks,
             assignments,
             writer: Writer {
-                text,
                 labels: Labels(text.language),
             },
         }
@@ -665,9 +670,16 @@ impl DiffView {
         let finish_delta_text = working
             .and_then(|m| crate::view::signed_minutes(m, DurationUnit::Day, text).text)
             .unwrap_or_default();
+        let dates_moved = rows.iter().any(|r| {
+            matches!(
+                r.change,
+                RowChange::Changed | RowChange::Added | RowChange::Removed
+            )
+        });
         Self {
             rows,
             more,
+            dates_moved,
             project_finish: d.project_finish,
             finish_delta: working,
             finish_delta_text,
@@ -882,6 +894,7 @@ mod tests {
         let v = view(&s, &Value::Array(ops));
         assert_eq!(v.rows.len(), 5);
         assert_eq!(v.more, 0);
+        assert!(!v.dates_moved);
         let ids: Vec<u32> = v.rows.iter().map(|r| r.id.unwrap().get()).collect();
         assert_eq!(ids, vec![1, 2, 3, 4, 5]);
         for r in &v.rows {
@@ -919,6 +932,7 @@ mod tests {
                 { "op": "task.move", "uid": 5, "to": { "before": 1 } }
             ]),
         );
+        assert!(v.dates_moved);
         let changes: Vec<(String, RowChange)> = v.rows.iter().map(|r| (r.name.clone(), r.change)).collect();
         assert_eq!(
             changes,

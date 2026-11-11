@@ -476,30 +476,23 @@ fn n9_open_error_translated_en() {
     );
 }
 
-/// Tableau avant/après (lot R1b, H-UI-189) en pseudo-langue : en-tête
-/// « Modification » et lignes de modification jamais tronquées pour des
-/// valeurs courtes (durée, nom court, N°), rien de rogné hors de la table.
-#[test]
-fn h_ui_189_pseudo_change_column() {
+/// Exemple en pseudo-langue, lot `ops` relayé en attente, volet ouvert
+/// sur « Opérations IA ».
+fn pseudo_pending(id: u64, ops: &serde_json::Value) -> Harness<'static, App> {
     use std::sync::Arc;
     use std::sync::mpsc::sync_channel;
 
     use plannercraft_automation::control::{CallState, RelayCall, RelayKind, Reply};
 
-    let labels = pseudo_labels();
     let mut harness = pseudo_harness(Vec::new());
     let (tx, rx) = sync_channel(4);
     harness.state_mut().control_inbox(rx);
     let (reply, replies) = sync_channel(4);
     tx.send(RelayCall {
-        id: 9_001,
+        id,
         kind: RelayKind::Execute {
             tool: "batch.apply".to_owned(),
-            params: serde_json::json!({ "ops": [
-                { "op": "task.update", "uid": 31, "duration": { "text": "9d" } },
-                { "op": "task.update", "uid": 34, "name": "Chauffe" },
-                { "op": "task.move", "uid": 20, "to": { "before": 18 } },
-            ] }),
+            params: serde_json::json!({ "ops": ops }),
         },
         state: Arc::new(CallState::new()),
         reply,
@@ -508,17 +501,18 @@ fn h_ui_189_pseudo_change_column() {
     harness.run();
     assert_eq!(
         replies.try_iter().collect::<Vec<_>>(),
-        [Reply::PendingApproval { id: 9_001 }]
+        [Reply::PendingApproval { id }]
     );
     harness
         .state_mut()
         .dispatch(Action::SidePanel(SideOp::Open(SideTab::AiOperations)));
     harness.run();
-    let seen = seen_ids(&harness, &labels);
-    assert!(seen.contains(&TextId::AiColChange), "en-tête absent : {seen:?}");
-    assert_not_cut(&harness, &labels, "tableau avant/après", 6);
-    // Lignes de modification (avec arguments, hors de `labels`) : aucune
-    // tronquée.
+    harness
+}
+
+/// Textes de modification dessinés (ceux qui portent « → ») et leur
+/// troncature.
+fn change_texts(harness: &Harness<'static, App>) -> Vec<(String, bool)> {
     let mut lines = Vec::new();
     for ClippedShape { shape, .. } in &harness.output().shapes {
         let mut flat = Vec::new();
@@ -531,6 +525,68 @@ fn h_ui_189_pseudo_change_column() {
             }
         }
     }
-    assert_eq!(lines.len(), 3, "{lines:?}");
+    lines
+}
+
+/// Tableau avant/après (lot R1b, H-UI-189) en pseudo-langue. Sans date
+/// déplacée (renommage, notes) : en-tête « Modification » après « Nom »,
+/// rien de coupé ni de rogné, ligne de modification entière. Avec des
+/// dates déplacées (durée, renommage, déplacement) : colonne en dernier,
+/// en bout de défilement horizontal (contrôlée comme un titre de colonne :
+/// jamais tronquée), chaque modification entière sur une ligne.
+#[test]
+fn h_ui_189_pseudo_change_column() {
+    let labels = pseudo_labels();
+    let harness = pseudo_pending(
+        9_001,
+        &serde_json::json!([
+            { "op": "task.update", "uid": 34, "name": "Chauffe" },
+            { "op": "task.update", "uid": 20, "notes": "n" },
+        ]),
+    );
+    let seen = seen_ids(&harness, &labels);
+    assert!(seen.contains(&TextId::AiColChange), "en-tête absent : {seen:?}");
+    assert_not_cut(&harness, &labels, "tableau avant/après sans date déplacée", 6);
+    let lines = change_texts(&harness);
+    assert_eq!(lines.len(), 1, "{lines:?}");
     assert!(lines.iter().all(|(_, elided)| !elided), "{lines:?}");
+
+    let harness = pseudo_pending(
+        9_002,
+        &serde_json::json!([
+            { "op": "task.update", "uid": 31, "duration": { "text": "9d" } },
+            { "op": "task.update", "uid": 34, "name": "Chauffe" },
+            { "op": "task.move", "uid": 20, "to": { "before": 18 } },
+        ]),
+    );
+    // Colonne en bout de défilement horizontal : tableau défilé jusqu'au
+    // bord droit, puis lecture dans l'arbre d'accessibilité ; chaque
+    // modification entière sur une ligne (`Label::extend`, jamais de
+    // troncature dans ce cas).
+    let mut harness = harness;
+    crate::ai_panel::scroll_diff_right(&mut harness);
+    let header = pseudo(TextId::AiColChange);
+    assert!(
+        harness.query_by_label(&header).is_some(),
+        "en-tête « Modification » absent"
+    );
+    let texts = Texts::pseudo();
+    for (field, before, after) in [
+        (TextId::ColDuration, "7 days", "9 days"),
+        (TextId::ColName, "Chauffage", "Chauffe"),
+        (TextId::ColId, "20", "18"),
+    ] {
+        let line = texts.get_args(
+            TextId::AiChangeLine,
+            &[
+                ("field", Arg::Str(texts.get(field).into())),
+                ("before", Arg::Str(before.to_owned().into())),
+                ("after", Arg::Str(after.to_owned().into())),
+            ],
+        );
+        assert!(
+            harness.query_by_label(&line).is_some(),
+            "ligne « {line} » absente"
+        );
+    }
 }

@@ -1700,6 +1700,7 @@ text_ids! {
     AiChangeModified => "ai-change-modified",
     AiChangeMore => "ai-change-more",
     AiChangeNone => "ai-change-none",
+    AiChangeSeparator => "ai-change-separator",
     AiFieldPhysicalPercent => "ai-field-physical-percent",
     AiFieldManualStart => "ai-field-manual-start",
     AiFieldManualFinish => "ai-field-manual-finish",

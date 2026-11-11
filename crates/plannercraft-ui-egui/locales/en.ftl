@@ -1872,6 +1872,7 @@ ai-col-change = Change
 ai-change-line = { $field }: { $before } → { $after }
 ai-change-modified = { $field }: modified
 ai-change-more = + { $count } more
+ai-change-separator = { " · " }
 ai-change-none = empty
 ai-field-physical-percent = Physical % complete
 ai-field-manual-start = Entered start

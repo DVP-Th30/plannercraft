@@ -612,6 +612,41 @@ fn mixed_batch() -> Value {
     ] })
 }
 
+/// Abscisse de l'en-tête `id` du tableau avant/après : le plus à droite
+/// des nœuds portant ce libellé (le volet est à droite du tableau des
+/// tâches, qui a aussi Début et Critique).
+pub(crate) fn header_x(harness: &Harness<'static, App>, id: TextId) -> f32 {
+    let label = harness.state().texts().get(id);
+    harness
+        .query_all_by_label(&label)
+        .map(|n| n.rect().left())
+        .fold(f32::MIN, f32::max)
+}
+
+/// Fait défiler le tableau avant/après jusqu'à son bord droit (molette
+/// horizontale au-dessus de l'en-tête « Nom » du volet) : la colonne
+/// « Modification », dernière quand des dates bougent, est alors dessinée.
+pub(crate) fn scroll_diff_right(harness: &mut Harness<'static, App>) {
+    let label = harness.state().texts().get(TextId::ColName);
+    let pos = harness
+        .query_all_by_label(&label)
+        .map(|n| n.rect().center())
+        .max_by(|a, b| a.x.total_cmp(&b.x))
+        .unwrap();
+    harness.event(egui::Event::PointerMoved(pos));
+    harness.run();
+    for _ in 0..4 {
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(-2_000.0, 0.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run();
+    }
+}
+
 /// Ligne « champ : avant → après » de la colonne « Modification ».
 fn change_line(app: &App, field: TextId, before: &str, after: &str) -> String {
     let texts = app.texts();
@@ -652,6 +687,15 @@ fn h_ui_189_progress_only_table() {
         );
     }
     harness.get_by_label(&fr(TextId::AiColChange));
+    // Sans date déplacée : « Modification » juste après « Nom », avant
+    // « Début ».
+    assert!(!diff.dates_moved);
+    let (change, start, name) = (
+        header_x(&harness, TextId::AiColChange),
+        header_x(&harness, TextId::ColStart),
+        header_x(&harness, TextId::ColName),
+    );
+    assert!(name < change && change < start, "{name} {change} {start}");
     let line = change_line(
         harness.state(),
         TextId::ColPercentComplete,
@@ -691,6 +735,13 @@ fn h_ui_189_mixed_table() {
     assert_eq!(row(34).change, RowChange::Changed);
     assert!(row(34).changes.is_empty(), "successeur : conséquence du recalcul");
     assert_eq!(row(20).change, RowChange::DataOnly);
+    // Dates déplacées : « Modification » en dernier, après « Critique ».
+    assert!(diff.dates_moved);
+    let (critical, change) = (
+        header_x(&harness, TextId::ColCritical),
+        header_x(&harness, TextId::AiColChange),
+    );
+    assert!(critical < change, "{critical} {change}");
     let moved = row(20);
     assert_eq!(moved.changes[0].field, FieldKind::Position);
     let renamed = row(26);
@@ -713,26 +764,69 @@ fn h_ui_189_mixed_table() {
     }
 }
 
-/// H-UI-189 : au-delà de trois modifications, « + n autres ».
+/// H-UI-189 : au-delà de trois modifications, « + n autres » : ligne à
+/// part sans date déplacée ; jointe par « · » à la ligne unique quand des
+/// dates bougent.
 #[test]
 fn h_ui_189_more_than_three_changes() {
     let (mut harness, tx) = relay_harness();
+    let more_of = |app: &App, n: usize| {
+        app.texts().get_args(
+            TextId::AiChangeMore,
+            &[("count", Arg::Count(i64::try_from(n).unwrap()))],
+        )
+    };
+    // Sans date déplacée : nom, notes, échéance, Texte1.
     let batch = json!({ "ops": [
-        { "op": "task.update", "uid": 6, "name": "Consultation", "notes": "n", "milestone": false, "active": false },
+        { "op": "task.update", "uid": 6, "name": "Consultation", "notes": "n", "custom": { "text1": "Lot A" } },
         { "op": "task.set_deadline", "uid": 6, "deadline": "2027-06-01T17:00" },
     ] });
     let sent = execute(&tx, "batch.apply", batch);
     harness.run();
     assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
-    let app = harness.state();
-    let diff = app.approvals().pending()[0].diff.clone().unwrap();
+    let diff = harness.state().approvals().pending()[0].diff.clone().unwrap();
+    assert!(!diff.dates_moved);
     let row = diff.rows.iter().find(|r| r.uid.get() == 6).unwrap();
     assert!(row.changes.len() > 3, "{row:?}");
-    let rest = i64::try_from(row.changes.len() - 3).unwrap();
-    let more = app
-        .texts()
-        .get_args(TextId::AiChangeMore, &[("count", Arg::Count(rest))]);
+    let more = more_of(harness.state(), row.changes.len() - 3);
     harness.get_by_label(&more);
+    harness.state_mut().dispatch(Action::Reject(sent.id));
+    harness.run();
+
+    // Dates déplacées (Chauffage, sans successeur, passe à 5 j) : une
+    // seule ligne jointe.
+    let batch = json!({ "ops": [
+        { "op": "task.update", "uid": 34, "name": "Chauffe", "notes": "n", "duration": { "text": "5j" } },
+        { "op": "task.set_deadline", "uid": 34, "deadline": "2027-06-01T17:00" },
+    ] });
+    let sent = execute(&tx, "batch.apply", batch);
+    harness.run();
+    assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
+    let diff = harness.state().approvals().pending()[0].diff.clone().unwrap();
+    assert!(diff.dates_moved);
+    let row = diff.rows.iter().find(|r| r.uid.get() == 34).unwrap();
+    assert!(row.changes.len() > 3, "{row:?}");
+    let more = more_of(harness.state(), row.changes.len() - 3);
+    scroll_diff_right(&mut harness);
+    let app = harness.state();
+    let texts = app.texts();
+    let line = [
+        change_line(app, TextId::ColName, "Chauffage", "Chauffe"),
+        change_line(app, TextId::ColDuration, "4 jours", "5 jours"),
+        change_line(
+            app,
+            TextId::ColDeadline,
+            &texts.get(TextId::AiChangeNone),
+            "mar 01/06/27",
+        ),
+        more.clone(),
+    ]
+    .join(&texts.get(TextId::AiChangeSeparator));
+    assert!(
+        harness.query_by_label(&line).is_some(),
+        "ligne jointe « {line} » absente"
+    );
+    assert!(harness.query_by_label(&more).is_none(), "« + n autres » à part");
 }
 
 /// Harnais de capture (1280×720) sur l'exemple, file branchée, lot `batch`
@@ -757,16 +851,20 @@ fn snapshot_ai_panel_progress_fr_light() {
     crate::common::snapshot(&mut harness, "ai_panel_progress_fr_light");
 }
 
-/// Capture : tableau avant/après d'un lot mêlé (H-UI-189).
+/// Capture : tableau avant/après d'un lot mêlé (H-UI-189) : dates
+/// déplacées, Début et Fin visibles, « Modification » en dernier.
 #[test]
 fn snapshot_ai_panel_mixed_fr_light() {
     let mut harness = panel_capture(LanguagePref::Fr, ThemePref::Light, mixed_batch());
     crate::common::snapshot(&mut harness, "ai_panel_mixed_fr_light");
 }
 
-/// Capture : même lot mêlé, en anglais et thème sombre (H-UI-189).
+/// Capture : même lot mêlé, en anglais et thème sombre, tableau défilé
+/// jusqu'à son bord droit : la colonne « Change », dernière quand des dates
+/// bougent, une ligne par tâche (H-UI-189).
 #[test]
 fn snapshot_ai_panel_mixed_en_dark() {
     let mut harness = panel_capture(LanguagePref::En, ThemePref::Dark, mixed_batch());
+    scroll_diff_right(&mut harness);
     crate::common::snapshot(&mut harness, "ai_panel_mixed_en_dark");
 }

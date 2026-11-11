@@ -889,6 +889,33 @@ fn snapshot_assistant_proposal_fr_light() {
     crate::common::snapshot(&mut harness, "assistant_proposal_fr_light");
 }
 
+/// H-UI-189 : proposition de décalage (dates déplacées) ⇒ colonne
+/// « Modification » en dernier, après « Critique », chaque cellule sur une
+/// ligne : Début et Fin restent dans le volet.
+#[test]
+fn h_ui_189_proposal_change_column_last() {
+    let mut harness = proposal_capture();
+    harness
+        .state_mut()
+        .dispatch(Action::Proposal(ProposalOp::View(1)));
+    for _ in 0..4 {
+        harness.run();
+    }
+    let diff = harness.state().approvals().pending()[0].diff.clone().unwrap();
+    assert!(diff.dates_moved);
+    let x = |id| crate::ai_panel::header_x(&harness, id);
+    let (name, start, critical, change) = (
+        x(TextId::ColName),
+        x(TextId::ColStart),
+        x(TextId::ColCritical),
+        x(TextId::AiColChange),
+    );
+    assert!(
+        name < start && start < critical && critical < change,
+        "{name} {start} {critical} {change}"
+    );
+}
+
 /// Capture : onglet Opérations IA ouvert par « Voir », sur l'avant/après
 /// de la même proposition (origine « Assistant »).
 #[test]

@@ -1875,6 +1875,7 @@ ai-change-more =
         [one] + { $count } autre
        *[other] + { $count } autres
     }
+ai-change-separator = { " · " }
 ai-change-none = vide
 ai-field-physical-percent = % physique achevé
 ai-field-manual-start = Début saisi

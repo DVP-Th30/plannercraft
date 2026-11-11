@@ -9,7 +9,7 @@
 //!
 //! Les valeurs sont mises en texte par les formateurs existants du moteur
 //! (`crate::text` : durées, % et listes dans la forme des colonnes du
-//! tableau, dates de R-143) ; les valeurs à choix (oui ou non, mode, type de
+//! tableau) ; les dates et les valeurs à choix (oui ou non, mode, type de
 //! contrainte) restent typées et l'interface les écrit avec les libellés de
 //! ses colonnes. Les libellés des champs se choisissent dans l'interface à
 //! partir de [`FieldKind`] (couches : ni egui ni locales ici).
@@ -23,8 +23,8 @@ use plannercraft_core::{
 
 use crate::render_text::Labels;
 use crate::text::{
-    DisplayLabels, TextContext, display_duration, display_minutes_as, display_percent, display_predecessors,
-    format_date, format_resource_names, write_decimal,
+    DisplayLabels, display_duration, display_minutes_as, display_percent, display_predecessors,
+    format_resource_names, write_decimal,
 };
 
 /// Nature d'une modification directe, dans l'ordre d'affichage.
@@ -103,6 +103,10 @@ pub enum FieldValue {
     YesNo(bool),
     /// Mode de planification : vrai si manuel.
     Manual(bool),
+    /// Date (début et fin réels, dates saisies, contrainte, échéance, champ
+    /// personnalisé de type date), écrite par l'interface avec le formateur
+    /// de ses colonnes.
+    Date(Moment),
     /// Type de contrainte.
     Constraint(ConstraintKind),
 }
@@ -126,17 +130,17 @@ pub(crate) struct Side<'a> {
     pub assignments: &'a [&'a Assignment],
 }
 
+/// Date typée (écrite par l'interface au format de ses colonnes).
+fn date(m: Option<Moment>) -> FieldValue {
+    m.map_or(FieldValue::None, FieldValue::Date)
+}
+
 /// Contexte d'écriture des valeurs.
-pub(crate) struct Writer<'a> {
-    pub text: &'a TextContext,
+pub(crate) struct Writer {
     pub labels: Labels,
 }
 
-impl Writer<'_> {
-    fn date(&self, m: Option<Moment>) -> FieldValue {
-        m.map_or(FieldValue::None, |m| FieldValue::Text(format_date(m, self.text)))
-    }
-
+impl Writer {
     fn work(&self, w: Work, p: &Project) -> FieldValue {
         FieldValue::Text(display_minutes_as(
             w.minutes(),
@@ -160,7 +164,7 @@ impl Writer<'_> {
                 }
                 Err(_) => FieldValue::Text(self.labels.unknown().to_owned()),
             },
-            Some(CustomValue::Date(m)) => self.date(Some(*m)),
+            Some(CustomValue::Date(m)) => date(Some(*m)),
             Some(CustomValue::Flag(b)) => FieldValue::YesNo(*b),
         }
     }
@@ -212,7 +216,7 @@ pub(crate) fn task_changes(
     sides: (Side<'_>, Side<'_>),
     moved: Option<(u32, u32)>,
     assignments_changed: bool,
-    writer: &Writer<'_>,
+    writer: &Writer,
 ) -> Vec<FieldChange> {
     let (bs, as_) = sides;
     let TaskFields {
@@ -312,17 +316,13 @@ pub(crate) fn task_changes(
         }
     }
     if actual_start != y.actual_start {
-        push(
-            FieldKind::ActualStart,
-            writer.date(actual_start),
-            writer.date(y.actual_start),
-        );
+        push(FieldKind::ActualStart, date(actual_start), date(y.actual_start));
     }
     if actual_finish != y.actual_finish {
         push(
             FieldKind::ActualFinish,
-            writer.date(actual_finish),
-            writer.date(y.actual_finish),
+            date(actual_finish),
+            date(y.actual_finish),
         );
     }
     // Durées réelle et restante dans l'unité de la tâche, comme leurs
@@ -366,10 +366,10 @@ pub(crate) fn task_changes(
         push(FieldKind::Mode, FieldValue::Manual(m0), FieldValue::Manual(m1));
     }
     if s0 != s1 {
-        push(FieldKind::ManualStart, writer.date(s0), writer.date(s1));
+        push(FieldKind::ManualStart, date(s0), date(s1));
     }
     if f0 != f1 {
-        push(FieldKind::ManualFinish, writer.date(f0), writer.date(f1));
+        push(FieldKind::ManualFinish, date(f0), date(f1));
     }
     if d0 != d1 {
         let dur = |d: Option<plannercraft_core::Duration>, f: &plannercraft_core::ConversionFactors| {
@@ -387,16 +387,12 @@ pub(crate) fn task_changes(
     if constraint.date() != after.constraint.date() {
         push(
             FieldKind::ConstraintDate,
-            writer.date(constraint.date()),
-            writer.date(after.constraint.date()),
+            date(constraint.date()),
+            date(after.constraint.date()),
         );
     }
     if deadline != after.deadline {
-        push(
-            FieldKind::Deadline,
-            writer.date(deadline),
-            writer.date(after.deadline),
-        );
+        push(FieldKind::Deadline, date(deadline), date(after.deadline));
     }
     if calendar != after.calendar {
         let cal = |p: &Project, c: Option<plannercraft_core::CalendarUid>| {
@@ -530,7 +526,7 @@ mod tests {
 
     use super::{FieldKind, FieldValue, Side, Writer, task_changes};
     use crate::render_text::Labels;
-    use crate::text::{Language, TextContext};
+    use crate::text::Language;
 
     fn at(s: &str) -> Moment {
         s.parse().unwrap()
@@ -559,9 +555,7 @@ mod tests {
         let b = before.tasks.get(TaskUid::new(2)).unwrap();
         let a = after.tasks.get(TaskUid::new(2)).unwrap();
         assert_ne!(b, a, "mutation sans effet");
-        let text = TextContext::for_project(&before, Language::Fr);
         let w = Writer {
-            text: &text,
             labels: Labels(Language::Fr),
         };
         let sides = (
@@ -794,7 +788,7 @@ mod tests {
         let got = changes(&move |t, _| t.deadline = Some(m));
         assert_eq!(
             got,
-            vec![(FieldKind::Deadline, FieldValue::None, t("04/11/2026 08:00"))]
+            vec![(FieldKind::Deadline, FieldValue::None, FieldValue::Date(m))]
         );
         let got = changes(&|t, _| t.milestone = true);
         assert_eq!(
