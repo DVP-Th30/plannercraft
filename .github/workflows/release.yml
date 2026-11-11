@@ -13,7 +13,8 @@
 # Jetons : lecture seule partout ; écriture (`contents`, `id-token`,
 # `attestations`) au seul job `publish`, qui fait aussi le contrôle après
 # publication (un brouillon n'est visible que d'un jeton en écriture).
-# Aucun secret ajouté : seul `github.token` est utilisé.
+# Secrets : `github.token`, et les cinq de la signature macOS, transmis tels
+# quels au build (facultatifs : sans eux le DMG est signé ad hoc, ADR-0029).
 name: Release
 
 on:
@@ -63,12 +64,18 @@ jobs:
     name: Build
     needs: check
     uses: ./.github/workflows/desktop-build.yml
+    secrets:
+      MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
 
   verify-macos:
     # Un binaire qui ouvrirait une fenêtre au lieu de sortir bloquerait le
     # job : délai court.
     timeout-minutes: 15
-    name: Vérification macOS (C-REL-02, C-REL-03)
+    name: Vérification macOS (C-REL-02, C-REL-03, C-REL-09)
     needs: build
     runs-on: macos-latest
     env:
@@ -87,6 +94,22 @@ jobs:
           trap 'hdiutil detach "$mnt" || true' EXIT
           ls -la "$mnt" "$mnt/cli"
           codesign --verify --deep --strict --verbose=2 "$mnt/PlannerCraft.app"
+          # C-REL-09 : un DMG signé Developer ID doit être notarisé et agrafé ;
+          # un DMG ad hoc (secrets de signature absents) passe avec un avertissement.
+          signature="$(codesign --display --verbose=2 "$mnt/PlannerCraft.app" 2>&1)"
+          case "$signature" in
+            *"Authority=Developer ID Application: "*)
+              codesign --verify --strict --verbose=2 "$mnt/cli/plannercraft"
+              xcrun stapler validate "$dmg"
+              xcrun stapler validate "$mnt/PlannerCraft.app"
+              spctl --assess --type execute --verbose=2 "$mnt/PlannerCraft.app"
+              spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+              echo "C-REL-09 : Developer ID, notarisé, agrafé"
+              ;;
+            *)
+              echo "::warning::DMG signé ad hoc, non notarisé (secrets de signature absents, ADR-0029)"
+              ;;
+          esac
           id="$(plutil -extract CFBundleIdentifier raw "$mnt/PlannerCraft.app/Contents/Info.plist")"
           [ "$id" = "io.github.dvp-th30.plannercraft" ] || { echo "::error::CFBundleIdentifier $id"; exit 1; }
           test -f "$mnt/PlannerCraft.app/Contents/Resources/plannercraft.icns"

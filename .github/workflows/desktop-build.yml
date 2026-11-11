@@ -1,6 +1,7 @@
 # Construction des artefacts de plateforme de PlannerCraft (J8, lot L1) :
-# - macOS : `PlannerCraft.app` universel (x86_64 + arm64) signé ad hoc, avec la
-#   CLI dans `cli/plannercraft`, dans un DMG ;
+# - macOS : `PlannerCraft.app` universel (x86_64 + arm64), avec la CLI dans
+#   `cli/plannercraft`, dans un DMG ; signé Developer ID et notarisé par Apple
+#   quand les secrets de signature sont posés, signé ad hoc sinon (ADR-0029) ;
 # - Windows : zip de `plannercraft-desktop.exe`, `plannercraft.exe` et `README.txt` ;
 # - Linux : archive construite dans un conteneur `debian:bookworm` (glibc
 #   2.36 : les binaires tournent sur toute distribution plus récente) ;
@@ -17,7 +18,10 @@
 #   d'Actions seulement, ni vérification ni publication ;
 # - release : appelé par `release.yml` (`workflow_call`), qui vérifie les
 #   artefacts (C-REL-02 à C-REL-06) puis les publie.
-# Aucun secret ; jeton en lecture seule.
+# Jeton en lecture seule. Secrets : les cinq de la signature macOS seulement
+# (ADR-0029, `docs/features/release.md` § 6), tous facultatifs, lus par les
+# seules étapes de signature et de notarisation du job `build-macos` ; aucun
+# déclencheur `pull_request` (un fork ne les atteint pas).
 name: Desktop build
 
 on:
@@ -25,6 +29,22 @@ on:
   push:
     tags: ['ui-*']
   workflow_call:
+    secrets:
+      MACOS_CERTIFICATE_P12_BASE64:
+        description: Certificat « Developer ID Application » et sa clé privée (.p12 en base64)
+        required: false
+      MACOS_CERTIFICATE_PASSWORD:
+        description: Mot de passe du .p12
+        required: false
+      APPLE_API_KEY_P8:
+        description: Clé d'équipe App Store Connect (contenu du fichier AuthKey_<id>.p8)
+        required: false
+      APPLE_API_KEY_ID:
+        description: Identifiant de la clé App Store Connect
+        required: false
+      APPLE_API_ISSUER_ID:
+        description: Identifiant de l'émetteur (Issuer ID) App Store Connect
+        required: false
     outputs:
       version:
         description: Version du workspace (noms des artefacts, `--version` attendu)
@@ -85,7 +105,7 @@ jobs:
             lipo -archs "universal/$bin"
           done
 
-      - name: PlannerCraft.app, icône, signature ad hoc, DMG
+      - name: PlannerCraft.app, icône, dossier du DMG
         run: |
           app=stage/PlannerCraft.app
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" stage/cli
@@ -108,10 +128,137 @@ jobs:
           cp assets/fonts/OFL.txt "stage/licenses/assets/fonts/"
           cp assets/icons/lucide/LICENSE "stage/licenses/assets/icons/lucide/"
           ln -s /Applications stage/Applications
-          codesign --force -s - stage/cli/plannercraft
-          codesign --force --deep -s - "$app"
+
+      # ADR-0029. Sans aucun des cinq secrets : signature ad hoc, comme avant
+      # (branche d'un contributeur, dépôt dérivé). Avec les cinq : certificat
+      # Developer ID dans un trousseau temporaire, exécution renforcée
+      # (hardened runtime) et horodatage, exigés par la notarisation. Avec
+      # une partie seulement : échec, pour ne pas publier un DMG à moitié signé.
+      - name: Signature (Developer ID si les secrets sont posés, ad hoc sinon)
+        id: sign
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          app=stage/PlannerCraft.app
+          present=0
+          missing=""
+          for name in MACOS_CERTIFICATE_P12_BASE64 MACOS_CERTIFICATE_PASSWORD \
+            APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+            if [ -n "${!name}" ]; then present=$((present + 1)); else missing="$missing $name"; fi
+          done
+          if [ "$present" -eq 0 ]; then
+            echo "::notice::Secrets de signature absents : signature ad hoc, DMG non notarisé."
+            codesign --force -s - stage/cli/plannercraft
+            codesign --force --deep -s - "$app"
+            echo "developer_id=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets de signature incomplets, manquent :$missing"
+            exit 1
+          fi
+
+          keychain="$RUNNER_TEMP/plannercraft-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -f pkcs12 -k "$keychain" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+          existing=()
+          while IFS= read -r line; do
+            existing+=("$line")
+          done < <(security list-keychains -d user | sed -e 's/^ *"//' -e 's/"$//')
+          security list-keychains -d user -s "$keychain" "${existing[@]}"
+
+          find_identity() {
+            security find-identity -v -p codesigning "$keychain" \
+              | awk '/"Developer ID Application: / { print $2; exit }'
+          }
+          identity="$(find_identity)"
+          if [ -z "$identity" ]; then
+            # Un .p12 exporté sans sa chaîne : certificats intermédiaires
+            # Developer ID d'Apple (publics), puis second essai.
+            for ca in DeveloperIDG2CA DeveloperIDCA; do
+              if curl -fsSL "https://www.apple.com/certificateauthority/$ca.cer" -o "$RUNNER_TEMP/$ca.cer"; then
+                security import "$RUNNER_TEMP/$ca.cer" -k "$keychain" || true
+              fi
+            done
+            identity="$(find_identity)"
+          fi
+          if [ -z "$identity" ]; then
+            echo "::error::Aucune identité « Developer ID Application » valide dans le .p12 (attendu : le certificat et sa clé privée, exportés ensemble)."
+            security find-identity -p codesigning "$keychain" || true
+            exit 1
+          fi
+
+          codesign --force --options runtime --timestamp --keychain "$keychain" \
+            --identifier io.github.dvp-th30.plannercraft.cli --sign "$identity" stage/cli/plannercraft
+          codesign --force --options runtime --timestamp --keychain "$keychain" \
+            --sign "$identity" "$app"
+          codesign --verify --strict --verbose=2 stage/cli/plannercraft
+          codesign --verify --strict --verbose=2 "$app"
+          codesign --display --verbose=2 "$app"
+          {
+            echo "developer_id=true"
+            echo "identity=$identity"
+            echo "keychain=$keychain"
+          } >> "$GITHUB_OUTPUT"
+
+      # Première soumission : l'application et la CLI, dans un zip. Le ticket
+      # est agrafé à l'application (elle s'ouvre hors ligne une fois copiée
+      # hors du DMG) ; un binaire nu ne s'agrafe pas, son ticket reste en ligne.
+      - name: Notarisation de l'application et de la CLI
+        if: steps.sign.outputs.developer_id == 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          mkdir notarize
+          ditto stage/PlannerCraft.app notarize/PlannerCraft.app
+          cp stage/cli/plannercraft notarize/plannercraft
+          ditto -c -k notarize notarize.zip
+          packaging/macos/notarize.sh notarize.zip
+          xcrun stapler staple stage/PlannerCraft.app
+          xcrun stapler validate stage/PlannerCraft.app
+
+      - name: DMG
+        run: |
           hdiutil create -volname "PlannerCraft $VERSION" -srcfolder stage -format UDZO -ov \
             "plannercraft-$VERSION-macos-universal.dmg"
+
+      # Seconde soumission : le DMG lui-même, signé puis agrafé (Gatekeeper
+      # l'accepte hors ligne dès le téléchargement).
+      - name: Signature et notarisation du DMG
+        if: steps.sign.outputs.developer_id == 'true'
+        env:
+          IDENTITY: ${{ steps.sign.outputs.identity }}
+          KEYCHAIN: ${{ steps.sign.outputs.keychain }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          dmg="plannercraft-$VERSION-macos-universal.dmg"
+          codesign --force --timestamp --keychain "$KEYCHAIN" --sign "$IDENTITY" "$dmg"
+          packaging/macos/notarize.sh "$dmg"
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type execute --verbose=2 stage/PlannerCraft.app
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+
+      - name: Suppression du trousseau temporaire
+        if: always() && steps.sign.outputs.keychain != ''
+        env:
+          KEYCHAIN: ${{ steps.sign.outputs.keychain }}
+        run: security delete-keychain "$KEYCHAIN" || true
 
       - uses: actions/upload-artifact@v4
         with:
