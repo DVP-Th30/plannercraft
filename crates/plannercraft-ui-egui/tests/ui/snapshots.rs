@@ -486,7 +486,7 @@ fn snapshot_ribbon_collapsed_fr_light() {
         .state_mut()
         .dispatch(Action::Ribbon(RibbonOp::ToggleCollapsed));
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     assert!(drawn(&harness.ctx).body.is_none());
     snapshot(&mut harness, "ribbon_collapsed_fr_light");
 }
@@ -780,6 +780,10 @@ fn snapshot_ribbon_task_editing_fr_light() {
         &[],
     );
     select_tab(&mut harness, RibbonTab::Task);
+    // Ruban complet (lot U2 : « Remplir ▾ » est dans le menu « … » du
+    // compact).
+    harness.state_mut().dispatch(Action::Ribbon(RibbonOp::ToggleFull));
+    harness.run();
     select_block(&mut harness, (2, Column::Duration), (3, Column::Duration));
     let texts = Texts::new(Language::Fr);
     harness.get_by_label(&texts.get(TextId::RibbonFill)).click();

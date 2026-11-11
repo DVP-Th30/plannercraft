@@ -1092,6 +1092,18 @@ pub fn plan_fonts_ready(ctx: &egui::Context) -> bool {
     ready
 }
 
+/// Inter `SemiBold` de `size` points si les familles Inter sont chargées,
+/// sinon la police proportionnelle d'egui (onglet actif de la barre du
+/// haut, en-tête du Formulaire tâche ; lot U2).
+#[must_use]
+pub fn strong_font(ctx: &egui::Context, size: f32) -> egui::FontId {
+    if plan_fonts_ready(ctx) {
+        egui::FontId::new(size, egui::FontFamily::Name(PLAN_FAMILY_STRONG.into()))
+    } else {
+        egui::FontId::proportional(size)
+    }
+}
+
 /// Style du planning lu par l'écran à une image (J8, lot L11, ADR-0016
 /// D5) : style effectif du document (modèle par défaut des préférences pour
 /// un document sans style, H-UI-43) et variante du thème résolu.

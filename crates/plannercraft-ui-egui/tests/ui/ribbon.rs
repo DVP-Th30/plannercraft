@@ -24,7 +24,7 @@ use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
 use plannercraft_ui_egui::keymap::{Binding, shortcut_for_os};
 use plannercraft_ui_egui::nav::RowRef;
 use plannercraft_ui_egui::ribbon::spec::{QUICK_ACCESS, RIBBON, RibbonCmd, percent_value};
-use plannercraft_ui_egui::ribbon::{RibbonOp, RibbonTab};
+use plannercraft_ui_egui::ribbon::{RibbonMode, RibbonOp, RibbonTab};
 use plannercraft_ui_egui::selection::SelectMode;
 use plannercraft_ui_egui::state::{SortKey, SortSpec, ViewKind};
 use plannercraft_ui_egui::view::ribbon::{Kind, RibbonDrawn, Stage, TAB_BAND_H, drawn, label_of};
@@ -53,10 +53,24 @@ fn h_ui_69_default_chrome_is_ribbon() {
     ] {
         let _ = tab(&harness, &fr(id));
     }
-    assert!(
-        crate::shown_off_ribbon(&harness, &fr(TextId::MenuFile)),
-        "barre de menus gardée"
-    );
+    // Lot U2 (H-UI-173) : la barre de menus devient le bouton « Menu » de
+    // la barre du haut, qui ouvre Fichier à Aide.
+    assert!(drawn.menu.is_some(), "bouton « Menu » dessiné");
+    assert!(!crate::shown_off_ribbon(&harness, &fr(TextId::MenuFile)));
+    crate::open_menu_for(&mut harness, &fr(TextId::MenuFile));
+    for id in [
+        TextId::MenuFile,
+        TextId::MenuEdit,
+        TextId::MenuView,
+        TextId::MenuTask,
+        TextId::MenuProject,
+        TextId::MenuFormat,
+        TextId::MenuHelp,
+    ] {
+        assert!(crate::shown_off_ribbon(&harness, &fr(id)), "menu {id:?}");
+    }
+    harness.key_press(Key::Escape);
+    harness.run();
     // « Ajuster » n'est plus qu'une entrée du menu Affichage → Zoom (fermé).
     assert!(
         harness.query_by_label(&fr(TextId::ToolbarFit)).is_none(),
@@ -70,13 +84,13 @@ fn h_ui_69_default_chrome_is_ribbon() {
 fn ribbon_l0_ctrl_f1_toggles_collapsed() {
     let mut harness = harness();
     harness.run();
-    assert!(!harness.state().state.ribbon.collapsed);
+    assert!(!harness.state().state.ribbon.collapsed());
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!(!harness.state().state.ribbon.collapsed);
+    assert!(!harness.state().state.ribbon.collapsed());
 }
 
 /// H-UI-69, H-UI-72 : onglet retenu dans les préférences ; surimpression
@@ -115,9 +129,13 @@ fn ribbon_app_with(state: UiState) -> App {
     App::new(state, plannercraft_ui_egui::Env::fixed(crate::now()))
 }
 
-/// Application de test (français, thème clair).
+/// Application de test (français, thème clair), ruban complet : les tests
+/// des lots L2 à L6 visent le ruban complet d'ADR-0017 ; le ruban compact
+/// (défaut depuis le lot U2) a les siens (H-UI-174, H-UI-175).
 fn ribbon_app() -> App {
-    ribbon_app_with(crate::fr_light())
+    let mut state = crate::fr_light();
+    state.ribbon.mode = RibbonMode::Full;
+    ribbon_app_with(state)
 }
 
 /// Harnais `width` × 900, pas d'image court (deux clics rapprochés font un
@@ -219,11 +237,13 @@ fn tab<'a>(harness: &'a Harness<'static, App>, label: &str) -> Node<'a> {
 
 /// Bouton de la barre de menus `label` (le plus haut des homonymes hors
 /// onglets).
-fn menu<'a>(harness: &'a Harness<'static, App>, label: &str) -> Node<'a> {
+fn menu<'a>(harness: &'a mut Harness<'static, App>, label: &str) -> Node<'a> {
+    crate::open_menu_for(harness, label);
+    let harness: &'a Harness<'static, App> = harness;
     let label = leak(label);
     named(harness, label)
         .into_iter()
-        .filter(|n| n.accesskit_node().role() != Role::Tab)
+        .filter(|n| n.accesskit_node().role() != Role::Tab && !crate::in_ribbon(harness, n))
         .min_by(|a, b| a.rect().top().total_cmp(&b.rect().top()))
         .unwrap_or_else(|| panic!("menu « {label} » absent"))
 }
@@ -415,7 +435,7 @@ fn h_ui_70_every_item_has_menu_twin() {
         let before = named(&harness, &label).len();
         for step in cmd.menu_path() {
             let name = fr(*step);
-            let entry = menu(&harness, &name);
+            let entry = menu(&mut harness, &name);
             entry.hover();
             entry.click();
             harness.run();
@@ -463,9 +483,9 @@ fn h_ui_70_link_same_batch_as_menu() {
     assert_eq!(undoable(harness.state()), 1);
     dispatch(&mut harness, Action::Undo);
     assert!(!preds(harness.state(), 4).contains(&(uid(2), LinkType::FinishToStart)));
-    menu(&harness, &fr(TextId::MenuTask)).click();
+    menu(&mut harness, &fr(TextId::MenuTask)).click();
     harness.run();
-    menu(&harness, &fr(TextId::StructureLink)).click();
+    menu(&mut harness, &fr(TextId::StructureLink)).click();
     harness.run();
     assert_eq!(project(harness.state()), &by_ribbon);
     assert_eq!(undoable(harness.state()), 1);
@@ -478,9 +498,9 @@ fn h_ui_70_disabled_without_selection() {
     let mut harness = p();
     dispatch(&mut harness, Action::Select(None));
     assert!(disabled(&node(&harness, &fr(TextId::RibbonLink))));
-    menu(&harness, &fr(TextId::MenuTask)).click();
+    menu(&mut harness, &fr(TextId::MenuTask)).click();
     harness.run();
-    assert!(disabled(&menu(&harness, &fr(TextId::StructureLink))));
+    assert!(disabled(&menu(&mut harness, &fr(TextId::StructureLink))));
     harness.key_press(Key::Escape);
     harness.run();
     select(&mut harness, 2, &[3]);
@@ -519,9 +539,12 @@ fn h_ui_70_task_cmds_disabled_in_resource_views() {
             .get();
         assert_eq!(pct, 0, "{view:?}");
         assert_eq!(undoable(harness.state()), 0);
-        menu(&harness, &fr(TextId::MenuTask)).click();
+        menu(&mut harness, &fr(TextId::MenuTask)).click();
         harness.run();
-        assert!(disabled(&menu(&harness, &fr(TextId::StructureLink))), "{view:?}");
+        assert!(
+            disabled(&menu(&mut harness, &fr(TextId::StructureLink))),
+            "{view:?}"
+        );
         harness.key_press(Key::Escape);
         harness.run();
     }
@@ -546,13 +569,12 @@ fn item_rect(d: &RibbonDrawn, label: &str) -> Rect {
 fn h_ui_71_large_small_geometry() {
     let harness = p();
     let d = ribbon(&harness);
-    assert!(
-        (d.panel.height() - (TAB_BAND_H + 92.0)).abs() < 1.0,
-        "{:?}",
-        d.panel
-    );
+    // Lot U2 : barre du haut de 40 px, carte du ruban de 92 px plus sa
+    // bordure.
+    assert!((d.bar.height() - TAB_BAND_H).abs() < 1.0, "{:?}", d.bar);
     let body = d.body.unwrap();
-    assert!((body.height() - 92.0).abs() < 1.0);
+    assert!((body.height() - 94.0).abs() < 1.0, "{body:?}");
+    assert!(body.top() >= d.bar.bottom());
     let task = item_rect(&d, &fr(TextId::RibbonInsertTask));
     assert!(task.width() >= 52.0 && task.height() >= 76.0, "{task:?}");
     let summary = item_rect(&d, &fr(TextId::RibbonInsertSummary));
@@ -615,16 +637,16 @@ fn h_ui_72_double_click_collapses() {
     let mut harness = p();
     let rect = tab(&harness, &fr(TextId::RibbonTabTask)).rect();
     double_click(&mut harness, rect);
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     let d = ribbon(&harness);
-    assert!((d.panel.height() - TAB_BAND_H).abs() < 1.0, "{:?}", d.panel);
     assert!(d.body.is_none());
+    assert!(d.panel.height() < d.bar.height() + 20.0, "{:?}", d.panel);
     // Au-delà du délai du double-clic avant le suivant.
     for _ in 0..30 {
         harness.step();
     }
     double_click(&mut harness, rect);
-    assert!(!harness.state().state.ribbon.collapsed);
+    assert!(!harness.state().state.ribbon.collapsed());
     assert!(ribbon(&harness).body.is_some());
 }
 
@@ -634,10 +656,13 @@ fn h_ui_72_ctrl_f1_toggles() {
     let mut harness = p();
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!((ribbon(&harness).panel.height() - TAB_BAND_H).abs() < 1.0);
+    assert!(ribbon(&harness).body.is_none());
+    assert!(ribbon(&harness).panel.height() < TAB_BAND_H + 20.0);
+    // Lot U2 (H-UI-174) : déplié, le ruban revient compact.
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!(ribbon(&harness).panel.height() > TAB_BAND_H + 90.0);
+    assert_eq!(harness.state().state.ribbon.mode, RibbonMode::Compact);
+    assert!(ribbon(&harness).panel.height() > TAB_BAND_H + 52.0);
 }
 
 /// Nom accessible de la ligne de la tâche `n` de « P ».
@@ -722,14 +747,15 @@ fn h_ui_72_collapsed_persisted() {
     dispatch(&mut harness, Action::Ribbon(RibbonOp::Select(RibbonTab::View)));
     node(&harness, &fr(TextId::RibbonCollapse)).click();
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     let json = serde_json::to_string(&harness.state().state).unwrap();
     let state: UiState = serde_json::from_str(&json).unwrap();
-    assert!(state.ribbon.collapsed);
+    assert!(state.ribbon.collapsed());
     let mut app = ribbon_app_with(state);
     open_p_in(&mut app);
     let harness = sized(app, 1920.0, egui::os::OperatingSystem::Nix);
-    assert!((ribbon(&harness).panel.height() - TAB_BAND_H).abs() < 1.0);
+    assert!(ribbon(&harness).body.is_none());
+    assert!(ribbon(&harness).panel.height() < TAB_BAND_H + 20.0);
 }
 
 /// Survole `label` du ruban (infobulle immédiate).
@@ -893,7 +919,9 @@ fn h_ui_75_no_overflow_widths() {
 /// sans le libellé d'Inspecter ; EN : Édition et Mise en forme sans
 /// libellés). À 1 024 px (fenêtre réduite, web) : Presse-papiers
 /// et Texte entiers, Planification pas repliée, Insérer et Propriétés sans
-/// libellés, Mise en forme, Tâches et Édition repliés. FR et EN.
+/// libellés, Mise en forme, Tâches et Édition repliés. FR et EN. Lot U2
+/// (carte du ruban : 54 points de moins) : à 1 280 px, Propriétés peut
+/// perdre ses libellés (FR) ; à 1 024 px, Insérer peut être replié (FR).
 #[test]
 fn h_ui_75_task_tab_keeps_labels_when_narrow() {
     for width in [1280.0, 1024.0] {
@@ -923,12 +951,16 @@ fn h_ui_75_task_tab_keeps_labels_when_narrow() {
             if width >= 1280.0 {
                 is(TextId::RibbonGroupSchedule, Stage::Full);
                 is(TextId::RibbonGroupInsert, Stage::Full);
-                is(TextId::RibbonGroupProperties, Stage::Full);
+                // Lot U2 : carte du ruban (marges, bordure, chevron : 54
+                // points de moins) ; Propriétés peut perdre ses libellés,
+                // jamais replié.
+                not(TextId::RibbonGroupProperties, Stage::Folded);
                 not(TextId::RibbonGroupFormatting, Stage::Full);
                 not(TextId::RibbonGroupTasks, Stage::Folded);
             } else {
                 is(TextId::RibbonGroupEditing, Stage::Folded);
-                is(TextId::RibbonGroupInsert, Stage::Compact);
+                // Lot U2 : Insérer sans libellés ou replié (carte du ruban).
+                not(TextId::RibbonGroupInsert, Stage::Full);
                 is(TextId::RibbonGroupProperties, Stage::Compact);
                 is(TextId::RibbonGroupFormatting, Stage::Folded);
                 is(TextId::RibbonGroupTasks, Stage::Folded);

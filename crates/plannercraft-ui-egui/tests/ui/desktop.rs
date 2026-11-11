@@ -510,7 +510,7 @@ fn snapshot_ribbon_and_timeline_views() {
     let harness = snapshot_example::prepared(&args, None).unwrap();
     let app = harness.state();
     assert_eq!(app.state.ribbon.tab, RibbonTab::Format);
-    assert!(app.state.ribbon.collapsed);
+    assert!(app.state.ribbon.collapsed());
     let doc = app.document.as_ref().unwrap();
     assert_eq!(doc.project().tasks.len(), 7);
     assert_eq!(
@@ -523,7 +523,7 @@ fn snapshot_ribbon_and_timeline_views() {
     let args = snapshot_args(&["--p", "print-timeline"]).unwrap();
     let harness = snapshot_example::prepared(&args, None).unwrap();
     let app = harness.state();
-    assert!(!app.state.ribbon.collapsed);
+    assert!(!app.state.ribbon.collapsed());
     let Some(plannercraft_ui_egui::dialog::DialogBody::PageSetup(state)) =
         app.view().dialog.as_ref().map(|d| &d.body)
     else {

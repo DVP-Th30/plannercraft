@@ -536,7 +536,7 @@ impl RibbonCmd {
             }
             Self::AddToTimeline => Some(on_timeline(fc)),
             Self::Diagnostics => Some(fc.state.diagnostics_open),
-            Self::CollapseRibbon => Some(fc.state.ribbon.collapsed),
+            Self::CollapseRibbon => Some(fc.state.ribbon.collapsed()),
             Self::CriticalTasks => Some(fc.task_view.state.highlight_critical),
             Self::RelativeMonths => Some(relative_months(fc)),
             Self::ChartOnly => Some(fc.state.chart_only),
@@ -1766,6 +1766,277 @@ const FORMAT_GROUPS: &[GroupSpec] = &[
     },
 ];
 
+/// Élément visible du ruban compact (interface adoucie, lot U2, H-UI-174) :
+/// commande d'un élément du groupe complet de même rang.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CompactItem {
+    /// Commande (celle d'un élément du groupe complet).
+    pub cmd: RibbonCmd,
+    /// Libellé affiché à côté de l'icône (sinon icône seule, libellé en
+    /// infobulle) ; les cases sans icône et les pourcentages gardent
+    /// toujours leur texte.
+    pub text: bool,
+    /// Bouton principal de l'onglet, sur l'accent doux (maquette : Insérer
+    /// une tâche).
+    pub primary: bool,
+}
+
+/// Groupe du ruban compact : même nom et même rang que le groupe complet ;
+/// les éléments du groupe complet absents de `shown` vont dans son menu
+/// « … », dans l'ordre du groupe complet (aucune commande perdue,
+/// H-UI-175).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CompactGroup {
+    /// Nom du groupe (celui du groupe complet de même rang).
+    pub label: TextId,
+    /// Éléments visibles, dans l'ordre du groupe complet.
+    pub shown: &'static [CompactItem],
+}
+
+/// Élément compact à icône seule.
+const fn icon(cmd: RibbonCmd) -> CompactItem {
+    CompactItem {
+        cmd,
+        text: false,
+        primary: false,
+    }
+}
+
+/// Élément compact à icône et libellé.
+const fn text(cmd: RibbonCmd) -> CompactItem {
+    CompactItem {
+        cmd,
+        text: true,
+        primary: false,
+    }
+}
+
+/// Rangée des pourcentages, en groupe segmenté.
+const PERCENTS: [CompactItem; 5] = [
+    text(RibbonCmd::MarkPercent(PercentStep::P0)),
+    text(RibbonCmd::MarkPercent(PercentStep::P25)),
+    text(RibbonCmd::MarkPercent(PercentStep::P50)),
+    text(RibbonCmd::MarkPercent(PercentStep::P75)),
+    text(RibbonCmd::MarkPercent(PercentStep::P100)),
+];
+
+/// Onglet Tâche, compact (maquette du 2026-11-10 : Gantt ▾, presse-papiers,
+/// avancement segmenté, structure, Décaler ▾, Tâche en bouton principal,
+/// Informations, Notes, Défiler jusqu'à la tâche).
+const TASK_COMPACT: &[CompactGroup] = &[
+    CompactGroup {
+        label: TextId::RibbonGroupView,
+        shown: &[text(RibbonCmd::ViewMenu)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupClipboard,
+        shown: &[
+            icon(RibbonCmd::Paste),
+            icon(RibbonCmd::Cut),
+            icon(RibbonCmd::Copy),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupText,
+        // Pinceau visible : son état armé se voit sans ouvrir de menu.
+        shown: &[
+            icon(RibbonCmd::Bold),
+            icon(RibbonCmd::Italic),
+            icon(RibbonCmd::FormatPainter),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupFormatting,
+        shown: &[icon(RibbonCmd::FormatBars)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupSchedule,
+        shown: &[
+            PERCENTS[0],
+            PERCENTS[1],
+            PERCENTS[2],
+            PERCENTS[3],
+            PERCENTS[4],
+            icon(RibbonCmd::Link),
+            icon(RibbonCmd::Unlink),
+            icon(RibbonCmd::Indent),
+            icon(RibbonCmd::Outdent),
+            text(RibbonCmd::ShiftMenu),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupTasks,
+        shown: &[icon(RibbonCmd::ManualSchedule)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupInsert,
+        shown: &[CompactItem {
+            cmd: RibbonCmd::InsertTask,
+            text: true,
+            primary: true,
+        }],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupProperties,
+        shown: &[text(RibbonCmd::TaskInformation), icon(RibbonCmd::TaskNotes)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupEditing,
+        shown: &[icon(RibbonCmd::Find), icon(RibbonCmd::ScrollToTask)],
+    },
+];
+
+/// Onglet Ressource, compact : tout est visible.
+const RESOURCE_COMPACT: &[CompactGroup] = &[
+    CompactGroup {
+        label: TextId::RibbonGroupView,
+        shown: &[text(RibbonCmd::ResourceSheet), text(RibbonCmd::ResourceUsage)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupAssignments,
+        shown: &[text(RibbonCmd::AssignResources)],
+    },
+];
+
+/// Onglet Projet, compact : tout est visible.
+const PROJECT_COMPACT: &[CompactGroup] = &[
+    CompactGroup {
+        label: TextId::RibbonGroupProperties,
+        shown: &[
+            text(RibbonCmd::ProjectInformation),
+            icon(RibbonCmd::CustomFields),
+            text(RibbonCmd::WorkingTime),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupSchedule,
+        shown: &[text(RibbonCmd::SetBaseline)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupStatus,
+        shown: &[text(RibbonCmd::UpdateProject)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupPrint,
+        shown: &[
+            text(RibbonCmd::PrintMode),
+            icon(RibbonCmd::PageSetup),
+            icon(RibbonCmd::ExportPdf),
+        ],
+    },
+];
+
+/// Onglet Affichage, compact.
+const VIEW_COMPACT: &[CompactGroup] = &[
+    CompactGroup {
+        label: TextId::RibbonGroupTaskViews,
+        shown: &[text(RibbonCmd::GanttChart), icon(RibbonCmd::TrackingGantt)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupResourceViews,
+        shown: &[icon(RibbonCmd::ResourceSheet), icon(RibbonCmd::ResourceUsage)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupData,
+        shown: &[
+            icon(RibbonCmd::SortMenu),
+            icon(RibbonCmd::OutlineMenu),
+            text(RibbonCmd::FilterMenu),
+            icon(RibbonCmd::GroupByMenu),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupZoom,
+        shown: &[
+            text(RibbonCmd::TimescaleMenu),
+            icon(RibbonCmd::ZoomIn),
+            icon(RibbonCmd::ZoomOut),
+            icon(RibbonCmd::EntireProject),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupSplitView,
+        shown: &[text(RibbonCmd::TimelineVisible), text(RibbonCmd::DetailsPane)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupInterface,
+        shown: &[icon(RibbonCmd::ThemeMenu), icon(RibbonCmd::LanguageMenu)],
+    },
+];
+
+/// Onglet Format, compact.
+const FORMAT_COMPACT: &[CompactGroup] = &[
+    CompactGroup {
+        label: TextId::RibbonGroupColumns,
+        shown: &[
+            icon(RibbonCmd::InsertColumn),
+            icon(RibbonCmd::FieldSettings),
+            text(RibbonCmd::ColumnsMenu),
+        ],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupBarStyles,
+        shown: &[text(RibbonCmd::FormatBars), text(RibbonCmd::CriticalTasks)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupChartStyle,
+        shown: &[text(RibbonCmd::Gallery)],
+    },
+    CompactGroup {
+        label: TextId::RibbonGroupShowHide,
+        shown: &[text(RibbonCmd::ChartOnly)],
+    },
+];
+
+/// Ruban compact : onglet → groupes, de même rang que [`RIBBON`]
+/// (H-UI-174).
+pub const COMPACT: &[(RibbonTab, &[CompactGroup])] = &[
+    (RibbonTab::Task, TASK_COMPACT),
+    (RibbonTab::Resource, RESOURCE_COMPACT),
+    (RibbonTab::Project, PROJECT_COMPACT),
+    (RibbonTab::View, VIEW_COMPACT),
+    (RibbonTab::Format, FORMAT_COMPACT),
+];
+
+impl RibbonTab {
+    /// Groupes compacts de l'onglet ([`COMPACT`]).
+    #[must_use]
+    pub fn compact_groups(self) -> &'static [CompactGroup] {
+        COMPACT
+            .iter()
+            .find(|(tab, _)| *tab == self)
+            .map_or(&[], |(_, groups)| *groups)
+    }
+}
+
+impl CompactGroup {
+    /// Élément compact de `cmd`, s'il est visible.
+    #[must_use]
+    pub fn shown_item(&self, cmd: RibbonCmd) -> Option<CompactItem> {
+        self.shown.iter().find(|c| c.cmd == cmd).copied()
+    }
+}
+
+/// Partage d'un groupe complet en ruban compact (H-UI-174, H-UI-175) :
+/// éléments visibles (avec leur forme compacte) et éléments du menu
+/// « … », chacun dans l'ordre du groupe complet ; tout élément du groupe
+/// est dans l'un ou l'autre.
+#[must_use]
+pub fn compact_split(
+    group: &'static GroupSpec,
+    compact: Option<&CompactGroup>,
+) -> (Vec<(&'static ItemSpec, CompactItem)>, Vec<&'static ItemSpec>) {
+    let mut shown = Vec::new();
+    let mut more = Vec::new();
+    for item in group.items {
+        match compact.and_then(|c| c.shown_item(item.cmd)) {
+            Some(c) => shown.push((item, c)),
+            None => more.push(item),
+        }
+    }
+    (shown, more)
+}
+
 /// Contenu du ruban : onglet → groupes, dans l'ordre d'affichage (§ 2.2).
 pub const RIBBON: &[(RibbonTab, &[GroupSpec])] = &[
     (RibbonTab::Task, TASK_GROUPS),
@@ -1882,6 +2153,66 @@ mod tests {
         for cmd in super::CONTEXT_MENU.iter().flat_map(|g| g.iter()) {
             if let Some(binding) = cmd.binding() {
                 assert!(KEYMAP.iter().any(|(_, _, b)| *b == binding), "{binding:?}");
+            }
+        }
+    }
+
+    /// H-UI-174 : un groupe compact par groupe complet, même nom, même
+    /// rang ; chaque élément visible est un élément du groupe complet, sans
+    /// doublon ; une seule commande principale au plus par onglet.
+    #[test]
+    fn h_ui_174_compact_matches_full() {
+        let tabs: Vec<RibbonTab> = super::COMPACT.iter().map(|(tab, _)| *tab).collect();
+        assert_eq!(tabs, RibbonTab::ALL);
+        for tab in RibbonTab::ALL {
+            let full = tab.groups();
+            let compact = tab.compact_groups();
+            assert_eq!(full.len(), compact.len(), "{tab:?}");
+            let mut primaries = 0;
+            for (g, c) in full.iter().zip(compact) {
+                assert_eq!(g.label, c.label, "{tab:?}");
+                let cmds: BTreeSet<String> = c.shown.iter().map(|i| format!("{:?}", i.cmd)).collect();
+                assert_eq!(cmds.len(), c.shown.len(), "{tab:?} {:?} : doublon", c.label);
+                for item in c.shown {
+                    assert!(
+                        g.items.iter().any(|i| i.cmd == item.cmd),
+                        "{tab:?} {:?} : {:?} absent du groupe complet",
+                        c.label,
+                        item.cmd
+                    );
+                    primaries += usize::from(item.primary);
+                }
+            }
+            assert!(primaries <= 1, "{tab:?}");
+        }
+    }
+
+    /// H-UI-175 : aucune commande perdue : chaque élément du ruban complet
+    /// est soit visible dans le ruban compact, soit dans le menu « … » de
+    /// son groupe, une seule fois, dans l'ordre du groupe complet.
+    #[test]
+    fn h_ui_175_compact_loses_no_command() {
+        for tab in RibbonTab::ALL {
+            for (g, c) in tab.groups().iter().zip(tab.compact_groups()) {
+                let (shown, more) = super::compact_split(g, Some(c));
+                assert_eq!(shown.len() + more.len(), g.items.len(), "{tab:?} {:?}", g.label);
+                let mut merged: Vec<_> = shown
+                    .iter()
+                    .map(|(i, _)| *i)
+                    .chain(more.iter().copied())
+                    .collect();
+                let index = |i: &super::ItemSpec| g.items.iter().position(|x| x == i);
+                merged.sort_by_key(|i| index(i));
+                assert!(
+                    merged.iter().zip(g.items).all(|(a, b)| **a == *b),
+                    "{tab:?} {:?}",
+                    g.label
+                );
+                // Ordre du groupe complet de part et d'autre.
+                let shown_idx: Vec<_> = shown.iter().map(|(i, _)| index(i)).collect();
+                assert!(shown_idx.windows(2).all(|w| w[0] < w[1]));
+                let more_idx: Vec<_> = more.iter().map(|i| index(i)).collect();
+                assert!(more_idx.windows(2).all(|w| w[0] < w[1]));
             }
         }
     }

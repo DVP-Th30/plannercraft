@@ -51,14 +51,83 @@ impl RibbonTab {
     ];
 }
 
-/// Préférences du ruban persistées (`UiState.ribbon`, H-UI-69, H-UI-72).
+/// Forme du ruban (interface adoucie, lot U2, H-UI-174).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RibbonMode {
+    /// Une ligne de 52 points (défaut) : commandes prioritaires, le reste
+    /// dans le menu « … » de chaque groupe.
+    #[default]
+    Compact,
+    /// Ruban complet d'ADR-0017 (grands et petits boutons, noms des
+    /// groupes).
+    Full,
+    /// Replié : seule la barre du haut reste (H-UI-72).
+    Collapsed,
+}
+
+/// Préférences du ruban persistées (`UiState.ribbon`, H-UI-69, H-UI-72,
+/// H-UI-174) : écrites `{"tab", "collapsed", "mode"}` ; `collapsed` garde
+/// son sens (ruban replié) pour une version d'avant le lot U2, qui ignore
+/// `mode` ; un état d'avant le lot U2 (`{"tab", "collapsed"}`) est relu
+/// sans avertissement : `collapsed` vrai ⇒ [`RibbonMode::Collapsed`],
+/// sinon [`RibbonMode::Compact`] (le nouveau défaut). Aucun champ retiré
+/// ni renommé : la version d'`UiState` ne change pas.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(from = "RibbonPrefsRead", into = "RibbonPrefsWrite")]
 pub struct RibbonPrefs {
     /// Dernier onglet choisi.
     pub tab: RibbonTab,
-    /// Ruban replié (seule la bande d'onglets reste).
-    pub collapsed: bool,
+    /// Forme du ruban.
+    pub mode: RibbonMode,
+}
+
+impl RibbonPrefs {
+    /// Ruban replié (seule la barre du haut reste).
+    #[must_use]
+    pub fn collapsed(self) -> bool {
+        self.mode == RibbonMode::Collapsed
+    }
+}
+
+/// Lecture tolérante des préférences du ruban : champ `mode` (lot U2) ou
+/// ancien booléen `collapsed` (ADR-0017), champs absents à leur défaut.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(default)]
+struct RibbonPrefsRead {
+    tab: RibbonTab,
+    mode: Option<RibbonMode>,
+    collapsed: Option<bool>,
+}
+
+/// Écriture des préférences du ruban : `collapsed` (sens d'ADR-0017,
+/// dérivé du mode) puis `mode`.
+#[derive(Clone, Copy, Debug, Serialize)]
+struct RibbonPrefsWrite {
+    tab: RibbonTab,
+    collapsed: bool,
+    mode: RibbonMode,
+}
+
+impl From<RibbonPrefs> for RibbonPrefsWrite {
+    fn from(prefs: RibbonPrefs) -> Self {
+        Self {
+            tab: prefs.tab,
+            collapsed: prefs.collapsed(),
+            mode: prefs.mode,
+        }
+    }
+}
+
+impl From<RibbonPrefsRead> for RibbonPrefs {
+    fn from(read: RibbonPrefsRead) -> Self {
+        let mode = read.mode.unwrap_or(if read.collapsed == Some(true) {
+            RibbonMode::Collapsed
+        } else {
+            RibbonMode::Compact
+        });
+        Self { tab: read.tab, mode }
+    }
 }
 
 /// Opération sur l'état du ruban (`Action::Ribbon`).
@@ -67,8 +136,12 @@ pub enum RibbonOp {
     /// Choisit l'onglet (ruban déplié).
     Select(RibbonTab),
     /// Replie ou déplie (double-clic sur un onglet, Ctrl/Cmd+F1, Affichage
-    /// → Réduire le ruban ; H-UI-72) ; referme la surimpression.
+    /// → Réduire le ruban ; H-UI-72) ; referme la surimpression. Déplier
+    /// rend le ruban compact (H-UI-174).
     ToggleCollapsed,
+    /// Chevron du ruban (H-UI-174) : compact ⇄ complet ; un ruban replié
+    /// devient complet ; referme la surimpression.
+    ToggleFull,
     /// Ruban replié : ouvre l'onglet en surimpression au-dessus de la vue
     /// (H-UI-72) ; déplié : choisit simplement l'onglet.
     OpenOverlay(RibbonTab),
@@ -114,12 +187,23 @@ pub fn reduce(prefs: &mut RibbonPrefs, overlay: &mut Option<RibbonTab>, op: Ribb
             }
         }
         RibbonOp::ToggleCollapsed => {
-            prefs.collapsed = !prefs.collapsed;
+            prefs.mode = if prefs.collapsed() {
+                RibbonMode::Compact
+            } else {
+                RibbonMode::Collapsed
+            };
+            *overlay = None;
+        }
+        RibbonOp::ToggleFull => {
+            prefs.mode = match prefs.mode {
+                RibbonMode::Full => RibbonMode::Compact,
+                RibbonMode::Compact | RibbonMode::Collapsed => RibbonMode::Full,
+            };
             *overlay = None;
         }
         RibbonOp::OpenOverlay(tab) => {
             prefs.tab = tab;
-            *overlay = prefs.collapsed.then_some(tab);
+            *overlay = prefs.collapsed().then_some(tab);
         }
         RibbonOp::CloseOverlay => *overlay = None,
     }
@@ -127,7 +211,7 @@ pub fn reduce(prefs: &mut RibbonPrefs, overlay: &mut Option<RibbonTab>, op: Ribb
 
 #[cfg(test)]
 mod tests {
-    use super::{RibbonOp, RibbonPrefs, RibbonTab, reduce};
+    use super::{RibbonMode, RibbonOp, RibbonPrefs, RibbonTab, reduce};
 
     /// H-UI-69, H-UI-72 : onglet retenu ; repli ; surimpression seulement
     /// replié, refermée par le repli et par `CloseOverlay`.
@@ -146,7 +230,7 @@ mod tests {
         );
         assert_eq!((prefs.tab, overlay), (RibbonTab::Project, None));
         reduce(&mut prefs, &mut overlay, RibbonOp::ToggleCollapsed);
-        assert!(prefs.collapsed);
+        assert!(prefs.collapsed());
         reduce(&mut prefs, &mut overlay, RibbonOp::OpenOverlay(RibbonTab::View));
         assert_eq!(overlay, Some(RibbonTab::View));
         reduce(&mut prefs, &mut overlay, RibbonOp::Select(RibbonTab::Task));
@@ -155,8 +239,34 @@ mod tests {
         assert_eq!(overlay, None);
         reduce(&mut prefs, &mut overlay, RibbonOp::OpenOverlay(RibbonTab::View));
         reduce(&mut prefs, &mut overlay, RibbonOp::ToggleCollapsed);
-        assert!(!prefs.collapsed);
+        assert!(!prefs.collapsed());
+        assert_eq!(prefs.mode, RibbonMode::Compact);
         assert_eq!(overlay, None);
+    }
+
+    /// H-UI-174 : compact par défaut ; le chevron passe de compact à
+    /// complet et retour ; un ruban replié passe au complet ; Ctrl/Cmd+F1
+    /// replie un ruban complet et le déplie compact ; la surimpression est
+    /// refermée.
+    #[test]
+    fn h_ui_174_reduce_modes() {
+        let mut prefs = RibbonPrefs::default();
+        let mut overlay = None;
+        assert_eq!(prefs.mode, RibbonMode::Compact);
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleFull);
+        assert_eq!(prefs.mode, RibbonMode::Full);
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleFull);
+        assert_eq!(prefs.mode, RibbonMode::Compact);
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleFull);
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleCollapsed);
+        assert_eq!(prefs.mode, RibbonMode::Collapsed);
+        reduce(&mut prefs, &mut overlay, RibbonOp::OpenOverlay(RibbonTab::View));
+        assert_eq!(overlay, Some(RibbonTab::View));
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleFull);
+        assert_eq!((prefs.mode, overlay), (RibbonMode::Full, None));
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleCollapsed);
+        reduce(&mut prefs, &mut overlay, RibbonOp::ToggleCollapsed);
+        assert_eq!(prefs.mode, RibbonMode::Compact);
     }
 
     /// Préférences : JSON stable (`snake_case`), relues.
@@ -164,14 +274,52 @@ mod tests {
     fn ribbon_prefs_json() {
         let prefs = RibbonPrefs {
             tab: RibbonTab::Resource,
-            collapsed: true,
+            mode: RibbonMode::Collapsed,
         };
         let json = serde_json::to_string(&prefs).unwrap_or_default();
-        assert_eq!(json, r#"{"tab":"resource","collapsed":true}"#);
+        assert_eq!(json, r#"{"tab":"resource","collapsed":true,"mode":"collapsed"}"#);
         assert_eq!(serde_json::from_str::<RibbonPrefs>(&json).ok(), Some(prefs));
         assert_eq!(
             serde_json::from_str::<RibbonPrefs>("{}").ok(),
             Some(RibbonPrefs::default())
         );
+        for mode in [RibbonMode::Compact, RibbonMode::Full, RibbonMode::Collapsed] {
+            let prefs = RibbonPrefs {
+                tab: RibbonTab::View,
+                mode,
+            };
+            let json = serde_json::to_string(&prefs).unwrap_or_default();
+            assert_eq!(serde_json::from_str::<RibbonPrefs>(&json).ok(), Some(prefs));
+        }
+    }
+
+    /// H-UI-174 : un état d'avant le lot U2 (`collapsed`) est relu sans
+    /// erreur ; replié ⇒ mode replié, déplié ⇒ compact (nouveau défaut) ;
+    /// `mode` l'emporte sur `collapsed` s'il y a les deux.
+    #[test]
+    fn h_ui_174_prefs_migration() {
+        let read = |json: &str| serde_json::from_str::<RibbonPrefs>(json).ok();
+        assert_eq!(
+            read(r#"{"tab":"format","collapsed":true}"#),
+            Some(RibbonPrefs {
+                tab: RibbonTab::Format,
+                mode: RibbonMode::Collapsed,
+            })
+        );
+        assert_eq!(
+            read(r#"{"tab":"project","collapsed":false}"#),
+            Some(RibbonPrefs {
+                tab: RibbonTab::Project,
+                mode: RibbonMode::Compact,
+            })
+        );
+        assert_eq!(
+            read(r#"{"tab":"task","mode":"full","collapsed":true}"#),
+            Some(RibbonPrefs {
+                tab: RibbonTab::Task,
+                mode: RibbonMode::Full,
+            })
+        );
+        assert_eq!(read(r#"{"mode":"plié"}"#), None);
     }
 }

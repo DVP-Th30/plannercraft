@@ -3298,7 +3298,7 @@ impl App {
                 window_open: self.view.dialog.is_some(),
                 task_view,
             };
-            view::chrome::menu_bar(ui, &mut fc, self.side.open, self.side.shows_ai());
+            view::chrome::publish_panels(&ctx, self.side.open, self.side.shows_ai());
             let button = view::ribbon::AssistantButton {
                 open: self.side.open,
                 badge: self.assistant_badge,

@@ -4,17 +4,19 @@ Guide pour l'utilisateur occasionnel de MS Project qui ouvre PlannerCraft. Réf�
 
 ## 1. Ce qui ressemble à MS Project
 
-- **Cinq onglets** sous la barre de menus, dans l'ordre de MS Project : **Tâche, Ressource, Projet, Affichage, Format** (en anglais : Task, Resource, Project, View, Format ; page Microsoft « Learn the Project 2010 Ribbon »). L'onglet Tâche est ouvert au premier lancement, puis PlannerCraft rouvre le dernier choisi.
+- **Barre du haut** (depuis l'interface adoucie, ADR-0026) : le symbole de PlannerCraft, le bouton **Menu** (☰ : Fichier, Édition, Affichage, Tâche, Projet, Format, Aide), Enregistrer, Annuler, Rétablir, puis les onglets ; le bouton **Assistant IA** est à droite.
+- **Cinq onglets** dans la barre du haut, dans l'ordre de MS Project : **Tâche, Ressource, Projet, Affichage, Format** (en anglais : Task, Resource, Project, View, Format ; page Microsoft « Learn the Project 2010 Ribbon »). L'onglet Tâche est ouvert au premier lancement, puis PlannerCraft rouvre le dernier choisi.
 - **Groupes nommés** sous chaque onglet (Presse-papiers, Planification, Insérer, Propriétés, Édition…), grands boutons à icône et libellé, petits boutons empilés, listes déroulantes (▾), cases à cocher.
 - **Info-bulles** : survoler un bouton affiche son nom, une phrase d'aide et le raccourci clavier (« Lier les tâches (Ctrl+F2) ») ; un bouton grisé dit pourquoi (« Sélectionnez au moins une tâche », « Retirez le tri ou le filtre »).
-- **Barre d'accès rapide** à gauche des onglets, après le petit symbole de PlannerCraft : Enregistrer, Annuler, Rétablir.
-- **Apparence** : le ruban est posé sur le fond de la fenêtre, l'onglet ouvert est écrit en violet et souligné ; un bouton enfoncé (Gras, Planifier manuellement, Sur la chronologie…) a un fond violet très clair et une icône violette ; un bouton grisé reste lisible. Clair et sombre suivent le thème choisi (Affichage → Thème). Avec les modèles Classique et Sobre, la ligne sélectionnée et le cadre de la cellule active sont violets eux aussi (les autres modèles gardent leurs couleurs).
-- **Ruban repliable** : double-clic sur un onglet, ou **Ctrl+F1** (Cmd+F1 sur macOS), ou Affichage → Réduire le ruban. Replié, un clic sur un onglet ouvre ses boutons par-dessus la vue ; Échap ou un clic ailleurs les referme.
+- **Barre d'accès rapide** à gauche des onglets, après le symbole de PlannerCraft et le bouton Menu : Enregistrer, Annuler, Rétablir.
+- **Ruban compact** (par défaut) : une seule ligne avec les commandes courantes ; le reste de chaque groupe est dans son menu **…** (rien n'est perdu), et l'avancement 0 % à 100 % est un groupe de cinq boutons accolés. Le **chevron** à droite du ruban affiche le **ruban complet** (grands boutons, noms des groupes) ; le même chevron revient au compact. Le choix est retrouvé au lancement suivant.
+- **Apparence** : le ruban est une carte aux coins arrondis sur le fond de la fenêtre, l'onglet ouvert est en pastille claire et en gras ; un bouton enfoncé (Gras, Planifier manuellement, Sur la chronologie…) a un fond violet très clair et une icône violette ; un bouton grisé reste lisible. Clair et sombre suivent le thème choisi (Affichage → Thème). Avec les modèles Classique et Sobre, la ligne sélectionnée et le cadre de la cellule active sont violets eux aussi (les autres modèles gardent leurs couleurs).
+- **Ruban repliable** : double-clic sur un onglet, ou **Ctrl+F1** (Cmd+F1 sur macOS), ou Affichage → Réduire le ruban. Replié, un clic sur un onglet ouvre sa ligne compacte par-dessus la vue ; Échap ou un clic ailleurs la referme. Déplié de nouveau, le ruban est compact.
 - **Chronologie** : frise au-dessus du diagramme de Gantt (page Microsoft « Create a timeline in Project »), affichée par défaut.
 
 Les libellés français des onglets et des groupes ont été choisis pour ce guide ; ils n'ont pas été comparés à l'interface française de MS Project.
 
-La **barre de menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aide) reste : chaque bouton du ruban y a son entrée jumelle, qui fait exactement la même chose. Rien n'est accessible par le ruban seul.
+Les **menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aide) restent, dans le bouton **Menu** de la barre du haut : chaque bouton du ruban y a son entrée jumelle, qui fait exactement la même chose. Rien n'est accessible par le ruban seul.
 
 ## 2. Les cinq onglets
 
@@ -26,7 +28,9 @@ La **barre de menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aid
 | **Affichage** | Affichages des tâches (Diagramme de Gantt, Gantt de suivi) · Affichages des ressources · Données (Trier ▾, Mode plan ▾, Filtre ▾, Regrouper par ▾) · Zoom (Échelle de temps ▾, Zoom avant, Zoom arrière, Projet entier, Tâches sélectionnées) · Fractionner l'affichage (Chronologie, Détails, Volet Opérations IA, Assistant IA, Diagnostics) · Interface (Thème ▾, Langue ▾, Réduire le ruban) |
 | **Format** | Colonnes (Insérer une colonne, Paramètres de champ, Colonnes ▾) · Styles des barres (Mettre en forme les barres, Tâches critiques, Mois relatifs) · Styles du diagramme (Modèles de mise en forme…) · Afficher/Masquer (Graphique seul) |
 
-Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs petits boutons (l'info-bulle reste), puis se replient en un seul bouton à menu portant le nom du groupe. Onglet Tâche : à 1 280 px, Presse-papiers, Texte, Planification, Insérer et Propriétés restent entiers (Mise en forme et Édition sont repliés) ; à 1 024 px, Presse-papiers et Texte restent entiers, Planification n'est jamais repliée ; à 800 px, la plupart des groupes deviennent des boutons à menu.
+Ce tableau décrit le ruban complet. Dans le ruban compact, chaque groupe garde ses commandes courantes (onglet Tâche : Diagramme de Gantt ▾ ; Coller, Couper, Copier ; Gras, Italique, Pinceau ; Mettre en forme les barres ; 0 % à 100 %, Lier, Délier, Indenter, Désindenter, Décaler ▾ ; Planifier manuellement ; **Tâche** ; Informations, Notes ; Rechercher, Atteindre la tâche) et range les autres dans son menu **…**. Survoler un bouton sans libellé affiche son nom.
+
+Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs petits boutons (l'info-bulle reste), puis se replient en un seul bouton à menu portant le nom du groupe. Onglet Tâche, ruban complet : à 1 280 px, Presse-papiers, Texte, Planification et Insérer restent entiers (Propriétés peut perdre ses libellés, Mise en forme et Édition sont repliés) ; à 1 024 px, Presse-papiers et Texte restent entiers, Planification n'est jamais repliée ; à 800 px, la plupart des groupes deviennent des boutons à menu. Le ruban compact se réduit de la même façon (icônes seules, puis un bouton par groupe).
 
 ## 3. Où est… ?
 
@@ -42,7 +46,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Désactiver une tâche | Tâche → Planification → **Désactiver** |
 | Décaler des tâches de quelques jours | Tâche → Planification → **Décaler ▾** (+1 jour, +1 semaine, +4 semaines, −1 jour, −1 semaine, Personnalisé… : « 3j », « -2sem ») ; menu Tâche → Décaler. Une tâche automatique reçoit la contrainte « Début au plus tôt le » ; une tâche manuelle garde sa durée ; une récapitulative décale ses tâches ; les tâches achevées ou inactives ne bougent pas. Une seule annulation, et un message dit ce qui a été fait |
 | Comprendre pourquoi une tâche commence à cette date | Tâche → Tâches → **Inspecter** (volet « Pourquoi cette date ? ») |
-| Assistant IA | Bouton **✦** en haut à droite de la barre des onglets (toujours visible, ruban réduit compris), **Ctrl+J** (Cmd+J sur macOS), ou Affichage → Fractionner l'affichage → **Assistant IA** : ouvre ou ferme le volet de l'assistant ; une pastille signale une réponse terminée ou une proposition arrivée volet fermé |
+| Assistant IA | Bouton **✦ Assistant IA** en haut à droite de la barre du haut (toujours visible, ruban réduit compris), **Ctrl+J** (Cmd+J sur macOS), ou Affichage → Fractionner l'affichage → **Assistant IA** : ouvre ou ferme le volet de l'assistant ; une pastille signale une réponse terminée ou une proposition arrivée volet fermé |
 | Informations sur la tâche, notes | Tâche → Propriétés → **Informations** (Maj+F2), **Notes** |
 | Retrouver la barre d'une tâche | Tâche → Édition → **Atteindre la tâche** |
 | Rechercher | Tâche → Édition → **Rechercher** (Ctrl+F ; suivant Ctrl+G) |

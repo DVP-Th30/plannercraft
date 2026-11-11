@@ -358,6 +358,9 @@ fn prepared(from: u32, n: u32) -> Harness<'static, App> {
 fn open_menu_path(harness: &mut Harness<'static, App>, path: &[TextId]) {
     for step in path {
         let label = fr(*step);
+        // Lot U2 (H-UI-173) : menus dans le bouton « Menu » de la barre du
+        // haut.
+        crate::open_menu_for(harness, &label);
         let node = harness
             .query_all_by_label(&label)
             .filter(|n| n.accesskit_node().role() != Role::Tab && !in_ribbon(harness, n))

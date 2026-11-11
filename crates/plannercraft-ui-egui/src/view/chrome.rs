@@ -1,9 +1,13 @@
-//! Habillage : barre de menus, écran d'accueil, barre d'état, bandeau des
-//! décisions, notifications et historique des messages (le ruban à onglets est dans `view::ribbon`, ADR-0017 ; il
-//! remplace depuis le lot L5 l'ancienne barre d'outils de J7 et J8).
+//! Habillage : menus (Fichier, Édition, Affichage, Tâche, Projet, Format,
+//! Aide), écran d'accueil, barre d'état, bandeau des décisions,
+//! notifications et historique des messages (le ruban à onglets est dans
+//! `view::ribbon`, ADR-0017 ; il remplace depuis le lot L5 l'ancienne barre
+//! d'outils de J7 et J8). Interface adoucie (lot U2, H-UI-173) : la barre
+//! de menus devient le bouton « Menu » de la barre du haut
+//! (`view::ribbon`), qui ouvre [`main_menu`].
 //!
-//! `menu_bar` et `status_bar` reçoivent l'`Ui` racine et posent leur propre
-//! panneau (`egui::Panel`) ; `welcome` dessine dans le panneau central.
+//! `status_bar` reçoit l'`Ui` racine et pose son propre panneau
+//! (`egui::Panel`) ; `welcome` dessine dans le panneau central.
 //! Aucune chaîne en dur : tout passe par `TextId`.
 
 use plannercraft_core::Severity;
@@ -66,7 +70,7 @@ fn ai_open_id() -> egui::Id {
     egui::Id::unique("plannercraft.ai-open")
 }
 
-/// État du volet latéral déposé par [`menu_bar`] à cette image.
+/// État du volet latéral déposé par [`publish_panels`] à cette image.
 fn side_open(ctx: &egui::Context) -> bool {
     ctx.data(|data| data.get_temp::<bool>(side_open_id()))
         .unwrap_or(false)
@@ -202,42 +206,39 @@ fn twin_cmd(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: RibbonCmd) {
     twin_item(ui, fc, cmd, text, shortcut);
 }
 
-/// Barre de menus (Fichier, Édition, Affichage, Tâche, Projet, Format,
-/// Aide) ; `side_open` : volet latéral ouvert (case du menu Affichage, J8
-/// lot L12), déposé aussi pour le ruban de la même image.
-pub fn menu_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, side_open: bool, ai_open: bool) {
-    let texts = fc.texts;
-    ui.ctx().data_mut(|data| {
+/// Dépose l'état du volet latéral de l'image (`side_open` : volet ouvert,
+/// case du menu Affichage, J8 lot L12 ; `ai_open` : ouvert sur Opérations
+/// IA), relu par le ruban et le menu de la barre du haut.
+pub fn publish_panels(ctx: &egui::Context, side_open: bool, ai_open: bool) {
+    ctx.data_mut(|data| {
         data.insert_temp(side_open_id(), side_open);
         data.insert_temp(ai_open_id(), ai_open);
     });
-    // Finitions P4 (H-UI-132) : même surface que le ruban, sans filet entre
-    // les deux (le filet est sous le ruban).
-    let surface = crate::theme::ChromeTokens::for_theme(ui.ctx().theme()).surface;
-    let frame = egui::Frame::side_top_panel(ui.style()).fill(surface);
-    egui::Panel::top("plannercraft_menu_bar")
-        .frame(frame)
-        .show_separator_line(false)
-        .show(ui, |ui| {
-            egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button(texts.get(TextId::MenuFile), |ui| file_menu(ui, fc));
-                ui.menu_button(texts.get(TextId::MenuEdit), |ui| edit_menu(ui, fc));
-                view_menu(ui, fc, side_open);
-                // --- J8 L15 : menus Tâche, Projet, Format, Aide ---
-                ui.menu_button(texts.get(TextId::MenuTask), |ui| task_menu(ui, fc));
-                ui.menu_button(texts.get(TextId::MenuProject), |ui| project_menu(ui, fc));
-                ui.menu_button(texts.get(TextId::MenuFormat), |ui| format_menu(ui, fc));
-                ui.menu_button(texts.get(TextId::MenuHelp), |ui| {
-                    let label = texts.get_args(
-                        TextId::MenuAbout,
-                        &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
-                    );
-                    if ui.button(label).clicked() {
-                        fc.actions.push(Action::About);
-                    }
-                });
-            });
-        });
+}
+
+/// Menu de la barre du haut (interface adoucie, lot U2, H-UI-173) : les
+/// menus Fichier, Édition, Affichage, Tâche, Projet, Format et Aide de
+/// l'ancienne barre de menus, en sous-menus (mêmes entrées, mêmes
+/// raccourcis, mêmes jumeaux du ruban, H-UI-70).
+pub(crate) fn main_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    let texts = fc.texts;
+    let side_open = side_open(ui.ctx());
+    ui.menu_button(texts.get(TextId::MenuFile), |ui| file_menu(ui, fc));
+    ui.menu_button(texts.get(TextId::MenuEdit), |ui| edit_menu(ui, fc));
+    view_menu(ui, fc, side_open);
+    // --- J8 L15 : menus Tâche, Projet, Format, Aide ---
+    ui.menu_button(texts.get(TextId::MenuTask), |ui| task_menu(ui, fc));
+    ui.menu_button(texts.get(TextId::MenuProject), |ui| project_menu(ui, fc));
+    ui.menu_button(texts.get(TextId::MenuFormat), |ui| format_menu(ui, fc));
+    ui.menu_button(texts.get(TextId::MenuHelp), |ui| {
+        let label = texts.get_args(
+            TextId::MenuAbout,
+            &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
+        );
+        if ui.button(label).clicked() {
+            fc.actions.push(Action::About);
+        }
+    });
 }
 
 /// Menu Affichage : vues, zoom, thème, langue, vue des tâches, volet IA,

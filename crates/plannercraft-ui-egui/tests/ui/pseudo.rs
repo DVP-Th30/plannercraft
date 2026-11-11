@@ -183,8 +183,18 @@ fn check_menu(
 ) {
     crate::click(harness, &pseudo(menu));
     assert_not_cut(harness, labels, &format!("menu {menu:?}"), at_least);
-    harness.key_press(egui::Key::Escape);
-    harness.run();
+    close_menus(harness);
+}
+
+/// Referme les menus ouverts (sous-menu, puis menu de la barre du haut).
+fn close_menus(harness: &mut Harness<'static, App>) {
+    for _ in 0..3 {
+        if !egui::Popup::is_any_open(&harness.ctx) {
+            break;
+        }
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+    }
 }
 
 /// Vue principale à 1280×720 : barre de menus, barre d'outils, en-têtes de
@@ -200,17 +210,34 @@ fn pseudo_main_view_no_truncation() {
     // (Comparaison par texte : « Duration » est aussi le libellé de la
     // fenêtre des informations sur la tâche.)
     let seen: BTreeSet<String> = seen_ids(&harness, &labels).into_iter().map(pseudo).collect();
+    // Lot U2 : ruban compact par défaut (libellé de « Diagramme de Gantt ▾ »,
+    // onglets de la barre du haut) ; menus dans le bouton « Menu ».
     for id in [
         TextId::ColId,
         TextId::ColName,
         TextId::ColDuration,
         TextId::ColStart,
         TextId::ColFinish,
-        TextId::MenuFile,
-        TextId::RibbonGroupSchedule,
+        TextId::MenuGanttStandard,
+        TextId::RibbonTabTask,
     ] {
         assert!(seen.contains(&pseudo(id)), "{id:?} non dessiné : {seen:?}");
     }
+    // Ruban complet (H-UI-174) : noms des groupes compris.
+    harness
+        .state_mut()
+        .dispatch(Action::Ribbon(plannercraft_ui_egui::ribbon::RibbonOp::ToggleFull));
+    harness.run();
+    assert_not_cut(&harness, &labels, "ruban complet", 10);
+    let seen: BTreeSet<String> = seen_ids(&harness, &labels).into_iter().map(pseudo).collect();
+    assert!(
+        seen.contains(&pseudo(TextId::RibbonGroupSchedule)),
+        "groupe Planification non dessiné : {seen:?}"
+    );
+    harness
+        .state_mut()
+        .dispatch(Action::Ribbon(plannercraft_ui_egui::ribbon::RibbonOp::ToggleFull));
+    harness.run();
     check_menu(&mut harness, &labels, TextId::MenuFile, 8);
     check_menu(&mut harness, &labels, TextId::MenuEdit, 8);
     check_menu(&mut harness, &labels, TextId::MenuView, 6);
@@ -230,10 +257,7 @@ fn pseudo_main_view_no_truncation() {
         crate::click(&mut harness, &pseudo(menu));
         crate::click(&mut harness, &pseudo(sub));
         assert_not_cut(&harness, &labels, &format!("sous-menu {sub:?}"), at_least);
-        harness.key_press(egui::Key::Escape);
-        harness.run();
-        harness.key_press(egui::Key::Escape);
-        harness.run();
+        close_menus(&mut harness);
     }
     // Volet latéral : opérations IA, puis « Pourquoi cette date ? ».
     for tab in [SideTab::AiOperations, SideTab::WhyThisDate] {

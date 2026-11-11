@@ -263,9 +263,9 @@ fn check_keymap_entry(i: usize) {
             let mut harness = harness();
             harness.run();
             press(&mut harness, i);
-            assert!(harness.state().state.ribbon.collapsed);
+            assert!(harness.state().state.ribbon.collapsed());
             press(&mut harness, i);
-            assert!(!harness.state().state.ribbon.collapsed);
+            assert!(!harness.state().state.ribbon.collapsed());
         }
         // Finitions P2 (H-UI-127) : Ctrl/Cmd+B, Ctrl/Cmd+I (P4) sur la tâche
         // active ; une entrée d'annulation chacune.
