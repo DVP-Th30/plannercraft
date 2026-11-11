@@ -386,8 +386,13 @@ fn h_ui_154_show_reasoning_option() {
     crate::click(&mut harness, &fr(TextId::AssistantReasoningToggle));
     harness.run();
     assert!(harness.state().state.assistant.show_reasoning);
-    harness.key_press(egui::Key::Escape);
-    harness.run();
+    // Menu encore ouvert : Échap le ferme ; menu déjà refermé par le clic,
+    // Échap fermerait le volet (lot A5, H-UI-162).
+    if egui::Popup::is_any_open(&harness.ctx) {
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+    }
+    assert!(harness.state().side_panel().open);
     ask(&mut harness, "Q2");
     settle(&mut harness);
     let req = body(&transport, 1);

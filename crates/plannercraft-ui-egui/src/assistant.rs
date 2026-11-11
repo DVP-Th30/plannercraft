@@ -358,6 +358,10 @@ enum Login {
 }
 
 /// État du volet Assistant (jamais sérialisé).
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "drapeaux indépendants (saisie de la clé, focus demandé, relectures web)"
+)]
 pub struct AssistantPanel {
     services: AssistantServices,
     /// Conversation en cours.
@@ -387,6 +391,9 @@ pub struct AssistantPanel {
     /// Motif de refus en cours de saisie sur la carte d'une proposition
     /// (identifiant, texte ; lot A2).
     pub reject_reason: Option<(u64, String)>,
+    /// Focus demandé à la saisie de la question (ouverture du volet, lot
+    /// A5) : servi à la prochaine image de l'onglet.
+    pub focus_request: bool,
     waker: Option<Waker>,
     #[cfg(target_arch = "wasm32")]
     callback_checked: bool,
@@ -436,6 +443,7 @@ impl AssistantPanel {
             doc_key: None,
             copied: None,
             reject_reason: None,
+            focus_request: false,
             waker: None,
             #[cfg(target_arch = "wasm32")]
             callback_checked: false,

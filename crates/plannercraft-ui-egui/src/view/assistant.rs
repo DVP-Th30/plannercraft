@@ -113,6 +113,8 @@ enum ChatEvent {
 pub fn tab(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel) {
     let t = ChatTokens::for_theme(ui.ctx().theme());
     if !fc.state.assistant.enabled {
+        // Pas de saisie avant l'activation : la demande de focus tombe.
+        panel.focus_request = false;
         intro(ui, fc, &t);
         return;
     }
@@ -1468,6 +1470,11 @@ fn input(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel, t
     let texts = fc.texts;
     let busy = panel.conversation.busy();
     let id = question_id();
+    // Ouverture du volet (bouton, Ctrl/Cmd+J, menu ; lot A5) : focus à la
+    // saisie.
+    if std::mem::take(&mut panel.focus_request) {
+        ui.memory_mut(|m| m.request_focus(id));
+    }
     let focused = ui.memory(|m| m.has_focus(id));
     // egui retire le focus sur Échap avant le dessin : l'état de l'image
     // précédente compte aussi.

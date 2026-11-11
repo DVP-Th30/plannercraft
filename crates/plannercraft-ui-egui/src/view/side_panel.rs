@@ -19,8 +19,17 @@
 //!
 //! Ouvert d'office à chaque demande d'un agent (onglet « Opérations IA »),
 //! refermable (bouton du volet, Affichage → Opérations IA) ; fermé par
-//! défaut, et jamais persisté : les captures J7 sont inchangées. Le bandeau
-//! J7 reste affiché quand le volet est fermé ou sur l'autre onglet.
+//! défaut. Le bandeau J7 reste affiché quand le volet est fermé ou sur
+//! l'autre onglet.
+//!
+//! Lot A5 (H-UI-161 à H-UI-166) : toujours à portée, jamais gênant.
+//! Bouton de l'assistant en haut à droite du ruban, Ctrl/Cmd+J et
+//! Affichage → Assistant IA basculent le volet ([`SideOp::Toggle`],
+//! onglet Assistant à l'ouverture) ; ouvert ou fermé et largeur mémorisés
+//! dans `UiState.side_panel` ; largeur tirée par un séparateur
+//! ([`panel_width`] : 320 points à 50 % de la fenêtre, double-clic ⇒
+//! largeur par défaut) ; sous [`NARROW_WINDOW`] points de large, le volet
+//! s'ouvre par-dessus la vue ([`overlays`]) au lieu de la rétrécir.
 
 use std::collections::VecDeque;
 
@@ -44,33 +53,73 @@ pub const MAX_HISTORY: usize = 50;
 /// [`DiffView`] du moteur.
 pub const MAX_DIFF_ROWS: usize = MAX_VIEW_ROWS;
 
-/// Largeur du volet à l'ouverture, en points logiques.
+/// Largeur du volet par défaut, en points logiques.
 pub const DEFAULT_WIDTH: f32 = 460.0;
+
+/// Fenêtre plus étroite que ceci (points) : le volet s'ouvre par-dessus
+/// la vue au lieu de la rétrécir (lot A5, H-UI-164).
+pub const NARROW_WINDOW: f32 = 900.0;
+
+/// Part maximale de la fenêtre donnée au volet (lot A5, H-UI-163).
+pub const MAX_SHARE: f32 = 0.5;
+
+/// Zone de saisie du séparateur : points à gauche du bord du volet, puis
+/// dans le volet.
+const GRAB_OUT: f32 = 2.0;
+const GRAB_IN: f32 = 6.0;
+
+/// Largeur affichée du volet (lot A5, H-UI-163) : `wanted` (non finie ⇒
+/// [`DEFAULT_WIDTH`]) bornée à `[320, 50 % de window]` (le plafond ne
+/// descend pas sous 320), jamais plus large que la fenêtre ; fenêtre non
+/// finie ou vide ⇒ 320. Toujours finie.
+#[must_use]
+pub fn panel_width(wanted: f32, window: f32) -> f32 {
+    let min = f32::from(crate::state::SIDE_WIDTH_MIN);
+    let wanted = if wanted.is_finite() { wanted } else { DEFAULT_WIDTH };
+    if !window.is_finite() || window <= 0.0 {
+        return min;
+    }
+    let max = (MAX_SHARE * window).max(min);
+    wanted.clamp(min, max).min(window)
+}
+
+/// Le volet s'ouvre-t-il par-dessus la vue (fenêtre de moins de
+/// [`NARROW_WINDOW`] points, H-UI-164) ?
+#[must_use]
+pub fn overlays(window: f32) -> bool {
+    window.is_finite() && window < NARROW_WINDOW
+}
 
 /// Onglet du volet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SideTab {
     /// Opérations IA.
-    #[default]
     AiOperations,
     /// Pourquoi cette date ?
     WhyThisDate,
-    /// Assistant IA (ADR-0024, lot A1, H-UI-138).
+    /// Assistant IA (ADR-0024, lot A1, H-UI-138) : onglet par défaut
+    /// depuis le lot A5 (H-UI-165).
+    #[default]
     Assistant,
 }
 
 /// Commande du volet (réducteur d'`App`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SideOp {
-    /// Ouvre ou referme le volet (Affichage → Opérations IA).
+    /// Bascule le volet (lot A5, H-UI-161) : fermé ⇒ ouvert sur l'onglet
+    /// Assistant ; ouvert (quel que soit l'onglet) ⇒ fermé. Bouton de
+    /// l'assistant, Ctrl/Cmd+J, Affichage → Assistant IA.
     Toggle,
     /// Ouvre le volet sur l'onglet donné.
     Open(SideTab),
     /// Referme le volet.
     Close,
     /// Ouvre le volet sur l'onglet donné, ou le referme s'il y est déjà
-    /// (Affichage → Assistant IA, ADR-0024 lot A1).
+    /// (Affichage → Opérations IA depuis le lot A5).
     ToggleTab(SideTab),
+    /// Largeur choisie, en points (séparateur, lot A5) : écrite dans
+    /// `UiState.side_panel` par `App`, bornée ; sans effet ici.
+    SetWidth(u16),
 }
 
 /// Issue d'une proposition d'un agent ou de l'assistant (H-UI-41).
@@ -126,7 +175,9 @@ struct ExplainCache {
     result: Result<ExplainView, String>,
 }
 
-/// État du volet : jamais sérialisé (fermé à chaque lancement).
+/// État du volet ; ouvert ou fermé est recopié dans
+/// `UiState.side_panel.open` à chaque image (lot A5), l'onglet et
+/// l'explication ne sont jamais sérialisés.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SidePanelState {
     /// Volet ouvert.
@@ -140,10 +191,27 @@ pub struct SidePanelState {
 }
 
 impl SidePanelState {
+    /// Volet ouvert (`open`) sur l'onglet par défaut, Assistant
+    /// (lancement, état mémorisé ; lot A5).
+    #[must_use]
+    pub fn opened(open: bool) -> Self {
+        Self {
+            open,
+            ..Self::default()
+        }
+    }
+
     /// Applique une commande du volet.
     pub fn apply(&mut self, op: SideOp) {
         match op {
-            SideOp::Toggle => self.open = !self.open,
+            SideOp::Toggle => {
+                if self.open {
+                    self.open = false;
+                } else {
+                    self.open = true;
+                    self.tab = SideTab::Assistant;
+                }
+            }
             SideOp::Open(tab) => {
                 self.open = true;
                 self.tab = tab;
@@ -157,7 +225,14 @@ impl SidePanelState {
                     self.tab = tab;
                 }
             }
+            SideOp::SetWidth(_) => {}
         }
+    }
+
+    /// Vrai si l'onglet Assistant est visible.
+    #[must_use]
+    pub fn shows_assistant(&self) -> bool {
+        self.open && self.tab == SideTab::Assistant
     }
 
     /// Vrai si l'onglet « Opérations IA » est visible (le bandeau J7 est
@@ -232,7 +307,9 @@ impl AiPanelInput<'_> {
     };
 }
 
-/// Dessine le volet (rien s'il est fermé) et pousse ses actions.
+/// Dessine le volet (rien s'il est fermé) et pousse ses actions : à
+/// droite de la vue, ou par-dessus elle sur une fenêtre étroite
+/// ([`overlays`]) ; séparateur de largeur sur son bord gauche.
 pub fn panel(
     ui: &mut egui::Ui,
     fc: &mut FrameCtx<'_>,
@@ -243,35 +320,172 @@ pub fn panel(
     if !state.open {
         return;
     }
+    let window = ui.ctx().content_rect().width();
+    let width = panel_width(f32::from(fc.state.side_panel.width), window);
+    if overlays(window) {
+        overlay(ui, fc, state, ai, assistant, width);
+        return;
+    }
+    let rect = egui::Panel::right("plannercraft_side_panel")
+        .resizable(false)
+        .exact_size(width)
+        .show(ui, |ui| contents(ui, fc, state, ai, assistant))
+        .response
+        .rect;
+    width_splitter(ui, fc, rect, window);
+}
+
+/// Volet par-dessus la vue (fenêtre étroite, H-UI-164) : zone au premier
+/// plan collée au bord droit de la place restante, ombre portée ; la vue
+/// garde toute sa largeur dessous.
+fn overlay(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    state: &SidePanelState,
+    ai: AiPanelInput<'_>,
+    assistant: &mut crate::assistant::AssistantPanel,
+    width: f32,
+) {
+    let room = ui.available_rect_before_wrap();
+    if !room.is_finite() || room.height() <= 0.0 {
+        return;
+    }
+    let width = width.min(room.width()).max(0.0);
+    let rect = egui::Rect::from_min_max(egui::pos2(room.right() - width, room.top()), room.max);
+    let window = ui.ctx().content_rect().width();
+    egui::Area::new(egui::Id::unique("plannercraft_side_overlay"))
+        .order(egui::Order::Middle)
+        .fixed_pos(rect.min)
+        .constrain(false)
+        .show(ui.ctx(), |ui| {
+            let frame = egui::Frame::side_top_panel(ui.style())
+                .shadow(ui.style().visuals.popup_shadow)
+                .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke);
+            let inner = frame.inner_margin;
+            let content = egui::Rect::from_min_max(
+                egui::pos2(
+                    rect.min.x + f32::from(inner.left),
+                    rect.min.y + f32::from(inner.top),
+                ),
+                egui::pos2(
+                    rect.max.x - f32::from(inner.right),
+                    rect.max.y - f32::from(inner.bottom),
+                ),
+            );
+            ui.painter().add(frame.shadow.as_shape(rect, frame.corner_radius));
+            ui.painter().rect(
+                rect,
+                frame.corner_radius,
+                frame.fill,
+                frame.stroke,
+                egui::StrokeKind::Inside,
+            );
+            let (_, _) = ui.allocate_exact_size(rect.size(), egui::Sense::hover());
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(content)
+                    .layout(egui::Layout::top_down(egui::Align::Min))
+                    .id_salt("plannercraft_side_overlay_body"),
+            );
+            child.set_clip_rect(rect);
+            contents(&mut child, fc, state, ai, assistant);
+            width_splitter(ui, fc, rect, window);
+        });
+}
+
+/// En-tête (onglets, « Fermer le volet ») et onglet affiché.
+fn contents(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    state: &SidePanelState,
+    ai: AiPanelInput<'_>,
+    assistant: &mut crate::assistant::AssistantPanel,
+) {
     let texts = fc.texts;
-    egui::Panel::right("plannercraft_side_panel")
-        .resizable(true)
-        .default_size(DEFAULT_WIDTH)
-        .min_size(280.0)
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for (tab, id) in [
-                    (SideTab::AiOperations, TextId::SideTabAi),
-                    (SideTab::WhyThisDate, TextId::SideTabWhy),
-                    (SideTab::Assistant, TextId::SideTabAssistant),
-                ] {
-                    if ui.selectable_label(state.tab == tab, texts.get(id)).clicked() && state.tab != tab {
-                        fc.actions.push(Action::SidePanel(SideOp::Open(tab)));
-                    }
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(texts.get(TextId::SideClose)).clicked() {
-                        fc.actions.push(Action::SidePanel(SideOp::Close));
-                    }
-                });
-            });
-            ui.separator();
-            match state.tab {
-                SideTab::AiOperations => ai_tab(ui, fc, ai),
-                SideTab::WhyThisDate => why_tab(ui, fc, state),
-                SideTab::Assistant => super::assistant::tab(ui, fc, assistant),
+    // Lot A5 : rangée qui passe à la ligne sous la largeur minimale (320
+    // points) au lieu de déborder du volet ; « Fermer le volet » reste à
+    // droite tant qu'il tient sur la rangée des onglets.
+    ui.horizontal_wrapped(|ui| {
+        for (tab, id) in [
+            (SideTab::AiOperations, TextId::SideTabAi),
+            (SideTab::WhyThisDate, TextId::SideTabWhy),
+            (SideTab::Assistant, TextId::SideTabAssistant),
+        ] {
+            if ui.selectable_label(state.tab == tab, texts.get(id)).clicked() && state.tab != tab {
+                fc.actions.push(Action::SidePanel(SideOp::Open(tab)));
+            }
+        }
+        let close = texts.get(TextId::SideClose);
+        if super::approval::row_room(ui) < super::approval::button_width(ui, &close) {
+            ui.end_row();
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button(close).clicked() {
+                fc.actions.push(Action::SidePanel(SideOp::Close));
             }
         });
+    });
+    ui.separator();
+    match state.tab {
+        SideTab::AiOperations => ai_tab(ui, fc, ai),
+        SideTab::WhyThisDate => why_tab(ui, fc, state),
+        SideTab::Assistant => super::assistant::tab(ui, fc, assistant),
+    }
+}
+
+/// Identifiant du séparateur de largeur du volet.
+#[must_use]
+pub fn splitter_id() -> egui::Id {
+    egui::Id::unique("plannercraft.side.splitter")
+}
+
+/// Séparateur vertical du bord gauche du volet `rect` (H-UI-163) :
+/// curseur `ResizeHorizontal`, glisser ⇒ largeur suivie au pointeur
+/// (bornée par [`panel_width`]), double-clic ⇒ largeur par défaut.
+fn width_splitter(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, rect: egui::Rect, window: f32) {
+    if !rect.is_finite() || rect.height() <= 0.0 {
+        return;
+    }
+    let x = rect.left();
+    let grab = egui::Rect::from_x_y_ranges((x - GRAB_OUT)..=(x + GRAB_IN), rect.y_range());
+    let texts = fc.texts;
+    let response = ui.interact(grab, splitter_id(), egui::Sense::click_and_drag());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::Role::Splitter, true, texts.get(TextId::SideSplitterTip))
+    });
+    let response = response.on_hover_and_drag_cursor(egui::CursorIcon::ResizeHorizontal);
+    if response.hovered() || response.dragged() {
+        ui.painter().vline(
+            x + 1.0,
+            rect.y_range(),
+            egui::Stroke::new(2.0, fc.palette.grid_major),
+        );
+        fc.stats.shapes = fc.stats.shapes.saturating_add(1);
+    }
+    // Début du glisser : largeur et abscisse de l'appui retenues, la
+    // largeur suit ensuite l'écart (pas de saut de la zone de saisie ni du
+    // seuil de glisser).
+    let start_id = splitter_id().with("start");
+    if response.drag_started()
+        && let Some(p) = ui.ctx().input(|i| i.pointer.press_origin())
+    {
+        ui.ctx()
+            .data_mut(|d| d.insert_temp(start_id, (rect.width(), p.x)));
+    }
+    if response.double_clicked() {
+        fc.actions.push(Action::SidePanel(SideOp::SetWidth(
+            crate::state::SIDE_WIDTH_DEFAULT,
+        )));
+    } else if response.dragged()
+        && let Some(p) = response.interact_pointer_pos()
+        && let Some((start_width, start_x)) = ui.ctx().data(|d| d.get_temp::<(f32, f32)>(start_id))
+    {
+        let width = panel_width(start_width + (start_x - p.x), window).round();
+        let width = u16::try_from(crate::geom::f32_to_index(width)).unwrap_or(u16::MAX);
+        if width != fc.state.side_panel.width {
+            fc.actions.push(Action::SidePanel(SideOp::SetWidth(width)));
+        }
+    }
 }
 
 /// Facteurs de conversion du document (marges en jours ouvrés).

@@ -163,7 +163,12 @@ fn h_ui_55_scope_from_app() {
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F);
     harness.run();
     assert!(harness.state().search().is_some(), "barre de recherche ouverte");
-    assert_eq!(harness.state().key_scope(&harness.ctx), KeyScope::Nothing);
+    // Saisie de la recherche : Ctrl/Cmd+F au navigateur ; seul
+    // Ctrl/Cmd+J (volet de l'assistant, lot A5) reste retenu.
+    let scope = harness.state().key_scope(&harness.ctx);
+    assert_eq!(scope, KeyScope::Typing);
+    assert!(!web_intercepts(scope, Modifiers::COMMAND, Key::F));
+    assert!(web_intercepts(scope, Modifiers::COMMAND, Key::J));
 }
 
 /// Fichier déposé simulé : chemin relatif (comme sur le web) et octets.

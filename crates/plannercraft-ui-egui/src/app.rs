@@ -432,9 +432,17 @@ pub struct App {
     pub(crate) approvals: crate::approvals::Approvals,
     /// Numéro de la prochaine proposition de l'assistant.
     next_proposal: u64,
-    /// Volet latéral : opérations IA et « Pourquoi cette date ? » (J8 lot
-    /// L12) ; jamais persisté.
+    /// Volet latéral : opérations IA, « Pourquoi cette date ? » (J8 lot
+    /// L12), assistant ; ouvert ou fermé recopié dans
+    /// `UiState.side_panel` (lot A5).
     pub(crate) side: crate::view::side_panel::SidePanelState,
+    /// Nouveautés de l'assistant arrivées volet fermé (réponse terminée,
+    /// erreur, proposition ; lot A5, H-UI-166) : pastille du bouton,
+    /// remise à zéro à l'ouverture.
+    assistant_badge: u32,
+    /// Widget qui avait le focus clavier à la fin de l'image précédente
+    /// (egui le retire sur Échap avant l'image suivante ; lot A5).
+    last_focus: Option<egui::Id>,
     /// Assistant IA (ADR-0024, lot A1) : conversation, clé, connexion ;
     /// jamais persisté (la clé ne va pas dans `UiState`).
     pub(crate) assistant: crate::assistant::AssistantPanel,
@@ -464,6 +472,8 @@ impl App {
     #[must_use]
     pub fn new(state: UiState, env: Env) -> Self {
         let state = state.normalized();
+        // Volet latéral retrouvé ouvert ou fermé (lot A5, H-UI-163).
+        let side_open = state.side_panel.open;
         let texts = Texts::new(Language::resolve(state.language, env.system_language));
         let (tx, rx) = mpsc::channel();
         let (save_tx, save_rx) = mpsc::channel();
@@ -510,7 +520,9 @@ impl App {
             relay: None,
             approvals: crate::approvals::Approvals::default(),
             next_proposal: 1,
-            side: crate::view::side_panel::SidePanelState::default(),
+            side: crate::view::side_panel::SidePanelState::opened(side_open),
+            assistant_badge: 0,
+            last_focus: None,
             assistant: crate::assistant::AssistantPanel::new(crate::assistant::AssistantServices::offline()),
             #[cfg(not(target_arch = "wasm32"))]
             recovery: None,
@@ -1631,7 +1643,24 @@ impl App {
             self.next_proposal = host.next_proposal;
             let proposals = std::mem::take(&mut host.proposals);
             drop(host);
+            // Proposition arrivée volet fermé : pastille (lot A5).
+            self.note_assistant_events(u32::try_from(proposals.len()).unwrap_or(u32::MAX));
             self.queue_proposals(proposals);
+        }
+        // Réponse terminée ou en échec volet fermé : pastille (lot A5) ;
+        // la boucle tourne ici, à chaque image, que le volet soit affiché
+        // ou non (H-UI-166).
+        if was_busy && !self.assistant.conversation.busy() {
+            let ended = self.assistant.conversation.turns().last().is_some_and(|turn| {
+                matches!(
+                    turn.state,
+                    plannercraft_assistant::conversation::TurnState::Done
+                        | plannercraft_assistant::conversation::TurnState::Failed(_)
+                )
+            });
+            if ended {
+                self.note_assistant_events(1);
+            }
         }
         // Lot A4 : solde annoncé par le relais, session refusée, compte
         // relu à la fin de chaque demande.
@@ -1639,6 +1668,90 @@ impl App {
             .after_conversation_poll(was_busy, self.state.assistant.access);
         if changed {
             ctx.request_repaint();
+        }
+    }
+
+    /// Compte `n` nouveautés de l'assistant si le volet est fermé (lot A5,
+    /// H-UI-166).
+    fn note_assistant_events(&mut self, n: u32) {
+        if !self.side.open {
+            self.assistant_badge = self.assistant_badge.saturating_add(n);
+        }
+    }
+
+    /// Nouveautés de l'assistant arrivées volet fermé (pastille du bouton,
+    /// lot A5).
+    #[must_use]
+    pub const fn assistant_badge(&self) -> u32 {
+        self.assistant_badge
+    }
+
+    /// Commande du volet latéral (lot A5) : largeur écrite dans `UiState`
+    /// (bornée) ; à l'ouverture sur l'onglet Assistant, focus demandé à la
+    /// saisie ; pastille effacée dès que le volet est ouvert.
+    fn side_op(&mut self, op: crate::view::side_panel::SideOp) {
+        use crate::view::side_panel::SideOp;
+        if let SideOp::SetWidth(width) = op {
+            self.state.side_panel.width =
+                width.clamp(crate::state::SIDE_WIDTH_MIN, crate::state::SIDE_WIDTH_MAX);
+            return;
+        }
+        let shown = self.side.shows_assistant();
+        self.side.apply(op);
+        if self.side.shows_assistant() && !shown {
+            self.assistant.focus_request = true;
+        }
+        self.sync_side_prefs();
+    }
+
+    /// Recopie ouvert ou fermé dans `UiState` (mémorisé, lot A5) et efface
+    /// la pastille quand le volet est ouvert.
+    fn sync_side_prefs(&mut self) {
+        self.state.side_panel.open = self.side.open;
+        if self.side.open {
+            self.assistant_badge = 0;
+        }
+    }
+
+    /// Échap ferme le volet de l'assistant (lot A5, H-UI-162) quand
+    /// personne d'autre ne l'a prise dans l'image (fenêtre, liste,
+    /// surimpression du ruban, réponse en cours arrêtée par la saisie) :
+    /// onglet Assistant affiché, question vide, aucune réponse en cours,
+    /// aucune fenêtre ouverte, focus dans la saisie ou nulle part à l'image
+    /// précédente.
+    fn escape_closes_assistant(&mut self, ctx: &egui::Context, actions: &mut Vec<Action>) {
+        let question = view::assistant::question_id();
+        let focus_ok = self.last_focus.is_none_or(|id| id == question);
+        let free = self.side.shows_assistant()
+            && focus_ok
+            && self.assistant.draft.trim().is_empty()
+            && !self.assistant.conversation.busy()
+            && self.view.dialog.is_none()
+            && !self.view_dialog_open()
+            && self.confirm.is_none()
+            && !self.popup_open
+            && self.view.ribbon_overlay.is_none();
+        if free && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            actions.push(Action::SidePanel(view::side_panel::SideOp::Close));
+            if self.document.is_some() {
+                self.view.focus_table_pending = true;
+            }
+        }
+    }
+
+    /// Ctrl/Cmd+J (lot A5, H-UI-162) : lu avant les autres raccourcis,
+    /// saisie de texte comprise (la question de l'assistant le referme),
+    /// mais pas sous une fenêtre.
+    fn assistant_key(&self, ctx: &egui::Context, actions: &mut Vec<Action>) {
+        if self.view.dialog.is_some() || self.view_dialog_open() {
+            return;
+        }
+        let binding = crate::keymap::Binding::Ui(crate::keymap::UiBinding::ToggleAssistant);
+        if let Some(shortcut) = crate::keymap::shortcut_for(binding)
+            && ctx.input_mut(|i| i.consume_shortcut(shortcut))
+            && let Some(action) = crate::keymap::binding_action(binding)
+        {
+            actions.push(action);
         }
     }
 
@@ -2203,7 +2316,7 @@ impl App {
             Action::ImportCsv => self.start_csv_import(ctx),
             Action::Export(kind) => self.start_export(kind, ctx),
             // J8, lot L12 : volet latéral.
-            Action::SidePanel(op) => self.side.apply(op),
+            Action::SidePanel(op) => self.side_op(op),
             // ADR-0024, lot A1 : assistant IA.
             Action::Assistant(op) => {
                 let env = self.assistant_env();
@@ -2970,8 +3083,14 @@ impl App {
     #[must_use]
     pub fn key_scope(&self, ctx: &egui::Context) -> crate::keymap::KeyScope {
         use crate::keymap::KeyScope;
+        // Saisie de texte hors fenêtre : Ctrl/Cmd+J seulement (lot A5).
+        let window = self.view.dialog.is_some() || self.view_dialog_open();
         if ctx.text_edit_focused() {
-            return KeyScope::Nothing;
+            return if window {
+                KeyScope::Nothing
+            } else {
+                KeyScope::Typing
+            };
         }
         if let Some(dialog) = &self.view.dialog {
             return if matches!(dialog.body, DialogBody::Assign(_)) {
@@ -2983,11 +3102,11 @@ impl App {
                 KeyScope::Nothing
             };
         }
-        if self.view_dialog_open()
-            || self.view.edit.editing.is_some()
-            || self.view.resources.edit.editing.is_some()
-        {
+        if self.view_dialog_open() {
             return KeyScope::Nothing;
+        }
+        if self.view.edit.editing.is_some() || self.view.resources.edit.editing.is_some() {
+            return KeyScope::Typing;
         }
         KeyScope::All(self.key_state(ctx))
     }
@@ -3001,6 +3120,7 @@ impl App {
         if self.global_keys(ctx, actions) {
             return;
         }
+        self.assistant_key(ctx, actions);
         if self.view.dialog.is_some() {
             // « Affecter des ressources » (non modale) : les raccourcis à
             // Ctrl/Cmd qui ne touchent pas la structure (enregistrer,
@@ -3093,6 +3213,9 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.drain_relay(&ctx);
         self.poll_assistant(&ctx);
+        // Volet ouvert d'office par un agent (relais) : mémorisé, pastille
+        // effacée (lot A5).
+        self.sync_side_prefs();
         self.tick_approvals();
         self.poll_io();
         self.poll_save(&ctx);
@@ -3171,9 +3294,13 @@ impl App {
                 window_open: self.view.dialog.is_some(),
                 task_view,
             };
-            let assistant_open = self.side.open && self.side.tab == view::side_panel::SideTab::Assistant;
-            view::chrome::menu_bar(ui, &mut fc, self.side.open, assistant_open);
-            view::ribbon::show(ui, &mut fc, &self.state.ribbon, self.view.ribbon_overlay);
+            view::chrome::menu_bar(ui, &mut fc, self.side.open, self.side.shows_ai());
+            let button = view::ribbon::AssistantButton {
+                open: self.side.open,
+                badge: self.assistant_badge,
+                busy: self.assistant.conversation.busy(),
+            };
+            view::ribbon::show(ui, &mut fc, &self.state.ribbon, self.view.ribbon_overlay, button);
             view::search::search_bar(ui, &mut fc);
             view::chrome::status_bar(ui, &mut fc, &self.messages);
             view::chrome::confirm_banner(ui, &mut fc, confirm_name.as_deref());
@@ -3216,6 +3343,9 @@ impl App {
         self.show_confirmations(&ctx, &palette, &mut actions);
         // Volet de mise en forme des barres (J8 lot L15, H-UI-59), non modal.
         self.show_format_panel(&ctx, &mut actions);
+        // Échap restée libre après le dessin : ferme le volet (lot A5).
+        self.escape_closes_assistant(&ctx, &mut actions);
+        self.last_focus = ctx.memory(egui::Memory::focused);
         self.last_frame = stats;
         self.popup_open = ctx.any_popup_open();
         // Les actions sont appliquées après le dessin : une image de plus
@@ -3233,6 +3363,7 @@ impl App {
         for action in edits.into_iter().chain(others) {
             self.apply(action, &ctx);
         }
+        self.sync_side_prefs();
         // Après le réducteur : un clic dans le Gantt a déjà changé de volet.
         self.refocus_table_after_click(&ctx);
         self.ensure_row_view();

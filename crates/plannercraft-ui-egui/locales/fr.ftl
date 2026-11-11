@@ -1625,7 +1625,7 @@ ribbon-add-to-timeline = Sur la chronologie
 # --- Assistant IA (ADR-0024, lot A1) ---
 side-tab-assistant = Assistant
 menu-assistant = Assistant IA
-ribbon-tip-assistant = Ouvre l'assistant IA : posez une question sur le planning ouvert ; il le lit et répond, sans le modifier.
+ribbon-tip-assistant = Ouvre ou ferme le volet de l'assistant IA : posez une question sur le planning ouvert ; il le lit, répond et peut proposer des modifications à valider.
 assistant-intro-title = Assistant IA
 assistant-disclosure = Les réponses sont générées par une IA et peuvent contenir des erreurs. Votre planning est envoyé à OpenRouter et au fournisseur du modèle.
 assistant-read-only = L'assistant lit le planning, répond et propose des modifications : vous voyez l'avant/après et acceptez ou refusez, rien n'est appliqué sans votre accord.
@@ -1796,3 +1796,15 @@ assistant-error-payment-unavailable = L'achat de crédits est momentanément ind
 assistant-error-mail-unavailable = L'e-mail de connexion n'a pas pu partir : réessayez dans un instant.
 assistant-error-code-refused = Code ou lien refusé ({ $detail }) : vérifiez-le ou demandez-en un nouveau.
 assistant-error-relay = Le serveur PlannerCraft a refusé la demande ({ $detail }).
+
+## Lot A5 : volet de l'assistant toujours à portée (H-UI-161 à H-UI-166)
+
+assistant-button = Assistant IA
+assistant-button-tip = Ouvre ou ferme le volet de l'assistant ; une réponse en cours continue volet fermé.
+assistant-button-badge =
+    { $count ->
+        [one] une nouveauté
+       *[other] { $count } nouveautés
+    }
+assistant-button-busy = Réponse en cours…
+side-splitter-tip = Glisser pour régler la largeur du volet ; double-clic : largeur par défaut

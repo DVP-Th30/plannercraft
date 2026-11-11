@@ -342,10 +342,13 @@ impl RibbonCmd {
             Self::ZoomOut => Action::ZoomBy(-1),
             Self::EntireProject => Action::FitZoom,
             Self::TimelineVisible => Action::Timeline(TimelineOp::SetVisible(!fc.state.timeline_visible)),
-            Self::AiPanel => Action::SidePanel(SideOp::Toggle),
-            Self::Assistant => {
-                Action::SidePanel(SideOp::ToggleTab(crate::view::side_panel::SideTab::Assistant))
+            // Lot A5 (H-UI-161) : Opérations IA ouvre son onglet ou referme
+            // le volet s'il y est ; Assistant IA est la bascule du volet
+            // (bouton du ruban, Ctrl/Cmd+J).
+            Self::AiPanel => {
+                Action::SidePanel(SideOp::ToggleTab(crate::view::side_panel::SideTab::AiOperations))
             }
+            Self::Assistant => Action::SidePanel(SideOp::Toggle),
             Self::Diagnostics => Action::ToggleDiagnostics,
             Self::CollapseRibbon => Action::Ribbon(RibbonOp::ToggleCollapsed),
             Self::CriticalTasks => Action::SetHighlightCritical(!fc.task_view.state.highlight_critical),

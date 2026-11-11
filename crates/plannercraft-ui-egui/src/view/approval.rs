@@ -144,11 +144,23 @@ pub fn decision_row(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, banner: ApprovalBa
             let queued = i64::try_from(banner.queued).unwrap_or(i64::MAX);
             ui.label(texts.get_args(TextId::ApprovalQueued, &[("count", Arg::Count(queued))]));
         }
+        // Libellés des boutons jamais coupés ; dans un volet étroit (lot
+        // A5, largeur fixe), les deux boutons passent ensemble à la ligne
+        // (chacun est dans son propre `push_id`, où egui ne sait plus
+        // renvoyer à la ligne) au lieu de déborder hors du volet.
+        let button = |text: String| egui::Button::new(text).wrap_mode(egui::TextWrapMode::Extend);
+        let need = [TextId::ApprovalAccept, TextId::ApprovalReject]
+            .into_iter()
+            .map(|id| button_width(ui, &texts.get(id)))
+            .sum::<f32>();
+        if row_room(ui) < need {
+            ui.end_row();
+        }
         let accept = ui.push_id("plannercraft_approval_accept", |ui| {
-            ui.button(texts.get(TextId::ApprovalAccept))
+            ui.add(button(texts.get(TextId::ApprovalAccept)))
         });
         let reject = ui.push_id("plannercraft_approval_reject", |ui| {
-            ui.button(texts.get(TextId::ApprovalReject))
+            ui.add(button(texts.get(TextId::ApprovalReject)))
         });
         let (accept, reject) = (accept.inner, reject.inner);
         // egui retire le focus sur Échap en début d'image : le bouton
@@ -173,4 +185,22 @@ pub fn decision_row(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, banner: ApprovalBa
             fc.actions.push(on_reject);
         }
     });
+}
+
+/// Largeur d'un bouton de libellé `text` (une ligne, marges et espacement
+/// compris).
+pub(crate) fn button_width(ui: &egui::Ui, text: &str) -> f32 {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let text_w = ui
+        .painter()
+        .layout_no_wrap(text.to_owned(), font, egui::Color32::PLACEHOLDER)
+        .size()
+        .x;
+    text_w + 2.0 * ui.spacing().button_padding.x + ui.spacing().item_spacing.x
+}
+
+/// Place restante sur la rangée en cours d'une mise en page à retour à la
+/// ligne (`available_width` y rend la largeur entière).
+pub(crate) fn row_room(ui: &egui::Ui) -> f32 {
+    ui.max_rect().right() - ui.cursor().left()
 }

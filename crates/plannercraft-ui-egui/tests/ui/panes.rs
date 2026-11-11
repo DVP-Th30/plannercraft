@@ -155,7 +155,7 @@ fn right_click(harness: &mut Harness<'static, App>, p: Pos2) {
 }
 
 /// Glisse de `from` à `to` (quatre pas) et lâche.
-fn drag(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
+pub(crate) fn drag(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
     harness.hover_at(from);
     harness.step();
     harness.drag_at(from);
@@ -170,7 +170,7 @@ fn drag(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
 }
 
 /// Double-clic en `p`.
-fn double_click(harness: &mut Harness<'static, App>, p: Pos2) {
+pub(crate) fn double_click(harness: &mut Harness<'static, App>, p: Pos2) {
     harness.hover_at(p);
     harness.step();
     for _ in 0..2 {

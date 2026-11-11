@@ -307,11 +307,22 @@ fn h_ui_92_web_intercepts() {
         assert!(scope.reads(*context, *binding), "{shortcut:?}");
     }
     assert!(seen >= 10, "{seen}");
-    // Saisie ouverte : tout reste au navigateur.
+    // Saisie ouverte : tout reste au navigateur, sauf Ctrl/Cmd+J (volet
+    // de l'assistant, lot A5).
     harness.key_press(Key::F2);
     harness.run();
     let scope = harness.state().key_scope(&harness.ctx);
-    assert_eq!(scope, KeyScope::Nothing);
+    assert_eq!(scope, KeyScope::Typing);
+    assert!(!plannercraft_ui_egui::keymap::web_intercepts(
+        scope,
+        egui::Modifiers::COMMAND,
+        Key::A
+    ));
+    assert!(plannercraft_ui_egui::keymap::web_intercepts(
+        scope,
+        egui::Modifiers::COMMAND,
+        Key::J
+    ));
 }
 
 /// H-UI-93 : bloc 2-3 × Durée-Début, cellule active (3, Début) : Entrée

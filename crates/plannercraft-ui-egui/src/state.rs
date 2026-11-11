@@ -102,6 +102,18 @@ pub const DETAILS_HEIGHT_MIN: u16 = 120;
 /// la fenêtre (40 % et 60 %) s'applique à la disposition (`panes::layout`).
 pub const PANE_HEIGHT_MAX: u16 = 4_000;
 
+/// Largeur par défaut du volet latéral (assistant, opérations IA), en
+/// points (lot A5, H-UI-163).
+pub const SIDE_WIDTH_DEFAULT: u16 = 460;
+
+/// Largeur minimale du volet latéral, en points (lot A5, H-UI-163) ; la
+/// borne haute relative à la fenêtre (50 %) s'applique à la disposition
+/// (`view::side_panel::panel_width`).
+pub const SIDE_WIDTH_MIN: u16 = 320;
+
+/// Largeur maximale enregistrée du volet latéral, en points.
+pub const SIDE_WIDTH_MAX: u16 = 4_000;
+
 /// Préférences d'interface persistées.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -166,6 +178,28 @@ pub struct UiState {
     /// « Réduire les animations » (lot A1b, H-UI-147) : défilements animés
     /// d'egui et pulsation de l'assistant coupés.
     pub reduce_motion: bool,
+    /// Volet latéral (lot A5, H-UI-163) : ouvert ou fermé, largeur.
+    pub side_panel: SidePanelPrefs,
+}
+
+/// Préférences du volet latéral (lot A5, H-UI-163) : retrouvé ouvert ou
+/// fermé au lancement suivant, à la largeur choisie.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SidePanelPrefs {
+    /// Volet ouvert (faux par défaut).
+    pub open: bool,
+    /// Largeur, en points ([`SIDE_WIDTH_DEFAULT`] par défaut).
+    pub width: u16,
+}
+
+impl Default for SidePanelPrefs {
+    fn default() -> Self {
+        Self {
+            open: false,
+            width: SIDE_WIDTH_DEFAULT,
+        }
+    }
 }
 
 /// Longueur au plus de l'identifiant de modèle mémorisé.
@@ -530,6 +564,7 @@ impl Default for UiState {
             indicators_added: true,
             assistant: AssistantPrefs::default(),
             reduce_motion: false,
+            side_panel: SidePanelPrefs::default(),
         }
     }
 }
@@ -644,6 +679,7 @@ impl UiState {
             indicators_added: reader.field("indicators_added", false),
             assistant: reader.field("assistant", defaults.assistant),
             reduce_motion: reader.field("reduce_motion", defaults.reduce_motion),
+            side_panel: reader.field("side_panel", defaults.side_panel),
         };
         let mut state = state.normalized();
         add_indicators_once(&mut state);
@@ -712,6 +748,7 @@ impl UiState {
         self.columns = normalize_columns(std::mem::take(&mut self.columns));
         self.timeline_height = self.timeline_height.clamp(TIMELINE_HEIGHT_MIN, PANE_HEIGHT_MAX);
         self.details.height = self.details.height.clamp(DETAILS_HEIGHT_MIN, PANE_HEIGHT_MAX);
+        self.side_panel.width = self.side_panel.width.clamp(SIDE_WIDTH_MIN, SIDE_WIDTH_MAX);
         if self.assistant.model.chars().count() > MAX_ASSISTANT_MODEL_CHARS {
             self.assistant.model = AssistantPrefs::default().model;
         }
@@ -1485,6 +1522,7 @@ mod tests {
                 height: u16::MAX,
                 form: super::DetailsForm::PredecessorsSuccessors,
             },
+            side_panel: super::SidePanelPrefs { open: true, width: 3 },
             columns: vec![
                 ColumnState {
                     width: 0,
@@ -1511,6 +1549,7 @@ mod tests {
         assert_eq!(state.table_width, TABLE_WIDTH_MIN);
         assert_eq!(state.timeline_height, super::TIMELINE_HEIGHT_MIN);
         assert_eq!(state.details.height, super::PANE_HEIGHT_MAX);
+        assert_eq!(state.side_panel.width, super::SIDE_WIDTH_MIN);
         let order: Vec<Column> = state.columns.iter().map(|c| c.column).collect();
         assert_eq!(
             order,

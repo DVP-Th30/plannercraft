@@ -42,6 +42,7 @@ Fenêtre étroite : les groupes de droite perdent d'abord les libellés de leurs
 | Désactiver une tâche | Tâche → Planification → **Désactiver** |
 | Décaler des tâches de quelques jours | Tâche → Planification → **Décaler ▾** (+1 jour, +1 semaine, +4 semaines, −1 jour, −1 semaine, Personnalisé… : « 3j », « -2sem ») ; menu Tâche → Décaler. Une tâche automatique reçoit la contrainte « Début au plus tôt le » ; une tâche manuelle garde sa durée ; une récapitulative décale ses tâches ; les tâches achevées ou inactives ne bougent pas. Une seule annulation, et un message dit ce qui a été fait |
 | Comprendre pourquoi une tâche commence à cette date | Tâche → Tâches → **Inspecter** (volet « Pourquoi cette date ? ») |
+| Assistant IA | Bouton **✦** en haut à droite de la barre des onglets (toujours visible, ruban réduit compris), **Ctrl+J** (Cmd+J sur macOS), ou Affichage → Fractionner l'affichage → **Assistant IA** : ouvre ou ferme le volet de l'assistant ; une pastille signale une réponse terminée ou une proposition arrivée volet fermé |
 | Informations sur la tâche, notes | Tâche → Propriétés → **Informations** (Maj+F2), **Notes** |
 | Retrouver la barre d'une tâche | Tâche → Édition → **Atteindre la tâche** |
 | Rechercher | Tâche → Édition → **Rechercher** (Ctrl+F ; suivant Ctrl+G) |
