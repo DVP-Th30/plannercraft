@@ -1066,6 +1066,12 @@ fp-role-inactive = Inactive tasks
 fp-role-manual = Manually scheduled tasks
 fp-role-slack = Slack
 fp-role-deadline = Deadline
+fp-role-count =
+    { $count ->
+        [0] No bar of this type in this schedule.
+        [one] { $count } bar of this type in this schedule.
+       *[other] { $count } bars of this type in this schedule.
+    }
 fp-color = Color
 fp-custom-color = Custom color
 fp-swatch = Color { $color }

@@ -1458,3 +1458,118 @@ fn h_ui_194_contrast_three_backgrounds() {
     }
     assert!(!warned(&harness));
 }
+
+/// Nombre de lignes affichées dont la barre est du type `role`, compté ici
+/// ligne par ligne avec la règle du Gantt (`gantt::row_role`) et la
+/// surbrillance du critique de la vue (H-UI-197).
+fn bars_of(app: &App, role: BarRole) -> usize {
+    let rows = app.visible_rows().unwrap();
+    let critical = app.view().task_view.highlight_critical;
+    (0..rows.len())
+        .filter_map(|i| rows.row(plannercraft_ui_egui::row_view::DisplayRow::at(i)))
+        .filter(|row| plannercraft_ui_egui::view::gantt::row_role(row, critical) == Some(role))
+        .count()
+}
+
+/// Texte du compte des barres pour `count` barres (H-UI-197).
+fn count_label(count: usize) -> String {
+    label(
+        TextId::FpRoleCount,
+        &[("count", Arg::Count(i64::try_from(count).unwrap()))],
+    )
+}
+
+/// Textes dessinés qui disent un compte de barres (H-UI-197).
+fn count_lines(harness: &Harness<'static, App>) -> Vec<String> {
+    texts(harness)
+        .into_iter()
+        .map(|(_, t)| t)
+        .filter(|t| t.ends_with("de ce type dans ce planning."))
+        .collect()
+}
+
+/// H-UI-197 (lot R1d) : sous « Type de barre », le volet dit combien de
+/// barres du type choisi le planning affiché contient ; le compte est celui
+/// des lignes du Gantt (même règle, même surbrillance du critique).
+#[test]
+fn h_ui_197_role_count_shown() {
+    let (mut harness, _) = sobre_p();
+    open_panel(&mut harness, BarRole::Task, None);
+    let n = bars_of(harness.state(), BarRole::Task);
+    assert_eq!(count_lines(&harness), vec![count_label(n)]);
+    // Chaque type de ligne : le texte suit le type choisi.
+    for role in [
+        BarRole::Critical,
+        BarRole::Summary,
+        BarRole::SummaryCritical,
+        BarRole::Milestone,
+        BarRole::MilestoneCritical,
+        BarRole::Inactive,
+        BarRole::Manual,
+    ] {
+        harness
+            .state_mut()
+            .dispatch(Action::Format(FormatOp::SetRole(role)));
+        harness.run();
+        let n = bars_of(harness.state(), role);
+        assert_eq!(count_lines(&harness), vec![count_label(n)], "{role:?}");
+    }
+}
+
+/// H-UI-197 : un type sans barre dans le planning ⇒ « Aucune barre de ce
+/// type dans ce planning. » (barres critiques, surbrillance du critique
+/// coupée : le Gantt les dessine alors en barres de tâches).
+#[test]
+fn h_ui_197_role_count_none() {
+    let (mut harness, _) = sobre_p();
+    open_panel(&mut harness, BarRole::Task, None);
+    assert!(
+        bars_of(harness.state(), BarRole::Critical) > 0,
+        "exemple sans tâche critique"
+    );
+    let all = bars_of(harness.state(), BarRole::Task) + bars_of(harness.state(), BarRole::Critical);
+    harness.state_mut().dispatch(Action::SetHighlightCritical(false));
+    harness.run();
+    harness
+        .state_mut()
+        .dispatch(Action::Format(FormatOp::SetRole(BarRole::Critical)));
+    harness.run();
+    assert_eq!(bars_of(harness.state(), BarRole::Critical), 0);
+    let none = "Aucune barre de ce type dans ce planning.".to_owned();
+    assert_eq!(count_label(0), none);
+    assert_eq!(count_lines(&harness), vec![none]);
+    // Les barres critiques sont comptées avec les barres de tâches.
+    harness
+        .state_mut()
+        .dispatch(Action::Format(FormatOp::SetRole(BarRole::Task)));
+    harness.run();
+    assert_eq!(bars_of(harness.state(), BarRole::Task), all);
+    assert_eq!(count_lines(&harness), vec![count_label(all)]);
+}
+
+/// H-UI-197 : avancement, ligne de base, marge, échéance ne sont pas des
+/// types de ligne ⇒ aucune ligne de compte.
+#[test]
+fn h_ui_197_role_count_hidden_for_overlays() {
+    let (mut harness, _) = sobre_p();
+    for role in [
+        BarRole::Progress,
+        BarRole::Baseline,
+        BarRole::Slack,
+        BarRole::Deadline,
+    ] {
+        open_panel(&mut harness, role, None);
+        let title = label(
+            TextId::FpTitle,
+            &[(
+                "role",
+                Arg::Str(fr(plannercraft_ui_egui::view::format_panel::role_label(role)).into()),
+            )],
+        );
+        assert!(
+            harness.query_by_label(&title).is_some(),
+            "volet {role:?} non ouvert"
+        );
+        assert!(count_lines(&harness).is_empty(), "{role:?}");
+    }
+}

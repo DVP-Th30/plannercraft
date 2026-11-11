@@ -1065,6 +1065,12 @@ fp-role-inactive = Tâches inactives
 fp-role-manual = Tâches manuelles
 fp-role-slack = Marge
 fp-role-deadline = Échéance
+fp-role-count =
+    { $count ->
+        [0] Aucune barre de ce type dans ce planning.
+        [one] { $count } barre de ce type dans ce planning.
+       *[other] { $count } barres de ce type dans ce planning.
+    }
 fp-color = Couleur
 fp-custom-color = Couleur libre
 fp-swatch = Couleur { $color }

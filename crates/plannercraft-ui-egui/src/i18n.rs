@@ -1001,6 +1001,7 @@ text_ids! {
     FpRoleManual => "fp-role-manual",
     FpRoleSlack => "fp-role-slack",
     FpRoleDeadline => "fp-role-deadline",
+    FpRoleCount => "fp-role-count",
     FpColor => "fp-color",
     FpCustomColor => "fp-custom-color",
     FpSwatch => "fp-swatch",
