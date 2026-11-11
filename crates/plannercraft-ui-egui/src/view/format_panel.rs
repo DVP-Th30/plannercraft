@@ -36,6 +36,7 @@ use plannercraft_render::style::{
 };
 
 use crate::i18n::{Arg, TextId, Texts};
+use crate::row_view::{DisplayRow, VisibleRows};
 
 /// Rapport minimal d'une barre sur le fond (H-UI-45 : 3:1).
 const MIN_BAR: u32 = 3_000;
@@ -114,6 +115,12 @@ pub struct FormatInput<'a> {
     pub variant: Variant,
     /// Langue des commandes.
     pub lang: Language,
+    /// Lignes affichées par le Gantt (filtre, regroupement, plan replié) :
+    /// compte des barres du type choisi (lot R1d, H-UI-197).
+    pub rows: Option<VisibleRows<'a>>,
+    /// Surbrillance du chemin critique, comme le Gantt (H-UI-38) : décide si
+    /// une ligne critique est du type critique ou du type ordinaire.
+    pub highlight_critical: bool,
 }
 
 /// Libellé d'un type de barre.
@@ -133,6 +140,45 @@ pub const fn role_label(role: BarRole) -> TextId {
         BarRole::Slack => TextId::FpRoleSlack,
         BarRole::Deadline => TextId::FpRoleDeadline,
     }
+}
+
+/// Le type `role` est-il celui d'une ligne du Gantt (lot R1d, H-UI-197) ?
+/// Avancement, ligne de base, marge et échéance se dessinent par-dessus ou
+/// à côté d'une barre : ce ne sont pas des types de ligne.
+#[must_use]
+pub const fn is_row_role(role: BarRole) -> bool {
+    match role {
+        BarRole::Task
+        | BarRole::Critical
+        | BarRole::Summary
+        | BarRole::SummaryCritical
+        | BarRole::Milestone
+        | BarRole::MilestoneCritical
+        | BarRole::Inactive
+        | BarRole::Manual => true,
+        BarRole::Progress | BarRole::Baseline | BarRole::Slack | BarRole::Deadline => false,
+    }
+}
+
+/// Nombre de barres du type `role` que le Gantt dessine (lot R1d,
+/// H-UI-197), avec sa règle (`gantt::row_role`) : un simple parcours des
+/// lignes affichées, sans allocation. Un en-tête de groupe compte pour une
+/// récapitulative quand il a une barre, comme le Gantt le dessine
+/// (H-UI-129).
+#[must_use]
+pub fn role_count(rows: &VisibleRows<'_>, role: BarRole, highlight_critical: bool) -> usize {
+    (0..rows.len())
+        .filter(|&i| {
+            let d = DisplayRow::at(i);
+            let drawn = match rows.header_bar_row(d) {
+                Some(group) => super::gantt::row_role(&group, highlight_critical),
+                None => rows
+                    .row(d)
+                    .and_then(|row| super::gantt::row_role(row, highlight_critical)),
+            };
+            drawn == Some(role)
+        })
+        .count()
 }
 
 /// Libellé d'un champ affiché.
@@ -475,6 +521,17 @@ pub fn show(
                 state.pending = None;
                 state.thickness = None;
             }
+            // Lot R1d (H-UI-197) : combien de barres de ce type le planning
+            // affiché contient (une couleur posée sur un type absent ne
+            // change rien à l'écran) ; types de ligne seulement.
+            if is_row_role(role)
+                && let Some(rows) = &input.rows
+            {
+                let count = role_count(rows, role, input.highlight_critical);
+                let count = i64::try_from(count).unwrap_or(i64::MAX);
+                let text = texts.get_args(TextId::FpRoleCount, &[("count", Arg::Count(count))]);
+                ui.label(egui::RichText::new(text).weak());
+            }
             ui.separator();
             // Couleur (lot R1c, H-UI-193) : nuancier stable en trois
             // rangées, couleur libre ; couleur courante telle que dessinée.
@@ -792,6 +849,11 @@ impl crate::app::App {
             default: self.state.default_template,
             variant,
             lang,
+            rows: self
+                .rows
+                .as_ref()
+                .map(|model| VisibleRows::new(model, &self.row_view)),
+            highlight_critical: self.view.task_view.highlight_critical,
         };
         for effect in show(ctx, &self.texts, state, &input) {
             match effect {
