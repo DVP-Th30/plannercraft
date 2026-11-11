@@ -276,8 +276,9 @@ fn r163_touched_undo_redo() {
 fn r163_touched_summary_and_order() {
     // Deux sous-tâches passées à 100 % : la récapitulative, dont
     // l'avancement est calculé et non enregistré, n'est pas touchée.
-    // Déplacer une tâche dans la liste sans changer de niveau ne change
-    // que l'ordre (et les ID) : aucune tâche touchée (règle consignée).
+    // Déplacer une tâche dans la liste sans changer de niveau la touche
+    // (amendement du 2026-11-11, ordre) : c passe devant S, seule c est
+    // déplacée (S, a et b gardent leur ordre relatif ; leurs ID changent).
     let mut ws = workspace(&json!([
         { "op": "task.add", "name": "S", "duration": { "text": "1j" } },
         { "op": "task.add", "name": "a", "duration": { "text": "2j" } },
@@ -295,5 +296,111 @@ fn r163_touched_summary_and_order() {
     ]);
     assert_eq!(touched_and_changed(&mut ws, &ops), (2, 0));
     let order_only = json!([{ "op": "task.move", "uid": 4, "to": { "before": 1 } }]);
-    assert_eq!(touched_and_changed(&mut ws, &order_only), (0, 0));
+    assert_eq!(touched_and_changed(&mut ws, &order_only), (1, 0));
+}
+
+// --- R-163 amendée (2026-11-11, ordre) : tâches déplacées ---
+
+#[test]
+fn r163_touched_move_to_head() {
+    // Exemple de la règle : la tâche 6 passée en tête d'une liste de six
+    // ⇒ 1 tâche modifiée (les cinq autres ne changent que d'ID), aucune
+    // date déplacée. Annuler et rétablir rendent le même compte.
+    let mut ws = six_tasks();
+    let ops = json!([{ "op": "task.move", "uid": 6, "to": { "before": 1 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (1, 0));
+    let undo = ws.call("history.undo", json!({})).unwrap();
+    assert_eq!(counts(&undo["diff"]), (1, 0));
+    let redo = ws.call("history.redo", json!({})).unwrap();
+    assert_eq!(counts(&redo["diff"]), (1, 0));
+}
+
+#[test]
+fn r163_touched_swap_neighbours() {
+    // Exemple de la règle : T3 passée devant T2 (deux voisines échangées)
+    // ⇒ 1 tâche modifiée. Départage : la tâche remontée (T3) est réputée
+    // déplacée. Vérifié par un renommage dans le même lot : renommer T3
+    // ne touche rien de plus (1), renommer T2 ajoute une tâche (2).
+    let mut ws = six_tasks();
+    let swap = json!([{ "op": "task.move", "uid": 3, "to": { "before": 2 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &swap), (1, 0));
+    // Retour à l'ordre initial (T2 remonte devant T3), puis les deux cas.
+    let back = json!([{ "op": "task.move", "uid": 2, "to": { "before": 3 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &back), (1, 0));
+    let swap_rename_moved = json!([
+        { "op": "task.move", "uid": 3, "to": { "before": 2 } },
+        { "op": "task.update", "uid": 3, "name": "T3 bis" }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &swap_rename_moved), (1, 0));
+    let undo = ws.call("history.undo", json!({})).unwrap();
+    assert_eq!(counts(&undo["diff"]), (1, 0));
+    let swap_rename_other = json!([
+        { "op": "task.move", "uid": 3, "to": { "before": 2 } },
+        { "op": "task.update", "uid": 2, "name": "T2 bis" }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &swap_rename_other), (2, 0));
+    let undo = ws.call("history.undo", json!({})).unwrap();
+    assert_eq!(counts(&undo["diff"]), (2, 0));
+    let redo = ws.call("history.redo", json!({})).unwrap();
+    assert_eq!(counts(&redo["diff"]), (2, 0));
+}
+
+/// X1 à X`n` de 1 j, puis S et ses deux sous-tâches a et b.
+fn block_after(n: usize) -> Workspace {
+    let mut ops: Vec<Value> = (1..=n)
+        .map(|i| json!({ "op": "task.add", "name": format!("X{i}"), "duration": { "text": "1j" } }))
+        .collect();
+    for name in ["S", "a", "b"] {
+        ops.push(json!({ "op": "task.add", "name": name, "duration": { "text": "1j" } }));
+    }
+    let mut ws = workspace(&Value::Array(ops));
+    let a = n + 2;
+    ws.call(
+        "batch.apply",
+        json!({ "ops": [
+            { "op": "task.indent", "uid": a },
+            { "op": "task.indent", "uid": a + 1 }
+        ] }),
+    )
+    .unwrap();
+    ws
+}
+
+#[test]
+fn r163_touched_block_moved() {
+    // Exemple de la règle : le bloc S, a, b passé devant une tâche X ⇒
+    // 1 tâche modifiée (X : le plus petit ensemble à retirer pour que les
+    // autres gardent leur ordre) ; le même bloc passé devant quatre
+    // tâches ⇒ 3 (S, a et b).
+    let mut ws = block_after(1);
+    let ops = json!([{ "op": "task.move", "uid": 2, "to": { "before": 1 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (1, 0));
+    let mut ws = block_after(4);
+    let ops = json!([{ "op": "task.move", "uid": 5, "to": { "before": 1 } }]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (3, 0));
+}
+
+#[test]
+fn r163_touched_move_and_field_counted_once() {
+    // Exemple de la règle : la tâche 6 passée en tête et renommée dans le
+    // même lot ⇒ 1 (une seule tâche, comptée une fois).
+    let mut ws = six_tasks();
+    let ops = json!([
+        { "op": "task.move", "uid": 6, "to": { "before": 1 } },
+        { "op": "task.update", "uid": 6, "name": "T6 bis", "duration": { "text": "3j" } }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &ops), (1, 1));
+}
+
+#[test]
+fn r163_touched_insert_and_delete_move_nothing() {
+    // Une tâche ajoutée au milieu ou supprimée décale les ID de ses
+    // voisines sans les rendre déplacées : 1 tâche touchée.
+    let mut ws = six_tasks();
+    let insert = json!([
+        { "op": "task.add", "name": "N", "duration": { "text": "1j" }, "at": { "before": 2 } }
+    ]);
+    assert_eq!(touched_and_changed(&mut ws, &insert), (1, 1));
+    let delete = json!([{ "op": "task.delete", "uid": 1 }]);
+    assert_eq!(touched_and_changed(&mut ws, &delete), (1, 1));
 }

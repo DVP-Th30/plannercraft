@@ -417,8 +417,8 @@ pub struct DiffView {
     /// en tout (R-163).
     pub changed_total: usize,
     /// Tâches touchées par le lot, en tout (R-163 amendée) : donnée
-    /// enregistrée changée, ajoutées, supprimées, ou dates déplacées ;
-    /// toujours `>= changed_total`.
+    /// enregistrée changée, ajoutées, supprimées, déplacées dans la liste
+    /// (2026-11-11), ou dates déplacées ; toujours `>= changed_total`.
     pub touched_total: usize,
     /// Tâches changées, les plus décalées d'abord.
     pub changed: Vec<TaskChangeView>,

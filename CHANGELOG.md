@@ -68,6 +68,7 @@ Finitions avant `v1.0.0` (ADR-0022, cahier `docs/plans/polish.md`) : les manques
 - Un clic dans le Gantt laisse le clavier à la table (flèches, frappe, presse-papiers) ; glisser la barre d'une tâche d'une sélection multiple garde la sélection.
 - Sélection plus visible en clair et en sombre (teinte, bordure de 2 px, ID appuyés) ; un clic simple ne teinte plus toute la ligne ; survol discret de la ligne.
 - Serveur MCP : SDK `rmcp` monté de 3.5.1 à 3.9.0 (alertes RUSTSEC-2026-0457, 0461 et 0462 ; la seconde touchait `plannercraft mcp --http` : mémoire sans borne sur des appels d'outils inconnus). Aucun changement d'outil ni de réponse.
+- Une proposition de l'assistant ou une écriture d'agent qui déplace des tâches dans la liste compte désormais ces tâches comme modifiées (« 1 tâche modifiée · aucune date déplacée » pour une tâche passée en tête) ; seules les tâches réellement déplacées comptent, pas celles dont l'ID change parce qu'une autre est passée devant elles (`touched_total`, R-163 amendée, ADR-0028 D1).
 
 ### Corrigé
 - Gantt, aperçu, SVG et PDF : quand « aujourd'hui » tombe le même jour que la date d'état (ou à moins de 4 points), seul le trait de la date d'état est dessiné ; les deux traits presque superposés faisaient un trait bicolore brouillon sous « État 15/01 » dans l'exemple (ADR-0027 D2).

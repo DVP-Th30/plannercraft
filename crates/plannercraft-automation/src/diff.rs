@@ -2,7 +2,7 @@
 //! afficher du panneau d'opérations IA ([`DiffView`], J8 lot L12).
 
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, btree_map};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::iter::Peekable;
 
 use plannercraft_core::calendar::CompiledCalendar;
@@ -31,8 +31,9 @@ pub struct ScheduleDiff {
     pub changed_total: usize,
     /// Nombre exact de tâches touchées par le lot (R-163 amendée) : donnée
     /// enregistrée changée (champ de la tâche ou de l'une de ses
-    /// affectations), ajoutées ou supprimées, réunies avec les tâches de
-    /// `changed_total`. Toujours `>= changed_total`.
+    /// affectations), ajoutées ou supprimées, déplacées dans la liste
+    /// (amendement du 2026-11-11, [`moved_tasks`]), réunies avec les tâches
+    /// de `changed_total`. Toujours `>= changed_total`.
     pub touched_total: usize,
     /// Tâches changées, triées, au plus N.
     pub changed: Vec<TaskChange>,
@@ -155,7 +156,7 @@ pub(crate) fn diff_schedules(
     }
     changed.sort_by(compare);
     d.changed_total = changed.len();
-    d.touched_total = touched_tasks(before_p, after_p, entities, &changed).len();
+    d.touched_total = touched_tasks(before_p, after_p, entities, changed.iter().map(|c| c.uid)).len();
     d.truncated = changed.len() > n;
     changed.truncate(n);
     d.changed = changed;
@@ -165,14 +166,15 @@ pub(crate) fn diff_schedules(
 /// Tâches touchées (R-163 amendée), triées par UID : tâches du delta par
 /// entité (champ changé, ajoutée, supprimée), tâches des affectations
 /// changées, ajoutées ou retirées (tâche d'avant et d'après de
-/// l'affectation, si elle existe d'un côté), et tâches aux dates changées.
-/// L'ordre seul (déplacement dans la liste, IDs renumérotés) ne touche
-/// aucune tâche.
-fn touched_tasks(
+/// l'affectation, si elle existe d'un côté), tâches déplacées dans la liste
+/// ([`moved_tasks`], amendement du 2026-11-11 : une tâche dont seul l'ID
+/// change parce qu'une autre est passée devant elle n'est pas déplacée), et
+/// tâches aux dates changées.
+pub(crate) fn touched_tasks(
     before_p: &Project,
     after_p: &Project,
     entities: &Delta,
-    changed: &[TaskChange],
+    changed: impl IntoIterator<Item = TaskUid>,
 ) -> BTreeSet<TaskUid> {
     let mut touched: BTreeSet<TaskUid> = entities.tasks.changed.iter().map(|c| c.0).collect();
     let exists = |uid: TaskUid| before_p.tasks.contains(uid) || after_p.tasks.contains(uid);
@@ -183,8 +185,72 @@ fn touched_tasks(
             }
         }
     }
-    touched.extend(changed.iter().map(|c| c.uid));
+    touched.extend(moved_tasks(entities.tasks.order.as_ref()));
+    touched.extend(changed);
     touched
+}
+
+/// Tâches déplacées dans la liste (R-163 amendée le 2026-11-11), triées par
+/// UID, calculées sur le seul ordre des UID (avant, après) du delta par
+/// entité (R-164) : parmi les tâches présentes des deux côtés (une tâche
+/// ajoutée ou supprimée ne rend pas ses voisines déplacées), celles qui
+/// restent hors d'une plus longue sous-suite commune des deux ordres, soit
+/// le plus petit ensemble de tâches à retirer pour que les autres gardent
+/// leur ordre relatif.
+///
+/// Départage (plusieurs plus longues sous-suites) : la sous-suite gardée
+/// est choisie de la dernière tâche vers la première, en prenant à chaque
+/// pas la tâche placée le plus bas dans la liste d'après ; deux voisines
+/// échangées ⇒ la tâche remontée est réputée déplacée. Calculé sur l'ordre
+/// du lot (et non sur les deux projets) : annuler et rétablir, qui
+/// reprennent le delta de l'entrée, trouvent le même ensemble.
+///
+/// Plus longue sous-suite croissante des rangs d'avant pris dans l'ordre
+/// d'après (tri par paquets, recherche dichotomique) : O(n log n), sans
+/// table quadratique.
+pub(crate) fn moved_tasks(order: Option<&(Vec<TaskUid>, Vec<TaskUid>)>) -> BTreeSet<TaskUid> {
+    let Some((before, after)) = order else {
+        return BTreeSet::new();
+    };
+    let in_after: BTreeSet<TaskUid> = after.iter().copied().collect();
+    // Rang d'avant des seules tâches présentes des deux côtés.
+    let rank: BTreeMap<TaskUid, usize> = before
+        .iter()
+        .filter(|u| in_after.contains(u))
+        .enumerate()
+        .map(|(i, u)| (*u, i))
+        .collect();
+    let seq: Vec<(TaskUid, usize)> = after
+        .iter()
+        .filter_map(|u| rank.get(u).map(|r| (*u, *r)))
+        .collect();
+    // `tails[k]` : indice dans `seq` de la dernière tâche (dans l'ordre
+    // d'après) qui termine une sous-suite croissante de longueur k + 1 ;
+    // `prev[i]` : tâche qui précède `i` dans sa sous-suite.
+    let mut tails: Vec<usize> = Vec::new();
+    let mut prev: Vec<Option<usize>> = Vec::with_capacity(seq.len());
+    for (i, (_, r)) in seq.iter().enumerate() {
+        let k = tails.partition_point(|t| seq.get(*t).is_some_and(|x| x.1 < *r));
+        let before_k = k.checked_sub(1).and_then(|j| tails.get(j)).copied();
+        prev.push(before_k);
+        match tails.get_mut(k) {
+            Some(slot) => *slot = i,
+            None => tails.push(i),
+        }
+    }
+    let mut kept = vec![false; seq.len()];
+    let mut cur = tails.last().copied();
+    while let Some(i) = cur {
+        if let Some(k) = kept.get_mut(i) {
+            *k = true;
+        }
+        cur = prev.get(i).copied().flatten();
+    }
+    seq.iter()
+        .zip(kept)
+        .filter(|(_, k)| !k)
+        .map(|((u, _), _)| *u)
+        .collect()
 }
 
 /// Surutilisations apparues et résolues (J5, ADR-0013 D9) : jointure
@@ -467,7 +533,9 @@ mod tests {
     use plannercraft_core::Moment;
     use serde_json::{Value, json};
 
-    use super::{CriticalChange, DiffSide, DiffView, MAX_VIEW_ROWS, RowChange};
+    use plannercraft_core::TaskUid;
+
+    use super::{CriticalChange, DiffSide, DiffView, MAX_VIEW_ROWS, RowChange, moved_tasks};
     use crate::command::Batch;
     use crate::session::{ApplyOptions, Session};
     use crate::text::{Language, TextContext};
@@ -578,5 +646,56 @@ mod tests {
         let v = view(&s, &Value::Array(ops));
         assert_eq!(v.rows.len(), MAX_VIEW_ROWS);
         assert_eq!(v.more, 50);
+    }
+
+    fn uids(v: &[u32]) -> Vec<TaskUid> {
+        v.iter().map(|u| TaskUid::new(*u)).collect()
+    }
+
+    fn moved(before: &[u32], after: &[u32]) -> Vec<u32> {
+        moved_tasks(Some(&(uids(before), uids(after))))
+            .into_iter()
+            .map(TaskUid::get)
+            .collect()
+    }
+
+    /// R-163 (ordre) : plus petit ensemble de tâches à retirer pour que les
+    /// autres gardent leur ordre ; départage : la tâche remontée.
+    #[test]
+    fn r163_moved_tasks_rule() {
+        assert_eq!(moved_tasks(None).len(), 0);
+        assert_eq!(moved(&[1, 2, 3, 4], &[4, 1, 2, 3]), vec![4]);
+        assert_eq!(moved(&[1, 2, 3, 4], &[2, 3, 4, 1]), vec![1]);
+        // Deux voisines échangées : la remontée (3) est déplacée.
+        assert_eq!(moved(&[1, 2, 3, 4], &[1, 3, 2, 4]), vec![3]);
+        // Deux blocs de même taille échangés : le bloc remonté.
+        assert_eq!(moved(&[1, 2, 3, 4], &[3, 4, 1, 2]), vec![3, 4]);
+        // Bloc de trois passé devant une tâche : la tâche passée.
+        assert_eq!(moved(&[1, 2, 3, 4], &[2, 3, 4, 1]), vec![1]);
+        // Ajouts et suppressions ne déplacent pas les voisines.
+        assert_eq!(moved(&[1, 2, 3], &[1, 9, 3]), Vec::<u32>::new());
+        assert_eq!(moved(&[1, 2, 3], &[9, 1, 2, 3]), Vec::<u32>::new());
+        assert_eq!(moved(&[1, 2, 3], &[3, 9, 1]), vec![3]);
+        // Ordre inversé : tout sauf la dernière d'après.
+        assert_eq!(moved(&[1, 2, 3, 4], &[4, 3, 2, 1]), vec![2, 3, 4]);
+    }
+
+    /// R-163 (ordre) : 10 000 tâches, permutation quelconque ; le compte
+    /// est n − (plus longue sous-suite), même valeur dans les deux sens.
+    #[test]
+    fn r163_moved_tasks_large() {
+        let n: u32 = 10_000;
+        let before: Vec<u32> = (1..=n).collect();
+        // Permutation déterministe : multiplication modulaire.
+        let after: Vec<u32> = (0..n).map(|i| (i * 7_919) % n + 1).collect();
+        let forward = moved(&before, &after).len();
+        let backward = moved(&after, &before).len();
+        assert_eq!(forward, backward);
+        assert!(forward > 0 && forward < n as usize);
+        // Un seul déplacement dans 10 000 : une tâche.
+        let mut one = before.clone();
+        let last = one.pop().unwrap();
+        one.insert(0, last);
+        assert_eq!(moved(&before, &one), vec![n]);
     }
 }
