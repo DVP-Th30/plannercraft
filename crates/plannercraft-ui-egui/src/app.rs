@@ -446,6 +446,8 @@ pub struct App {
     /// Assistant IA (ADR-0024, lot A1) : conversation, clé, connexion ;
     /// jamais persisté (la clé ne va pas dans `UiState`).
     pub(crate) assistant: crate::assistant::AssistantPanel,
+    /// Palette de commandes (interface adoucie, lot U3) : jamais persistée.
+    pub(crate) palette: crate::palette::PaletteState,
     /// Journal de reprise après plantage (desktop, J7 lot L15) : branché
     /// par [`App::set_recovery`], suit le document à chaque changement.
     #[cfg(not(target_arch = "wasm32"))]
@@ -524,6 +526,7 @@ impl App {
             assistant_badge: 0,
             last_focus: None,
             assistant: crate::assistant::AssistantPanel::new(crate::assistant::AssistantServices::offline()),
+            palette: crate::palette::PaletteState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             recovery: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -1686,6 +1689,62 @@ impl App {
         self.assistant_badge
     }
 
+    /// Palette de commandes (lot U3) : ouverte, saisie, lignes affichées.
+    #[must_use]
+    pub const fn palette(&self) -> &crate::palette::PaletteState {
+        &self.palette
+    }
+
+    /// Ouvre ou ferme la palette (lot U3, H-UI-177) : jamais sous une
+    /// fenêtre.
+    fn palette_op(&mut self, op: crate::palette::PaletteOp) {
+        match op {
+            crate::palette::PaletteOp::Open => {
+                if self.view.dialog.is_none() && !self.view_dialog_open() {
+                    self.palette.open();
+                }
+            }
+            crate::palette::PaletteOp::Close => self.palette.close(),
+        }
+    }
+
+    /// « Demander à l'assistant » (lot U3, H-UI-182) : volet ouvert sur
+    /// l'onglet Assistant, question préremplie, focus demandé ; rien n'est
+    /// envoyé.
+    fn ask_assistant(&mut self, text: String) {
+        self.side_op(crate::view::side_panel::SideOp::Open(
+            crate::view::side_panel::SideTab::Assistant,
+        ));
+        self.assistant.draft = text;
+        self.assistant.focus_request = true;
+    }
+
+    /// Touches de la palette ouverte (lot U3), lues avant le dessin : ↑ ↓,
+    /// Entrée, Tab ; Échap et Ctrl/Cmd+K la referment. Les autres
+    /// raccourcis ne sont pas lus pendant qu'elle est ouverte.
+    fn palette_keys(&mut self, ctx: &egui::Context) {
+        use egui::{Key, Modifiers};
+        let toggle = crate::keymap::shortcut_for(crate::keymap::Binding::Ui(
+            crate::keymap::UiBinding::CommandPalette,
+        ));
+        let keys = &mut self.palette.keys;
+        let close = ctx.input_mut(|input| {
+            let down = input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown);
+            let up = input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp);
+            let delta = i64::try_from(down)
+                .unwrap_or(0)
+                .saturating_sub(i64::try_from(up).unwrap_or(0));
+            keys.moves = i32::try_from(delta).unwrap_or(0);
+            keys.run = input.consume_key(Modifiers::NONE, Key::Enter);
+            keys.ask = input.consume_key(Modifiers::NONE, Key::Tab);
+            input.consume_key(Modifiers::NONE, Key::Escape)
+                || toggle.is_some_and(|shortcut| input.consume_shortcut(shortcut))
+        });
+        if close {
+            self.palette.close();
+        }
+    }
+
     /// Commande du volet latéral (lot A5) : largeur écrite dans `UiState`
     /// (bornée) ; à l'ouverture sur l'onglet Assistant, focus demandé à la
     /// saisie ; pastille effacée dès que le volet est ouvert.
@@ -1730,6 +1789,7 @@ impl App {
             && !self.view_dialog_open()
             && self.confirm.is_none()
             && !self.popup_open
+            && !self.palette.open
             && self.view.ribbon_overlay.is_none();
         if free && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             actions.push(Action::SidePanel(view::side_panel::SideOp::Close));
@@ -2317,6 +2377,9 @@ impl App {
             Action::Export(kind) => self.start_export(kind, ctx),
             // J8, lot L12 : volet latéral.
             Action::SidePanel(op) => self.side_op(op),
+            // Interface adoucie, lot U3 : palette de commandes.
+            Action::Palette(op) => self.palette_op(op),
+            Action::AskAssistant(text) => self.ask_assistant(text),
             // ADR-0024, lot A1 : assistant IA.
             Action::Assistant(op) => {
                 let env = self.assistant_env();
@@ -3042,6 +3105,7 @@ impl App {
     /// confirmation de suppression.
     fn refocus_table_after_click(&mut self, ctx: &egui::Context) {
         let idle = self.document.is_some()
+            && !self.palette.open
             && self.view.focus == Pane::Table
             && self.view.dialog.is_none()
             && !self.view_dialog_open()
@@ -3068,6 +3132,7 @@ impl App {
             && ctx.memory(|memory| memory.has_focus(table_id()))
             && self.view.edit.editing.is_none()
             && !self.popup_open
+            && !self.palette.open
             && self.view.dialog.is_none()
             && self.pending_delete.is_none()
             && self.view.resources.edit.editing.is_none()
@@ -3118,6 +3183,11 @@ impl App {
         // Touches globales de sortie et de fermeture (seconde passe UX,
         // `quit.rs`) : lues avant tout le reste.
         if self.global_keys(ctx, actions) {
+            return;
+        }
+        // Palette ouverte (lot U3) : ses touches seulement.
+        if self.palette.open {
+            self.palette_keys(ctx);
             return;
         }
         self.assistant_key(ctx, actions);
@@ -3250,6 +3320,23 @@ impl App {
             self.view.focus_table_pending = false;
             self.focus_pane(Pane::Table, &ctx);
         }
+        // Palette refermée (lot U3, H-UI-179) : focus rendu au volet actif
+        // de la vue ; une fenêtre ou un champ ouvert par la commande le
+        // reprend en se dessinant.
+        // Attendu tant que la palette est encore la couche modale du dessus
+        // (fermée pendant son dessin : egui refuse le focus dessous une
+        // image de plus) ; seulement si personne d'autre n'a pris le focus.
+        if self.palette.refocus
+            && ctx.memory(egui::Memory::top_modal_layer) != Some(view::palette::layer_id())
+        {
+            self.palette.refocus = false;
+            let query = view::palette::query_id();
+            let free = ctx.memory(|memory| memory.focused().is_none_or(|id| id == query));
+            ctx.memory_mut(|memory| memory.surrender_focus(query));
+            if free && self.document.is_some() {
+                self.focus_pane(self.view.focus, &ctx);
+            }
+        }
         let mut actions = std::mem::take(&mut self.actions);
         // Raccourcis avant le dessin : la touche consommée n'atteint aucun
         // widget. Fenêtre ouverte (J7, lot L9) : la fenêtre est dessinée
@@ -3371,6 +3458,8 @@ impl App {
                     ui.advance_cursor_after_rect(card);
                 });
             }
+            // Palette de commandes (lot U3), au-dessus de tout.
+            view::palette::show(&ctx, &mut fc, &mut self.palette);
         }
         self.show_confirmations(&ctx, &palette, &mut actions);
         // Volet de mise en forme des barres (J8 lot L15, H-UI-59), non modal.

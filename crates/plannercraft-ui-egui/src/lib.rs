@@ -34,6 +34,7 @@ pub mod io;
 pub mod keymap;
 pub mod nav;
 pub mod notify;
+pub mod palette;
 pub mod panes;
 pub mod query;
 pub mod quit;

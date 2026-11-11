@@ -156,6 +156,10 @@ pub enum UiBinding {
     /// Ctrl/Cmd+J : ouvre (focus sur la saisie) ou ferme le volet de
     /// l'assistant ; lu aussi pendant une saisie de texte (`App::read_keys`).
     ToggleAssistant,
+    // --- Lot U3 d'ADR-0026 (H-UI-177).
+    /// Ctrl/Cmd+K : ouvre la palette de commandes (Ctrl/Cmd+K ou Échap la
+    /// referment, lus par la palette elle-même).
+    CommandPalette,
 }
 
 /// Liaison d'un raccourci.
@@ -438,6 +442,16 @@ pub const KEYMAP: &[(KeyContext, Shortcut, Binding)] = &[
         Shortcut::new(COMMAND, Key::J),
         Binding::Ui(UiBinding::ToggleAssistant),
     ),
+    // --- Lot U3 d'ADR-0026 (H-UI-177) : palette de commandes, partout,
+    // accueil compris (hypothèse : convention « Ctrl+K » des palettes de
+    // commandes ; touche libre dans cette table). Sur le web, retenue au
+    // navigateur (Chrome et Firefox : barre de recherche) quand l'image la
+    // lit ; repli : clic sur le champ de la barre du haut.
+    (
+        KeyContext::Global,
+        Shortcut::new(COMMAND, Key::K),
+        Binding::Ui(UiBinding::CommandPalette),
+    ),
 ];
 
 /// Raccourcis que le navigateur ne rend jamais à la page (Ctrl/Cmd+N, W,
@@ -635,6 +649,7 @@ pub const fn ui_action(binding: UiBinding) -> Action {
         UiBinding::ToggleBold => Action::TextStyle(crate::action::TextStyleOp::ToggleBold),
         UiBinding::ToggleItalic => Action::TextStyle(crate::action::TextStyleOp::ToggleItalic),
         UiBinding::ToggleAssistant => Action::SidePanel(crate::view::side_panel::SideOp::Toggle),
+        UiBinding::CommandPalette => Action::Palette(crate::palette::PaletteOp::Open),
     }
 }
 

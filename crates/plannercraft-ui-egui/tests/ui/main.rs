@@ -25,7 +25,8 @@
 //! Assistant IA (ADR-0024, lot A1) : `assistant` (activation, connexion
 //! simulée, flux, arrêt, erreurs, modèle, capture) ; lot A5 :
 //! `assistant_panel` (bouton, Ctrl/Cmd+J, Échap, pastille, largeur,
-//! volet par-dessus la vue).
+//! volet par-dessus la vue). Interface adoucie, lot U3 : `palette`
+//! (palette de commandes, Ctrl/Cmd+K).
 //!
 //! Cible unique `ui` (un seul binaire lié à wgpu, ADR-0011, décision 12).
 //! Les libellés cherchés sont construits par `Texts` (jamais en dur : le
@@ -72,6 +73,7 @@ mod j8_e2e;
 mod messages;
 mod nav;
 mod outline;
+mod palette;
 mod panes;
 mod paste_destination;
 mod polish;
@@ -291,7 +293,12 @@ fn in_ribbon(harness: &Harness<'static, App>, node: &egui_kittest::Node<'_>) -> 
     let same = |r: Option<egui::Rect>| {
         r.is_some_and(|b| b.min.distance(rect.min) < 0.5 && b.max.distance(rect.max) < 0.5)
     };
-    if same(drawn.assistant.map(|(button, _)| button)) || same(drawn.menu) || same(drawn.chevron) {
+    // Champ de la palette (lot U3).
+    if same(drawn.assistant.map(|(button, _)| button))
+        || same(drawn.menu)
+        || same(drawn.chevron)
+        || same(drawn.palette)
+    {
         return true;
     }
     drawn

@@ -26,7 +26,6 @@ use crate::dialog::filter::{self, FilterDialog, FilterDialogMode, FilterOutcome}
 use crate::dialog::sort::{self, SortDialog, SortOutcome};
 use crate::geom::index_to_f32;
 use crate::i18n::{Arg, TextId};
-use crate::keymap::{Binding, UiBinding, shortcut_for_os, shortcut_text};
 use crate::row_view::ModelRow;
 use crate::rows::{RowKind, RowModel};
 use crate::selection::Selection;
@@ -736,105 +735,30 @@ pub fn status_indicator(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     }
 }
 
-/// Entrée de menu à raccourci éventuel ; rend vrai au clic.
-fn entry(ui: &mut egui::Ui, text: String, binding: Option<UiBinding>, enabled: bool) -> bool {
-    let mut button = egui::Button::new(text);
-    if let Some(shortcut) = binding.and_then(|b| shortcut_for_os(Binding::Ui(b), ui.ctx().os())) {
-        button = button.shortcut_text(shortcut_text(ui.ctx(), shortcut));
-    }
-    ui.add_enabled(enabled, button).clicked()
-}
-
 /// Entrées du menu Affichage : Filtre (prédéfinis, ressource, dates,
 /// personnalisé, réappliquer, retirer), Trier…, Trier par ID, Niveau
 /// hiérarchique, masquer et afficher les sous-tâches. Grisées sans
-/// document.
+/// document. Lot U3 : entrées décrites une fois par
+/// `chrome::list_choices` (mêmes que les listes du ruban et la palette).
 pub fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    use super::chrome::{ChoiceLook, draw_choices, list_choices};
+    use crate::ribbon::spec::RibbonCmd;
     let texts = fc.texts;
-    let has_doc = fc.doc.is_some();
-    let push = |fc: &mut FrameCtx<'_>, op: TaskViewOp| fc.actions.push(Action::TaskView(op));
     ui.separator();
     ui.menu_button(texts.get(TextId::MenuFilter), |ui| {
-        ui.add_enabled_ui(has_doc, |ui| {
-            for (preset, label) in PRESETS {
-                let current = fc.task_view.state.filter == FilterChoice::Preset(preset.clone());
-                if ui
-                    .selectable_label(has_doc && current, texts.get(label))
-                    .clicked()
-                {
-                    push(fc, TaskViewOp::SetFilter(FilterChoice::Preset(preset)));
-                }
-            }
-            ui.separator();
-            for (label, mode) in [
-                (TextId::FilterUsingResource, FilterDialogMode::Resource),
-                (TextId::FilterDateRange, FilterDialogMode::DateRange),
-                (TextId::FilterCustom, FilterDialogMode::Custom),
-            ] {
-                if entry(ui, texts.get(label), None, true) {
-                    push(fc, TaskViewOp::OpenFilterDialog(mode));
-                }
-            }
-            ui.separator();
-            let filtered = fc.task_view.state.is_filtered();
-            if entry(ui, texts.get(TextId::FilterReapply), None, filtered) {
-                push(fc, TaskViewOp::ReapplyFilter);
-            }
-            if entry(
-                ui,
-                texts.get(TextId::FilterClear),
-                Some(UiBinding::ClearFilter),
-                filtered,
-            ) {
-                push(fc, TaskViewOp::ClearFilter);
-            }
-        });
+        draw_choices(ui, fc, &list_choices(fc, RibbonCmd::FilterMenu));
     });
-    if entry(ui, texts.get(TextId::MenuSort), None, has_doc) {
-        push(fc, TaskViewOp::OpenSortDialog);
-    }
-    let sorted = fc.task_view.state.is_sorted();
-    if entry(
-        ui,
-        texts.get(TextId::MenuSortById),
-        Some(UiBinding::SortById),
-        has_doc && sorted,
-    ) {
-        push(fc, TaskViewOp::ResetSort);
-    }
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::SortMenu));
+    let (levels, mut subtasks): (Vec<_>, Vec<_>) = list_choices(fc, RibbonCmd::OutlineMenu)
+        .into_iter()
+        .partition(|entry| entry.look == ChoiceLook::Selectable);
     ui.menu_button(texts.get(TextId::MenuOutlineLevel), |ui| {
-        ui.add_enabled_ui(has_doc, |ui| {
-            let current = fc.task_view.state.outline_level;
-            for level in 1..=MAX_OUTLINE_LEVEL {
-                let label = texts.get_args(TextId::OutlineLevelN, &[("count", Arg::Count(i64::from(level)))]);
-                if ui.selectable_label(current == Some(level), label).clicked() {
-                    push(fc, TaskViewOp::SetOutlineLevel(Some(level)));
-                }
-            }
-            if ui
-                .selectable_label(current.is_none(), texts.get(TextId::OutlineAll))
-                .clicked()
-            {
-                push(fc, TaskViewOp::SetOutlineLevel(None));
-            }
-        });
+        draw_choices(ui, fc, &levels);
     });
-    if entry(
-        ui,
-        texts.get(TextId::MenuHideSubtasks),
-        Some(UiBinding::HideSubtasks),
-        has_doc,
-    ) {
-        push(fc, TaskViewOp::HideSubtasks);
+    for entry in &mut subtasks {
+        entry.sep_before = false;
     }
-    if entry(
-        ui,
-        texts.get(TextId::MenuShowSubtasks),
-        Some(UiBinding::ShowSubtasks),
-        has_doc,
-    ) {
-        push(fc, TaskViewOp::ShowSubtasks);
-    }
+    draw_choices(ui, fc, &subtasks);
 }
 
 /// Ligne du modèle de la correspondance courante (tests).

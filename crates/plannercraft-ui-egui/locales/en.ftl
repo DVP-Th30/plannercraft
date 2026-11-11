@@ -1831,3 +1831,17 @@ ribbon-more = More commands: { $group }
 details-task-number = Task { $id }
 details-badge-summary = Summary
 details-badge-milestone = Milestone
+
+## Lot U3: command palette (H-UI-177 to H-UI-183)
+
+palette-field = Search for a command…
+palette-field-tip = Every ribbon and menu command, from the keyboard.
+palette-name = Command palette
+palette-list = Commands
+palette-ask = Ask the assistant: “{ $query }”
+palette-no-match = No matching command.
+palette-hint-move = ↑↓ select
+palette-hint-run = ↵ run
+palette-hint-close = Esc close
+palette-hint-ask = Tab: ask the assistant
+palette-unavailable = Not available right now.

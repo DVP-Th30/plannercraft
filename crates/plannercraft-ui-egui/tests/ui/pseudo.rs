@@ -280,6 +280,49 @@ fn pseudo_main_view_no_truncation() {
     );
 }
 
+/// Palette de commandes (lot U3, H-UI-183) : barre du haut avec le champ
+/// « Rechercher une commande… », puis la palette ouverte (aucune tâche
+/// choisie : commandes grisées avec leur raison, pied) : aucun texte
+/// coupé, en pleine largeur et à 800 points.
+#[test]
+fn pseudo_palette_no_truncation() {
+    let labels = pseudo_labels();
+    let mut harness = pseudo_harness(Vec::new());
+    let seen: BTreeSet<String> = seen_ids(&harness, &labels).into_iter().map(pseudo).collect();
+    assert!(
+        seen.contains(&pseudo(TextId::PaletteField)),
+        "champ de la palette non dessiné : {seen:?}"
+    );
+    harness.state_mut().dispatch(Action::Select(None));
+    harness.run();
+    harness
+        .state_mut()
+        .dispatch(Action::Palette(plannercraft_ui_egui::palette::PaletteOp::Open));
+    harness.run();
+    assert!(harness.state().palette().open);
+    assert!(
+        harness.state().palette().listed.iter().any(|l| !l.enabled),
+        "aucune commande grisée"
+    );
+    assert_not_cut(&harness, &labels, "palette", 8);
+    let seen: BTreeSet<String> = seen_ids(&harness, &labels).into_iter().map(pseudo).collect();
+    assert!(seen.contains(&pseudo(TextId::PaletteHintClose)), "{seen:?}");
+    assert!(
+        seen.contains(&pseudo(TextId::RibbonReasonNoSelection)),
+        "{seen:?}"
+    );
+    harness.set_size(egui::vec2(800.0, 600.0));
+    harness.run();
+    // À 800 points, la barre d'état (hors du lot U3) déborde déjà en
+    // pseudo-langue (« Planning cohérent », lot U1) : seule la palette est
+    // contrôlée ici.
+    let cut: Vec<String> = cut_labels(&harness, &labels)
+        .into_iter()
+        .filter(|c| !c.starts_with("StatusConsistent "))
+        .collect();
+    assert!(cut.is_empty(), "palette à 800 points : {}", cut.join("\n"));
+}
+
 /// Fenêtres Trier, Filtre personnalisé, Filtre par ressource, Filtre par
 /// dates, Importer CSV (aperçu), galerie des modèles, mise en page et
 /// mode impression (J8 lot L15) : aucun texte coupé.

@@ -1830,3 +1830,17 @@ ribbon-more = Plus de commandes : { $group }
 details-task-number = Tâche { $id }
 details-badge-summary = Récapitulative
 details-badge-milestone = Jalon
+
+## Lot U3 : palette de commandes (H-UI-177 à H-UI-183)
+
+palette-field = Rechercher une commande…
+palette-field-tip = Toutes les commandes du ruban et des menus, au clavier.
+palette-name = Palette de commandes
+palette-list = Commandes
+palette-ask = Demander à l'assistant : « { $query } »
+palette-no-match = Aucune commande ne correspond.
+palette-hint-move = ↑↓ choisir
+palette-hint-run = ↵ lancer
+palette-hint-close = Échap fermer
+palette-hint-ask = Tab : demander à l'assistant
+palette-unavailable = Indisponible pour l'instant.

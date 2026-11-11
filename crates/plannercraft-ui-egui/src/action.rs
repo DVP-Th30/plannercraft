@@ -257,6 +257,13 @@ pub enum Action {
     /// Fermer le document, après confirmation s'il est modifié (Ctrl/Cmd+W,
     /// Ctrl+F4, H-UI-109) ; la fenêtre reste ouverte (écran d'accueil).
     CloseDocumentGuarded,
+    // --- Interface adoucie (ADR-0026, lot U3) : palette de commandes.
+    /// Ouvre ou ferme la palette de commandes (H-UI-177).
+    Palette(crate::palette::PaletteOp),
+    /// « Demander à l'assistant : « … » » (H-UI-182) : volet ouvert sur
+    /// l'onglet Assistant, question préremplie avec le texte ; rien n'est
+    /// envoyé.
+    AskAssistant(String),
     // --- Finitions avant v1.0.0 (ADR-0022, lot P1).
     /// Affichage → Zoom → Tâches sélectionnées (H-UI-124) : échelle la plus
     /// fine où les barres de la sélection tiennent dans la largeur du

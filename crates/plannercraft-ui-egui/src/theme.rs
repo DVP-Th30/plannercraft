@@ -352,6 +352,12 @@ pub struct ChromeTokens {
     pub soft_text: Color32,
     /// Succès (point « Planning cohérent », lecture réussie).
     pub ok: Color32,
+    /// Voile posé sur l'application sous la palette de commandes (lot U3,
+    /// maquette : `rgba(43,41,49,.32)` en clair, `rgba(8,6,12,.55)` en
+    /// sombre).
+    pub scrim: Color32,
+    /// Ombre de la palette de commandes (maquette : `rgba(20,12,30,.28)`).
+    pub float_shadow: Color32,
 }
 
 impl ChromeTokens {
@@ -388,6 +394,8 @@ impl ChromeTokens {
         control_border: hex32(0x00D6_D2DD),
         soft_text: hex32(0x005E_1389),
         ok: hex32(0x002E_8B57),
+        scrim: Color32::from_rgba_unmultiplied_const(0x2B, 0x29, 0x31, 82),
+        float_shadow: Color32::from_rgba_unmultiplied_const(0x14, 0x0C, 0x1E, 71),
     };
 
     /// Thème sombre (interface adoucie, lot U1).
@@ -424,6 +432,8 @@ impl ChromeTokens {
         control_border: hex32(0x003F_3B48),
         soft_text: hex32(0x00D9_B8F2),
         ok: hex32(0x005F_C08A),
+        scrim: Color32::from_rgba_unmultiplied_const(0x08, 0x06, 0x0C, 140),
+        float_shadow: Color32::from_rgba_unmultiplied_const(0x14, 0x0C, 0x1E, 71),
     };
 
     /// Jetons du thème résolu.

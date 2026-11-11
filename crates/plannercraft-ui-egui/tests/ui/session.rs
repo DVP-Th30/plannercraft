@@ -282,6 +282,8 @@ fn check_keymap_entry(i: usize) {
         }
         // Lot A5 (H-UI-162) : Ctrl/Cmd+J, `assistant_panel.rs`.
         Binding::Ui(UiBinding::ToggleAssistant) => crate::assistant_panel::check_keymap_entry(i),
+        // Lot U3 (H-UI-177) : Ctrl/Cmd+K, `palette.rs`.
+        Binding::Ui(UiBinding::CommandPalette) => crate::palette::check_keymap_entry(i),
         other => panic!("entrée {i} sans vérification : {other:?}"),
     }
 }
@@ -394,6 +396,7 @@ keymap_entry_tests! {
     ui_keymap_each_shortcut_dispatches_86 => 86,
     // Lot A5 d'ADR-0024.
     ui_keymap_each_shortcut_dispatches_87 => 87,
+    ui_keymap_each_shortcut_dispatches_88 => 88,
 }
 
 /// Lot refusé : UID absent.
