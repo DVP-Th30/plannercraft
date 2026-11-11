@@ -32,7 +32,7 @@
 //! de la bande d'onglets, toujours visible (ruban replié, accueil sans
 //! document) ; bascule le volet latéral, enfoncé quand il est ouvert,
 //! pastille des nouveautés arrivées volet fermé, pulsation discrète
-//! pendant une réponse ([`AssistantButton`]).
+//! pendant une réponse tant que le volet est fermé ([`AssistantButton`]).
 //!
 //! Repli (H-UI-72) : seule la bande d'onglets reste ; un clic sur un onglet
 //! ouvre le corps dans une `egui::Area` au premier plan, sous la bande
@@ -72,7 +72,7 @@ pub struct AssistantButton {
     pub open: bool,
     /// Nouveautés arrivées volet fermé (pastille si > 0, volet fermé).
     pub badge: u32,
-    /// Réponse en cours (pulsation).
+    /// Réponse en cours (pulsation, volet fermé seulement).
     pub busy: bool,
 }
 
@@ -647,6 +647,8 @@ pub struct RibbonDrawn {
     pub groups: Vec<(String, Stage, Rect)>,
     /// Bouton de l'assistant (lot A5) et sa pastille, si dessinée.
     pub assistant: Option<(Rect, Option<Rect>)>,
+    /// Contour « réponse en cours » dessiné autour du bouton (H-UI-166).
+    pub assistant_ring: bool,
 }
 
 impl Default for RibbonDrawn {
@@ -657,6 +659,7 @@ impl Default for RibbonDrawn {
             items: Vec::new(),
             groups: Vec::new(),
             assistant: None,
+            assistant_ring: false,
         }
     }
 }
@@ -847,8 +850,10 @@ fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, 
 /// la bande `band` : icône `sparkles` ; survol, appui et bascule enfoncée
 /// comme les éléments du ruban (jetons du lifting P4) ; pastille à
 /// l'accent (nombre au-delà d'une nouveauté, « 9+ » au-delà de neuf) si
-/// le volet est fermé ; pendant une réponse, contour à l'accent qui
-/// pulse (fixe si « Réduire les animations »). Clic ⇒ `SideOp::Toggle`.
+/// le volet est fermé ; pendant une réponse, volet fermé, contour à
+/// l'accent qui pulse (fixe si « Réduire les animations ») : volet
+/// ouvert, la réponse s'écrit sous les yeux et le bouton reste fixe.
+/// Clic ⇒ `SideOp::Toggle`.
 fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: AssistantButton) {
     if !band.is_finite() {
         return;
@@ -887,7 +892,8 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: Assistant
     let icon = Rect::from_center_size(rect.center(), Vec2::splat(ASSISTANT_ICON));
     let ink = if b.open { tokens.accent } else { tokens.text };
     paint_icon(&painter, icon, Icon::Sparkles, ink);
-    if b.busy {
+    let ring = b.busy && !b.open;
+    if ring {
         let reduce = fc.state.reduce_motion;
         let alpha = if reduce {
             0.7
@@ -933,7 +939,10 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: Assistant
         }
         disk
     });
-    record(&ctx, |d| d.assistant = Some((rect, dot)));
+    record(&ctx, |d| {
+        d.assistant = Some((rect, dot));
+        d.assistant_ring = ring;
+    });
     let binding = crate::keymap::Binding::Ui(crate::keymap::UiBinding::ToggleAssistant);
     let title = tooltip_title(&ctx, &name, Some(binding));
     let mut tip = texts.get(TextId::AssistantButtonTip);
