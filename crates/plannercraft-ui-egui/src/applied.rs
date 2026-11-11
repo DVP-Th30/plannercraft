@@ -226,6 +226,12 @@ impl crate::App {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "tests : un échec doit s'arrêter net et lisiblement"
+)]
 mod tests {
     use plannercraft_automation::Batch;
     use plannercraft_automation::registry::{Kind, REGISTRY};

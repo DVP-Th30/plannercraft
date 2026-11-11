@@ -2141,6 +2141,9 @@ mod tests {
     fn sample_args() -> Vec<(&'static str, Arg<'static>)> {
         vec![
             ("product", Arg::Str("plannercraft".into())),
+            // Lot R1 : infobulle des barres, colonnes affichées.
+            ("link", Arg::Str("FD".into())),
+            ("names", Arg::Str("Noms ressources, Notes".into())),
             // Lot U3 (ADR-0026) : ligne « Demander à l'assistant ».
             ("query", Arg::Str("lier".into())),
             // Lot U2 (ADR-0026) : menu « … » d'un groupe du ruban compact.

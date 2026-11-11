@@ -1218,7 +1218,7 @@ fn cell(rows: &RowModel, uid: TaskUid, column: Column) -> &str {
 /// tableau ; `None` quand il n'y a rien d'utile à dire (agrégat d'une
 /// récapitulative).
 fn driver_line(
-    driver: &DriverView,
+    driver: DriverView,
     doc: &OpenDocument,
     rows: &RowModel,
     texts: &Texts,
@@ -1232,12 +1232,12 @@ fn driver_line(
             TextId::BarTipSummaryGate,
             &[(
                 "name",
-                Arg::Str(cell(rows, TaskUid::new(*summary), Column::Name).into()),
+                Arg::Str(cell(rows, TaskUid::new(summary), Column::Name).into()),
             )],
         ),
         DriverView::Link { predecessor, link } => {
-            let pred = TaskUid::new(*predecessor);
-            let kind = LinkType::from(*link);
+            let pred = TaskUid::new(predecessor);
+            let kind = LinkType::from(link);
             // FD et FF : la fin du prédécesseur ; DD et DF : son début.
             let (id, column) = match kind {
                 LinkType::FinishToStart | LinkType::FinishToFinish => {
@@ -1289,7 +1289,7 @@ fn why_lines(
         StepView::Driver { driver, .. } => Some(driver),
         _ => None,
     });
-    if let Some(line) = driver.and_then(|d| driver_line(d, doc, rows, texts, uid)) {
+    if let Some(line) = driver.and_then(|d| driver_line(*d, doc, rows, texts, uid)) {
         lines.push(line);
     }
     if let Some(name) = moved_by_calendar(&view.steps, doc.project().calendar.get()) {

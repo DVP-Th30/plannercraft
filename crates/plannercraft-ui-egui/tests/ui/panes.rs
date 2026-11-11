@@ -547,7 +547,7 @@ fn zone_of(d: &PanesDrawn) -> f32 {
 #[test]
 fn h_ui_187_release_too_low_stays_closed() {
     let mut harness = p();
-    let before = harness.state().state.details.clone();
+    let before = harness.state().state.details;
     let g = opener(&harness).center();
     drag(&mut harness, g, g - vec2(0.0, 100.0));
     assert_eq!(harness.state().state.details, before);

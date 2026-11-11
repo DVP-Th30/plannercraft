@@ -629,6 +629,8 @@ fn h_ui_54_status_label() {
 /// différentes) ⇒ seul le trait de la date d'état ; règle des 4 points.
 #[test]
 fn h_ui_185_today_merged_with_status_date() {
+    use plannercraft_render::geometry::{TODAY_STATUS_MIN_GAP16, today_line_shown};
+
     let mut p = project_p();
     p.status_date = Some(at("2026-11-02T17:00"));
     p.current_date = at("2026-11-02T08:00");
@@ -638,7 +640,6 @@ fn h_ui_185_today_merged_with_status_date() {
     assert_eq!(lines(&sc, Class::StatusLine), 1);
     assert_eq!(lines(&sc, Class::Today), 0);
     // Règle pure : même jour, écart sous 4 points, date d'état non tracée.
-    use plannercraft_render::geometry::{TODAY_STATUS_MIN_GAP16, today_line_shown};
     let (status, same_day, next_day) = (
         at("2026-11-02T17:00"),
         at("2026-11-02T08:00"),
