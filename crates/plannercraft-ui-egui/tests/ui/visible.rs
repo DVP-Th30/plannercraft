@@ -1459,15 +1459,21 @@ fn h_ui_194_contrast_three_backgrounds() {
     assert!(!warned(&harness));
 }
 
-/// Nombre de lignes affichées dont la barre est du type `role`, compté ici
-/// ligne par ligne avec la règle du Gantt (`gantt::row_role`) et la
-/// surbrillance du critique de la vue (H-UI-197).
+/// Nombre de barres du type `role` que le Gantt dessine, compté ici ligne
+/// par ligne avec sa règle (`gantt::row_role`) et la surbrillance du
+/// critique de la vue ; un en-tête de groupe qui a une barre compte pour
+/// une récapitulative (H-UI-197).
 fn bars_of(app: &App, role: BarRole) -> usize {
+    use plannercraft_ui_egui::row_view::DisplayRow;
+    use plannercraft_ui_egui::view::gantt::row_role;
     let rows = app.visible_rows().unwrap();
     let critical = app.view().task_view.highlight_critical;
     (0..rows.len())
-        .filter_map(|i| rows.row(plannercraft_ui_egui::row_view::DisplayRow::at(i)))
-        .filter(|row| plannercraft_ui_egui::view::gantt::row_role(row, critical) == Some(role))
+        .filter_map(|i| {
+            let d = DisplayRow::at(i);
+            rows.header_bar_row(d).or_else(|| rows.row(d).copied())
+        })
+        .filter(|row| row_role(row, critical) == Some(role))
         .count()
 }
 
@@ -1572,4 +1578,28 @@ fn h_ui_197_role_count_hidden_for_overlays() {
         );
         assert!(count_lines(&harness).is_empty(), "{role:?}");
     }
+}
+
+/// H-UI-197 : planning regroupé ⇒ les barres des en-têtes de groupe, que le
+/// Gantt dessine en récapitulatives (H-UI-129), sont comptées avec les
+/// récapitulatives.
+#[test]
+fn h_ui_197_role_count_group_headers() {
+    use plannercraft_render::style::GroupBy;
+    use plannercraft_ui_egui::group_view::GroupOp;
+    use plannercraft_ui_egui::row_view::DisplayRow;
+    let (mut harness, _) = sobre_p();
+    harness
+        .state_mut()
+        .dispatch(Action::Group(GroupOp::Set(Some(GroupBy::Critical))));
+    harness.run();
+    open_panel(&mut harness, BarRole::Summary, None);
+    let rows = harness.state().visible_rows().unwrap();
+    let headers = (0..rows.len())
+        .filter(|&i| rows.header_bar_row(DisplayRow::at(i)).is_some())
+        .count();
+    assert!(headers > 0, "regroupement sans barre d'en-tête");
+    let n = bars_of(harness.state(), BarRole::Summary);
+    assert!(n >= headers);
+    assert_eq!(count_lines(&harness), vec![count_label(n)]);
 }

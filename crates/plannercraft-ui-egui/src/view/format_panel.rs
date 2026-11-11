@@ -36,7 +36,7 @@ use plannercraft_render::style::{
 };
 
 use crate::i18n::{Arg, TextId, Texts};
-use crate::row_view::VisibleRows;
+use crate::row_view::{DisplayRow, VisibleRows};
 
 /// Rapport minimal d'une barre sur le fond (H-UI-45 : 3:1).
 const MIN_BAR: u32 = 3_000;
@@ -160,17 +160,24 @@ pub const fn is_row_role(role: BarRole) -> bool {
     }
 }
 
-/// Nombre de lignes affichées dont la barre est du type `role` (lot R1d,
-/// H-UI-197), avec la règle du Gantt (`gantt::row_role`) : un simple
-/// parcours des lignes de la vue, sans allocation ; les en-têtes de groupe
-/// (sans tâche) ne comptent pas.
+/// Nombre de barres du type `role` que le Gantt dessine (lot R1d,
+/// H-UI-197), avec sa règle (`gantt::row_role`) : un simple parcours des
+/// lignes affichées, sans allocation. Un en-tête de groupe compte pour une
+/// récapitulative quand il a une barre, comme le Gantt le dessine
+/// (H-UI-129).
 #[must_use]
 pub fn role_count(rows: &VisibleRows<'_>, role: BarRole, highlight_critical: bool) -> usize {
-    rows.view()
-        .order()
-        .iter()
-        .filter_map(|m| rows.model().row(m.index()))
-        .filter(|row| super::gantt::row_role(row, highlight_critical) == Some(role))
+    (0..rows.len())
+        .filter(|&i| {
+            let d = DisplayRow::at(i);
+            let drawn = match rows.header_bar_row(d) {
+                Some(group) => super::gantt::row_role(&group, highlight_critical),
+                None => rows
+                    .row(d)
+                    .and_then(|row| super::gantt::row_role(row, highlight_critical)),
+            };
+            drawn == Some(role)
+        })
         .count()
 }
 
@@ -523,7 +530,7 @@ pub fn show(
                 let count = role_count(rows, role, input.highlight_critical);
                 let count = i64::try_from(count).unwrap_or(i64::MAX);
                 let text = texts.get_args(TextId::FpRoleCount, &[("count", Arg::Count(count))]);
-                ui.label(egui::RichText::new(text).small().weak());
+                ui.label(egui::RichText::new(text).weak());
             }
             ui.separator();
             // Couleur (lot R1c, H-UI-193) : nuancier stable en trois
