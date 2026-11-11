@@ -384,12 +384,12 @@ fn h_ui_165_default_tab_assistant() {
     wait_key_loaded(&mut again);
 }
 
-/// Bord gauche du volet, lu sur le séparateur (nœud accessible : zone de
-/// saisie de 2 points à gauche du bord à 6 points dedans).
+/// Bord gauche du volet, lu sur le séparateur (nœud accessible ; lot U2,
+/// H-UI-172 : la zone de saisie couvre la gouttière, bord gauche du volet).
 fn edge_x(harness: &Harness<'static, App>) -> f32 {
     let label = fr(TextId::SideSplitterTip);
     let node = harness.get_by_role_and_label(Role::Splitter, &label);
-    node.rect().left() + 2.0
+    node.rect().left()
 }
 
 /// Point de saisie du séparateur : dans le volet, 3 points après le bord

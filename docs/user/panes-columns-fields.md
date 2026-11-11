@@ -4,7 +4,7 @@ Ce guide s'adresse à l'utilisateur de MS Project : il dit où PlannerCraft rang
 
 ## 1. Les volets de la vue Gantt
 
-La vue Gantt se partage, de haut en bas, entre trois volets :
+La vue Gantt se partage, de haut en bas, entre trois volets, chacun dans une carte aux coins arrondis ; les traits à tirer sont dans l'espace de 8 points qui sépare deux cartes :
 
 | Volet | Afficher, masquer | Taille |
 |---|---|---|

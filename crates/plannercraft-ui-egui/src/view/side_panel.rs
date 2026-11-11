@@ -64,9 +64,11 @@ pub const NARROW_WINDOW: f32 = 900.0;
 pub const MAX_SHARE: f32 = 0.5;
 
 /// Zone de saisie du séparateur : points à gauche du bord du volet, puis
-/// dans le volet.
-const GRAB_OUT: f32 = 2.0;
-const GRAB_IN: f32 = 6.0;
+/// dans le volet. Interface adoucie (lot U2, H-UI-172) : le bord du volet
+/// est celui de la gouttière qui le sépare de la vue ; la zone (8 points,
+/// inchangée) couvre exactement la gouttière.
+const GRAB_OUT: f32 = 0.0;
+const GRAB_IN: f32 = super::cards::GUTTER;
 
 /// Largeur affichée du volet (lot A5, H-UI-163) : `wanted` (non finie ⇒
 /// [`DEFAULT_WIDTH`]) bornée à `[320, 50 % de window]` (le plafond ne
@@ -326,10 +328,37 @@ pub fn panel(
         overlay(ui, fc, state, ai, assistant, width);
         return;
     }
+    // Interface adoucie (lot U2, H-UI-172) : carte sur le fond de
+    // l'application ; la gouttière qui la sépare de la vue est à gauche,
+    // dans le volet (le séparateur de largeur y vit), la marge extérieure à
+    // droite. Contenu aux marges d'avant (8 et 2 points).
+    let outer = super::cards::outer_margin(ui.ctx());
+    let frame = egui::Frame::NONE.inner_margin(egui::Margin {
+        left: super::cards::px(super::cards::GUTTER),
+        right: super::cards::px(outer),
+        top: 0,
+        bottom: super::cards::px(super::cards::GUTTER),
+    });
     let rect = egui::Panel::right("plannercraft_side_panel")
         .resizable(false)
+        .show_separator_line(false)
+        .frame(frame)
         .exact_size(width)
-        .show(ui, |ui| contents(ui, fc, state, ai, assistant))
+        .show(ui, |panel| {
+            let card = panel.max_rect();
+            super::cards::paint_fill(panel.painter(), card);
+            let inner = super::cards::inner(card).shrink2(egui::vec2(7.0, 1.0));
+            let mut body = panel.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(inner)
+                    .layout(egui::Layout::top_down(egui::Align::Min))
+                    .id_salt("plannercraft_side_panel_body"),
+            );
+            body.set_clip_rect(inner.intersect(panel.clip_rect()));
+            contents(&mut body, fc, state, ai, assistant);
+            super::cards::finish(panel.painter(), card);
+            panel.advance_cursor_after_rect(card);
+        })
         .response
         .rect;
     width_splitter(ui, fc, rect, window);
@@ -456,7 +485,7 @@ fn width_splitter(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, rect: egui::Rect, wi
     let response = response.on_hover_and_drag_cursor(egui::CursorIcon::ResizeHorizontal);
     if response.hovered() || response.dragged() {
         ui.painter().vline(
-            x + 1.0,
+            grab.center().x,
             rect.y_range(),
             egui::Stroke::new(2.0, fc.palette.grid_major),
         );

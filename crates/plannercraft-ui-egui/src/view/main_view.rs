@@ -100,6 +100,10 @@ struct GanttInput {
 }
 
 /// Affiche la vue principale dans la place restante de `ui`.
+#[allow(
+    clippy::too_many_lines,
+    reason = "suite d'étapes de l'image (volets en cartes, en-têtes, corps, gestes), une ligne chacune"
+)]
 pub fn show(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, view: &mut ViewTransient) {
     let full = ui.available_rect_before_wrap();
     // Volets (ADR-0019 D5, H-UI-111) : chronologie en tête (ADR-0017,
@@ -107,8 +111,15 @@ pub fn show(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, view: &mut ViewTransient) 
     // hauteurs bornées par `panes::layout` (pendant un glisser de
     // séparateur : hauteur suivie au pointeur, écrite au relâcher).
     let slots = pane_slots(ui, fc, view, full);
+    // Interface adoucie (lot U2, H-UI-172) : un volet par carte, contenu
+    // dans le rectangle intérieur ; coins et bordures après le contenu.
+    for card in slots.cards() {
+        super::cards::paint_fill(ui.painter(), card);
+    }
+    // La frise remplit sa carte (fond et géométrie de `plannercraft-render`
+    // à la hauteur choisie) ; la bordure est peinte par-dessus.
     let timeline_rect = slots.timeline;
-    let avail = slots.view;
+    let avail = super::cards::inner(slots.view);
     let metrics = *fc.metrics;
     let layout = geom::main_layout(avail, f32::from(fc.state.effective_table_width()), &metrics);
     let Some(doc) = fc.doc else {
@@ -216,7 +227,10 @@ pub fn show(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, view: &mut ViewTransient) 
     // Volet de détails, séparateurs (après la table et le Gantt : ils
     // l'emportent sur les bords qu'ils chevauchent), puis F6.
     if let Some(rect) = slots.details {
-        details_pane(ui, fc, &mut view.details, rect);
+        details_pane(ui, fc, &mut view.details, super::cards::inner(rect));
+    }
+    for card in slots.cards() {
+        super::cards::finish(ui.painter(), card);
     }
     let drawn = pane_splitters(ui, fc, view, &slots);
     serve_focus_request(ui, view, &drawn);
@@ -255,7 +269,8 @@ pub const DETAILS_HEADER_H: f32 = 22.0;
 /// Côté du bouton × des volets, en points.
 const CLOSE_SIDE: f32 = 16.0;
 
-/// Rectangles des volets de l'image.
+/// Rectangles des volets de l'image : cartes (lot U2, H-UI-172), séparées
+/// par des gouttières de [`super::cards::GUTTER`] points.
 #[derive(Clone, Copy, Debug)]
 struct PaneSlots {
     /// Chronologie, si affichée.
@@ -264,6 +279,16 @@ struct PaneSlots {
     view: Rect,
     /// Volet de détails, si affiché.
     details: Option<Rect>,
+}
+
+impl PaneSlots {
+    /// Cartes affichées, de haut en bas.
+    fn cards(&self) -> impl Iterator<Item = Rect> {
+        self.timeline
+            .into_iter()
+            .chain(std::iter::once(self.view))
+            .chain(self.details)
+    }
 }
 
 /// Hauteur d'un volet : pendant le glisser de son séparateur, suivie au
@@ -289,13 +314,20 @@ fn live_height(ui: &egui::Ui, view: &ViewTransient, splitter: Splitter, saved: u
     panes::drag_split(d.start_height, delta, min, (share * total).max(min))
 }
 
-/// Découpe `full` en volets (`panes::layout`).
+/// Découpe `full` en volets (`panes::layout`) ; interface adoucie (lot U2,
+/// H-UI-172) : une gouttière entre deux volets affichés, retirée de la
+/// hauteur partagée (la gouttière d'un volet sans place est rendue à la
+/// vue).
 fn pane_slots(ui: &egui::Ui, fc: &FrameCtx<'_>, view: &ViewTransient, full: Rect) -> PaneSlots {
-    let total = full.height();
-    let timeline = timeline::wanted(fc)
-        .then(|| live_height(ui, view, Splitter::Timeline, fc.state.timeline_height, total));
-    let details = (fc.state.details.visible && fc.doc.is_some())
-        .then(|| live_height(ui, view, Splitter::Details, fc.state.details.height, total));
+    let gutter = super::cards::GUTTER;
+    let wants_timeline = timeline::wanted(fc);
+    let wants_details = fc.state.details.visible && fc.doc.is_some();
+    let gutters = f32::from(u8::from(wants_timeline).saturating_add(u8::from(wants_details)));
+    let total = (full.height() - gutter * gutters).max(0.0);
+    let timeline =
+        wants_timeline.then(|| live_height(ui, view, Splitter::Timeline, fc.state.timeline_height, total));
+    let details =
+        wants_details.then(|| live_height(ui, view, Splitter::Details, fc.state.details.height, total));
     let mut h = panes::layout(total, timeline, details);
     // Frise sans tâche (H-UI-137) : basse, la place rendue à la vue ; la
     // hauteur choisie revient dès qu'une tâche y est.
@@ -303,14 +335,18 @@ fn pane_slots(ui: &egui::Ui, fc: &FrameCtx<'_>, view: &ViewTransient, full: Rect
         h.view += h.timeline - timeline::COMPACT_H;
         h.timeline = timeline::COMPACT_H;
     }
-    let view_top = full.top() + h.timeline;
+    let gap_top = if h.timeline > 0.0 { gutter } else { 0.0 };
+    let gap_bottom = if h.details > 0.0 { gutter } else { 0.0 };
+    // Gouttière d'un volet demandé mais sans place : rendue à la vue.
+    h.view = (full.height() - h.timeline - h.details - gap_top - gap_bottom).max(0.0);
+    let view_top = full.top() + h.timeline + gap_top;
     let view_rect = Rect::from_min_size(pos2(full.left(), view_top), vec2(full.width(), h.view));
     PaneSlots {
         timeline: (h.timeline > 0.0).then(|| Rect::from_min_size(full.min, vec2(full.width(), h.timeline))),
         view: view_rect,
         details: (h.details > 0.0).then(|| {
             Rect::from_min_size(
-                pos2(full.left(), view_rect.bottom()),
+                pos2(full.left(), view_rect.bottom() + gap_bottom),
                 vec2(full.width(), h.details),
             )
         }),
@@ -392,13 +428,21 @@ fn pane_splitters(
     let x = slots.view.x_range();
     // Frise sans tâche : pas de séparateur à tirer (sa hauteur ne bouge
     // pas, H-UI-137).
-    let timeline_splitter = slots
-        .timeline
-        .filter(|_| !timeline::compact(fc))
-        .and_then(|r| splitter(ui, fc, view, Splitter::Timeline, (r.bottom(), x, r.height())));
+    // Interface adoucie (lot U2, H-UI-172) : séparateur au milieu de la
+    // gouttière (sa zone de ± 4 points la couvre exactement).
+    let half = super::cards::GUTTER / 2.0;
+    let timeline_splitter = slots.timeline.filter(|_| !timeline::compact(fc)).and_then(|r| {
+        splitter(
+            ui,
+            fc,
+            view,
+            Splitter::Timeline,
+            (r.bottom() + half, x, r.height()),
+        )
+    });
     let details_splitter = slots
         .details
-        .and_then(|r| splitter(ui, fc, view, Splitter::Details, (r.top(), x, r.height())));
+        .and_then(|r| splitter(ui, fc, view, Splitter::Details, (r.top() - half, x, r.height())));
     if let Some(d) = view.split_drag
         && !ui.input(|i| i.pointer.primary_down())
     {
