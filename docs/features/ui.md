@@ -874,7 +874,7 @@ Constatés à la relecture et non corrigés :
 - clé `open-in-progress` (`TextId::OpenInProgress`) encore définie mais plus affichée depuis la relance de « Ouvrir » ;
 - ~~`App` ne s'ouvre que depuis des octets MSPDI~~ (clos en J7 lot L14 : `App::open_project`, `docs/ui-needs.md` N8) ;
 - la mesure de fluidité ne couvre que le CPU (construction + tessellation), pas le GPU ni le navigateur (facteur 2 à 3 attendu en wasm, non mesuré) ;
-- macOS : binaire non signé (premier lancement par clic droit → Ouvrir ou `xattr -d com.apple.quarantine`, voir le README de l'artefact) ;
+- macOS : binaire non signé (premier lancement par clic droit → Ouvrir ou `xattr -d com.apple.quarantine`, voir le README de l'artefact) ; signature Developer ID et notarisation prévues par ADR-0029 dès que les secrets sont posés (`docs/features/release.md` § 6) ;
 - sélecteur de fichiers réel jamais exercé par un test automatique (les tests injectent `NoFileService`, la CI n'a pas d'écran) : vérification manuelle sur chaque plateforme ; Windows et Linux non vérifiés, sélecteur non rattaché à la fenêtre sur ces deux plateformes ;
 - Linux : X11 exige `libxkbcommon-x11` (paquet `libxkbcommon-x11-0`) ; « Ouvrir » exige un portail XDG (`xdg-desktop-portal`) ;
 - aucune règle d'affichage n'est vérifiée contre MS Project (hypothèses H-UI, § 1.11).
