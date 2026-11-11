@@ -1772,7 +1772,8 @@ impl App {
         }
     }
 
-    /// Échap ferme le volet de l'assistant (lot A5, H-UI-162) quand
+    /// Échap réduit le volet de l'assistant au rail (lot A5, H-UI-162 ;
+    /// lot R1c) quand
     /// personne d'autre ne l'a prise dans l'image (fenêtre, liste,
     /// surimpression du ruban, réponse en cours arrêtée par la saisie) :
     /// onglet Assistant affiché, question vide, aucune réponse en cours,
@@ -3414,25 +3415,21 @@ impl App {
                 #[cfg(not(target_arch = "wasm32"))]
                 view::recovery::recovery_banner(ui, &mut fc, recovery_offer);
                 let ai = crate::approvals::panel_input(&self.approvals, banner);
-                view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant);
+                view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant, button);
             }
             let outer = view::cards::outer_margin(&ctx);
-            let side_beside = self.side.open && !view::side_panel::overlays(ctx.content_rect().width());
+            // Lot R1c (H-UI-190) : le rail ou le volet est toujours à droite
+            // de la vue (la gouttière est la leur) : marge droite nulle.
             let diagnostics_shown = self.state.diagnostics_open
-                && view::diagnostics::panel(
-                    ui,
-                    &mut fc,
-                    view::cards::px(outer),
-                    if side_beside { 0 } else { view::cards::px(outer) },
-                );
+                && view::diagnostics::panel(ui, &mut fc, view::cards::px(outer), 0);
             let view_state = &mut self.view;
             // Interface adoucie (lot U2, H-UI-172) : vue centrale posée sur
-            // le fond de l'application, en cartes ; marges extérieures à
-            // gauche (et à droite sans volet latéral à côté), gouttière en
-            // bas (diagnostics ou barre d'état).
+            // le fond de l'application, en cartes ; marge extérieure à
+            // gauche (à droite : rail ou volet, lot R1c), gouttière en bas
+            // (diagnostics ou barre d'état).
             let frame = egui::Frame::NONE.inner_margin(egui::Margin {
                 left: view::cards::px(outer),
-                right: if side_beside { 0 } else { view::cards::px(outer) },
+                right: 0,
                 top: 0,
                 bottom: if diagnostics_shown {
                     0
@@ -3464,7 +3461,7 @@ impl App {
         self.show_confirmations(&ctx, &palette, &mut actions);
         // Volet de mise en forme des barres (J8 lot L15, H-UI-59), non modal.
         self.show_format_panel(&ctx, &mut actions);
-        // Échap restée libre après le dessin : ferme le volet (lot A5).
+        // Échap restée libre après le dessin : réduit le volet (lot A5).
         self.escape_closes_assistant(&ctx, &mut actions);
         self.last_focus = ctx.memory(egui::Memory::focused);
         self.last_frame = stats;

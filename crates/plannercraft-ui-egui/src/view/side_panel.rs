@@ -20,7 +20,7 @@
 //! Ouvert d'office à chaque demande d'un agent (onglet « Opérations IA »),
 //! refermable (bouton du volet, Affichage → Opérations IA) ; fermé par
 //! défaut. Le bandeau J7 reste affiché quand le volet est fermé ou sur
-//! l'autre onglet.
+//! l'autre onglet. Depuis le lot R1c, « fermé » se lit « réduit au rail ».
 //!
 //! Lot A5 (H-UI-161 à H-UI-166) : toujours à portée, jamais gênant.
 //! Bouton de l'assistant en haut à droite du ruban, Ctrl/Cmd+J et
@@ -30,6 +30,14 @@
 //! ([`panel_width`] : 320 points à 50 % de la fenêtre, double-clic ⇒
 //! largeur par défaut) ; sous [`NARROW_WINDOW`] points de large, le volet
 //! s'ouvre par-dessus la vue ([`overlays`]) au lieu de la rétrécir.
+//!
+//! Lot R1c (H-UI-190, H-UI-191, ADR-0030) : rétractable, jamais fermé.
+//! Deux états : *déployé* (le volet) et *réduit* (`open == false`, nom et
+//! format gardés) : un rail vertical de [`RAIL_WIDTH`] points au même
+//! emplacement, toujours visible (document, accueil, fenêtre étroite), un
+//! seul bouton qui déploie le volet sur l'onglet Assistant, pastille et
+//! contour « réponse en cours » comme le bouton du ruban ([`rail`]). La
+//! croix de la tête du volet réduit au rail ([`collapse_cross`]).
 
 use std::collections::VecDeque;
 
@@ -70,6 +78,79 @@ pub const DEFAULT_WIDTH: f32 = 460.0;
 /// Fenêtre plus étroite que ceci (points) : le volet s'ouvre par-dessus
 /// la vue au lieu de la rétrécir (lot A5, H-UI-164).
 pub const NARROW_WINDOW: f32 = 900.0;
+
+/// Largeur du rail du volet réduit, en points (lot R1c, H-UI-190) : la
+/// carte seule, gouttière et marge extérieure en plus ([`rail_outer_width`]).
+pub const RAIL_WIDTH: f32 = 36.0;
+
+/// Côté de l'icône du rail (celle du bouton du ruban).
+const RAIL_ICON: f32 = 15.0;
+
+/// Haut de l'icône du rail sous le haut de la carte, en points.
+const RAIL_ICON_TOP: f32 = 12.0;
+
+/// Largeur prise par le rail dans la mise en page (lot R1c) : gouttière,
+/// carte de [`RAIL_WIDTH`], marge extérieure `outer` (finie et bornée :
+/// marge non finie ⇒ 0).
+#[must_use]
+pub fn rail_outer_width(outer: f32) -> f32 {
+    let outer = if outer.is_finite() {
+        outer.clamp(0.0, 64.0)
+    } else {
+        0.0
+    };
+    super::cards::GUTTER + RAIL_WIDTH + outer
+}
+
+/// Rail dessiné à la dernière image (tests, lot R1c) : carte, pastille,
+/// contour « réponse en cours ».
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailDrawn {
+    /// Carte du rail (zone du bouton).
+    pub rect: egui::Rect,
+    /// Pastille de nouveautés, si dessinée.
+    pub dot: Option<egui::Rect>,
+    /// Contour « réponse en cours » dessiné.
+    pub ring: bool,
+}
+
+fn rail_drawn_id() -> egui::Id {
+    egui::Id::unique("plannercraft.side.rail-drawn")
+}
+
+fn work_right_id() -> egui::Id {
+    egui::Id::unique("plannercraft.side.work-right")
+}
+
+/// Rail dessiné à la dernière image (`None` : volet déployé).
+#[must_use]
+pub fn rail_drawn(ctx: &egui::Context) -> Option<RailDrawn> {
+    ctx.data(|d| d.get_temp::<Option<RailDrawn>>(rail_drawn_id()))
+        .flatten()
+}
+
+/// Bord droit de la zone de travail à la dernière image (lot R1c) : bord
+/// gauche du rail, du volet déployé à côté de la vue, ou du volet ouvert
+/// par-dessus ; `None` avant la première image. Position par défaut des
+/// fenêtres de travail (volet de mise en forme, affectation), qui ne
+/// recouvrent ni le rail ni le volet.
+#[must_use]
+pub fn work_right(ctx: &egui::Context) -> Option<f32> {
+    ctx.data(|d| d.get_temp::<f32>(work_right_id()))
+        .filter(|x| x.is_finite())
+}
+
+/// Identifiant du bouton du rail.
+#[must_use]
+pub fn rail_button_id() -> egui::Id {
+    egui::Id::unique("plannercraft.side.rail")
+}
+
+/// Identifiant de la croix « Réduire le volet ».
+#[must_use]
+pub fn collapse_id() -> egui::Id {
+    egui::Id::unique("plannercraft.side.collapse")
+}
 
 /// Part maximale de la fenêtre donnée au volet (lot A5, H-UI-163).
 pub const MAX_SHARE: f32 = 0.5;
@@ -119,13 +200,14 @@ pub enum SideTab {
 /// Commande du volet (réducteur d'`App`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SideOp {
-    /// Bascule le volet (lot A5, H-UI-161) : fermé ⇒ ouvert sur l'onglet
-    /// Assistant ; ouvert (quel que soit l'onglet) ⇒ fermé. Bouton de
-    /// l'assistant, Ctrl/Cmd+J, Affichage → Assistant IA.
+    /// Bascule le volet (lot A5, H-UI-161) : réduit ⇒ déployé sur
+    /// l'onglet Assistant ; déployé (quel que soit l'onglet) ⇒ réduit au
+    /// rail (lot R1c : jamais fermé). Bouton de l'assistant, Ctrl/Cmd+J,
+    /// Affichage → Assistant IA.
     Toggle,
-    /// Ouvre le volet sur l'onglet donné.
+    /// Déploie le volet sur l'onglet donné (rail : onglet Assistant).
     Open(SideTab),
-    /// Referme le volet.
+    /// Réduit le volet au rail (croix de la tête, Échap ; lot R1c).
     Close,
     /// Ouvre le volet sur l'onglet donné, ou le referme s'il y est déjà
     /// (Affichage → Opérations IA depuis le lot A5).
@@ -323,23 +405,31 @@ impl AiPanelInput<'_> {
     };
 }
 
-/// Dessine le volet (rien s'il est fermé) et pousse ses actions : à
-/// droite de la vue, ou par-dessus elle sur une fenêtre étroite
-/// ([`overlays`]) ; séparateur de largeur sur son bord gauche.
+/// Dessine le volet et pousse ses actions : réduit, le rail ([`rail`]) ;
+/// déployé, à droite de la vue, ou par-dessus elle sur une fenêtre étroite
+/// ([`overlays`], le rail gardant sa place dans la mise en page dessous) ;
+/// séparateur de largeur sur son bord gauche. `button` : pastille et
+/// réponse en cours, comme le bouton du ruban.
 pub fn panel(
     ui: &mut egui::Ui,
     fc: &mut FrameCtx<'_>,
     state: &SidePanelState,
     ai: AiPanelInput<'_>,
     assistant: &mut crate::assistant::AssistantPanel,
+    button: super::ribbon::AssistantButton,
 ) {
-    if !state.open {
-        return;
-    }
-    let window = ui.ctx().content_rect().width();
+    let ctx = ui.ctx().clone();
+    ctx.data_mut(|d| d.insert_temp(rail_drawn_id(), None::<RailDrawn>));
+    let window = ctx.content_rect().width();
     let width = panel_width(f32::from(fc.state.side_panel.width), window);
-    if overlays(window) {
-        overlay(ui, fc, state, ai, assistant, width);
+    let narrow = overlays(window);
+    if !state.open || narrow {
+        let room = rail(ui, fc, button, !state.open);
+        ctx.data_mut(|d| d.insert_temp(work_right_id(), room.left()));
+        if state.open {
+            let left = overlay(ui, fc, state, ai, assistant, width, room.right());
+            ctx.data_mut(|d| d.insert_temp(work_right_id(), left));
+        }
         return;
     }
     // Interface adoucie (lot U2, H-UI-172) : carte sur le fond de
@@ -375,12 +465,143 @@ pub fn panel(
         })
         .response
         .rect;
+    ctx.data_mut(|d| d.insert_temp(work_right_id(), rect.left()));
     width_splitter(ui, fc, rect, window);
+}
+
+/// Rail du volet réduit (lot R1c, H-UI-190) : carte de [`RAIL_WIDTH`]
+/// points au bord droit de la zone sous le ruban, gouttière à gauche,
+/// marge extérieure à droite. `active` : un seul bouton sur toute la
+/// carte (nom « Déployer le volet Assistant IA », pastille de nouveautés
+/// dans le nom comme au ruban, infobulle avec Ctrl/Cmd+J), icône
+/// `sparkles` en haut, fond de survol et d'appui aux jetons du ruban,
+/// pastille et contour « réponse en cours » du bouton du ruban ; un clic
+/// déploie le volet sur l'onglet Assistant. Inactif (volet déployé
+/// par-dessus la vue, fenêtre étroite) : la place seule. Rend le rectangle
+/// pris dans la mise en page.
+fn rail(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    b: super::ribbon::AssistantButton,
+    active: bool,
+) -> egui::Rect {
+    let outer = super::cards::outer_margin(ui.ctx());
+    let frame = egui::Frame::NONE.inner_margin(egui::Margin {
+        left: super::cards::px(super::cards::GUTTER),
+        right: super::cards::px(outer),
+        top: 0,
+        bottom: super::cards::px(super::cards::GUTTER),
+    });
+    egui::Panel::right("plannercraft_side_rail")
+        .resizable(false)
+        .show_separator_line(false)
+        .frame(frame)
+        .exact_size(rail_outer_width(outer))
+        .show(ui, |panel| {
+            let card = panel.max_rect();
+            if active {
+                rail_button(panel, fc, b, card);
+            }
+            panel.advance_cursor_after_rect(card);
+        })
+        .response
+        .rect
+}
+
+/// Bouton du rail (voir [`rail`]) sur la carte `card`.
+fn rail_button(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    b: super::ribbon::AssistantButton,
+    card: egui::Rect,
+) {
+    if !card.is_finite() || !card.is_positive() {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    let tokens = crate::theme::ChromeTokens::for_theme(ctx.theme());
+    let texts = fc.texts;
+    let painter = ui.painter().clone();
+    super::cards::paint_fill(&painter, card);
+    let response = ui.interact(card, rail_button_id(), egui::Sense::click());
+    let news = (b.badge > 0).then(|| {
+        texts.get_args(
+            TextId::AssistantButtonBadge,
+            &[("count", Arg::Count(i64::from(b.badge)))],
+        )
+    });
+    let name = texts.get(TextId::SideRailExpand);
+    let label = match &news {
+        Some(news) => format!("{name} ({news})"),
+        None => name.clone(),
+    };
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
+    let bg = if response.is_pointer_button_down_on() {
+        Some(tokens.pressed)
+    } else if response.hovered() {
+        Some(tokens.hover)
+    } else {
+        None
+    };
+    let inner = super::cards::inner(card);
+    if let Some(bg) = bg {
+        painter.rect_filled(inner, super::cards::RADIUS - 1.0, bg);
+    }
+    let icon = egui::Rect::from_min_size(
+        egui::pos2(card.center().x - RAIL_ICON / 2.0, card.top() + RAIL_ICON_TOP),
+        egui::Vec2::splat(RAIL_ICON),
+    );
+    crate::ribbon::paint_icon(&painter, icon, crate::ribbon::Icon::Sparkles, tokens.soft_text);
+    super::cards::finish(&painter, card);
+    if response.has_focus() {
+        painter.rect_stroke(
+            inner,
+            super::cards::RADIUS - 1.0,
+            egui::Stroke::new(1.5, tokens.accent),
+            egui::StrokeKind::Inside,
+        );
+    }
+    // Pastille et contour à la tête du rail, autour de l'icône (mêmes
+    // règles que le bouton du ruban, H-UI-166).
+    let head = egui::Rect::from_min_size(
+        egui::pos2(card.left() + 3.0, card.top() + 3.0),
+        egui::vec2(card.width() - 6.0, RAIL_ICON + 2.0 * (RAIL_ICON_TOP - 3.0)),
+    );
+    let ring = b.busy && !b.open;
+    if ring {
+        super::ribbon::busy_ring(&ctx, &painter, &tokens, head, 8.0, fc.state.reduce_motion);
+    }
+    let dot = super::ribbon::badge_dot(&painter, &tokens, head, b.badge);
+    ctx.data_mut(|d| {
+        d.insert_temp(
+            rail_drawn_id(),
+            Some(RailDrawn {
+                rect: card,
+                dot,
+                ring,
+            }),
+        );
+    });
+    let binding = crate::keymap::Binding::Ui(crate::keymap::UiBinding::ToggleAssistant);
+    let title = super::ribbon::tooltip_title(&ctx, &name, Some(binding));
+    let mut tip = texts.get(TextId::SideRailTip);
+    if b.busy {
+        tip = format!("{tip}\n{}", texts.get(TextId::AssistantButtonBusy));
+    }
+    let response = response.on_hover_ui(|ui| super::ribbon::tooltip(ui, &title, &tip, news.as_deref()));
+    if response.clicked() {
+        fc.actions
+            .push(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
+    }
 }
 
 /// Volet par-dessus la vue (fenêtre étroite, H-UI-164) : zone au premier
 /// plan collée au bord droit de la place restante, ombre portée ; la vue
 /// garde toute sa largeur dessous.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "volet, données du relais, assistant, largeur et bord droit"
+)]
 fn overlay(
     ui: &mut egui::Ui,
     fc: &mut FrameCtx<'_>,
@@ -388,11 +609,15 @@ fn overlay(
     ai: AiPanelInput<'_>,
     assistant: &mut crate::assistant::AssistantPanel,
     width: f32,
-) {
+    right: f32,
+) -> f32 {
     let room = ui.available_rect_before_wrap();
-    if !room.is_finite() || room.height() <= 0.0 {
-        return;
+    if !room.is_finite() || room.height() <= 0.0 || !right.is_finite() {
+        return room.right();
     }
+    // Lot R1c : par-dessus la vue et le rail (bord droit `right`, celui de
+    // la place du rail), comme avant le rail.
+    let room = egui::Rect::from_min_max(room.min, egui::pos2(right.max(room.left()), room.bottom()));
     let width = width.min(room.width()).max(0.0);
     let rect = egui::Rect::from_min_max(egui::pos2(room.right() - width, room.top()), room.max);
     let window = ui.ctx().content_rect().width();
@@ -434,9 +659,10 @@ fn overlay(
             contents(&mut child, fc, state, ai, assistant);
             width_splitter(ui, fc, rect, window);
         });
+    rect.left()
 }
 
-/// En-tête (onglets, « Fermer le volet ») et onglet affiché.
+/// En-tête (onglets, croix « Réduire le volet ») et onglet affiché.
 fn contents(
     ui: &mut egui::Ui,
     fc: &mut FrameCtx<'_>,
@@ -446,8 +672,9 @@ fn contents(
 ) {
     let texts = fc.texts;
     // Lot A5 : rangée qui passe à la ligne sous la largeur minimale (320
-    // points) au lieu de déborder du volet ; « Fermer le volet » reste à
-    // droite tant qu'il tient sur la rangée des onglets.
+    // points) au lieu de déborder du volet. Lot R1c (H-UI-191) : croix
+    // « Réduire le volet » à droite tant qu'elle tient sur la rangée des
+    // onglets, sinon à la ligne (repli d'avant).
     ui.horizontal_wrapped(|ui| {
         for (tab, id) in [
             (SideTab::AiOperations, TextId::SideTabAi),
@@ -458,12 +685,11 @@ fn contents(
                 fc.actions.push(Action::SidePanel(SideOp::Open(tab)));
             }
         }
-        let close = texts.get(TextId::SideClose);
-        if super::approval::row_room(ui) < super::approval::button_width(ui, &close) {
+        if super::approval::row_room(ui) < cross_side(ui) {
             ui.end_row();
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button(close).clicked() {
+            if collapse_cross(ui, fc).clicked() {
                 fc.actions.push(Action::SidePanel(SideOp::Close));
             }
         });
@@ -474,6 +700,37 @@ fn contents(
         SideTab::WhyThisDate => why_tab(ui, fc, state),
         SideTab::Assistant => super::assistant::tab(ui, fc, assistant),
     }
+}
+
+/// Côté de la zone cliquable de la croix : hauteur d'un élément d'egui.
+fn cross_side(ui: &egui::Ui) -> f32 {
+    ui.spacing().interact_size.y
+}
+
+/// Croix « Réduire le volet » (lot R1c, H-UI-191) : dessinée comme la croix
+/// de fermeture des fenêtres de l'application (`egui::Window` : deux traits
+/// au trait du widget, dans un carré de `icon_width` réduit de 2 points),
+/// dans une zone cliquable de la hauteur d'un élément ; nom accessible et
+/// infobulle « Réduire le volet (Ctrl+J) ». Réduit le volet au rail, ne le
+/// fait pas disparaître.
+fn collapse_cross(ui: &mut egui::Ui, fc: &FrameCtx<'_>) -> egui::Response {
+    let side = cross_side(ui);
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(side), egui::Sense::hover());
+    let response = ui.interact(rect, collapse_id(), egui::Sense::click());
+    let name = fc.texts.get(TextId::SideCollapse);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &name));
+    let visuals = ui.style().interact(&response);
+    let icon = egui::Rect::from_center_size(rect.center(), egui::Vec2::splat(ui.spacing().icon_width))
+        .shrink(2.0)
+        .expand(visuals.expansion);
+    let stroke = visuals.fg_stroke;
+    ui.painter()
+        .line_segment([icon.left_top(), icon.right_bottom()], stroke);
+    ui.painter()
+        .line_segment([icon.right_top(), icon.left_bottom()], stroke);
+    let binding = crate::keymap::Binding::Ui(crate::keymap::UiBinding::ToggleAssistant);
+    let title = super::ribbon::tooltip_title(ui.ctx(), &name, Some(binding));
+    response.on_hover_text(title)
 }
 
 /// Identifiant du séparateur de largeur du volet.

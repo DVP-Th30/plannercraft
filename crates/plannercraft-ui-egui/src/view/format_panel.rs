@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 
 use plannercraft_automation::command::style::{
     BarEndsJson, BarFieldJson, BarRoleJson, StyleApply, StyleResetToTemplate, StyleSetBarRole, TemplateJson,
-    VariantJson, nearest_compliant,
+    nearest_compliant,
 };
 use plannercraft_automation::command::{Command, Patch};
 use plannercraft_automation::text::Language;
@@ -101,8 +101,11 @@ pub enum FormatEffect {
 pub struct FormatInput<'a> {
     /// Session du document.
     pub session: &'a Session,
-    /// Style effectif résolu.
+    /// Style effectif résolu (style du document).
     pub style: &'a PlanStyle,
+    /// Style tel que l'écran le dessine (`theme::screen_style` : interface
+    /// adoucie comprise) : couleur courante marquée, troisième rangée.
+    pub shown: &'a PlanStyle,
     /// Style choisi du document, s'il en a un.
     pub doc: Option<DocStyle>,
     /// Modèle des documents sans style (base d'un premier réglage).
@@ -186,15 +189,6 @@ const fn field_json(f: BarField) -> BarFieldJson {
     }
 }
 
-/// Variante en JSON du registre.
-const fn variant_json(v: Variant) -> VariantJson {
-    match v {
-        Variant::Light => VariantJson::Light,
-        Variant::Dark => VariantJson::Dark,
-        Variant::Print => VariantJson::Print,
-    }
-}
-
 /// Commande `style.set_bar_role` vide (aucun réglage) pour `role`.
 fn set_role(role: BarRole, base: TemplateId) -> StyleSetBarRole {
     StyleSetBarRole {
@@ -229,12 +223,92 @@ fn shown_color(style: &PlanStyle, role: BarRole, v: Variant) -> Option<Rgb> {
     })
 }
 
-/// Lot qui pose la couleur `rgb` sur le rôle (variante affichée).
+/// Lot qui pose la couleur `rgb` sur le rôle, pour les trois variantes
+/// (lot R1c, H-UI-196 : ce qui est choisi à l'écran est ce qui sort au PDF,
+/// comme les couleurs de phase ; avant : variante affichée seule).
 fn color_batch(role: BarRole, rgb: Rgb, input: &FormatInput<'_>) -> Batch {
     let mut cmd = set_role(role, base_of(input));
-    cmd.variant = Some(variant_json(input.variant));
     cmd.color = Some(rgb.hex());
     one(Command::StyleSetBarRole(cmd), input.lang)
+}
+
+/// Nuancier des barres (lot R1c, H-UI-193) : trois rangées dont les deux
+/// premières ne dépendent pas des couleurs choisies (un clic ne déplace
+/// jamais une pastille sous le pointeur) :
+/// 1. couleurs du modèle de base `model` (telles que l'écran les dessine),
+///    triées ;
+/// 2. la palette [`SWATCHES`], moins les couleurs de la rangée 1 ;
+/// 3. couleurs du document `shown` absentes des deux premières (couleurs
+///    libres déjà utilisées), dans l'ordre de [`BarRole::ALL`].
+///
+/// Une couleur n'apparaît qu'une fois (nom accessible unique) ; rangée 3
+/// vide si aucune couleur libre.
+#[must_use]
+pub fn swatch_rows(model: &PlanStyle, shown: &PlanStyle, v: Variant) -> [Vec<Rgb>; 3] {
+    let mut first: Vec<Rgb> = BarRole::ALL
+        .into_iter()
+        .filter_map(|r| shown_color(model, r, v))
+        .collect();
+    first.sort_unstable();
+    first.dedup();
+    let second: Vec<Rgb> = SWATCHES.iter().copied().filter(|c| !first.contains(c)).collect();
+    let mut third: Vec<Rgb> = Vec::new();
+    for c in BarRole::ALL.into_iter().filter_map(|r| shown_color(shown, r, v)) {
+        if !first.contains(&c) && !second.contains(&c) && !third.contains(&c) {
+            third.push(c);
+        }
+    }
+    [first, second, third]
+}
+
+/// Avertissement de contraste d'une couleur de barre ou de phase (H-UI-61 ;
+/// lot R1c : la même règle pour les deux) : la couleur est mesurée sur le
+/// fond de chaque variante de `bgs` (les trois pour une couleur choisie, qui
+/// vaut partout ; la variante affichée seule pour une couleur du modèle) ;
+/// sous 3:1 sur l'un, le pire rapport est dit **avec le fond en cause**
+/// (une couleur lisible à l'écran peut ne pas l'être dans l'autre thème) et
+/// la couleur conforme la plus proche sur tous les fonds mesurés est
+/// proposée (aucune si elle n'existe pas). Rend la proposition cliquée.
+fn contrast_warning(
+    ui: &mut egui::Ui,
+    texts: &Texts,
+    lang: Language,
+    rgb: Rgb,
+    bgs: &[(Variant, Rgb)],
+) -> Option<Rgb> {
+    let (ratio, variant, worst) = bgs
+        .iter()
+        .map(|(v, bg)| (contrast_ratio(rgb, *bg), *v, *bg))
+        .min_by_key(|(r, _, _)| *r)?;
+    if ratio >= MIN_BAR {
+        return None;
+    }
+    let shown = format!("{},{}", ratio / 1000, (ratio % 1000) / 100);
+    let shown = if matches!(lang, Language::En) {
+        shown.replace(',', ".")
+    } else {
+        shown
+    };
+    // Clé du sélecteur de `fp-contrast-low` (fond clair par défaut).
+    let bg = match variant {
+        Variant::Light => "light",
+        Variant::Dark => "dark",
+        Variant::Print => "print",
+    };
+    ui.colored_label(
+        ui.visuals().warn_fg_color,
+        texts.get_args(
+            TextId::FpContrastLow,
+            &[("ratio", Arg::Str(shown.into())), ("bg", Arg::Str(bg.into()))],
+        ),
+    );
+    let better = nearest_compliant(rgb, worst, MIN_BAR)
+        .filter(|b| bgs.iter().all(|(_, bg)| contrast_ratio(*b, *bg) >= MIN_BAR))?;
+    let label = texts.get_args(
+        TextId::FpUseSuggestion,
+        &[("color", Arg::Str(better.hex().into()))],
+    );
+    ui.button(label).clicked().then_some(better)
 }
 
 /// Modèle de départ d'un premier réglage : celui du document, sinon le
@@ -255,6 +329,24 @@ fn phases_batch(phases: &BTreeMap<u32, PhaseColor>, input: &FormatInput<'_>) -> 
         reset: false,
     };
     one(Command::StyleApply(cmd), input.lang)
+}
+
+/// Marge entre une fenêtre de travail et le bord droit de la zone de
+/// travail (lot R1c), en points : celle de l'ancrage d'avant.
+pub const WINDOW_MARGIN: f32 = 12.0;
+
+/// Ordonnée du haut de la fenêtre à sa première ouverture, depuis le haut
+/// de l'écran (celle de l'ancrage d'avant le lot R1c).
+const WINDOW_TOP: f32 = 96.0;
+
+/// Coin haut-droit de la fenêtre à sa première ouverture (lot R1c,
+/// H-UI-192) : à [`WINDOW_MARGIN`] du bord gauche du rail ou du volet
+/// latéral (`side_panel::work_right`), à [`WINDOW_TOP`] du haut.
+#[must_use]
+pub fn default_pos(ctx: &egui::Context) -> egui::Pos2 {
+    let screen = ctx.content_rect();
+    let right = super::side_panel::work_right(ctx).unwrap_or(screen.right());
+    egui::pos2(right - WINDOW_MARGIN, screen.top() + WINDOW_TOP)
 }
 
 /// Identifiant de la fenêtre du volet.
@@ -349,7 +441,6 @@ pub fn show(
     let role = state.role;
     let style = input.style;
     let v = input.variant;
-    let tokens = style.tokens(v);
     let title = texts.get_args(
         TextId::FpTitle,
         &[("role", Arg::Str(texts.get(role_label(role)).into()))],
@@ -358,7 +449,14 @@ pub fn show(
     egui::Window::new(title)
         .id(window_id())
         .open(&mut open)
-        .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-12.0, 96.0))
+        // Lot R1c (H-UI-192) : déplaçable par sa barre de titre (n'est
+        // plus ancrée), contenue dans l'écran ; d'abord en haut à droite de
+        // la vue, à gauche du rail ou du volet latéral sans les recouvrir ;
+        // position gardée par egui tant que l'application tourne.
+        .pivot(egui::Align2::RIGHT_TOP)
+        .default_pos(default_pos(ctx))
+        .constrain(true)
+        .movable(true)
         .resizable(false)
         .collapsible(false)
         .default_width(330.0)
@@ -378,17 +476,17 @@ pub fn show(
                 state.thickness = None;
             }
             ui.separator();
-            // Couleur : nuancier du modèle, palette, couleur libre.
-            let current = shown_color(style, role, v);
+            // Couleur (lot R1c, H-UI-193) : nuancier stable en trois
+            // rangées, couleur libre ; couleur courante telle que dessinée.
+            let current = shown_color(input.shown, role, v);
             ui.label(texts.get(TextId::FpColor));
-            let mut model: Vec<Rgb> = tokens.bars.values().map(|p| p.fill).collect();
-            model.sort_unstable();
-            model.dedup();
-            // Une couleur n'apparaît qu'une fois (nom accessible unique).
-            let extra: Vec<Rgb> = SWATCHES.iter().copied().filter(|c| !model.contains(c)).collect();
-            for row in [model.as_slice(), extra.as_slice()] {
+            let model = crate::theme::screen_style(plannercraft_render::style::template(base_of(input))).0;
+            for row in swatch_rows(&model, input.shown, v) {
+                if row.is_empty() {
+                    continue;
+                }
                 ui.horizontal_wrapped(|ui| {
-                    for &rgb in row {
+                    for rgb in row {
                         if swatch(ui, texts, TextId::FpSwatch, rgb, current == Some(rgb)) {
                             effects.push(FormatEffect::Exec(color_batch(role, rgb, input)));
                         }
@@ -414,30 +512,18 @@ pub fn show(
             {
                 effects.push(FormatEffect::Exec(color_batch(role, rgb, input)));
             }
-            // Contraste (H-UI-61).
-            if let Some(rgb) = current {
-                let ratio = contrast_ratio(rgb, tokens.bg);
-                if ratio < MIN_BAR {
-                    let shown = format!("{},{}", ratio / 1000, (ratio % 1000) / 100);
-                    let shown = if matches!(input.lang, Language::En) {
-                        shown.replace(',', ".")
-                    } else {
-                        shown
-                    };
-                    ui.colored_label(
-                        ui.visuals().warn_fg_color,
-                        texts.get_args(TextId::FpContrastLow, &[("ratio", Arg::Str(shown.into()))]),
-                    );
-                    if let Some(better) = nearest_compliant(rgb, tokens.bg, MIN_BAR) {
-                        let label = texts.get_args(
-                            TextId::FpUseSuggestion,
-                            &[("color", Arg::Str(better.hex().into()))],
-                        );
-                        if ui.button(label).clicked() {
-                            effects.push(FormatEffect::Exec(color_batch(role, better, input)));
-                        }
-                    }
-                }
+            // Contraste (H-UI-61). Lot R1c : une couleur choisie vaut pour
+            // les trois variantes, mesurée sur le fond de chacune, comme les
+            // phases ; une couleur du modèle (une par variante) l'est sur le
+            // fond affiché seulement, comme avant.
+            let user = style.tokens(v).bars.get(&role).is_some_and(plannercraft_render::style::BarPaint::is_user);
+            let all = [Variant::Light, Variant::Dark, Variant::Print].map(|v| (v, style.tokens(v).bg));
+            let shown = [(v, style.tokens(v).bg)];
+            let bgs: &[(Variant, Rgb)] = if user { &all } else { &shown };
+            if let Some(rgb) = current
+                && let Some(better) = contrast_warning(ui, texts, input.lang, rgb, bgs)
+            {
+                effects.push(FormatEffect::Exec(color_batch(role, better, input)));
             }
             ui.separator();
             // Épaisseur et extrémités.
@@ -542,36 +628,11 @@ pub fn show(
                 // le fond de chacune ; proposition sur le fond le plus
                 // exigeant si elle convient aux trois.
                 if let Some(p) = own {
-                    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| style.tokens(v).bg);
-                    let (ratio, worst) = bgs
-                        .iter()
-                        .map(|bg| (contrast_ratio(p.fill, *bg), *bg))
-                        .min_by_key(|(r, _)| *r)
-                        .unwrap_or((u32::MAX, tokens.bg));
-                    if ratio < MIN_BAR {
-                        let shown = format!("{},{}", ratio / 1000, (ratio % 1000) / 100);
-                        let shown = if matches!(input.lang, Language::En) {
-                            shown.replace(',', ".")
-                        } else {
-                            shown
-                        };
-                        ui.colored_label(
-                            ui.visuals().warn_fg_color,
-                            texts.get_args(TextId::FpContrastLow, &[("ratio", Arg::Str(shown.into()))]),
-                        );
-                        let better = nearest_compliant(p.fill, worst, MIN_BAR)
-                            .filter(|b| bgs.iter().all(|bg| contrast_ratio(*b, *bg) >= MIN_BAR));
-                        if let Some(better) = better {
-                            let label = texts.get_args(
-                                TextId::FpUseSuggestion,
-                                &[("color", Arg::Str(better.hex().into()))],
-                            );
-                            if ui.button(label).clicked() {
-                                let mut phases = style.phases.clone();
-                                phases.insert(key, PhaseColor { fill: better, ..p });
-                                effects.push(FormatEffect::Exec(phases_batch(&phases, input)));
-                            }
-                        }
+                    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| (v, style.tokens(v).bg));
+                    if let Some(better) = contrast_warning(ui, texts, input.lang, p.fill, &bgs) {
+                        let mut phases = style.phases.clone();
+                        phases.insert(key, PhaseColor { fill: better, ..p });
+                        effects.push(FormatEffect::Exec(phases_batch(&phases, input)));
                     }
                 }
                 if let Some(p) = own {
@@ -710,6 +771,11 @@ impl crate::app::App {
     ) {
         use crate::action::{Action, FormatOp};
         let lang = self.text_language();
+        if self.document.is_none() || self.view.format_panel.is_none() {
+            return;
+        }
+        // Style tel que dessiné (interface adoucie comprise, lot R1c).
+        let shown = self.screen_style(ctx.theme()).0.style;
         let (Some(document), Some(state)) = (&self.document, &mut self.view.format_panel) else {
             return;
         };
@@ -721,6 +787,7 @@ impl crate::app::App {
         let input = FormatInput {
             session: &document.session,
             style: &style,
+            shown: &shown,
             doc: plannercraft_automation::command::style::doc_style(document.project()),
             default: self.state.default_template,
             variant,

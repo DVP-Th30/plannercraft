@@ -193,7 +193,8 @@ fn h_ui_78_timeline_shows_project_bounds() {
     // sienne (bordure d'un point).
     let table_left = row_rect(&harness, 1, "Gros œuvre").left();
     assert!((d.rect.left() + 1.0 - table_left).abs() < 0.5, "{d:?}");
-    assert!(d.rect.width() > 1400.0, "{d:?}");
+    // Lot R1c (H-UI-190) : moins la place du rail du volet réduit.
+    assert!(d.rect.width() > 1350.0, "{d:?}");
     let texts = frise_texts(&harness);
     assert!(texts.iter().any(|t| t == "Début lun 19/10/26"), "{texts:?}");
     assert!(texts.iter().any(|t| t == "Fin mar 17/11/26"), "{texts:?}");

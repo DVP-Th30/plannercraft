@@ -1099,51 +1099,9 @@ fn assistant_button(
     }
     let ring = b.busy && !b.open;
     if ring {
-        let reduce = fc.state.reduce_motion;
-        let alpha = if reduce {
-            0.7
-        } else {
-            let t = ctx.input(|i| i.time);
-            // Une pulsation toutes les 1,6 s environ, entre 25 et 85 %.
-            #[allow(clippy::cast_possible_truncation, reason = "phase d'une animation")]
-            let phase = ((t * 4.0).sin() * 0.5 + 0.5) as f32;
-            0.25 + 0.6 * phase
-        };
-        painter.rect_stroke(
-            rect,
-            8.0,
-            Stroke::new(1.5, tokens.accent.gamma_multiply(alpha)),
-            StrokeKind::Inside,
-        );
-        if !reduce {
-            ctx.request_repaint_after(std::time::Duration::from_millis(50));
-        }
+        busy_ring(&ctx, &painter, &tokens, rect, 8.0, fc.state.reduce_motion);
     }
-    let dot = (badge > 0).then(|| {
-        let text = if badge > BADGE_MAX {
-            format!("{BADGE_MAX}+")
-        } else {
-            badge.to_string()
-        };
-        let galley = painter.layout_no_wrap(text, FontId::proportional(9.0), tokens.on_accent);
-        // Une nouveauté : point de 8 px ; plus : pastille de 13 px de haut
-        // portant le nombre.
-        let c = pos2(rect.right() - 4.0, rect.top() + 5.0);
-        let disk = if badge == 1 {
-            Rect::from_center_size(c, Vec2::splat(8.0))
-        } else {
-            Rect::from_center_size(c, vec2((galley.size().x + 6.0).max(13.0), 13.0))
-        };
-        painter.rect_filled(disk, disk.height() / 2.0, tokens.accent);
-        if badge > 1 {
-            painter.galley(
-                Rect::from_center_size(c, galley.size()).min,
-                galley,
-                tokens.on_accent,
-            );
-        }
-        disk
-    });
+    let dot = badge_dot(&painter, &tokens, rect, badge);
     record(&ctx, |d| {
         d.assistant = Some((rect, dot));
         d.assistant_ring = ring;
@@ -1160,6 +1118,72 @@ fn assistant_button(
             .push(Action::SidePanel(crate::view::side_panel::SideOp::Toggle));
     }
     Some(rect)
+}
+
+/// Contour « réponse en cours » autour de `rect` (H-UI-166) : accent qui
+/// pulse (une pulsation toutes les 1,6 s environ, entre 25 et 85 %), fixe à
+/// 70 % si « Réduire les animations » (`reduce`). Partagé par le bouton du
+/// ruban et le rail du volet (lot R1c).
+pub(super) fn busy_ring(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    tokens: &ChromeTokens,
+    rect: Rect,
+    radius: f32,
+    reduce: bool,
+) {
+    let alpha = if reduce {
+        0.7
+    } else {
+        let t = ctx.input(|i| i.time);
+        #[allow(clippy::cast_possible_truncation, reason = "phase d'une animation")]
+        let phase = ((t * 4.0).sin() * 0.5 + 0.5) as f32;
+        0.25 + 0.6 * phase
+    };
+    painter.rect_stroke(
+        rect,
+        radius,
+        Stroke::new(1.5, tokens.accent.gamma_multiply(alpha)),
+        StrokeKind::Inside,
+    );
+    if !reduce {
+        ctx.request_repaint_after(std::time::Duration::from_millis(50));
+    }
+}
+
+/// Pastille de nouveautés au coin haut-droit de `rect` (H-UI-166) : point
+/// de 8 px pour une nouveauté, pastille de 13 px de haut portant le nombre
+/// au-delà (« 9+ » au-delà de neuf) ; rien si `badge` est nul. Rend son
+/// rectangle. Partagée par le bouton du ruban et le rail (lot R1c).
+pub(super) fn badge_dot(
+    painter: &egui::Painter,
+    tokens: &ChromeTokens,
+    rect: Rect,
+    badge: u32,
+) -> Option<Rect> {
+    (badge > 0).then(|| {
+        let text = if badge > BADGE_MAX {
+            format!("{BADGE_MAX}+")
+        } else {
+            badge.to_string()
+        };
+        let galley = painter.layout_no_wrap(text, FontId::proportional(9.0), tokens.on_accent);
+        let c = pos2(rect.right() - 4.0, rect.top() + 5.0);
+        let disk = if badge == 1 {
+            Rect::from_center_size(c, Vec2::splat(8.0))
+        } else {
+            Rect::from_center_size(c, vec2((galley.size().x + 6.0).max(13.0), 13.0))
+        };
+        painter.rect_filled(disk, disk.height() / 2.0, tokens.accent);
+        if badge > 1 {
+            painter.galley(
+                Rect::from_center_size(c, galley.size()).min,
+                galley,
+                tokens.on_accent,
+            );
+        }
+        disk
+    })
 }
 
 /// Onglet de la barre du haut (lot U2, H-UI-173) : pastille de 30 points ;
@@ -1794,7 +1818,7 @@ fn centered_lines(
 
 /// Infobulle d'un élément (H-UI-73) : libellé appuyé avec le raccourci de
 /// `KEYMAP` du système, phrase d'aide, raison du grisé.
-pub(super) fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>) {
+pub(crate) fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>) {
     ui.label(RichText::new(title).strong());
     ui.label(tip);
     if let Some(reason) = reason {
@@ -1803,7 +1827,7 @@ pub(super) fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>)
 }
 
 /// Titre de l'infobulle : « Indenter (Alt+Shift+⏵) ».
-pub(super) fn tooltip_title(ctx: &egui::Context, label: &str, binding: Option<Binding>) -> String {
+pub(crate) fn tooltip_title(ctx: &egui::Context, label: &str, binding: Option<Binding>) -> String {
     match binding.and_then(|b| shortcut_for_os(b, ctx.os())) {
         Some(shortcut) => format!("{label} ({})", shortcut_text(ctx, shortcut)),
         None => label.to_owned(),

@@ -515,8 +515,8 @@ fn h_ui_61_low_contrast_warned() {
     harness.run();
     let warned = texts(&harness)
         .iter()
-        .any(|(_, t)| t.starts_with("Contraste insuffisant"));
-    assert!(warned, "aucun avertissement de contraste");
+        .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond clair"));
+    assert!(warned, "aucun avertissement de contraste sur le fond clair");
     let suggestion =
         plannercraft_automation::command::style::nearest_compliant(yellow, Rgb(0xFF, 0xFF, 0xFF), 3_000)
             .unwrap();
@@ -1146,4 +1146,315 @@ fn snapshot_search_bar_fr_light() {
         .dispatch(Action::TaskView(TaskViewOp::SetQuery("fond".to_owned())));
     harness.run();
     crate::common::snapshot(&mut harness, "search_bar_fr_light");
+}
+
+/// Glisser du pointeur de `from` à `to` par petits pas (une fenêtre egui
+/// suit le déplacement image par image une fois le glisser commencé).
+fn drag_window(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
+    harness.hover_at(from);
+    harness.step();
+    harness.drag_at(from);
+    harness.step();
+    for k in 1..=20_u8 {
+        let t = f32::from(k) / 20.0;
+        harness.hover_at(from + (to - from) * t);
+        harness.step();
+    }
+    harness.step();
+    harness.drop_at(to);
+    harness.run();
+}
+
+/// Fenêtre « Mettre en forme les barres » à la dernière image.
+fn format_window(harness: &Harness<'static, App>) -> Rect {
+    let id = plannercraft_ui_egui::view::format_panel::window_id();
+    harness
+        .ctx
+        .memory(|m| m.area_rect(id))
+        .expect("fenêtre du volet des barres")
+}
+
+/// H-UI-192 (lot R1c) : la fenêtre « Mettre en forme les barres » s'ouvre
+/// en haut à droite de la vue, à gauche du rail sans le recouvrir ; elle se
+/// déplace par sa barre de titre, reste dans l'écran, et garde sa position
+/// refermée puis rouverte.
+#[test]
+fn h_ui_192_format_window_moves() {
+    let (mut harness, _) = sobre_p();
+    open_panel(&mut harness, BarRole::Task, None);
+    let win = format_window(&harness);
+    let rail = plannercraft_ui_egui::view::side_panel::rail_drawn(&harness.ctx).expect("rail");
+    assert!(win.right() <= rail.rect.left(), "{win:?} {rail:?}");
+    assert!(
+        win.right() > rail.rect.left() - 40.0,
+        "en haut à droite : {win:?}"
+    );
+    let title = label(
+        TextId::FpTitle,
+        &[("role", Arg::Str(fr(TextId::FpRoleTask).into()))],
+    );
+    assert!(harness.query_by_label(&title).is_some());
+    // Barre de titre (14 points sous le haut), à gauche du titre.
+    let grip = pos2(win.left() + 16.0, win.top() + 14.0);
+    drag_window(&mut harness, grip, grip + egui::vec2(-300.0, 120.0));
+    let moved = format_window(&harness);
+    // Le premier pas sert à démarrer le glisser (seuil d'egui) : au plus
+    // un pas (15 × 6 points) perdu.
+    let (dx, dy) = (moved.left() - win.left(), moved.top() - win.top());
+    assert!(
+        (-300.5..=-280.0).contains(&dx) && (110.0..=120.5).contains(&dy),
+        "{win:?} ⇒ {moved:?}"
+    );
+    // Tirée hors de l'écran : retenue dedans.
+    let grip = pos2(moved.left() + 16.0, moved.top() + 14.0);
+    drag_window(&mut harness, grip, pos2(-2_000.0, -2_000.0));
+    let screen = harness.ctx.content_rect();
+    let kept = format_window(&harness);
+    assert!(screen.contains_rect(kept), "{kept:?} hors de {screen:?}");
+    // Refermée puis rouverte : même place.
+    harness.state_mut().dispatch(Action::Format(FormatOp::CloseBars));
+    harness.run();
+    open_panel(&mut harness, BarRole::Critical, None);
+    let again = format_window(&harness);
+    assert!(
+        (again.left() - kept.left()).abs() < 1.0 && (again.top() - kept.top()).abs() < 1.0,
+        "{kept:?} ⇒ {again:?}"
+    );
+}
+
+/// Positions des pastilles du nuancier des barres (nom accessible
+/// « Couleur #RRGGBB » ⇒ centre).
+fn swatch_positions(harness: &Harness<'static, App>) -> std::collections::BTreeMap<String, Pos2> {
+    let prefix = label(TextId::FpSwatch, &[("color", Arg::Str("#".into()))]);
+    harness
+        .query_all_by(|n| n.label().is_some_and(|l| l.starts_with(&prefix)))
+        .map(|n| {
+            use egui_kittest::kittest::NodeT as _;
+            (n.accesskit_node().label().unwrap_or_default(), n.rect().center())
+        })
+        .collect()
+}
+
+/// H-UI-193 (lot R1c) : cliquer chaque pastille des deux premières
+/// rangées (modèle, puis palette) ne déplace aucune d'elles ; une couleur
+/// libre déjà utilisée apparaît en troisième rangée, sous les deux autres,
+/// marquée comme couleur courante.
+#[test]
+fn h_ui_193_swatches_stable() {
+    let (mut harness, _) = sobre_p();
+    open_panel(&mut harness, BarRole::Task, None);
+    let before = swatch_positions(&harness);
+    assert!(before.len() >= 11, "{before:?}");
+    for name in before.keys() {
+        let node = harness
+            .query_all_by_label(name)
+            .next()
+            .unwrap_or_else(|| panic!("« {name} » absente"));
+        node.click();
+        harness.run();
+        harness.run();
+        let now = swatch_positions(&harness);
+        for (other, at) in &before {
+            assert_eq!(now.get(other), Some(at), "« {other} » déplacée après « {name} »");
+        }
+    }
+    // Couleur libre : troisième rangée.
+    let batch = plannercraft_automation::Batch::from_json_str(
+        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
+    )
+    .unwrap();
+    harness
+        .state_mut()
+        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
+        .unwrap();
+    harness.run();
+    harness.run();
+    let now = swatch_positions(&harness);
+    let free = label(TextId::FpSwatch, &[("color", Arg::Str("#123456".into()))]);
+    let at = now.get(&free).expect("couleur libre en troisième rangée");
+    let lowest = before.values().map(|p| p.y).fold(f32::MIN, f32::max);
+    assert!(at.y > lowest + 4.0, "{at:?} sous {lowest}");
+    for (other, p) in &before {
+        assert_eq!(now.get(other), Some(p), "« {other} » déplacée");
+    }
+}
+
+/// H-UI-195, H-UI-196 (lot R1c, I1 et I3 vus de l'interface) : une
+/// couleur choisie par le volet sur Sobre garde l'écran adouci (barres
+/// critiques à leur teinte adoucie), repeint les barres du rôle, vaut pour
+/// le clair, le sombre et l'impression, et dessine leur avancement dans
+/// une encre dérivée lisible.
+#[test]
+fn h_ui_195_panel_color_keeps_soft_screen() {
+    let (mut harness, _) = sobre_p();
+    let soft_critical = plannercraft_ui_egui::theme::soft_tokens(Variant::Light)
+        .unwrap()
+        .bars[&BarRole::Critical]
+        .fill;
+    let painted = |h: &Harness<'static, App>, c: Rgb| {
+        shapes(h)
+            .iter()
+            .any(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(c)))
+    };
+    assert!(painted(&harness, soft_critical));
+    open_panel(&mut harness, BarRole::Task, None);
+    let orange = Rgb(0xE6, 0x9F, 0x00);
+    click(
+        &mut harness,
+        &label(TextId::FpSwatch, &[("color", Arg::Str(orange.hex().into()))]),
+    );
+    harness.run();
+    let st = effective(harness.state());
+    for v in [Variant::Light, Variant::Dark, Variant::Print] {
+        assert_eq!(st.tokens(v).bars[&BarRole::Task].fill, orange, "{v:?}");
+    }
+    assert!(
+        plannercraft_ui_egui::theme::screen_style(st).1,
+        "écran adouci gardé"
+    );
+    assert!(painted(&harness, orange), "tâches repeintes");
+    assert!(painted(&harness, soft_critical), "barres critiques inchangées");
+}
+
+/// Captures du lot R1c : volet des barres à trois rangées (couleur libre
+/// déjà utilisée) ; Gantt de suivi aux quatre couleurs du diagnostic
+/// (orange, noir, jaune, rouge), clair et sombre.
+#[test]
+fn snapshot_format_panel_rows_fr_light() {
+    let mut harness = demo_capture();
+    let batch = plannercraft_automation::Batch::from_json_str(
+        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456","base":"sobre"}]}"##,
+    )
+    .unwrap();
+    harness
+        .state_mut()
+        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
+        .unwrap();
+    harness.run();
+    open_panel(&mut harness, BarRole::Task, None);
+    crate::common::snapshot(&mut harness, "format_panel_rows_fr_light");
+}
+
+/// Planning de l'exemple en Gantt de suivi, tâches en cours d'avancement,
+/// couleurs du diagnostic du lot R1c posées par les commandes du volet.
+fn diag_colors(theme: ThemePref) -> Harness<'static, App> {
+    let mut harness = crate::common::harness(LanguagePref::Fr, theme);
+    harness.run();
+    harness.state_mut().open_demo();
+    harness.run();
+    harness.state_mut().dispatch(Action::SetGanttStyle(
+        plannercraft_ui_egui::state::GanttStyle::Tracking,
+    ));
+    let mut ops = Vec::new();
+    for (task, pct) in [
+        (2, 10_000),
+        (3, 6_000),
+        (5, 5_000),
+        (6, 5_000),
+        (10, 4_000),
+        (13, 3_000),
+        (14, 5_000),
+    ] {
+        ops.push(format!(
+            r#"{{"op":"progress.update","task":{task},"percent_complete":{{"value":{pct}}}}}"#
+        ));
+    }
+    for (role, color) in [
+        ("task", "#E69F00"),
+        ("critical", "#000000"),
+        ("summary", "#F0E442"),
+        ("milestone", "#C00000"),
+    ] {
+        ops.push(format!(
+            r#"{{"op":"style.set_bar_role","role":"{role}","color":"{color}","base":"sobre"}}"#
+        ));
+    }
+    let batch = plannercraft_automation::Batch::from_json_str(&format!(
+        r#"{{"format_version":1,"ops":[{}]}}"#,
+        ops.join(",")
+    ))
+    .unwrap();
+    harness
+        .state_mut()
+        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
+        .unwrap();
+    harness.run();
+    harness.run();
+    harness
+}
+
+#[test]
+fn snapshot_bar_colors_fr_light() {
+    let mut harness = diag_colors(ThemePref::Light);
+    crate::common::snapshot(&mut harness, "bar_colors_fr_light");
+}
+
+#[test]
+fn snapshot_bar_colors_fr_dark() {
+    let mut harness = diag_colors(ThemePref::Dark);
+    crate::common::snapshot(&mut harness, "bar_colors_fr_dark");
+}
+
+/// H-UI-194 (lot R1c, amende H-UI-61) : une couleur choisie est mesurée
+/// sur les fonds clair, sombre et impression ; bleu nuit `#123456`, lisible
+/// sur le blanc, est signalé (« sur le fond sombre », le fond en cause est
+/// nommé) et la proposition convient aux trois ; appliquée, plus
+/// d'avertissement. Couleur du modèle : fond
+/// affiché seul (aucun avertissement sur Sobre).
+#[test]
+fn h_ui_194_contrast_three_backgrounds() {
+    let (mut harness, _) = sobre_p();
+    open_panel(&mut harness, BarRole::Task, None);
+    let warned = |h: &Harness<'static, App>| {
+        texts(h)
+            .iter()
+            .any(|(_, t)| t.starts_with("Contraste insuffisant"))
+    };
+    assert!(!warned(&harness), "couleur du modèle");
+    let navy = Rgb(0x12, 0x34, 0x56);
+    let batch = plannercraft_automation::Batch::from_json_str(
+        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
+    )
+    .unwrap();
+    harness
+        .state_mut()
+        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
+        .unwrap();
+    harness.run();
+    harness.run();
+    assert!(warned(&harness), "aucun avertissement sur le fond sombre");
+    // Le fond en cause est nommé : la couleur est lisible sur l'écran clair
+    // affiché, l'avertissement doit dire pourquoi il apparaît.
+    assert!(
+        texts(&harness)
+            .iter()
+            .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond sombre")),
+        "fond en cause non nommé"
+    );
+    let st = effective(harness.state());
+    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| st.tokens(v).bg);
+    assert!(plannercraft_render::style::contrast_ratio(navy, bgs[0]) >= 3_000);
+    let worst = *bgs
+        .iter()
+        .min_by_key(|bg| plannercraft_render::style::contrast_ratio(navy, **bg))
+        .unwrap();
+    let better = plannercraft_automation::command::style::nearest_compliant(navy, worst, 3_000)
+        .filter(|b| {
+            bgs.iter()
+                .all(|bg| plannercraft_render::style::contrast_ratio(*b, *bg) >= 3_000)
+        })
+        .expect("couleur conforme sur les trois fonds");
+    click(
+        &mut harness,
+        &label(
+            TextId::FpUseSuggestion,
+            &[("color", Arg::Str(better.hex().into()))],
+        ),
+    );
+    harness.run();
+    let st = effective(harness.state());
+    for v in [Variant::Light, Variant::Dark, Variant::Print] {
+        assert_eq!(st.tokens(v).bars[&BarRole::Task].fill, better, "{v:?}");
+    }
+    assert!(!warned(&harness));
 }

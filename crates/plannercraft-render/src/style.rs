@@ -227,6 +227,42 @@ pub struct BarPaint {
     /// Contour, dessiné si [`BarStyle::outline16`] > 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outline: Option<Rgb>,
+    /// Encre de la bande d'avancement dessinée **dans** les barres de ce
+    /// rôle (lot R1c, H-UI-195) : posée par la résolution pour une couleur
+    /// choisie par l'utilisateur ([`user_progress`]), jamais lue ni écrite
+    /// en JSON. `None` : couleur du rôle [`BarRole::Progress`] (modèles
+    /// fournis, inchangés).
+    #[serde(skip)]
+    pub progress: Option<Rgb>,
+}
+
+impl BarPaint {
+    /// Remplissage `fill`, sans contour propre.
+    #[must_use]
+    pub const fn solid(fill: Rgb) -> Self {
+        Self {
+            fill,
+            outline: None,
+            progress: None,
+        }
+    }
+
+    /// Remplissage `fill` et contour `outline`.
+    #[must_use]
+    pub const fn outlined(fill: Rgb, outline: Rgb) -> Self {
+        Self {
+            fill,
+            outline: Some(outline),
+            progress: None,
+        }
+    }
+
+    /// Couleur posée par l'utilisateur (une surcharge du document l'a
+    /// choisie) : la résolution lui a dérivé son avancement.
+    #[must_use]
+    pub const fn is_user(&self) -> bool {
+        self.progress.is_some()
+    }
 }
 
 /// Couleurs d'une variante.
@@ -1142,15 +1178,7 @@ impl PlanStyle {
         let light_gray = Rgb(0xE6, 0xE6, 0xE6);
         let bars: BTreeMap<BarRole, BarPaint> = BarRole::ALL
             .into_iter()
-            .map(|r| {
-                (
-                    r,
-                    BarPaint {
-                        fill: gray,
-                        outline: None,
-                    },
-                )
-            })
+            .map(|r| (r, BarPaint::solid(gray)))
             .collect();
         let tokens = |bg: Rgb, fg: Rgb| ColorTokens {
             bg,
@@ -1233,8 +1261,38 @@ impl PlanStyle {
         }
     }
 
+    /// Couleurs de la variante `v`, modifiables (`None` : impression qui
+    /// suit le clair).
+    fn tokens_mut(&mut self, v: Variant) -> Option<&mut ColorTokens> {
+        match v {
+            Variant::Light => Some(&mut self.colors.light),
+            Variant::Dark => Some(&mut self.colors.dark),
+            Variant::Print => self.colors.print.as_mut(),
+        }
+    }
+
+    /// Couleur posée sur le rôle `role` dans la variante `v` (lot R1c,
+    /// H-UI-195) : contour et avancement dérivés ([`user_paint`]) ; `model` :
+    /// peinture du rôle avant la surcharge.
+    fn derive_user_paint(&mut self, role: BarRole, v: Variant, model: Option<BarPaint>) {
+        let outline_only = self
+            .bars
+            .get(&role)
+            .is_some_and(|s| s.pattern == Pattern::Outline);
+        let Some(tokens) = self.tokens_mut(v) else {
+            return;
+        };
+        let bg = tokens.bg;
+        if let Some(paint) = tokens.bars.get_mut(&role) {
+            *paint = user_paint(*paint, model, outline_only, bg);
+        }
+    }
+
     /// Applique une surcharge (sans valider).
     fn apply(&mut self, over: &StylePatch) {
+        // Peintures d'avant la surcharge : le contour d'une couleur posée
+        // suit le modèle (lot R1c, H-UI-195).
+        let model = self.colors.clone();
         if let Some(name) = &over.name {
             self.name.clone_from(name);
         }
@@ -1291,6 +1349,110 @@ impl PlanStyle {
         if over.group_by.is_some() {
             self.group_by = over.group_by;
         }
+        // Couleurs posées par l'utilisateur (lot R1c, H-UI-195) : après les
+        // formes (motif « contour seul » final).
+        if let Some(colors) = &over.colors {
+            for (patch, v) in [
+                (&colors.light, Variant::Light),
+                (&colors.dark, Variant::Dark),
+                (&colors.print, Variant::Print),
+            ] {
+                let Some(patch) = patch else {
+                    continue;
+                };
+                for role in patch.bars.keys() {
+                    let before = model.get(v).bars.get(role).copied();
+                    self.derive_user_paint(*role, v, before);
+                }
+            }
+        }
+    }
+}
+
+/// Part du mélange vers l'encre qui donne le contour d'une couleur posée
+/// (lot R1c, H-UI-195), en % : 40 (Sobre : `#D55E00` ⇒ `#803800`, son
+/// modèle porte `#7A3500`).
+pub const USER_OUTLINE_MIX: u8 = 40;
+
+/// Contraste de l'avancement sur le remplissage d'une barre (H-UI-22,
+/// H-UI-170), en millièmes.
+pub const PROGRESS_CONTRAST: u32 = 3_000;
+
+/// Contour dérivé d'une couleur de barre posée par l'utilisateur (lot R1c,
+/// H-UI-195) : `fill` mélangée à [`USER_OUTLINE_MIX`] % vers l'encre du fond
+/// `bg` (le noir ou le blanc, le plus contrasté sur `bg` ; le noir à
+/// égalité). Arithmétique entière.
+#[must_use]
+pub fn user_outline(fill: Rgb, bg: Rgb) -> Rgb {
+    let black = Rgb(0, 0, 0);
+    let white = Rgb(u8::MAX, u8::MAX, u8::MAX);
+    let ink = if contrast_ratio(black, bg) >= contrast_ratio(white, bg) {
+        black
+    } else {
+        white
+    };
+    blend(fill, ink, USER_OUTLINE_MIX)
+}
+
+/// Avancement dérivé d'une couleur de barre posée par l'utilisateur (lot
+/// R1c, H-UI-195) : la teinte `key` assombrie par pas de 1 % jusqu'à
+/// [`PROGRESS_CONTRAST`] sur le remplissage dessiné `on` (règle de
+/// l'interface adoucie, H-UI-170) ; si le noir n'y parvient pas (barre
+/// sombre), éclaircie de même vers le blanc ; l'encre la plus contrastée
+/// au pire. Toujours lisible : le noir ou le blanc atteint 4,58:1 sur toute
+/// couleur.
+#[must_use]
+pub fn user_progress(key: Rgb, on: Rgb) -> Rgb {
+    let black = Rgb(0, 0, 0);
+    let white = Rgb(u8::MAX, u8::MAX, u8::MAX);
+    for target in [black, white] {
+        if let Some(c) = (0..=100_u8)
+            .map(|k| blend(key, target, k))
+            .find(|c| contrast_ratio(*c, on) >= PROGRESS_CONTRAST)
+        {
+            return c;
+        }
+    }
+    if contrast_ratio(black, on) >= contrast_ratio(white, on) {
+        black
+    } else {
+        white
+    }
+}
+
+/// Peinture d'une couleur de barre posée par l'utilisateur (lot R1c,
+/// H-UI-195), règle unique de l'écran, du SVG et du PDF :
+/// - rôle « contour seul » (`outline_only` : tâche manuelle, inactive) : la
+///   couleur posée est le contour (le remplissage reste celui du modèle, le
+///   fond) ; un contour explicite de la surcharge est gardé tel quel ;
+/// - sinon remplissage posé ; contour explicite gardé, sinon dérivé
+///   ([`user_outline`]) si le modèle `model` en dessine un, aucun sinon ;
+/// - avancement dérivé ([`user_progress`]) de la couleur posée, lisible
+///   sur le remplissage dessiné.
+///
+/// Les modèles fournis, sans surcharge, ne passent jamais ici.
+#[must_use]
+pub fn user_paint(posed: BarPaint, model: Option<BarPaint>, outline_only: bool, bg: Rgb) -> BarPaint {
+    if outline_only {
+        let (fill, key) = match posed.outline {
+            Some(outline) => (posed.fill, outline),
+            None => (model.map_or(bg, |m| m.fill), posed.fill),
+        };
+        return BarPaint {
+            fill,
+            outline: Some(key),
+            progress: Some(user_progress(key, fill)),
+        };
+    }
+    let outline = posed.outline.or_else(|| {
+        model
+            .and_then(|m| m.outline)
+            .map(|_| user_outline(posed.fill, bg))
+    });
+    BarPaint {
+        fill: posed.fill,
+        outline,
+        progress: Some(user_progress(posed.fill, posed.fill)),
     }
 }
 
@@ -1998,5 +2160,156 @@ mod tests {
         // Champ inconnu refusé (deny_unknown_fields).
         let unknown = r#"{"base":"sobre","over":{"timeline":{"tasks":[],"x":1}},"v":1}"#;
         assert!(matches!(parse_doc_style(unknown), Err(StyleError::Syntax(_))));
+    }
+
+    /// Couleurs de l'essai du 2026-11-11 et palette du nuancier.
+    const R1C_COLORS: [Rgb; 8] = [
+        Rgb(0xE6, 0x9F, 0x00),
+        Rgb(0, 0, 0),
+        Rgb(0xF0, 0xE4, 0x42),
+        Rgb(0xC0, 0, 0),
+        Rgb(0xFF, 0xFF, 0xFF),
+        Rgb(0x56, 0xB4, 0xE9),
+        Rgb(0x7A, 0x7A, 0x7A),
+        Rgb(0x00, 0x72, 0xB2),
+    ];
+
+    /// Surcharge qui pose `fill` sur `role` dans les trois variantes.
+    fn posed(role: BarRole, fill: Rgb) -> StylePatch {
+        let mut tokens = ColorTokensPatch::default();
+        tokens.bars.insert(role, BarPaint::solid(fill));
+        StylePatch {
+            colors: Some(VariantsPatch {
+                light: Some(tokens.clone()),
+                dark: Some(tokens.clone()),
+                print: Some(tokens),
+            }),
+            ..StylePatch::default()
+        }
+    }
+
+    /// H-UI-195 (I2) : modèles fournis sans réglage inchangés, aucune
+    /// couleur « posée » (aucune dérivation).
+    #[test]
+    fn h_ui_195_templates_untouched() {
+        for id in TemplateId::ALL {
+            let plain = template(id);
+            let resolved = resolve(id, &StylePatch::default());
+            assert_eq!(
+                PlanStyle {
+                    base: plain.base,
+                    ..resolved
+                },
+                plain,
+                "{id:?}"
+            );
+            for v in [Variant::Light, Variant::Dark, Variant::Print] {
+                assert!(
+                    plain.tokens(v).bars.values().all(|p| !p.is_user()),
+                    "{id:?} {v:?}"
+                );
+            }
+        }
+    }
+
+    /// H-UI-195 (I2) : pour toute couleur posée, même type de rendu que le
+    /// modèle : contour dérivé si le modèle en dessine un (aucun sinon),
+    /// rôle « contour seul » gardé en contour seul (couleur au contour,
+    /// fond gardé), avancement lisible (≥ 3:1) sur le remplissage dessiné.
+    #[test]
+    fn h_ui_195_user_paint_same_kind_progress_readable() {
+        for id in TemplateId::ALL {
+            let plain = template(id);
+            for role in BarRole::ALL {
+                for fill in R1C_COLORS {
+                    let st = resolve(id, &posed(role, fill));
+                    assert_eq!(st.bars, plain.bars, "{id:?} {role:?}");
+                    let outline_only = plain.bars[&role].pattern == Pattern::Outline;
+                    for v in [Variant::Light, Variant::Dark, Variant::Print] {
+                        let model = plain.tokens(v).bars[&role];
+                        let p = st.tokens(v).bars[&role];
+                        let progress = p.progress.unwrap();
+                        if outline_only {
+                            assert_eq!(p.outline, Some(fill), "{id:?} {role:?} {v:?}");
+                            assert_eq!(p.fill, model.fill, "{id:?} {role:?} {v:?}");
+                        } else {
+                            assert_eq!(p.fill, fill);
+                            assert_eq!(
+                                p.outline.is_some(),
+                                model.outline.is_some(),
+                                "{id:?} {role:?} {v:?}"
+                            );
+                            if let Some(o) = p.outline {
+                                assert_eq!(o, user_outline(fill, st.tokens(v).bg));
+                            }
+                        }
+                        assert!(
+                            contrast_ratio(progress, p.fill) >= PROGRESS_CONTRAST,
+                            "{id:?} {role:?} {v:?} {fill:?} ⇒ {progress:?}"
+                        );
+                        // Déterminisme : même entrée, même sortie.
+                        assert_eq!(resolve(id, &posed(role, fill)), st);
+                    }
+                }
+            }
+        }
+    }
+
+    /// H-UI-195 (I1) : poser une couleur ne change que ce rôle ; les autres
+    /// rôles et toutes les autres couleurs du style restent ceux du modèle.
+    #[test]
+    fn h_ui_195_only_the_role_changes() {
+        for id in TemplateId::ALL {
+            let plain = template(id);
+            for role in BarRole::ALL {
+                let st = resolve(id, &posed(role, Rgb(0xE6, 0x9F, 0x00)));
+                for v in [Variant::Light, Variant::Dark, Variant::Print] {
+                    let mut a = st.tokens(v).clone();
+                    let mut b = plain.tokens(v).clone();
+                    a.bars.remove(&role);
+                    b.bars.remove(&role);
+                    assert_eq!(a, b, "{id:?} {role:?} {v:?}");
+                }
+                assert_eq!(
+                    PlanStyle {
+                        colors: plain.colors.clone(),
+                        base: plain.base,
+                        ..st
+                    },
+                    plain,
+                    "{id:?} {role:?}"
+                );
+            }
+        }
+    }
+
+    /// H-UI-195 : contour explicite d'une surcharge gardé (documents
+    /// enregistrés avant le lot R1c) ; avancement d'un remplissage noir
+    /// éclairci (le noir n'y parvient pas).
+    #[test]
+    fn h_ui_195_explicit_outline_kept_black_progress_lightened() {
+        let mut tokens = ColorTokensPatch::default();
+        tokens.bars.insert(
+            BarRole::Critical,
+            BarPaint::outlined(Rgb(0, 0, 0), Rgb(0x7A, 0x35, 0)),
+        );
+        let over = StylePatch {
+            colors: Some(VariantsPatch {
+                light: Some(tokens),
+                ..VariantsPatch::default()
+            }),
+            ..StylePatch::default()
+        };
+        let st = resolve(TemplateId::Sobre, &over);
+        let p = st.tokens(Variant::Light).bars[&BarRole::Critical];
+        assert_eq!(p.outline, Some(Rgb(0x7A, 0x35, 0)));
+        let progress = p.progress.unwrap();
+        assert!(progress.0 > 0x40, "{progress:?}");
+        assert!(contrast_ratio(progress, Rgb(0, 0, 0)) >= PROGRESS_CONTRAST);
+        // Sombre non posé : celui du modèle.
+        assert_eq!(
+            st.tokens(Variant::Dark).bars[&BarRole::Critical],
+            template(TemplateId::Sobre).tokens(Variant::Dark).bars[&BarRole::Critical]
+        );
     }
 }

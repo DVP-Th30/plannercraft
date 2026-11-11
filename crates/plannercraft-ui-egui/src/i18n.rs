@@ -769,7 +769,7 @@ text_ids! {
     MenuAiPanel => "menu-ai-panel",
     SideTabAi => "side-tab-ai",
     SideTabWhy => "side-tab-why",
-    SideClose => "side-close",
+    SideCollapse => "side-collapse",
     AiNoPending => "ai-no-pending",
     AiMore => "ai-more",
     AiCriticalEntered => "ai-critical-entered",
@@ -1661,6 +1661,9 @@ text_ids! {
     AssistantButtonBadge => "assistant-button-badge",
     AssistantButtonBusy => "assistant-button-busy",
     SideSplitterTip => "side-splitter-tip",
+    // --- Lot R1c (H-UI-190, H-UI-191) : volet rétractable.
+    SideRailExpand => "side-rail-expand",
+    SideRailTip => "side-rail-tip",
     TopMenu => "top-menu",
     TopMenuTip => "top-menu-tip",
     RibbonShowFull => "ribbon-show-full",
@@ -2245,6 +2248,8 @@ mod tests {
             ("role", Arg::Str("Barres critiques".into())),
             ("color", Arg::Str("#D55E00".into())),
             ("ratio", Arg::Str("1,6".into())),
+            // Lot R1c : fond en cause dans l'avertissement de contraste.
+            ("bg", Arg::Str("dark".into())),
             ("page", Arg::Count(2)),
             ("pages", Arg::Count(7)),
             ("scale", Arg::Count(95)),

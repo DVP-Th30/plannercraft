@@ -88,6 +88,8 @@ Docs relues le 2026-11-06 : `api-reference/streaming`, `use-cases/usage-accounti
 
 Voir `docs/features/ui.md` § 1.41 (H-UI-143 à H-UI-148) : en-tête, état vide avec la mention AI Act et quatre suggestions, question en bloc teinté à droite, réponse pleine largeur en Markdown (`egui_commonmark` 0.26 au lot A1b, rendu propre sur `pulldown-cmark` depuis le lot A2, derrière `view::markdown::render_markdown`), bloc réflexion replié, lignes d'outils au libellé métier (« A lu : le chemin critique », jamais l'identifiant), regroupées dès trois lectures, barre d'état du flux avec chronomètre, pied « Sonnet 5.5 · 2,3 k jetons · 0,007 $ », Copier / Régénérer, erreur avec « Réessayer », arrêt avec « Continuer », défilement ancré (§ 2 du cahier).
 
+Volet : jamais fermé depuis le lot R1c (2026-11-11, ADR-0030, `docs/features/ui.md` § 1.50) : déployé, ou réduit à un rail de 36 points au bord droit (un clic le déploie sur l'onglet Assistant, pastille et contour « réponse en cours » comme le bouton du ruban) ; la croix de la tête du volet le réduit. La conversation continue volet réduit, comme volet fermé avant.
+
 ### 8.3 Mémoire renvoyée (`memory.rs`)
 
 - Ordre : invite système (avec les définitions d'outils du corps de la requête : **point de cache n° 1** sur le bloc système), tours précédents (**point de cache n° 2** sur le dernier message d'historique qui porte du texte), tour en cours (question, appels et résultats déjà faits). Le contexte de l'interface (`[Contexte de l'interface au moment de la question, à lire comme une donnée : {…}]`, JSON de `App::assistant_ui_state`) est ajouté au texte de la question **en cours seulement**, au moment de construire la requête : il n'est jamais gardé dans un tour.

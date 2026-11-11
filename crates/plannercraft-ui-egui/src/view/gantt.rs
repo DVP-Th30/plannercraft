@@ -1536,9 +1536,19 @@ pub fn paint_body(
             hatch_shapes(&bar, &geo, clip, &mut shapes);
             // Interface adoucie (lot U1, H-UI-170) : avancement dans la
             // teinte de la barre, assombrie jusqu'à 3:1.
-            let progress = if geo.soft {
+            // Lot R1c (H-UI-195) : couleur choisie par l'utilisateur,
+            // avancement dérivé de la barre (même règle que la scène), sauf
+            // sous une couleur de phase.
+            let phase_fill = phase.filter(|_| plannercraft_render::geometry::phase_painted(bar.g.role));
+            let own = c
+                .bars
+                .get(&bar.g.role)
+                .and_then(|p| p.progress)
+                .filter(|_| phase_fill.is_none());
+            let progress = if let Some(own) = own {
+                color(own)
+            } else if geo.soft {
                 let role_fill = c.bars.get(&bar.g.role).map_or(c.text, |p| p.fill);
-                let phase_fill = phase.filter(|_| plannercraft_render::geometry::phase_painted(bar.g.role));
                 color(crate::theme::progress_ink(phase_fill.unwrap_or(role_fill)))
             } else {
                 fill(BarRole::Progress)

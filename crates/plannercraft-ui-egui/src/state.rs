@@ -187,7 +187,9 @@ pub struct UiState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SidePanelPrefs {
-    /// Volet ouvert (faux par défaut).
+    /// Volet ouvert (faux par défaut). Lot R1c (ADR-0030) : vrai =
+    /// déployé, faux = réduit au rail (jamais fermé) ; nom, format et
+    /// défaut gardés, aucune migration.
     pub open: bool,
     /// Largeur, en points ([`SIDE_WIDTH_DEFAULT`] par défaut).
     pub width: u16,

@@ -811,7 +811,7 @@ gantt-status-label = État { $date }
 menu-ai-panel = Opérations IA
 side-tab-ai = Opérations IA
 side-tab-why = Pourquoi cette date ?
-side-close = Fermer le volet
+side-collapse = Réduire le volet
 ai-no-pending = Aucune proposition en attente.
 ai-more =
     { $count ->
@@ -1079,7 +1079,11 @@ fp-text-inside = Texte dans la barre
 fp-none = Aucun
 fp-duration-after-name = Durée après le nom
 fp-details = Détails
-fp-contrast-low = Contraste insuffisant sur le fond : { $ratio }:1 (3:1 au moins).
+fp-contrast-low = Contraste insuffisant { $bg ->
+        [dark] sur le fond sombre
+        [print] à l'impression
+       *[light] sur le fond clair
+    } : { $ratio }:1 (3:1 au moins).
 fp-use-suggestion = Utiliser { $color }
 fp-revert = Revenir au modèle
 fp-save-template = Enregistrer comme modèle…
@@ -1630,7 +1634,7 @@ ribbon-add-to-timeline = Sur la chronologie
 # --- Assistant IA (ADR-0024, lot A1) ---
 side-tab-assistant = Assistant
 menu-assistant = Assistant IA
-ribbon-tip-assistant = Ouvre ou ferme le volet de l'assistant IA : posez une question sur le planning ouvert ; il le lit, répond et peut proposer des modifications à valider.
+ribbon-tip-assistant = Déploie ou réduit le volet de l'assistant IA : posez une question sur le planning ouvert ; il le lit, répond et peut proposer des modifications à valider.
 assistant-intro-title = Assistant IA
 assistant-disclosure = Les réponses sont générées par une IA et peuvent contenir des erreurs. Votre planning est envoyé à OpenRouter et au fournisseur du modèle.
 assistant-read-only = L'assistant lit le planning, répond et propose des modifications : vous voyez l'avant/après et acceptez ou refusez, rien n'est appliqué sans votre accord.
@@ -1811,7 +1815,7 @@ assistant-error-relay = Le serveur PlannerCraft a refusé la demande ({ $detail 
 ## Lot A5 : volet de l'assistant toujours à portée (H-UI-161 à H-UI-166)
 
 assistant-button = Assistant IA
-assistant-button-tip = Ouvre ou ferme le volet de l'assistant ; une réponse en cours continue volet fermé.
+assistant-button-tip = Déploie ou réduit le volet de l'assistant ; une réponse en cours continue volet réduit.
 assistant-button-badge =
     { $count ->
         [one] une nouveauté
@@ -1819,6 +1823,11 @@ assistant-button-badge =
     }
 assistant-button-busy = Réponse en cours…
 side-splitter-tip = Glisser pour régler la largeur du volet ; double-clic : largeur par défaut
+
+## Lot R1c : volet rétractable (H-UI-190, H-UI-191)
+
+side-rail-expand = Déployer le volet Assistant IA
+side-rail-tip = Déploie le volet de l'assistant ; réduit, il reste à portée sur ce rail.
 
 ## Lot U2 : interface adoucie, structure (H-UI-172 à H-UI-176)
 

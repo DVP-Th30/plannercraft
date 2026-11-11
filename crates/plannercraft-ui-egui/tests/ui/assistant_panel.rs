@@ -2,7 +2,8 @@
 //! A5, H-UI-161 à H-UI-166) : bouton du ruban, Ctrl/Cmd+J, Échap,
 //! pastille, réponse qui continue volet fermé, largeur tirée et
 //! mémorisée, volet par-dessus la vue sur fenêtre étroite, onglet par
-//! défaut.
+//! défaut. Lot R1c (H-UI-190, H-UI-191) : volet rétractable, jamais
+//! fermé (rail du volet réduit, croix « Réduire le volet »).
 
 #![allow(
     clippy::arithmetic_side_effects,
@@ -22,7 +23,9 @@ use plannercraft_ui_egui::i18n::TextId;
 use plannercraft_ui_egui::keymap::KEYMAP;
 use plannercraft_ui_egui::ribbon::{RibbonOp, RibbonTab};
 use plannercraft_ui_egui::state::{SIDE_WIDTH_DEFAULT, SIDE_WIDTH_MAX, SIDE_WIDTH_MIN};
-use plannercraft_ui_egui::view::side_panel::{SideOp, SideTab, overlays, panel_width};
+use plannercraft_ui_egui::view::side_panel::{
+    RAIL_WIDTH, SideOp, SideTab, overlays, panel_width, rail_drawn, rail_outer_width,
+};
 use plannercraft_ui_egui::{App, UiState};
 use serde_json::json;
 
@@ -574,8 +577,8 @@ fn harness_wide() -> Harness<'static, App> {
     harness
 }
 
-/// Captures : bouton à pastille (volet fermé, réponse terminée) et volet
-/// par-dessus la vue à 800 points.
+/// Captures : bouton et rail à pastille (volet réduit, réponse terminée ;
+/// lot R1c) et volet par-dessus la vue à 800 points.
 #[test]
 fn snapshot_assistant_badge_fr_light() {
     use plannercraft_ui_egui::{LanguagePref, ThemePref};
@@ -592,6 +595,8 @@ fn snapshot_assistant_badge_fr_light() {
     }
     assert!(!harness.state().assistant().conversation.busy());
     assert_eq!(harness.state().assistant_badge(), 1);
+    // Lot R1c (H-UI-190) : la pastille est aussi sur le rail.
+    assert!(rail(&harness).dot.is_some());
     crate::common::snapshot(&mut harness, "assistant_badge_fr_light");
 }
 
@@ -612,4 +617,206 @@ fn snapshot_assistant_overlay_fr_light() {
     }
     assert!(open(&harness));
     crate::common::snapshot(&mut harness, "assistant_overlay_fr_light");
+}
+
+/// Rail du volet réduit à la dernière image.
+fn rail(harness: &Harness<'static, App>) -> plannercraft_ui_egui::view::side_panel::RailDrawn {
+    rail_drawn(&harness.ctx).expect("rail dessiné")
+}
+
+/// Nœud accessible du rail : rôle bouton, nom « Déployer le volet
+/// Assistant IA » (suivi des nouveautés entre parenthèses s'il y en a).
+fn rail_label(harness: &Harness<'static, App>) -> String {
+    let name = fr(TextId::SideRailExpand);
+    let rect = rail(harness).rect;
+    let node = harness
+        .query_all_by(|n| n.label().is_some_and(|l| l.starts_with(&name)))
+        .find(|n| {
+            n.accesskit_node().role() == Role::Button && n.rect().center().distance(rect.center()) < 0.5
+        })
+        .expect("nœud du rail");
+    node.accesskit_node().label().unwrap_or_default()
+}
+
+/// Bord droit de la vue (table et Gantt) à la dernière image.
+fn view_right(harness: &Harness<'static, App>) -> f32 {
+    harness.state().view().panes.drawn.expect("vue").view.right()
+}
+
+/// H-UI-190 : volet réduit ⇒ rail toujours visible (accueil sans
+/// document, document ouvert, fenêtre de 800 points), au bord droit de la
+/// zone sous le ruban, de la largeur du rail ; la vue s'arrête avant lui ;
+/// un clic n'importe où sur le rail déploie le volet sur l'onglet
+/// Assistant (même depuis un autre onglet mémorisé) ; déployé à côté de la
+/// vue, plus de rail.
+#[test]
+fn h_ui_190_rail_always_visible_click_expands() {
+    let mut harness = harness();
+    harness.run();
+    assert!(!open(&harness));
+    // Accueil sans document.
+    let r = rail(&harness).rect;
+    assert!((r.width() - RAIL_WIDTH).abs() < 0.5, "{r:?}");
+    assert!(r.right() <= right_edge(&harness) && r.right() > right_edge(&harness) - 16.0);
+    let ribbon = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx).panel;
+    assert!(r.top() >= ribbon.bottom() - 0.5, "{r:?} {ribbon:?}");
+    assert_eq!(rail_label(&harness), fr(TextId::SideRailExpand));
+    // Document ouvert : la vue s'arrête avant le rail.
+    open_demo(&mut harness);
+    let r = rail(&harness).rect;
+    assert!(view_right(&harness) <= r.left(), "{} {r:?}", view_right(&harness));
+    // Onglet mémorisé « Opérations IA », volet réduit : le rail déploie
+    // sur l'Assistant, clic au bas du rail.
+    harness
+        .state_mut()
+        .dispatch(Action::SidePanel(SideOp::Open(SideTab::AiOperations)));
+    harness.run();
+    harness.state_mut().dispatch(Action::SidePanel(SideOp::Close));
+    harness.run();
+    click_at(&mut harness, pos2(r.center().x, r.bottom() - 20.0));
+    assert!(open(&harness));
+    assert_eq!(harness.state().side_panel().tab, SideTab::Assistant);
+    assert!(rail_drawn(&harness.ctx).is_none(), "déployé : plus de rail");
+    // Fenêtre de 800 points : le rail reste, le volet déployé passe
+    // par-dessus.
+    let mut narrow = narrow();
+    let r = rail(&narrow).rect;
+    assert!((r.width() - RAIL_WIDTH).abs() < 0.5);
+    let before = view_right(&narrow);
+    assert!(before <= r.left());
+    click_at(&mut narrow, r.center());
+    assert!(open(&narrow));
+    assert!(
+        (view_right(&narrow) - before).abs() < 0.5,
+        "la vue garde sa largeur"
+    );
+}
+
+/// H-UI-191 : la tête du volet déployé porte une croix « Réduire le volet »
+/// (rôle bouton) au bout de la rangée des onglets ; elle réduit le volet au
+/// rail (il ne disparaît pas) ; Ctrl/Cmd+J, le menu et Échap basculent
+/// toujours entre déployé et réduit, le rail présent dès que réduit.
+#[test]
+fn h_ui_191_cross_collapses_to_rail() {
+    let mut harness = harness_wide();
+    cmd_j(&mut harness);
+    assert!(open(&harness));
+    let name = fr(TextId::SideCollapse);
+    let cross = harness.get_by_role_and_label(Role::Button, &name).rect();
+    let tab = harness.get_by_label(&fr(TextId::SideTabAssistant)).rect();
+    assert!(
+        (cross.center().y - tab.center().y).abs() < 4.0,
+        "même rangée que les onglets : {cross:?} {tab:?}"
+    );
+    assert!(cross.width() <= 24.0 && cross.height() <= 24.0, "{cross:?}");
+    assert!(harness.query_by_label("Fermer le volet").is_none());
+    click_at(&mut harness, cross.center());
+    assert!(!open(&harness));
+    assert!(!harness.state().state.side_panel.open, "réduit mémorisé");
+    rail(&harness);
+    // Ctrl/Cmd+J : déploie, puis réduit.
+    cmd_j(&mut harness);
+    assert!(open(&harness) && rail_drawn(&harness.ctx).is_none());
+    cmd_j(&mut harness);
+    assert!(!open(&harness));
+    rail(&harness);
+    // Menu Affichage → Assistant IA : déploie.
+    let menu = fr(TextId::MenuView);
+    crate::open_menu_for(&mut harness, &menu);
+    harness
+        .query_all_by_label(&menu)
+        .filter(|n| n.accesskit_node().role() != Role::Tab && !crate::in_ribbon(&harness, n))
+        .min_by(|a, b| a.rect().top().total_cmp(&b.rect().top()))
+        .expect("menu Affichage")
+        .click();
+    harness.run();
+    crate::click(&mut harness, &fr(TextId::MenuAssistant));
+    assert!(open(&harness));
+    // Échap (question vide, rien en cours) : réduit au rail.
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(!open(&harness));
+    rail(&harness);
+}
+
+/// H-UI-190 (H-UI-166 sur le rail) : réponse en cours volet réduit ⇒
+/// contour du rail ; terminée ⇒ pastille sur le rail, nouveauté dans son
+/// nom accessible ; le bouton du ruban garde les siens.
+#[test]
+fn h_ui_190_rail_badge_and_ring() {
+    let transport = Arc::new(ScriptedTransport::manual(vec![sse_response(&text_chunks(
+        "un deux trois quatre",
+        0.0,
+    ))]));
+    let mut harness = assistant_harness(Arc::clone(&transport));
+    enable_with_key(&mut harness);
+    ask(&mut harness, "compte");
+    assert!(harness.state().assistant().conversation.busy());
+    harness.state_mut().dispatch(Action::SidePanel(SideOp::Close));
+    harness.run();
+    assert!(rail(&harness).ring, "contour sur le rail pendant la réponse");
+    assert!(ring(&harness), "et sur le bouton du ruban");
+    assert!(rail(&harness).dot.is_none());
+    transport.step(40);
+    settle(&mut harness);
+    harness.run();
+    assert_eq!(harness.state().assistant_badge(), 1);
+    let drawn = rail(&harness);
+    assert!(!drawn.ring);
+    let dot = drawn.dot.expect("pastille sur le rail");
+    assert!(drawn.rect.intersects(dot), "{drawn:?}");
+    assert!(button(&harness).1.is_some(), "pastille du ruban gardée");
+    let label = rail_label(&harness);
+    assert!(
+        label.starts_with(&format!("{} (", fr(TextId::SideRailExpand))),
+        "{label}"
+    );
+    // Déployé par le rail : pastille effacée.
+    let r = drawn.rect;
+    click_at(&mut harness, r.center());
+    assert!(open(&harness));
+    assert_eq!(harness.state().assistant_badge(), 0);
+}
+
+/// H-UI-190 (règle 10) : largeur du rail finie et bornée quelle que soit
+/// la marge extérieure.
+#[test]
+fn h_ui_190_rail_width_finite() {
+    for outer in [
+        f32::NAN,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        -5.0,
+        0.0,
+        4.0,
+        8.0,
+        1e9,
+    ] {
+        let w = rail_outer_width(outer);
+        assert!(w.is_finite(), "{outer}");
+        assert!((RAIL_WIDTH..=RAIL_WIDTH + 80.0).contains(&w), "{outer} ⇒ {w}");
+    }
+}
+
+/// Captures du lot R1c : volet réduit au rail (sans pastille) et tête du
+/// volet déployé avec la croix, en français, thème clair.
+#[test]
+fn snapshot_side_rail_fr_light() {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let app = crate::common::app(LanguagePref::Fr, ThemePref::Light);
+    let mut harness = crate::common::harness_with(app, ThemePref::Light);
+    harness
+        .state_mut()
+        .set_assistant_services(AssistantServices::offline());
+    harness.run();
+    harness.state_mut().open_demo();
+    harness.run();
+    rail(&harness);
+    crate::common::snapshot(&mut harness, "side_rail_fr_light");
+    harness.state_mut().dispatch(Action::SidePanel(SideOp::Toggle));
+    for _ in 0..4 {
+        harness.run();
+    }
+    assert!(open(&harness));
+    crate::common::snapshot(&mut harness, "side_panel_cross_fr_light");
 }

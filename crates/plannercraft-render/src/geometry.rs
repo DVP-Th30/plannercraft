@@ -922,6 +922,10 @@ pub enum Class {
     Bar(BarRole),
     /// Motif (hachures, points) d'un rôle.
     Pattern(BarRole),
+    /// Bande d'avancement dans une barre d'un rôle de couleur choisie par
+    /// l'utilisateur (lot R1c, H-UI-195) : encre dérivée de sa couleur
+    /// (`BarPaint::progress`), celle du rôle `Progress` à défaut.
+    Progress(BarRole),
     /// Lien.
     Link,
     /// Lien critique.

@@ -257,11 +257,13 @@ pub struct StyleApply {
 pub struct StyleSetBarRole {
     /// Type de barre.
     pub role: BarRoleJson,
-    /// Variante dont la couleur change (défaut : clair) ; la forme et les
-    /// textes valent pour toutes.
+    /// Variante dont la couleur change (défaut : toutes, clair, sombre et
+    /// impression, depuis le lot R1c) ; la forme et les textes valent pour
+    /// toutes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<VariantJson>,
-    /// Couleur de remplissage `#RRGGBB`.
+    /// Couleur `#RRGGBB` : remplissage (contour d'un rôle « contour seul »),
+    /// contour et avancement dérivés.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(regex(pattern = r"^#[0-9A-Fa-f]{6}$"))]
     pub color: Option<String>,
@@ -487,19 +489,27 @@ pub(super) fn set_bar_role(op: &StyleSetBarRole, ctx: &mut Ctx<'_>) -> Result<()
     let mut patch = StylePatch::default();
     if let Some(color) = &op.color {
         let fill = Rgb::parse(color).ok_or_else(|| param("color", "couleur #RRGGBB attendue"))?;
-        let variant = op.variant.unwrap_or_default();
-        let outline = resolved
-            .tokens(variant.into())
-            .bars
-            .get(&role)
-            .and_then(|p| p.outline);
+        // Lot R1c (H-UI-196, ADR-0030) : la couleur seule est posée ;
+        // contour et avancement en sont dérivés à la résolution
+        // (`plannercraft_render::style::user_paint`), jamais recopiés du
+        // modèle. Sans `variant` : clair, sombre et impression (celle-ci
+        // seulement si le style a des couleurs d'impression propres, sinon
+        // elle suit le clair) ; avec `variant` : cette variante seule, comme
+        // avant.
         let mut tokens = ColorTokensPatch::default();
-        tokens.bars.insert(role, BarPaint { fill, outline });
+        tokens.bars.insert(role, BarPaint::solid(fill));
         let mut colors = VariantsPatch::default();
-        match variant {
-            VariantJson::Light => colors.light = Some(tokens),
-            VariantJson::Dark => colors.dark = Some(tokens),
-            VariantJson::Print => colors.print = Some(tokens),
+        match op.variant {
+            Some(VariantJson::Light) => colors.light = Some(tokens),
+            Some(VariantJson::Dark) => colors.dark = Some(tokens),
+            Some(VariantJson::Print) => colors.print = Some(tokens),
+            None => {
+                if resolved.colors.print.is_some() {
+                    colors.print = Some(tokens.clone());
+                }
+                colors.dark = Some(tokens.clone());
+                colors.light = Some(tokens);
+            }
         }
         patch.colors = Some(colors);
     } else if op.variant.is_some() {

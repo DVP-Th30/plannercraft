@@ -104,7 +104,14 @@ fn doc() -> impl Strategy<Value = DocStyle> {
                     ..ColorTokensPatch::default()
                 };
                 if let Some((fill, outline)) = critical {
-                    light.bars.insert(BarRole::Critical, BarPaint { fill, outline });
+                    light.bars.insert(
+                        BarRole::Critical,
+                        BarPaint {
+                            fill,
+                            outline,
+                            progress: None,
+                        },
+                    );
                 }
                 over.colors = Some(VariantsPatch {
                     light: Some(light),

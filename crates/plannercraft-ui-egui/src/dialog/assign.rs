@@ -364,9 +364,12 @@ pub fn show(ctx: &egui::Context, texts: &Texts, state: &mut AssignState) -> Assi
         // À droite, sous la barre d'outils : la table (à gauche) reste
         // visible et cliquable.
         .pivot(egui::Align2::RIGHT_TOP)
+        // Lot R1c : à gauche du rail ou du volet latéral, sans les
+        // recouvrir.
         .default_pos({
             let screen = ctx.content_rect();
-            egui::pos2(screen.right() - 16.0, screen.top() + 72.0)
+            let right = crate::view::side_panel::work_right(ctx).unwrap_or(screen.right());
+            egui::pos2(right - 16.0, screen.top() + 72.0)
         })
         .show(ctx, |ui| {
             let header = match (&state.task_name, state.tasks.len()) {
