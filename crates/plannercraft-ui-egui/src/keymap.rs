@@ -153,8 +153,9 @@ pub enum UiBinding {
     /// Ctrl/Cmd+I : italique (finitions P4, H-UI-135).
     ToggleItalic,
     // --- Lot A5 d'ADR-0024 (H-UI-162).
-    /// Ctrl/Cmd+J : ouvre (focus sur la saisie) ou ferme le volet de
-    /// l'assistant ; lu aussi pendant une saisie de texte (`App::read_keys`).
+    /// Ctrl/Cmd+J : déploie (focus sur la saisie) ou réduit au rail le
+    /// volet de l'assistant (lot R1c) ; lu aussi pendant une saisie de
+    /// texte (`App::read_keys`).
     ToggleAssistant,
     // --- Lot U3 d'ADR-0026 (H-UI-177).
     /// Ctrl/Cmd+K : ouvre la palette de commandes (Ctrl/Cmd+K ou Échap la
