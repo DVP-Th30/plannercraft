@@ -263,9 +263,6 @@ pub struct PanesView {
     pub focus_request: Option<bool>,
 }
 
-/// Hauteur de l'en-tête du volet de détails (titre et ×), en points.
-pub const DETAILS_HEADER_H: f32 = 22.0;
-
 /// Côté du bouton × des volets, en points.
 const CLOSE_SIDE: f32 = 16.0;
 
@@ -502,8 +499,11 @@ pub(crate) fn close_button(
     (response.clicked(), visible)
 }
 
-/// Volet de détails dans `rect` (H-UI-112, cadre du lot L4) : en-tête de 22
-/// points « Formulaire tâche » et ×, puis le contenu (`details::show`).
+/// Volet de détails dans `rect` (H-UI-112, cadre du lot L4 ; intérieur de
+/// sa carte depuis le lot U2) : × en haut à droite (premier dans l'ordre de
+/// tabulation, focus de F6), puis le contenu (`details::show`), dont
+/// l'en-tête « Tâche N », nom et pastille tient sur la même rangée
+/// (H-UI-176).
 fn details_pane(
     ui: &mut egui::Ui,
     fc: &mut FrameCtx<'_>,
@@ -513,31 +513,30 @@ fn details_pane(
     if !rect.is_finite() || rect.height() < 1.0 {
         return;
     }
-    let header = Rect::from_min_size(rect.min, vec2(rect.width(), DETAILS_HEADER_H.min(rect.height())));
-    let painter = ui.painter_at(rect);
-    painter.rect_filled(header, 0.0, fc.palette.header_bg);
-    painter.line_segment(
-        [rect.left_top(), rect.right_top()],
-        Stroke::new(1.0, fc.palette.grid_major),
-    );
-    painter.text(
-        pos2(header.left() + 8.0, header.center().y),
-        egui::Align2::LEFT_CENTER,
-        fc.texts.get(TextId::DetailsTitle),
-        egui::FontId::proportional(12.0),
-        fc.palette.text_strong,
-    );
-    fc.stats.shapes = fc.stats.shapes.saturating_add(3);
+    let pad = super::details::PAD;
     let close = Rect::from_center_size(
-        pos2(header.right() - 6.0 - CLOSE_SIDE * 0.5, header.center().y),
+        pos2(
+            rect.right() - pad.x + 4.0 - CLOSE_SIDE * 0.5,
+            rect.top() + pad.y + super::details::HEADER_H * 0.5,
+        ),
         vec2(CLOSE_SIDE, CLOSE_SIDE),
     );
     let (clicked, _) = close_button(ui, fc, close, details_close_id(), TextId::DetailsCloseTip, true);
     if clicked {
         fc.actions.push(Action::Pane(PaneOp::ShowDetails(false)));
     }
-    let body = Rect::from_min_max(pos2(rect.left(), header.bottom()), rect.max);
-    super::details::show(ui, fc, details, body);
+    // Fond (clic droit ⇒ formes) sous la rangée d'en-tête, comme sous
+    // l'ancien en-tête : le × n'est jamais recouvert, ordre de tabulation
+    // inchangé (×, fond, OK…).
+    let below = Rect::from_min_max(
+        pos2(
+            rect.left(),
+            (rect.top() + pad.y + super::details::HEADER_H).min(rect.bottom()),
+        ),
+        rect.max,
+    );
+    super::details::background(ui, fc, below);
+    super::details::show(ui, fc, details, rect, CLOSE_SIDE + 8.0);
 }
 
 /// F6 / Maj+F6 en attente (H-UI-111) : volet courant lu au focus d'egui

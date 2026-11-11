@@ -1827,3 +1827,6 @@ top-menu-tip = Fichier, Édition, Affichage, Tâche, Projet, Format, Aide
 ribbon-show-full = Afficher le ruban complet
 ribbon-show-compact = Afficher le ruban compact
 ribbon-more = Plus de commandes : { $group }
+details-task-number = Tâche { $id }
+details-badge-summary = Récapitulative
+details-badge-milestone = Jalon

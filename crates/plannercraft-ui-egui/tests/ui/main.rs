@@ -90,6 +90,7 @@ mod select_keys;
 mod select_mouse;
 mod session;
 mod snapshots;
+mod soft_structure;
 mod structure;
 mod styled;
 mod task_info;

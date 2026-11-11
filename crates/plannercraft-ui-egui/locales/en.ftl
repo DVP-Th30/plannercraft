@@ -1828,3 +1828,6 @@ top-menu-tip = File, Edit, View, Task, Project, Format, Help
 ribbon-show-full = Show the full ribbon
 ribbon-show-compact = Show the compact ribbon
 ribbon-more = More commands: { $group }
+details-task-number = Task { $id }
+details-badge-summary = Summary
+details-badge-milestone = Milestone

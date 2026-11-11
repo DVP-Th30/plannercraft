@@ -1666,6 +1666,9 @@ text_ids! {
     RibbonShowFull => "ribbon-show-full",
     RibbonShowCompact => "ribbon-show-compact",
     RibbonMore => "ribbon-more",
+    DetailsTaskNumber => "details-task-number",
+    DetailsBadgeSummary => "details-badge-summary",
+    DetailsBadgeMilestone => "details-badge-milestone",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

@@ -18,7 +18,7 @@ Différence avec MS Project : un double-clic sur le trait du volet de détails r
 
 ## 2. Le formulaire de la tâche (volet Détails)
 
-Le volet suit la **cellule active** : cliquer une autre ligne montre une autre tâche. En haut : Nom, Durée, Début, Fin, % achevé, Contrainte et sa date, Type de tâche, Pilotée par l'effort, Planifiée manuellement. En bas, deux petites grilles, choisies par **clic droit dans le volet** :
+Le volet suit la **cellule active** : cliquer une autre ligne montre une autre tâche. En tête : « Tâche N », le nom de la tâche, une pastille « Récapitulative » ou « Jalon », puis OK et Annuler. Dessous, en grille avec le libellé au-dessus de chaque champ : Durée, Début, Fin, % achevé, Date de contrainte, Contrainte, puis Type de tâche ; Pilotée par l'effort et Planifiée manuellement en dernière ligne. La touche Tab parcourt les champs dans cet ordre. En bas, deux petites grilles, choisies par **clic droit dans le volet** :
 
 - Ressources et prédécesseurs (par défaut) ;
 - Ressources et successeurs ;

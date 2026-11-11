@@ -429,7 +429,13 @@ fn h_ui_111_details_splitter() {
             _ => None,
         })
         .collect();
-    assert!(painted.contains(&fr(TextId::DetailsTitle)), "{painted:?}");
+    // Lot U2 (H-UI-176) : en-tête « Tâche N » quand une tâche est suivie,
+    // titre du volet sinon.
+    let number = Texts::new(Language::Fr).get_args(TextId::DetailsTaskNumber, &[("id", Arg::Count(1))]);
+    assert!(
+        painted.contains(&fr(TextId::DetailsTitle)) || painted.contains(&number),
+        "{painted:?}"
+    );
     // Glisser vers le haut : le volet grandit.
     let g = grip(d.details_splitter);
     harness.hover_at(g);

@@ -349,9 +349,24 @@ fn retype(harness: &mut Harness<'static, App>, label: &str, text: &str) {
     type_text(harness, text);
 }
 
-/// « OK » de la fenêtre ouverte (le volet de détails, affiché, a le sien).
+/// « OK » de la fenêtre ouverte (le volet de détails, affiché, a le sien,
+/// dans sa rangée d'en-tête depuis le lot U2).
 fn dialog_ok(harness: &mut Harness<'static, App>) {
-    let pane = harness.state().view().panes.drawn.and_then(|d| d.details);
+    // OK du volet : rangée d'en-tête (bordure, marge de 14 points, rangée
+    // de 30 points), à droite.
+    let pane = harness
+        .state()
+        .view()
+        .panes
+        .drawn
+        .and_then(|d| d.details)
+        .map(|r| {
+            let y = r.top() + 1.0 + 14.0 + 15.0;
+            egui::Rect::from_min_max(
+                egui::pos2(r.right() - 200.0, y - 3.0),
+                egui::pos2(r.right(), y + 3.0),
+            )
+        });
     {
         let label = fr(TextId::TaskInfoOk);
         let mut found = harness
