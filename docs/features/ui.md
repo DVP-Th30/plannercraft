@@ -870,7 +870,9 @@ cargo run -p plannercraft-ui-egui --example snapshot -- --p timeline --tab view 
 # Tests de l'interface (sans GPU)
 cargo test -p plannercraft-ui-egui
 
-# Captures comparées (Linux, lavapipe : paquet mesa-vulkan-drivers)
+# Captures comparées (Linux, lavapipe : paquet mesa-vulkan-drivers) ; le curseur
+# de texte y est fixe (`common::snapshot` coupe le clignotement, dont la phase
+# dépend du nombre d'images écoulées, donc du minutage des fils)
 PLANNERCRAFT_UI_SNAPSHOTS=1 WGPU_BACKEND=vulkan cargo test -p plannercraft-ui-egui --test ui
 # Mise à jour des références (la CI fait foi en cas d'écart de Mesa)
 PLANNERCRAFT_UI_SNAPSHOTS=1 UPDATE_SNAPSHOTS=1 WGPU_BACKEND=vulkan cargo test -p plannercraft-ui-egui --test ui
