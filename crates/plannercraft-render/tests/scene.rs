@@ -625,6 +625,44 @@ fn h_ui_54_status_label() {
     assert_eq!(lines(&cl, Class::Today), 0);
 }
 
+/// H-UI-185 : aujourd'hui le même jour que la date d'état (heures
+/// différentes) ⇒ seul le trait de la date d'état ; règle des 4 points.
+#[test]
+fn h_ui_185_today_merged_with_status_date() {
+    use plannercraft_render::geometry::{TODAY_STATUS_MIN_GAP16, today_line_shown};
+
+    let mut p = project_p();
+    p.status_date = Some(at("2026-11-02T17:00"));
+    p.current_date = at("2026-11-02T08:00");
+    let s = plannercraft_core::schedule(&p);
+    let sc = scene(&p, &s, TemplateId::Sobre, Variant::Light, Lang::Fr);
+    let lines = |sc: &Scene, class| sc.items.iter().filter(|i: &&Item| i.class == class).count();
+    assert_eq!(lines(&sc, Class::StatusLine), 1);
+    assert_eq!(lines(&sc, Class::Today), 0);
+    // Règle pure : même jour, écart sous 4 points, date d'état non tracée.
+    let (status, same_day, next_day) = (
+        at("2026-11-02T17:00"),
+        at("2026-11-02T08:00"),
+        at("2026-11-03T08:00"),
+    );
+    assert!(!today_line_shown(status, same_day, true, 200 * 16));
+    assert!(today_line_shown(status, same_day, false, 0));
+    assert!(!today_line_shown(
+        status,
+        next_day,
+        true,
+        TODAY_STATUS_MIN_GAP16 - 1
+    ));
+    assert!(!today_line_shown(
+        status,
+        next_day,
+        true,
+        1 - TODAY_STATUS_MIN_GAP16
+    ));
+    assert!(today_line_shown(status, next_day, true, TODAY_STATUS_MIN_GAP16));
+    assert!(today_line_shown(status, next_day, true, i64::MIN));
+}
+
 /// Chantier : numéros de semaine (« S44 · 26 » : lun 26/10/2026) et jours
 /// chômés grisés.
 #[test]

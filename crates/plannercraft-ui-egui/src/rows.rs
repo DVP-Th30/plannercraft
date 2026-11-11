@@ -233,6 +233,50 @@ impl RowModel {
         }
     }
 
+    /// Texte de la cellule `column` de la seule tâche `uid`, mis en forme
+    /// comme dans le tableau (H-UI-186 : infobulle d'une barre) : texte
+    /// gardé si la colonne est déjà servie ([`RowModel::text`]), sinon
+    /// calculé pour cette tâche seulement, sans rien garder. Chaîne vide
+    /// pour une tâche absente.
+    #[must_use]
+    pub fn cell_text(
+        &self,
+        doc: &OpenDocument,
+        labels: &FormatLabels,
+        fields: &FieldLabels,
+        uid: TaskUid,
+        column: Column,
+    ) -> String {
+        let Some(i) = self.index_of(uid) else {
+            return String::new();
+        };
+        if !served(column) || self.fields.contains_key(&column) {
+            return self.text(i, column).to_owned();
+        }
+        let project = doc.project();
+        let (Some(task), Some(row)) = (project.tasks.get(uid), self.rows.get(i)) else {
+            return String::new();
+        };
+        let ctx = FieldCtx {
+            project,
+            schedule: doc.schedule(),
+            labels,
+            fields,
+            variances: &self.variances,
+            successors: if column == Column::Successors {
+                successors_of(project)
+            } else {
+                BTreeMap::new()
+            },
+            assignments: if column == Column::RemainingWork {
+                assignments_of(project)
+            } else {
+                BTreeMap::new()
+            },
+        };
+        field_text(&ctx, task, row, column)
+    }
+
     /// Nombre de lignes.
     #[must_use]
     pub fn len(&self) -> usize {

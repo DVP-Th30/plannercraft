@@ -215,6 +215,18 @@ impl Approvals {
 
     /// Inscrit l'issue de `pending` dans l'historique.
     pub(crate) fn record(&mut self, pending: &PendingApproval, outcome: AiOutcome, undo: Option<(u64, u64)>) {
+        self.record_applied(pending, outcome, undo, None);
+    }
+
+    /// [`Approvals::record`] avec le résultat d'un lot accepté (colonnes
+    /// affichées, ressources ; H-UI-188).
+    pub(crate) fn record_applied(
+        &mut self,
+        pending: &PendingApproval,
+        outcome: AiOutcome,
+        undo: Option<(u64, u64)>,
+        applied: Option<crate::applied::Applied>,
+    ) {
         push_history(
             &mut self.history,
             AiHistoryEntry {
@@ -224,6 +236,7 @@ impl Approvals {
                 at: pending.now,
                 outcome,
                 undo,
+                applied,
             },
         );
     }
@@ -556,7 +569,26 @@ impl App {
             Ok(value) => Ok(value.clone()),
             Err(e) => Err(e),
         });
-        self.conclude(&pending, outcome, undo, None);
+        // Lot appliqué : les champs écrits se voient dans le tableau (lot
+        // R1, H-UI-188) ; rien pour un refus ou un lot sans effet.
+        let applied = if changed && result.is_ok() {
+            relayed_batch(&pending.tool, &pending.params)
+                .map(|batch| self.reveal_written(&batch))
+                .filter(|a| !a.is_empty())
+        } else {
+            None
+        };
+        if pending.is_assistant()
+            && let Some(applied) = &applied
+        {
+            self.assistant.applied.insert(pending.id, applied.clone());
+        }
+        if pending.is_assistant() {
+            self.assistant
+                .conversation
+                .set_proposal_status(pending.id, status_of(&outcome, None));
+        }
+        self.approvals.record_applied(&pending, outcome, undo, applied);
         if changed {
             self.refresh();
         } else {

@@ -24,7 +24,9 @@ use plannercraft_ui_egui::App;
 use plannercraft_ui_egui::action::Action;
 use plannercraft_ui_egui::approvals::ProposalOp;
 use plannercraft_ui_egui::assistant::{AssistantOp, AssistantServices};
-use plannercraft_ui_egui::i18n::TextId;
+use plannercraft_ui_egui::column::Column;
+use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
+use plannercraft_ui_egui::state::ViewKind;
 use plannercraft_ui_egui::view::side_panel::{AiOutcome, SideOp, SideTab};
 use serde_json::{Value, json};
 
@@ -215,6 +217,201 @@ fn h_ui_150_accept_single_undo_and_told() {
         .dispatch(Action::SidePanel(SideOp::Open(SideTab::AiOperations)));
     harness.run();
     harness.get_by_label_contains("Assistant, « Deux renommages »");
+}
+
+/// Colonnes affichées du tableau des tâches, dans l'ordre.
+fn shown_columns(app: &App) -> Vec<Column> {
+    app.state.columns.iter().map(|c| c.column).collect()
+}
+
+/// « Colonne(s) affichée(s) : … » pour `names`.
+fn applied_line(names: &[&str]) -> String {
+    let count = i64::try_from(names.len()).unwrap();
+    Texts::new(Language::Fr).get_args(
+        TextId::AppliedColumns,
+        &[
+            ("count", Arg::Count(count)),
+            ("names", Arg::Str(names.join(", ").into())),
+        ],
+    )
+}
+
+/// Pose la question, attend la proposition, puis l'accepte (ou la refuse).
+fn decide_first(harness: &mut Harness<'static, App>, question: &str, accept: bool) {
+    ask(harness, question);
+    settle(harness);
+    harness.run();
+    let label = if accept {
+        TextId::AssistantProposalAccept
+    } else {
+        TextId::AssistantProposalReject
+    };
+    let label = fr(label);
+    let Some(button) = harness.query_all_by_label(&label).next() else {
+        panic!(
+            "aucune proposition : {:?}",
+            harness.state().assistant().conversation.turns().last()
+        );
+    };
+    button.click();
+    harness.run();
+}
+
+/// H-UI-188 (retours d'essai du 2026-11-11, F5) : lot accepté ⇒ les
+/// colonnes des champs écrits non affichées sont insérées à la fin du
+/// tableau, dans l'ordre des opérations (dates recalculées exclues) ; la
+/// carte et le panneau Opérations IA le disent ; la table défile jusqu'à la
+/// première ; l'annulation du lot laisse les colonnes (état d'interface).
+#[test]
+fn h_ui_188_accept_shows_written_columns() {
+    let (mut harness, _t) = ready(vec![
+        propose(
+            "p1",
+            &json!({ "label": "Maçon et notes", "ops": [
+                { "op": "resource.add", "name": "Maçon", "as": "$m" },
+                { "op": "assignment.add", "task": 3, "resource": "$m" },
+                { "op": "task.update", "uid": 3, "notes": "Voir plan" },
+                { "op": "task.set_deadline", "uid": 4, "deadline": "2027-06-30T17:00" }
+            ] }),
+        ),
+        say("Proposé."),
+    ]);
+    let before = shown_columns(harness.state());
+    for c in [Column::ResourceNames, Column::Notes, Column::Deadline] {
+        assert!(!before.contains(&c), "{c:?} déjà affichée : {before:?}");
+    }
+    let entries = history_len(harness.state());
+    decide_first(&mut harness, "Ajoute un maçon, échéance le 30/06/2027", true);
+    let app = harness.state();
+    assert_eq!(card_status(app), Some(ProposalStatus::Accepted));
+    let after = shown_columns(app);
+    assert_eq!(after.len(), before.len() + 3, "{after:?}");
+    assert_eq!(&after[..before.len()], &before[..]);
+    assert_eq!(
+        &after[before.len()..],
+        [Column::ResourceNames, Column::Notes, Column::Deadline]
+    );
+    let entry = app.approvals().history().back().unwrap();
+    let applied = entry.applied.as_ref().expect("résultat");
+    assert_eq!(
+        applied.columns,
+        [Column::ResourceNames, Column::Notes, Column::Deadline]
+    );
+    assert!(!applied.resources);
+    // Une seule entrée d'annulation (le lot) : l'insertion n'en fait pas.
+    assert_eq!(history_len(app), entries + 1);
+    // Table défilée jusqu'à la première colonne ajoutée.
+    let widths: Vec<u16> = app.state.visible_columns().map(|c| c.width).collect();
+    let rank = app
+        .state
+        .visible_columns()
+        .position(|c| c.column == Column::ResourceNames)
+        .unwrap();
+    let scroll = app.view().table_scroll_x;
+    let width = app.view().last_table_width;
+    assert!(
+        (plannercraft_ui_egui::view::table::scroll_to_column(&widths, rank, scroll, width) - scroll).abs()
+            < 0.5,
+        "colonne hors de la vue : défilement {scroll}"
+    );
+    // Carte : une ligne.
+    let line = applied_line(&["Noms ressources", "Notes", "Échéance"]);
+    assert!(harness.query_by_label(&line).is_some(), "« {line} » absent");
+    // Panneau Opérations IA : la même ligne sur l'entrée de l'historique.
+    harness
+        .state_mut()
+        .dispatch(Action::SidePanel(SideOp::Open(SideTab::AiOperations)));
+    harness.run();
+    assert!(
+        harness.query_by_label(&line).is_some(),
+        "panneau : « {line} » absent"
+    );
+    // Annuler le lot laisse les colonnes.
+    harness.state_mut().dispatch(Action::Undo);
+    harness.run();
+    assert_eq!(history_len(harness.state()), entries);
+    assert_eq!(shown_columns(harness.state()), after);
+}
+
+/// H-UI-188 : quatre colonnes au plus par lot, dans l'ordre des
+/// opérations ; pluriel ; rien pour un lot refusé.
+#[test]
+fn h_ui_188_at_most_four_and_nothing_on_reject() {
+    let ops = json!({ "label": "Beaucoup de champs", "ops": [
+        { "op": "task.update", "uid": 3, "notes": "a" },
+        { "op": "task.set_deadline", "uid": 3, "deadline": "2027-06-30T17:00" },
+        { "op": "task.set_constraint", "uid": 4, "kind": "snet", "date": "2026-11-16T08:00" },
+        { "op": "task.update", "uid": 4, "effort_driven": true }
+    ] });
+    // Refus : rien.
+    let (mut harness, _t) = ready(vec![propose("p1", &ops), say("Proposé.")]);
+    let before = shown_columns(harness.state());
+    decide_first(&mut harness, "Échéance le 30/06/2027, début le 16/11/2026", false);
+    assert_eq!(shown_columns(harness.state()), before);
+    assert!(
+        harness
+            .state()
+            .approvals()
+            .history()
+            .back()
+            .unwrap()
+            .applied
+            .is_none()
+    );
+    // Acceptation : Notes, Échéance, Type et Date de contrainte (quatre).
+    let (mut harness, _t) = ready(vec![propose("p1", &ops), say("Proposé.")]);
+    decide_first(&mut harness, "Échéance le 30/06/2027, début le 16/11/2026", true);
+    let after = shown_columns(harness.state());
+    assert_eq!(
+        &after[before.len()..],
+        [
+            Column::Notes,
+            Column::Deadline,
+            Column::ConstraintType,
+            Column::ConstraintDate
+        ]
+    );
+    assert!(
+        !after.contains(&Column::EffortDriven),
+        "cinquième colonne insérée"
+    );
+}
+
+/// H-UI-188 : lot qui ne crée que des ressources ⇒ aucune colonne, la
+/// carte porte « Voir les ressources », qui passe à la feuille des
+/// ressources (même action que le ruban).
+#[test]
+fn h_ui_188_resources_only_view_button() {
+    let (mut harness, _t) = ready(vec![
+        propose(
+            "p1",
+            &json!({ "label": "Créer l'équipe", "ops": [
+                { "op": "resource.add", "name": "Maçon" },
+                { "op": "resource.add", "name": "Grutier" }
+            ] }),
+        ),
+        say("Proposé."),
+    ]);
+    let before = shown_columns(harness.state());
+    decide_first(&mut harness, "Crée l'équipe", true);
+    assert_eq!(shown_columns(harness.state()), before);
+    let applied = harness
+        .state()
+        .approvals()
+        .history()
+        .back()
+        .unwrap()
+        .applied
+        .clone()
+        .unwrap();
+    assert!(applied.resources && applied.columns.is_empty());
+    harness
+        .query_all_by_label(&fr(TextId::AppliedShowResources))
+        .next()
+        .expect("bouton « Voir les ressources »")
+        .click();
+    harness.run();
+    assert_eq!(harness.state().state.view, ViewKind::ResourceSheet);
 }
 
 /// H-UI-151 : Refuser avec un motif : rien d'appliqué, carte « refusée »,

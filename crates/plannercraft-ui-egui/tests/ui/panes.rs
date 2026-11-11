@@ -364,9 +364,13 @@ fn h_ui_111_splitter_bounds() {
     let d = panes(&harness);
     assert!(d.view.height() >= VIEW_MIN - 0.01, "{d:?}");
     assert!((zone(&d) - span).abs() < 0.5, "{d:?}");
-    // Détails tirés vers le bas au-delà de la fenêtre : 120 points.
+    // Détails tirés vers le bas sous la hauteur minimale, mais au-dessus
+    // de sa moitié : bloqués à 120 points (sous la moitié, le volet se
+    // ferme depuis le lot R1 : `h_ui_187_drag_down_closes`).
     let g = grip(d.details_splitter);
-    drag(&mut harness, g, pos2(g.x, 5_000.0));
+    let shown = d.details.unwrap().height();
+    drag(&mut harness, g, pos2(g.x, g.y + shown - 90.0));
+    assert!(harness.state().state.details.visible);
     assert_eq!(harness.state().state.details.height, DETAILS_HEIGHT_MIN);
     // Non fini : rien ne bouge (fonction pure du glisser).
     assert!((drag_split(72.0, f32::NAN, 48.0, 400.0) - 72.0).abs() < f32::EPSILON);
@@ -462,6 +466,170 @@ fn h_ui_111_details_splitter() {
     assert!(reopened.details.is_none());
     assert!((reopened.view.bottom() - closed.view.bottom()).abs() < 0.01);
     assert_eq!(history_len(harness.state()), 0);
+}
+
+/// Zone de prise du bord du bas (volet de détails fermé, H-UI-187).
+fn opener(harness: &Harness<'static, App>) -> Rect {
+    panes(harness).details_opener.expect("bord du bas tirable")
+}
+
+/// H-UI-187 (retours d'essai du 2026-11-11, F4) : volet de détails fermé,
+/// le bord du bas de la vue (gouttière sous sa carte) se tire : curseur,
+/// rôle et infobulle ; tirer de 200 points vers le haut ouvre le volet,
+/// hauteur suivie au pointeur (séparateur sous le pointeur), écrite au
+/// relâcher par les mêmes `PaneOp` que le ruban, sans entrée d'annulation.
+#[test]
+fn h_ui_187_drag_up_opens() {
+    let mut harness = p();
+    assert!(!harness.state().state.details.visible);
+    let closed = panes(&harness);
+    let zone = opener(&harness);
+    assert!(
+        (zone.top() - closed.view.bottom()).abs() < 0.5,
+        "{zone:?} {closed:?}"
+    );
+    assert!((zone.height() - GUTTER).abs() < 0.5, "{zone:?}");
+    let tip = fr(TextId::DetailsOpenerTip);
+    let node = harness.get_by_role_and_label(egui::accesskit::Role::Splitter, &tip);
+    assert!((node.rect().center().y - zone.center().y).abs() < 0.5);
+    let g = zone.center();
+    harness.hover_at(g);
+    harness.run();
+    assert_eq!(
+        harness.output().platform_output.cursor_icon,
+        CursorIcon::ResizeVertical
+    );
+    // Pendant le glisser : volet affiché, séparateur sous le pointeur.
+    harness.drag_at(g);
+    harness.step();
+    let to = g - vec2(0.0, 200.0);
+    for k in 1..=4_u8 {
+        harness.hover_at(g + (to - g) * (f32::from(k) / 4.0));
+        harness.step();
+    }
+    harness.step();
+    let live = panes(&harness);
+    let split = live.details_splitter.expect("volet ouvert pendant le glisser");
+    assert!((split.center().y - to.y).abs() < 1.0, "{split:?} vs {to:?}");
+    assert!(
+        !harness.state().state.details.visible,
+        "rien d'écrit avant le relâcher"
+    );
+    harness.drop_at(to);
+    harness.run();
+    let app = harness.state();
+    assert!(app.state.details.visible);
+    let height = f32::from(app.state.details.height);
+    assert!((height - (200.0 - GUTTER)).abs() <= 1.0, "{height}");
+    let d = panes(&harness);
+    assert!((d.details.unwrap().height() - height).abs() < 0.5, "{d:?}");
+    assert!((d.details.unwrap().bottom() - closed.view.bottom()).abs() < 0.5);
+    assert!(d.details_opener.is_none());
+    assert_eq!(history_len(harness.state()), 0);
+    // Tiré très haut : borné à 60 % de la zone.
+    let mut harness = p();
+    let g = opener(&harness).center();
+    drag(&mut harness, g, pos2(g.x, -2_000.0));
+    let d = panes(&harness);
+    let total = zone_of(&d);
+    let max = DETAILS_MAX_SHARE * total;
+    assert!(d.details.unwrap().height() <= max + 1.0, "{d:?}");
+    assert!(d.view.height() >= VIEW_MIN - 0.01);
+}
+
+/// Hauteur partagée par les volets (sans les gouttières).
+fn zone_of(d: &PanesDrawn) -> f32 {
+    zone(d) - GUTTER * f32::from(u8::from(d.timeline.is_some()).saturating_add(u8::from(d.details.is_some())))
+}
+
+/// H-UI-187 : relâché sous la hauteur minimale (120 points) ⇒ fermé,
+/// rien d'écrit.
+#[test]
+fn h_ui_187_release_too_low_stays_closed() {
+    let mut harness = p();
+    let before = harness.state().state.details;
+    let g = opener(&harness).center();
+    drag(&mut harness, g, g - vec2(0.0, 100.0));
+    assert_eq!(harness.state().state.details, before);
+    assert!(panes(&harness).details.is_none());
+    assert!(panes(&harness).details_opener.is_some());
+}
+
+/// H-UI-187 : double-clic sur le bord du bas ⇒ ouvert à la hauteur par
+/// défaut ; même chose au clavier (zone focalisée, Entrée).
+#[test]
+fn h_ui_187_double_click_opens() {
+    let mut harness = p();
+    let g = opener(&harness).center();
+    double_click(&mut harness, g);
+    assert!(harness.state().state.details.visible);
+    assert_eq!(harness.state().state.details.height, DETAILS_HEIGHT_DEFAULT);
+    assert!((panes(&harness).details.unwrap().height() - details_default(&harness)).abs() < 0.01);
+    // Clavier : fermé par le ×, zone focalisée, Entrée.
+    crate::click(&mut harness, &fr(TextId::DetailsCloseTip));
+    assert!(!harness.state().state.details.visible);
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Splitter, &fr(TextId::DetailsOpenerTip))
+        .focus();
+    harness.run();
+    harness.key_press(Key::Enter);
+    harness.run();
+    assert!(harness.state().state.details.visible);
+    assert_eq!(harness.state().state.details.height, DETAILS_HEIGHT_DEFAULT);
+    assert_eq!(history_len(harness.state()), 0);
+}
+
+/// H-UI-187 : volet ouvert, séparateur tiré jusqu'en bas (sous la moitié
+/// de la hauteur minimale) ⇒ fermé, comme par son × ; vue rendue.
+#[test]
+fn h_ui_187_drag_down_closes() {
+    let mut harness = p();
+    let closed = panes(&harness);
+    dispatch(&mut harness, Action::Pane(PaneOp::ShowDetails(true)));
+    let height = harness.state().state.details.height;
+    let g = grip(panes(&harness).details_splitter);
+    drag(&mut harness, g, pos2(g.x, 5_000.0));
+    let app = harness.state();
+    assert!(!app.state.details.visible);
+    assert_eq!(app.state.details.height, height, "hauteur gardée");
+    let d = panes(&harness);
+    assert!(d.details.is_none());
+    assert!((d.view.bottom() - closed.view.bottom()).abs() < 0.5);
+    assert!(d.details_opener.is_some());
+    assert_eq!(history_len(harness.state()), 0);
+}
+
+/// H-UI-187 : la zone de prise ne vole ni l'ascenseur horizontal du
+/// Gantt (juste au-dessus d'elle) ni les clics de la barre d'état (juste
+/// en dessous).
+#[test]
+fn h_ui_187_hbar_and_status_bar_untouched() {
+    let mut harness = p();
+    // Zoom Jour : le Gantt déborde, l'ascenseur a de la course.
+    dispatch(
+        &mut harness,
+        Action::SetZoom(plannercraft_ui_egui::TimeScaleZoom::Day),
+    );
+    assert!(crate::max_scroll(harness.state()) > 200.0);
+    let zone = opener(&harness);
+    let bar = harness.get_by_label(&fr(TextId::GanttScrollLabel)).rect();
+    assert!(bar.bottom() <= zone.top() + 0.5, "{bar:?} {zone:?}");
+    let before = harness.state().view().gantt_scroll_x;
+    let from = pos2(bar.left() + 4.0, bar.bottom() - 1.0);
+    drag(&mut harness, from, from + vec2(120.0, 0.0));
+    assert!(
+        harness.state().view().gantt_scroll_x > before,
+        "ascenseur immobile"
+    );
+    assert!(!harness.state().state.details.visible);
+    // Barre d'état sous la zone : un glisser parti d'elle n'ouvre rien.
+    let status = harness.get_by_label("p.xml").rect();
+    assert!(status.top() >= zone.bottom() - 0.5, "{status:?} {zone:?}");
+    let from = status.center();
+    drag(&mut harness, from, from - vec2(0.0, 200.0));
+    assert!(!harness.state().state.details.visible);
+    crate::click_at_point(&mut harness, from);
+    assert!(!harness.state().state.details.visible);
 }
 
 /// Appuie sur F6 (Maj+F6 si `back`) dans une image.

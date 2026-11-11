@@ -75,11 +75,17 @@ fn picker_keys(ctx: &egui::Context, picker: &mut FieldPicker, list: &[Column]) -
         )
     });
     let max_rank = list.len().saturating_sub(1);
+    let before = picker.highlighted;
     picker.highlighted = picker
         .highlighted
         .saturating_add(down_presses)
         .saturating_sub(up_presses)
         .min(max_rank);
+    if up_presses > 0 || down_presses > 0 || picker.highlighted != before {
+        // Changement au clavier : l'entrée choisie est ramenée à l'écran
+        // une fois (H-UI-184).
+        picker.scroll_pending = true;
+    }
     if escape {
         return PickOutcome::Cancel;
     }
@@ -118,7 +124,10 @@ fn show_picker(ctx: &egui::Context, fc: &FrameCtx<'_>, picker: &mut FieldPicker)
             // Meilleure correspondance en surbrillance (Entrée l'insère).
             let list = choices_in(&picker.query, lang, &custom);
             picker.highlighted = best_choice(&picker.query, lang, &custom, &list);
+            picker.scroll_pending = true;
         }
+        // Une seule fois par changement (H-UI-184), pas à chaque image.
+        let scroll = std::mem::take(&mut picker.scroll_pending);
         ui.separator();
         egui::ScrollArea::vertical()
             .max_height(360.0)
@@ -154,7 +163,7 @@ fn show_picker(ctx: &egui::Context, fc: &FrameCtx<'_>, picker: &mut FieldPicker)
                                 .on_disabled_hover_text(texts.get(reason)),
                             None => ui.add(button),
                         };
-                        if selected {
+                        if selected && scroll {
                             response.scroll_to_me(None);
                         }
                         if response.clicked() {

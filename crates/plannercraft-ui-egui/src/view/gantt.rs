@@ -23,6 +23,7 @@ use std::ops::Range;
 use egui::{Color32, FontFamily, FontId, Id, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, pos2};
 use plannercraft_automation::command::TaskRef;
 use plannercraft_automation::command::params::ExplainParams;
+use plannercraft_automation::explain::{DriverView, ExplainView, StepView};
 use plannercraft_automation::gesture::GestureKind;
 use plannercraft_automation::json::SideJson;
 use plannercraft_automation::render_text::SessionTexts;
@@ -36,12 +37,13 @@ use plannercraft_render::style::{
 
 use super::{BarDrag, FrameCtx};
 use crate::app::OpenDocument;
+use crate::column::Column;
 use crate::document::project_calendar;
 use crate::edit::text_language;
 use crate::geom::{
     BarZone, GanttHit, bar_zone, f32_to_bounded_i64, i64_to_f32, index_to_f32, near_polyline, row_at,
 };
-use crate::i18n::{Arg, Language, Texts, error_text_id};
+use crate::i18n::{Arg, TextId, Texts, error_text_id};
 use crate::query::{Query, QueryValue};
 use crate::row_view::{DisplayRow, VisibleRows};
 use crate::rows::{Row, RowKind, RowModel};
@@ -1077,12 +1079,19 @@ fn background_shapes(
                 4.0,
             ));
         }
-        // Aujourd'hui (H-UI-54) : trait pointillé distinct, sauf s'il tombe
-        // sur la date d'état.
+        // Aujourd'hui (H-UI-54) : trait pointillé distinct, sauf le même
+        // jour que la date d'état ou à moins de 4 points de son trait
+        // (H-UI-185, règle partagée avec l'impression).
         if geo.style.scale.today_mark {
             let today = doc.project().current_date;
             let tx = axis.x(today).round() + 0.5;
-            if (tx - sx).abs() > 0.5 && tx.is_finite() && tx >= clip.left() && tx <= clip.right() {
+            let status_drawn = sx.is_finite() && sx >= clip.left() && sx <= clip.right();
+            let gap16 = crate::geom::f32_to_bounded_i64(((tx - sx) * 16.0).round(), i64::from(i32::MAX));
+            if plannercraft_render::geometry::today_line_shown(status, today, status_drawn, gap16)
+                && tx.is_finite()
+                && tx >= clip.left()
+                && tx <= clip.right()
+            {
                 let line = [pos2(tx, clip.top()), pos2(tx, clip.bottom())];
                 out.extend(Shape::dashed_line(
                     &line,
@@ -1155,18 +1164,18 @@ type TipKey = (u64, u64, TaskUid, SideJson);
 /// la mémoire temporaire d'egui : la lecture n'est refaite que si le
 /// document, sa génération, la tâche ou le côté changent.
 #[derive(Clone, Debug, Default)]
-pub struct ExplainTipCache {
-    /// Clé du texte gardé.
+pub struct ExplainTipCache<T = BarTip> {
+    /// Clé du contenu gardé.
     key: Option<TipKey>,
-    /// Texte gardé (résumé du gabarit, ou refus traduit).
-    text: String,
+    /// Contenu gardé (infobulle construite, H-UI-186).
+    text: T,
     /// Lectures faites (tests).
     runs: u64,
 }
 
-impl ExplainTipCache {
-    /// Texte de `key`, lu par `run` seulement si la clé change.
-    fn text_for(&mut self, key: TipKey, run: impl FnOnce() -> String) -> String {
+impl<T: Clone> ExplainTipCache<T> {
+    /// Contenu de `key`, lu par `run` seulement si la clé change.
+    fn text_for(&mut self, key: TipKey, run: impl FnOnce() -> T) -> T {
         if self.key != Some(key) {
             self.text = run();
             self.key = Some(key);
@@ -1181,26 +1190,214 @@ fn tip_cache_id() -> Id {
     Id::unique("plannercraft.gantt.explain_tip")
 }
 
-/// Résumé `explain_date` du début de la tâche `uid` (gabarit du moteur,
-/// R-233, dans la langue de l'interface), par la lecture typée
-/// `Query::Explain` (même fonction que `analysis.explain_date`) ; refus du
-/// moteur traduit, jamais une date rédigée ici (H-UI-26).
+/// Largeur maximale de l'infobulle d'une barre, en points (H-UI-186).
+pub const BAR_TIP_MAX_WIDTH: f32 = 360.0;
+
+/// Infobulle d'une barre (H-UI-26, H-UI-186) : textes déjà mis en forme,
+/// rien n'est calculé à l'affichage.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BarTip {
+    /// Nom de la tâche (cellule Nom).
+    pub name: String,
+    /// Lignes libellé / valeur (cellules Début, Fin, Durée, % achevé ;
+    /// une seule date pour un jalon).
+    pub fields: Vec<(String, String)>,
+    /// « Pourquoi cette date », réduit au pilote direct : zéro, une ou deux
+    /// lignes (ou le refus du moteur traduit).
+    pub why: Vec<String>,
+}
+
+/// Texte d'une cellule de la tâche `uid` (vide si elle n'est pas dans le
+/// modèle).
+fn cell(rows: &RowModel, uid: TaskUid, column: Column) -> &str {
+    rows.index_of(uid).map_or("", |i| rows.text(i, column))
+}
+
+/// Ligne « pourquoi » du pilote direct `driver` (H-UI-186), construite sur
+/// les champs structurés de la vue d'`explain_date` et les cellules du
+/// tableau ; `None` quand il n'y a rien d'utile à dire (agrégat d'une
+/// récapitulative).
+fn driver_line(
+    driver: DriverView,
+    doc: &OpenDocument,
+    rows: &RowModel,
+    texts: &Texts,
+    uid: TaskUid,
+) -> Option<String> {
+    use plannercraft_automation::text::DisplayLabels as _;
+
+    let line = match driver {
+        DriverView::ProjectStart => texts.get(TextId::BarTipProjectStart),
+        DriverView::SummaryGate { summary } => texts.get_args(
+            TextId::BarTipSummaryGate,
+            &[(
+                "name",
+                Arg::Str(cell(rows, TaskUid::new(summary), Column::Name).into()),
+            )],
+        ),
+        DriverView::Link { predecessor, link } => {
+            let pred = TaskUid::new(predecessor);
+            let kind = LinkType::from(link);
+            // FD et FF : la fin du prédécesseur ; DD et DF : son début.
+            let (id, column) = match kind {
+                LinkType::FinishToStart | LinkType::FinishToFinish => {
+                    (TextId::BarTipAfterFinish, Column::Finish)
+                }
+                LinkType::StartToStart | LinkType::StartToFinish => (TextId::BarTipAfterStart, Column::Start),
+            };
+            texts.get_args(
+                id,
+                &[
+                    ("name", Arg::Str(cell(rows, pred, Column::Name).into())),
+                    ("link", Arg::Str(texts.format_labels().link_code(kind).into())),
+                    ("date", Arg::Str(cell(rows, pred, column).into())),
+                ],
+            )
+        }
+        DriverView::Manual => texts.get(TextId::BarTipManual),
+        DriverView::Rollup => return None,
+        DriverView::Constraint { .. } => {
+            // Cellules Type et Date de contrainte, mises en forme comme dans
+            // le tableau même si ces colonnes ne sont pas affichées.
+            let fields = crate::field::field_labels(texts);
+            let text = |column| rows.cell_text(doc, texts.format_labels(), &fields, uid, column);
+            let (kind, date) = (text(Column::ConstraintType), text(Column::ConstraintDate));
+            let what = if date.is_empty() {
+                kind
+            } else {
+                format!("{kind} {date}")
+            };
+            texts.get_args(TextId::BarTipConstraint, &[("what", Arg::Str(what.into()))])
+        }
+        DriverView::Actual => texts.get(TextId::BarTipActual),
+    };
+    Some(line)
+}
+
+/// Lignes « pourquoi » d'une explication (H-UI-186) : le pilote direct,
+/// puis le calendrier de la tâche s'il a déplacé la date (calendrier autre
+/// que celui du projet). Jamais la chaîne des prédécesseurs.
+fn why_lines(
+    view: &ExplainView,
+    doc: &OpenDocument,
+    rows: &RowModel,
+    texts: &Texts,
+    uid: TaskUid,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let driver = view.steps.iter().find_map(|step| match step {
+        StepView::Driver { driver, .. } => Some(driver),
+        _ => None,
+    });
+    if let Some(line) = driver.and_then(|d| driver_line(*d, doc, rows, texts, uid)) {
+        lines.push(line);
+    }
+    if let Some(name) = moved_by_calendar(&view.steps, doc.project().calendar.get()) {
+        lines.push(texts.get_args(TextId::BarTipCalendar, &[("name", Arg::Str(name.into()))]));
+    }
+    lines
+}
+
+/// Calendrier propre à la tâche qui a déplacé sa date (H-UI-186) : étape
+/// de recalage dont l'instant a bougé, sur un calendrier nommé autre que
+/// celui du projet (`project_calendar`, UID), et pilote qui se recale
+/// (ni agrégat, ni dates saisies ou réelles). Le recalage ordinaire sur le
+/// calendrier du projet (fin à 17:00, reprise le lendemain à 08:00) n'est
+/// pas une explication utile.
+fn moved_by_calendar(steps: &[StepView], project_calendar: u32) -> Option<&str> {
+    let snaps = steps.iter().any(|step| {
+        matches!(
+            step,
+            StepView::Driver {
+                driver: DriverView::ProjectStart
+                    | DriverView::SummaryGate { .. }
+                    | DriverView::Link { .. }
+                    | DriverView::Constraint { .. },
+                ..
+            }
+        )
+    });
+    if !snaps {
+        return None;
+    }
+    steps.iter().find_map(|step| match step {
+        StepView::Snap {
+            raw,
+            snapped,
+            calendar: Some(calendar),
+        } if raw != snapped && calendar.uid != project_calendar && !calendar.name.is_empty() => {
+            Some(calendar.name.as_str())
+        }
+        _ => None,
+    })
+}
+
+/// Infobulle de la barre de la tâche `uid` (H-UI-26, H-UI-186) : nom,
+/// grille des cellules du tableau (Début, Fin, Durée, % achevé ; Date et
+/// % achevé pour un jalon), puis le pilote direct du début lu par la
+/// lecture typée `Query::Explain` (même fonction qu'`analysis.explain_date`,
+/// profondeur 1). Refus du moteur traduit ; aucune date ni durée calculée
+/// ou rédigée ici (règle 3).
 #[must_use]
-pub fn explain_tip_text(doc: &OpenDocument, texts: &Texts, uid: TaskUid) -> String {
+pub fn bar_tip(doc: &OpenDocument, rows: &RowModel, texts: &Texts, uid: TaskUid) -> BarTip {
+    let milestone = rows
+        .index_of(uid)
+        .and_then(|i| rows.row(i))
+        .is_some_and(|r| r.kind == RowKind::Milestone);
+    let field = |label: TextId, column: Column| (texts.get(label), cell(rows, uid, column).to_owned());
+    let fields = if milestone {
+        vec![
+            field(TextId::BarTipDate, Column::Start),
+            field(TextId::ColPercentComplete, Column::PercentComplete),
+        ]
+    } else {
+        vec![
+            field(TextId::ColStart, Column::Start),
+            field(TextId::ColFinish, Column::Finish),
+            field(TextId::ColDuration, Column::Duration),
+            field(TextId::ColPercentComplete, Column::PercentComplete),
+        ]
+    };
     let query = Query::Explain(ExplainParams {
         task: TaskRef::Uid(uid),
         side: Some(SideJson::Start),
         depth: Some(1),
     });
-    match query.run(&doc.session) {
-        Ok(QueryValue::Explain(view)) => match texts.language() {
-            Language::Fr => view.summary_fr,
-            Language::En => view.summary_en,
-        },
-        Ok(QueryValue::Usage(_) | QueryValue::Variance(_)) => String::new(),
+    let why = match query.run(&doc.session) {
+        Ok(QueryValue::Explain(view)) => why_lines(&view, doc, rows, texts, uid),
+        Ok(QueryValue::Usage(_) | QueryValue::Variance(_)) => Vec::new(),
         Err(error) => {
             let detail = error.message(text_language(texts.language()));
-            texts.get_args(error_text_id(error.code), &[("detail", Arg::Str(detail.into()))])
+            vec![texts.get_args(error_text_id(error.code), &[("detail", Arg::Str(detail.into()))])]
+        }
+    };
+    BarTip {
+        name: cell(rows, uid, Column::Name).to_owned(),
+        fields,
+        why,
+    }
+}
+
+/// Dessine l'infobulle `tip` (H-UI-186) : nom en gras, grille libellé
+/// (texte atténué) / valeur, filet, « Pourquoi cette date » et ses lignes.
+fn show_bar_tip(ui: &mut egui::Ui, texts: &Texts, tip: &BarTip) {
+    ui.set_max_width(BAR_TIP_MAX_WIDTH);
+    ui.label(egui::RichText::new(&tip.name).strong());
+    egui::Grid::new("plannercraft.gantt.bar_tip.grid")
+        .num_columns(2)
+        .spacing(egui::vec2(12.0, 2.0))
+        .show(ui, |ui| {
+            for (label, value) in &tip.fields {
+                ui.label(egui::RichText::new(label).weak());
+                ui.label(value);
+                ui.end_row();
+            }
+        });
+    if !tip.why.is_empty() {
+        ui.separator();
+        ui.label(egui::RichText::new(texts.get(TextId::BarTipWhy)).weak());
+        for line in &tip.why {
+            ui.label(line);
         }
     }
 }
@@ -1215,7 +1412,7 @@ fn bar_tooltip(
     body: &Body<'_>,
     range: &Range<usize>,
 ) {
-    let Some(doc) = fc.doc else {
+    let (Some(doc), Some(model)) = (fc.doc, fc.rows) else {
         return;
     };
     let Some(p) = ui.ctx().pointer_hover_pos() else {
@@ -1248,9 +1445,9 @@ fn bar_tooltip(
             .ctx()
             .data(|d| d.get_temp::<ExplainTipCache>(tip_cache_id()))
             .unwrap_or_default();
-        let text = cache.text_for(key, || explain_tip_text(doc, fc.texts, uid));
+        let tip = cache.text_for(key, || bar_tip(doc, model, fc.texts, uid));
         ui.ctx().data_mut(|d| d.insert_temp(tip_cache_id(), cache));
-        ui.label(text);
+        show_bar_tip(ui, fc.texts, &tip);
     });
 }
 
@@ -1674,10 +1871,58 @@ mod tests {
         assert_eq!(progress_span(100.0, 148.0, f32::INFINITY), None);
     }
 
+    /// H-UI-186 : ligne « Calendrier » seulement pour un calendrier propre
+    /// à la tâche qui a déplacé la date d'un pilote qui se recale.
+    #[test]
+    fn h_ui_186_calendar_line_only_when_it_moved() {
+        use plannercraft_automation::explain::{CalendarRefView, DriverView, StepView};
+        use plannercraft_automation::json::LinkTypeJson;
+
+        let link = StepView::Driver {
+            driver: DriverView::Link {
+                predecessor: 2,
+                link: LinkTypeJson::Fs,
+            },
+            raw: Some("2026-12-23T17:00".to_owned()),
+        };
+        let snap = |raw: &str, uid: u32, name: &str| StepView::Snap {
+            raw: "2026-12-23T17:00".to_owned(),
+            snapped: raw.to_owned(),
+            calendar: Some(CalendarRefView {
+                uid,
+                name: name.to_owned(),
+            }),
+        };
+        let own = snap("2027-01-04T08:00", 2, "Entreprise de terrassement");
+        assert_eq!(
+            super::moved_by_calendar(&[link.clone(), own.clone()], 1),
+            Some("Entreprise de terrassement")
+        );
+        // Calendrier du projet, instant inchangé, sans nom : rien.
+        assert_eq!(
+            super::moved_by_calendar(&[link.clone(), snap("2027-01-04T08:00", 1, "Standard")], 1),
+            None
+        );
+        assert_eq!(
+            super::moved_by_calendar(&[link.clone(), snap("2026-12-23T17:00", 2, "X")], 1),
+            None
+        );
+        assert_eq!(
+            super::moved_by_calendar(&[link, snap("2027-01-04T08:00", 2, "")], 1),
+            None
+        );
+        // Dates saisies : pas de recalage à expliquer.
+        let manual = StepView::Driver {
+            driver: DriverView::Manual,
+            raw: None,
+        };
+        assert_eq!(super::moved_by_calendar(&[manual, own], 1), None);
+    }
+
     /// H-UI-26 : une entrée, relue seulement quand la clé change.
     #[test]
     fn h_ui_26_tip_cache_one_entry() {
-        let mut cache = ExplainTipCache::default();
+        let mut cache = ExplainTipCache::<String>::default();
         let a = (1, 0, TaskUid::new(3), SideJson::Start);
         let b = (1, 1, TaskUid::new(3), SideJson::Start);
         assert_eq!(cache.text_for(a, || "x".to_owned()), "x");

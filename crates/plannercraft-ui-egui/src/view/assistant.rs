@@ -107,6 +107,9 @@ enum ChatEvent {
     Proposal(ProposalOp),
     /// Refuser, avec le motif saisi sur la carte.
     RejectWith(u64, String),
+    /// « Voir les ressources » sur la carte d'une proposition acceptée
+    /// (lot R1, H-UI-188).
+    ShowResources,
 }
 
 /// Dessine l'onglet.
@@ -185,6 +188,9 @@ fn apply_events(ui: &egui::Ui, fc: &mut FrameCtx<'_>, panel: &mut AssistantPanel
                 panel.reject_reason = Some((id, reason));
                 fc.actions.push(Action::Proposal(ProposalOp::Reject(id)));
             }
+            ChatEvent::ShowResources => fc
+                .actions
+                .push(Action::SetView(crate::state::ViewKind::ResourceSheet)),
         }
     }
 }
@@ -713,6 +719,7 @@ fn transcript(
                     last: i == last,
                     pending: if i == last { pending.as_slice() } else { &[] },
                     copied: copied == Some(i),
+                    applied: &panel.applied,
                 };
                 ui.push_id(("plannercraft_assistant_turn", i), |ui| {
                     turn_ui(ui, fc, t, turn, &ctx, events);
@@ -732,6 +739,8 @@ struct TurnCtx<'a> {
     last: bool,
     pending: &'a [String],
     copied: bool,
+    /// Résultat des propositions acceptées (H-UI-188).
+    applied: &'a std::collections::BTreeMap<u64, crate::applied::Applied>,
 }
 
 fn turn_ui(
@@ -755,7 +764,7 @@ fn turn_ui(
     }
     for card in turn.tools.iter().filter_map(|step| step.proposal.as_ref()) {
         ui.add_space(6.0);
-        proposal_card(ui, fc, t, card, events);
+        proposal_card(ui, fc, t, card, ctx.applied.get(&card.id), events);
     }
     match &turn.state {
         TurnState::Failed(error) => error_box(ui, fc, t, error, ctx.last, events),
@@ -1078,6 +1087,7 @@ fn proposal_card(
     fc: &FrameCtx<'_>,
     t: &ChatTokens,
     card: &ProposalCard,
+    applied: Option<&crate::applied::Applied>,
     events: &mut Vec<ChatEvent>,
 ) {
     let texts = fc.texts;
@@ -1128,6 +1138,9 @@ fn proposal_card(
                 proposal_actions(ui, fc, t, card.id, events);
             } else {
                 proposal_outcome(ui, texts, t, &card.status);
+                if let Some(applied) = applied {
+                    applied_lines(ui, fc, t, applied, events);
+                }
             }
         })
         .response;
@@ -1208,6 +1221,23 @@ fn proposal_actions(
             .size(META_SIZE)
             .color(t.meta),
     );
+}
+
+/// Résultat d'une proposition acceptée (H-UI-188) : colonnes affichées,
+/// « Voir les ressources ».
+fn applied_lines(
+    ui: &mut egui::Ui,
+    fc: &FrameCtx<'_>,
+    t: &ChatTokens,
+    applied: &crate::applied::Applied,
+    events: &mut Vec<ChatEvent>,
+) {
+    ui.scope(|ui| {
+        ui.style_mut().override_font_id = Some(FontId::proportional(META_SIZE));
+        if super::side_panel::applied_result(ui, fc, applied, Some(t.meta)) {
+            events.push(ChatEvent::ShowResources);
+        }
+    });
 }
 
 /// Issue d'une proposition traitée.

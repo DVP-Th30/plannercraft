@@ -158,6 +158,22 @@ pub struct SplitDrag {
     pub start_height: f32,
     /// Ordonnée du pointeur au début du glisser.
     pub start_y: f32,
+    /// Glisser parti du bord du bas, volet de détails fermé (H-UI-187) :
+    /// le volet s'ouvre si la hauteur tirée atteint la hauteur minimale.
+    pub opening: bool,
+}
+
+/// Le volet de détails est-il affiché pendant un glisser de son séparateur
+/// (H-UI-187) ? `raw` : hauteur tirée, non bornée. Ouverture depuis le bord
+/// du bas : dès la hauteur minimale `min` ; volet ouvert : bloqué à `min`
+/// jusqu'à la moitié de `min`, fermé en dessous. Hauteur non finie ⇒ état
+/// d'avant le glisser (`visible`).
+#[must_use]
+pub fn details_shown_while_dragging(raw: f32, min: f32, opening: bool, visible: bool) -> bool {
+    if !raw.is_finite() || !min.is_finite() {
+        return visible;
+    }
+    if opening { raw >= min } else { raw >= min / 2.0 }
 }
 
 /// Séparateur entre deux volets.
@@ -217,7 +233,19 @@ pub const L4_TEXTS: [crate::i18n::TextId; 4] = [
 #[cfg(test)]
 #[allow(clippy::float_cmp, reason = "tests : hauteurs exactes")]
 mod tests {
-    use super::{PaneFocus, PaneHeights, VIEW_MIN, drag_split, layout, next};
+    use super::{PaneFocus, PaneHeights, VIEW_MIN, details_shown_while_dragging, drag_split, layout, next};
+
+    /// H-UI-187 : ouverture depuis le bord du bas à la hauteur minimale ;
+    /// fermeture sous la moitié ; non fini ⇒ état d'avant.
+    #[test]
+    fn h_ui_187_details_shown_while_dragging() {
+        assert!(!details_shown_while_dragging(119.0, 120.0, true, false));
+        assert!(details_shown_while_dragging(120.0, 120.0, true, false));
+        assert!(details_shown_while_dragging(60.0, 120.0, false, true));
+        assert!(!details_shown_while_dragging(59.0, 120.0, false, true));
+        assert!(details_shown_while_dragging(f32::NAN, 120.0, false, true));
+        assert!(!details_shown_while_dragging(f32::INFINITY, 120.0, true, false));
+    }
 
     /// H-UI-111 : bornes (48 à 40 %, 120 à 60 %), non fini ⇒ défauts, vue ≥
     /// 120 points, volets retirés faute de place.

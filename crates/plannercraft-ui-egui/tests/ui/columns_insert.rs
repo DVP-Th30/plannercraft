@@ -615,3 +615,80 @@ fn h_ui_114_format_columns_menu() {
     assert_eq!(picker.at, 3, "à gauche de Début, colonne active");
     assert!(picker.settings.is_none());
 }
+
+/// Libellé de l'entrée du sélecteur pour `column` (titre, « déjà
+/// affiché » s'il l'est).
+fn picker_entry(app: &App, column: Column) -> String {
+    let title = column.label(&Texts::new(Language::Fr));
+    if app.state.shown(column) {
+        format!("{title} — {}", fr(TextId::FieldPickerShown))
+    } else {
+        title
+    }
+}
+
+/// Haut du nœud `label` (bouton de la liste du sélecteur).
+fn entry_top(harness: &Harness<'static, App>, label: &str) -> f32 {
+    harness.get_by_label(label).rect().min.y
+}
+
+/// H-UI-184 (retours d'essai du 2026-11-11, F1) : défiler la liste du
+/// sélecteur à la molette tient sur plusieurs images (la ligne choisie
+/// ne la ramène plus en haut) ; une flèche vers le bas ramène la ligne
+/// choisie à l'écran.
+#[test]
+fn h_ui_184_picker_scroll_holds() {
+    let mut harness = p_harness();
+    harness
+        .state_mut()
+        .dispatch(Action::Column(ColumnOp::OpenPicker { at: 2 }));
+    harness.run();
+    assert!(picker_open(&harness));
+    let none = std::collections::BTreeMap::new();
+    let list = choices("", Language::Fr, &none);
+    assert!(list.len() > 20, "{list:?}");
+    let first = picker_entry(harness.state(), list[0]);
+    let second = picker_entry(harness.state(), list[1]);
+    let search_bottom = harness.get_by_label(&fr(TextId::FieldPickerSearch)).rect().max.y;
+    let top0 = entry_top(&harness, &second);
+    assert!(top0 >= search_bottom, "{top0} < {search_bottom}");
+    // Molette vers le bas, au-dessus de la liste.
+    harness.get_by_label(&first).hover();
+    harness.run_steps(2);
+    for _ in 0..3 {
+        harness.event(Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -120.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run_steps(2);
+    }
+    harness.run_steps(20);
+    let scrolled = entry_top(&harness, &second);
+    assert!(
+        scrolled < search_bottom - 100.0,
+        "liste non défilée : {scrolled} (avant {top0})"
+    );
+    // Plusieurs images plus tard : le décalage tient.
+    harness.run_steps(30);
+    let held = entry_top(&harness, &second);
+    assert!(
+        (held - scrolled).abs() <= 0.5,
+        "retour en arrière : {held} ≠ {scrolled}"
+    );
+    assert_eq!(harness.state().view().picker.as_ref().unwrap().highlighted, 0);
+    // ↓ : la deuxième entrée devient choisie et revient à l'écran.
+    harness.key_press(Key::ArrowDown);
+    harness.run_steps(20);
+    assert_eq!(harness.state().view().picker.as_ref().unwrap().highlighted, 1);
+    let back = entry_top(&harness, &second);
+    assert!(
+        back >= search_bottom - 0.5,
+        "ligne choisie hors de la vue : {back} < {search_bottom}"
+    );
+    // Puis elle ne bouge plus.
+    harness.run_steps(10);
+    assert!((entry_top(&harness, &second) - back).abs() <= 0.5);
+}

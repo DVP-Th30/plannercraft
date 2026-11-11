@@ -503,6 +503,11 @@ pub struct FieldPicker {
     pub highlighted: usize,
     /// Focus à donner à la zone de saisie à la prochaine image (ouverture).
     pub focus_pending: bool,
+    /// Ramener l'entrée en surbrillance à l'écran à la prochaine image :
+    /// posé seulement quand elle change au clavier ou par la recherche
+    /// (H-UI-184), jamais à chaque image (le défilement à la molette ou à
+    /// l'ascenseur reviendrait sinon en arrière).
+    pub scroll_pending: bool,
     /// « Paramètres de champ » ouverts (H-UI-115) à la place du sélecteur.
     pub settings: Option<Box<crate::dialog::field_settings::FieldSettingsDraft>>,
 }

@@ -12,6 +12,7 @@
 
 pub mod action;
 pub mod app;
+pub mod applied;
 pub mod approvals;
 pub mod assistant;
 pub mod block;

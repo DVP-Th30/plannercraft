@@ -1845,3 +1845,23 @@ palette-hint-run = ↵ run
 palette-hint-close = Esc close
 palette-hint-ask = Tab: ask the assistant
 palette-unavailable = Not available right now.
+
+## Lot R1: trial feedback of 2026-11-11 (H-UI-184 onwards)
+
+bar-tip-date = Date
+bar-tip-why = Why this date
+bar-tip-after-finish = After { $name } ({ $link }): finish { $date }
+bar-tip-after-start = After { $name } ({ $link }): start { $date }
+bar-tip-calendar = Calendar: { $name }
+bar-tip-constraint = Constraint: { $what }
+bar-tip-project-start = Project start
+bar-tip-summary-gate = Bounded by summary task { $name }
+bar-tip-manual = Entered dates (manual task)
+bar-tip-actual = Actual date entered
+details-opener-tip = Drag up to show the Details pane
+applied-columns =
+    { $count ->
+        [one] Column shown: { $names }
+       *[other] Columns shown: { $names }
+    }
+applied-show-resources = View resources

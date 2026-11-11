@@ -10,11 +10,11 @@ La vue Gantt se partage, de haut en bas, entre trois volets, chacun dans une car
 |---|---|---|
 | **Chronologie** (frise) | Affichage → Chronologie ; clic droit n'importe où dans la frise → « Masquer la chronologie » ; ou le **×** qui apparaît en haut à droite au survol | Tirer le trait sous la frise (de 48 points à 40 % de la hauteur) ; double-clic sur le trait : hauteur par défaut |
 | **Table et Gantt** | toujours là (au moins 120 points) | — |
-| **Détails** (Formulaire tâche) | Affichage → Détails (case du groupe Fractionner, comme MS Project) ; **×** de son en-tête | Tirer le trait au-dessus du volet (de 120 points à 60 %) ; double-clic : hauteur par défaut |
+| **Détails** (Formulaire tâche) | Affichage → Détails (case du groupe Fractionner, comme MS Project) ; volet fermé, **tirer vers le haut le bas de la vue** (sous la table et le Gantt) ou double-cliquer dessus ; **×** de son en-tête, ou tirer son trait jusqu'en bas | Tirer le trait au-dessus du volet (de 120 points à 60 %) ; double-clic : hauteur par défaut |
 
 F6 et Maj+F6 passent le clavier d'un volet à l'autre. Tailles, volets ouverts et forme du formulaire sont gardés d'une session à l'autre.
 
-Différence avec MS Project : un double-clic sur le trait du volet de détails remet sa hauteur par défaut au lieu de le fermer (on le ferme par son ×).
+Comme le fractionnement de MS Project, le volet de détails s'ouvre en tirant le bas de la vue vers le haut (curseur ↕ ; relâché trop bas, il reste fermé) et se ferme en tirant son trait jusqu'en bas (il reste d'abord à sa hauteur minimale, puis se ferme sous la moitié de celle-ci). Différence avec MS Project : un double-clic sur le trait du volet ouvert remet sa hauteur par défaut au lieu de le fermer (on le ferme par son × ou en le tirant vers le bas).
 
 ## 2. Le formulaire de la tâche (volet Détails)
 

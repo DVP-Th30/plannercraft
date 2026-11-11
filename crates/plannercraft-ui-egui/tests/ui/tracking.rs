@@ -27,7 +27,7 @@ use plannercraft_ui_egui::column::Column;
 use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
 use plannercraft_ui_egui::query::{Query, QueryValue};
 use plannercraft_ui_egui::theme::Palette;
-use plannercraft_ui_egui::view::gantt::explain_tip_runs;
+use plannercraft_ui_egui::view::gantt::{BarTip, bar_tip, explain_tip_runs};
 use plannercraft_ui_egui::{
     Action, App, DocOrigin, EditOrigin, GanttStyle, LanguagePref, ThemePref, TimeScaleZoom,
 };
@@ -353,7 +353,8 @@ fn n3_row_model_uses_document_calendars() {
     );
 }
 
-/// Résumé du moteur pour le début de la tâche `uid` (gabarit de R-233).
+/// Résumé du moteur pour le début de la tâche `uid` (gabarit de R-233) :
+/// ce que l'infobulle d'avant le lot R1 affichait.
 fn engine_summary(app: &App, uid: u32) -> String {
     let query = Query::Explain(ExplainParams {
         task: TaskRef::Uid(TaskUid::new(uid)),
@@ -364,6 +365,27 @@ fn engine_summary(app: &App, uid: u32) -> String {
         panic!("explication refusée");
     };
     view.summary_fr
+}
+
+/// Infobulle attendue pour la barre de `uid` (H-UI-186).
+fn expected_tip(app: &App, uid: u32) -> BarTip {
+    bar_tip(
+        app.document.as_ref().unwrap(),
+        app.rows().unwrap(),
+        &Texts::new(Language::Fr),
+        TaskUid::new(uid),
+    )
+}
+
+/// L'infobulle `tip` est affichée : nom, chaque libellé et valeur, chaque
+/// ligne « pourquoi ».
+fn tip_shown(harness: &Harness<'static, App>, tip: &BarTip) -> bool {
+    harness.query_by_label(&fr(TextId::BarTipWhy)).is_some()
+        && tip
+            .fields
+            .iter()
+            .all(|(l, v)| harness.query_by_label(l).is_some() && harness.query_by_label(v).is_some())
+        && tip.why.iter().all(|w| harness.query_by_label(w).is_some())
 }
 
 /// Survole le milieu de la barre courante de la tâche `uid`.
@@ -377,6 +399,10 @@ fn hover_bar(harness: &mut Harness<'static, App>, uid: u32) {
     harness.run();
 }
 
+/// H-UI-26, H-UI-186 (retours d'essai du 2026-11-11, F3) : infobulle
+/// structurée, lue une fois par tâche et par génération : nom, Début, Fin,
+/// Durée, % achevé (cellules du tableau), puis le pilote direct du début ;
+/// jamais le résumé en paragraphe ni la chaîne du prédécesseur.
 #[test]
 fn h_ui_26_tooltip_from_engine_template() {
     let mut harness = harness();
@@ -385,14 +411,15 @@ fn h_ui_26_tooltip_from_engine_template() {
         .global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
     open_tracking(&mut harness);
     show(&mut harness, GanttStyle::Standard, TimeScaleZoom::Week);
-    let expected = engine_summary(harness.state(), MASONRY);
-    assert!(!expected.is_empty());
-    assert!(harness.query_by_label(&expected).is_none());
+    let tip = expected_tip(harness.state(), MASONRY);
+    assert_eq!(tip.fields.len(), 4, "{tip:?}");
+    assert!(!tip.why.is_empty() && tip.why.len() <= 2, "{tip:?}");
+    assert!(!tip_shown(&harness, &tip));
     hover_bar(&mut harness, MASONRY);
-    assert!(
-        harness.query_by_label(&expected).is_some(),
-        "infobulle absente : « {expected} »"
-    );
+    assert!(tip_shown(&harness, &tip), "infobulle absente : {tip:?}");
+    // L'ancien paragraphe n'est plus affiché.
+    let summary = engine_summary(harness.state(), MASONRY);
+    assert!(harness.query_by_label(&summary).is_none(), "« {summary} »");
     let runs = explain_tip_runs(&harness.ctx);
     assert_eq!(runs, 1);
     // Même tâche, même génération : lecture gardée.
@@ -402,17 +429,162 @@ fn h_ui_26_tooltip_from_engine_template() {
     // Pointeur retiré : plus d'infobulle.
     harness.remove_cursor();
     harness.run();
-    assert!(harness.query_by_label(&expected).is_none());
-    // Après une édition, le texte est relu.
+    assert!(harness.query_by_label(&fr(TextId::BarTipWhy)).is_none());
+    // Après une édition, l'infobulle est relue.
     harness
         .state_mut()
         .execute(&rename(MASONRY, "Maçonnerie bis"), EditOrigin::User)
         .unwrap();
     harness.run();
-    let renamed = engine_summary(harness.state(), MASONRY);
+    let renamed = expected_tip(harness.state(), MASONRY);
+    assert_eq!(renamed.name, "Maçonnerie bis");
     hover_bar(&mut harness, MASONRY);
-    assert!(harness.query_by_label(&renamed).is_some(), "« {renamed} »");
+    assert!(tip_shown(&harness, &renamed), "{renamed:?}");
     assert_eq!(explain_tip_runs(&harness.ctx), runs + 1);
+}
+
+/// H-UI-186 : en pseudo-langue (textes allongés de 40 %), l'infobulle
+/// tient dans 360 points : libellés entiers, lignes longues repliées, aucun
+/// texte tronqué.
+#[test]
+fn h_ui_186_pseudo_tip_fits() {
+    let mut harness = harness();
+    harness
+        .ctx
+        .global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    open_tracking(&mut harness);
+    show(&mut harness, GanttStyle::Standard, TimeScaleZoom::Week);
+    // Barre repérée en français (libellé de ligne), survolée en pseudo.
+    let (row, _) = row_and_lower_third(&harness, MASONRY);
+    let bars = bars_in(&harness, row);
+    assert_eq!(bars.len(), 1, "{bars:?}");
+    harness.state_mut().use_pseudo_texts();
+    harness.run();
+    harness.hover_at(bars[0].center());
+    harness.run();
+    harness.step();
+    harness.run();
+    let pseudo = Texts::pseudo();
+    let why = pseudo.get(TextId::BarTipWhy);
+    let galleys: Vec<(Rect, String, bool)> = harness
+        .output()
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            Shape::Text(t) => Some((
+                t.galley.rect.translate(t.pos.to_vec2()),
+                t.galley.job.text.clone(),
+                t.galley.elided,
+            )),
+            _ => None,
+        })
+        .collect();
+    let title = galleys
+        .iter()
+        .find(|(_, text, _)| *text == why)
+        .unwrap_or_else(|| panic!("« {why} » absent"));
+    // Textes de l'infobulle : ceux qui commencent à sa marge gauche, sous
+    // le titre ou au-dessus.
+    let left = title.0.left();
+    let tip: Vec<&(Rect, String, bool)> = galleys
+        .iter()
+        .filter(|(r, _, _)| (r.left() - left).abs() < 0.5)
+        .collect();
+    assert!(tip.len() >= 4, "{tip:?}");
+    for (rect, text, elided) in &galleys {
+        // Grille : libellés à la marge, valeurs dans la seconde colonne.
+        let in_tip = rect.left() >= left - 0.5
+            && rect.left() <= left + 200.0
+            && rect.top() >= title.0.top() - 120.0
+            && rect.bottom() <= title.0.bottom() + 120.0;
+        if in_tip {
+            assert!(!elided, "tronqué : {text:?}");
+            assert!(rect.right() - left <= 360.5, "trop large : {text:?} ({rect:?})");
+        }
+    }
+}
+
+/// H-UI-186 : lignes de l'infobulle d'une barre sur le projet « P »
+/// (UID n = ID n) : début du projet, lien (nom, type, date du
+/// prédécesseur comme dans sa cellule), jalon à une seule date,
+/// récapitulative sans « pourquoi », contrainte ; jamais plus de deux
+/// lignes ni la chaîne.
+#[test]
+fn h_ui_186_bar_tip_lines() {
+    let mut app = crate::new_app();
+    app.open_project(
+        plannercraft_tests::daily::plan_p().project().clone(),
+        DocOrigin {
+            name: "P".to_owned(),
+            path: None,
+            demo: false,
+        },
+    );
+    let mut harness = crate::harness_for(app);
+    harness.run();
+    let tip = |h: &Harness<'static, App>, uid: u32| expected_tip(h.state(), uid);
+    let cell = |h: &Harness<'static, App>, uid: u32, column: Column| {
+        let rows = h.state().rows().unwrap();
+        rows.text(rows.index_of(TaskUid::new(uid)).unwrap(), column)
+            .to_owned()
+    };
+    // Fondations : début du projet ; grille = cellules du tableau.
+    let f = tip(&harness, 2);
+    assert_eq!(f.name, "Fondations");
+    let labels: Vec<&str> = f.fields.iter().map(|(l, _)| l.as_str()).collect();
+    assert_eq!(labels, ["Début", "Fin", "Durée", "% achevé"]);
+    let values: Vec<String> = f.fields.iter().map(|(_, v)| v.clone()).collect();
+    assert_eq!(
+        values,
+        [
+            cell(&harness, 2, Column::Start),
+            cell(&harness, 2, Column::Finish),
+            cell(&harness, 2, Column::Duration),
+            cell(&harness, 2, Column::PercentComplete),
+        ]
+    );
+    assert_eq!(f.why, ["Début du projet"]);
+    // Murs : après Fondations (FD), fin de Fondations comme sa cellule.
+    let m = tip(&harness, 3);
+    assert_eq!(
+        m.why,
+        [format!(
+            "Après Fondations (FD)\u{a0}: fin {}",
+            cell(&harness, 2, Column::Finish)
+        )]
+    );
+    // Livraison (jalon) : une seule date.
+    let l = tip(&harness, 4);
+    let labels: Vec<&str> = l.fields.iter().map(|(l, _)| l.as_str()).collect();
+    assert_eq!(labels, ["Date", "% achevé"]);
+    assert_eq!(l.why.len(), 1, "{l:?}");
+    // Gros œuvre (récapitulative) : agrégat, aucun « pourquoi ».
+    assert_eq!(tip(&harness, 1).why, Vec::<String>::new());
+    // Peinture : contrainte « Début au plus tôt le » qui lie.
+    let batch = Batch::from_json_str(
+        r#"{"format_version":1,"ops":[{"op":"task.set_constraint","uid":7,"kind":"snet","date":"2030-01-07T08:00"}]}"#,
+    )
+    .unwrap();
+    harness.state_mut().execute(&batch, EditOrigin::User).unwrap();
+    harness.run();
+    let pe = tip(&harness, 7);
+    // Colonnes Type et Date de contrainte non affichées : mises en forme
+    // comme leurs cellules quand même.
+    assert_eq!(pe.why, ["Contrainte\u{a0}: Début au plus tôt le lun 07/01/30"]);
+    // Anglais : mêmes lignes, libellés traduits.
+    let app = harness.state();
+    let en = bar_tip(
+        app.document.as_ref().unwrap(),
+        app.rows().unwrap(),
+        &Texts::new(Language::En),
+        TaskUid::new(2),
+    );
+    assert_eq!(en.why, ["Project start"]);
+    assert_eq!(en.fields.first().map(|(l, _)| l.as_str()), Some("Start"));
+    for t in [f, m, l, pe] {
+        assert!(t.why.len() <= 2, "{t:?}");
+        assert!(t.why.iter().all(|w| !w.contains("chaîne")), "{t:?}");
+    }
 }
 
 /// Le menu Affichage change le style du Gantt.

@@ -251,6 +251,9 @@ pub struct PanesDrawn {
     pub timeline_splitter: Option<Rect>,
     /// Zone de saisie du séparateur au-dessus du volet de détails.
     pub details_splitter: Option<Rect>,
+    /// Volet de détails fermé : zone de prise du bord du bas de la vue
+    /// (gouttière sous sa carte, H-UI-187).
+    pub details_opener: Option<Rect>,
 }
 
 /// État transitoire des volets (jamais persisté ; H-UI-111).
@@ -311,6 +314,15 @@ fn live_height(ui: &egui::Ui, view: &ViewTransient, splitter: Splitter, saved: u
     panes::drag_split(d.start_height, delta, min, (share * total).max(min))
 }
 
+/// Glisser du séparateur des détails en cours et hauteur tirée, non
+/// bornée (H-UI-187) : hauteur du début plus le chemin du pointeur vers le
+/// haut. Sans position du pointeur : aucune.
+fn details_drag(ui: &egui::Ui, view: &ViewTransient) -> Option<(SplitDrag, f32)> {
+    let d = view.split_drag.filter(|d| d.splitter == Splitter::Details)?;
+    let y = ui.input(|i| i.pointer.latest_pos())?.y;
+    Some((d, d.start_height + (d.start_y - y)))
+}
+
 /// Découpe `full` en volets (`panes::layout`) ; interface adoucie (lot U2,
 /// H-UI-172) : une gouttière entre deux volets affichés, retirée de la
 /// hauteur partagée (la gouttière d'un volet sans place est rendue à la
@@ -318,7 +330,18 @@ fn live_height(ui: &egui::Ui, view: &ViewTransient, splitter: Splitter, saved: u
 fn pane_slots(ui: &egui::Ui, fc: &FrameCtx<'_>, view: &ViewTransient, full: Rect) -> PaneSlots {
     let gutter = super::cards::GUTTER;
     let wants_timeline = timeline::wanted(fc);
-    let wants_details = fc.state.details.visible && fc.doc.is_some();
+    // Pendant un glisser du séparateur des détails (H-UI-187) : ouvert
+    // depuis le bord du bas dès la hauteur minimale, fermé sous la moitié.
+    let wants_details = fc.doc.is_some()
+        && match details_drag(ui, view) {
+            Some((d, raw)) => panes::details_shown_while_dragging(
+                raw,
+                f32::from(DETAILS_HEIGHT_MIN),
+                d.opening,
+                fc.state.details.visible,
+            ),
+            None => fc.state.details.visible,
+        };
     let gutters = f32::from(u8::from(wants_timeline).saturating_add(u8::from(wants_details)));
     let total = (full.height() - gutter * gutters).max(0.0);
     let timeline =
@@ -409,6 +432,79 @@ fn splitter(
             splitter: which,
             start_height: height,
             start_y,
+            opening: false,
+        });
+    }
+    Some(grab)
+}
+
+/// Identifiant de la zone de prise du bord du bas (volet de détails fermé).
+fn details_opener_id() -> Id {
+    Id::unique("plannercraft.pane_splitter.details_opener")
+}
+
+/// Ouvre le volet de détails à la hauteur par défaut, par les mêmes
+/// opérations que le ruban (H-UI-187).
+fn open_details_default(fc: &mut FrameCtx<'_>) {
+    fc.actions.push(Action::Pane(PaneOp::ShowDetails(true)));
+    fc.actions
+        .push(Action::Pane(PaneOp::SetDetailsHeight(DETAILS_HEIGHT_DEFAULT)));
+}
+
+/// Volet de détails fermé : bord du bas de la vue (gouttière de ± 4 points
+/// sous sa carte, H-UI-187), comme le fractionnement de MS Project. Tiré
+/// vers le haut, le volet s'ouvre et suit le pointeur (`view.split_drag`,
+/// `opening`) ; double-clic, ou Entrée et Espace quand la zone a le focus
+/// clavier (Tab, comme les séparateurs de H-UI-111) : hauteur par défaut.
+/// Rien si la gouttière n'appartient pas à la vue (volet des diagnostics
+/// affiché dessous : son propre bord redimensionnable).
+fn details_opener(
+    ui: &mut egui::Ui,
+    fc: &mut FrameCtx<'_>,
+    view: &mut ViewTransient,
+    slots: &PaneSlots,
+) -> Option<Rect> {
+    let x = slots.view.x_range();
+    let y = slots.view.bottom() + super::cards::GUTTER / 2.0;
+    if !y.is_finite() || x.span() < 1.0 {
+        return None;
+    }
+    let grab = Rect::from_x_y_ranges(x, (y - panes::SPLITTER_GRAB)..=(y + panes::SPLITTER_GRAB));
+    if grab.bottom() > ui.clip_rect().bottom() + 0.5 {
+        return None;
+    }
+    let texts = fc.texts;
+    let response = ui.interact(grab, details_opener_id(), Sense::click_and_drag());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::Role::Splitter, true, texts.get(TextId::DetailsOpenerTip))
+    });
+    let response = response
+        .on_hover_and_drag_cursor(CursorIcon::ResizeVertical)
+        .on_hover_text(texts.get(TextId::DetailsOpenerTip));
+    if response.hovered() || response.dragged() {
+        ui.painter().line_segment(
+            [pos2(x.min, y), pos2(x.max, y)],
+            Stroke::new(2.0, fc.palette.grid_major),
+        );
+        fc.stats.shapes = fc.stats.shapes.saturating_add(1);
+    }
+    let keyboard = response.has_focus()
+        && ui.input(|i| i.key_pressed(egui::Key::Enter) || i.key_pressed(egui::Key::Space));
+    if response.double_clicked() || keyboard {
+        view.split_drag = None;
+        open_details_default(fc);
+    } else if response.drag_started() {
+        let start_y = ui
+            .input(|i| i.pointer.press_origin())
+            .or_else(|| response.interact_pointer_pos())
+            .map_or(y, |p| p.y);
+        // Hauteur de départ moins la gouttière : le séparateur du volet
+        // ouvert reste sous le pointeur.
+        view.split_drag = Some(SplitDrag {
+            splitter: Splitter::Details,
+            start_height: -super::cards::GUTTER,
+            start_y,
+            opening: true,
         });
     }
     Some(grab)
@@ -440,20 +536,39 @@ fn pane_splitters(
     let details_splitter = slots
         .details
         .and_then(|r| splitter(ui, fc, view, Splitter::Details, (r.top() - half, x, r.height())));
+    // Bord du bas : volet fermé et pas (encore) affiché par un glisser
+    // (H-UI-187).
+    let details_opener = (!fc.state.details.visible && slots.details.is_none())
+        .then(|| details_opener(ui, fc, view, slots))
+        .flatten();
     if let Some(d) = view.split_drag
         && !ui.input(|i| i.pointer.primary_down())
     {
         view.split_drag = None;
-        let op = match d.splitter {
-            Splitter::Timeline => slots
-                .timeline
-                .map(|r| PaneOp::SetTimelineHeight(height_u16(r.height()))),
-            Splitter::Details => slots
-                .details
-                .map(|r| PaneOp::SetDetailsHeight(height_u16(r.height()))),
-        };
-        if let Some(op) = op {
-            fc.actions.push(Action::Pane(op));
+        match (d.splitter, slots.details) {
+            (Splitter::Timeline, _) => {
+                if let Some(r) = slots.timeline {
+                    fc.actions
+                        .push(Action::Pane(PaneOp::SetTimelineHeight(height_u16(r.height()))));
+                }
+            }
+            // Volet affiché au relâcher : ouvert s'il ne l'était pas, puis
+            // sa hauteur bornée (H-UI-111, H-UI-187).
+            (Splitter::Details, Some(r)) => {
+                if !fc.state.details.visible {
+                    fc.actions.push(Action::Pane(PaneOp::ShowDetails(true)));
+                }
+                fc.actions
+                    .push(Action::Pane(PaneOp::SetDetailsHeight(height_u16(r.height()))));
+            }
+            // Tiré sous la moitié de la hauteur minimale : fermé, comme
+            // par son × (H-UI-187) ; relâché trop bas depuis le bord :
+            // reste fermé.
+            (Splitter::Details, None) => {
+                if fc.state.details.visible && !d.opening {
+                    fc.actions.push(Action::Pane(PaneOp::ShowDetails(false)));
+                }
+            }
         }
     }
     PanesDrawn {
@@ -462,6 +577,7 @@ fn pane_splitters(
         details: slots.details,
         timeline_splitter,
         details_splitter,
+        details_opener,
     }
 }
 

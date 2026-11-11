@@ -339,8 +339,10 @@ fn h_ui_53_bands_on_screen() {
 }
 
 /// H-UI-54 : étiquette « État JJ/MM » dans l'échelle et trait d'aujourd'hui
-/// pointillé (Sobre) ; aucun des deux en Classique. Exemple : date d'état
-/// ven 15/01/2027 17:00, « maintenant » le même jour à 08:00.
+/// pointillé (Sobre) ; aucun des deux en Classique. Exemple : « maintenant »
+/// ven 15/01/2027 08:00 ; date d'état portée au ven 22/01/2027 17:00 (le
+/// 15/01 17:00 de l'exemple tombe le même jour qu'aujourd'hui, dont le
+/// trait n'est alors pas dessiné : H-UI-185).
 #[test]
 fn h_ui_54_status_label_and_today() {
     // Hors de la chronologie (lot L5 : visible par défaut, elle porte sa
@@ -356,13 +358,16 @@ fn h_ui_54_status_label_and_today() {
             .map(|d| d.rect.expand(2.0));
         texts(h)
             .iter()
-            .any(|(p, t)| t == "État 15/01" && !frise.is_some_and(|r| r.contains(*p)))
+            .any(|(p, t)| t == "État 22/01" && !frise.is_some_and(|r| r.contains(*p)))
     };
     let today = |id: TemplateId| rgb(template(id).tokens(Variant::Light).today_line);
+    let status = r#"{"op":"project.set_status_date","date":"2027-01-22T17:00"}"#;
     let mut classique = demo(TemplateId::Classique);
+    exec(&mut classique, status);
     week(&mut classique);
     assert!(!label(&classique));
     let mut sobre = demo(TemplateId::Sobre);
+    exec(&mut sobre, status);
     week(&mut sobre);
     // Gantt défilé jusqu'à la date d'état.
     let x = {
@@ -383,6 +388,48 @@ fn h_ui_54_status_label_and_today() {
         dashes.iter().all(|[a, b]| (a.x - b.x).abs() < 0.01),
         "trait non vertical"
     );
+}
+
+/// H-UI-185 (retours d'essai du 2026-11-11, F2) : date d'état et
+/// aujourd'hui le même jour civil (exemple : 15/01/2027 17:00 et 08:00,
+/// quelques points d'écart au zoom Semaine) ⇒ seul le trait de la date
+/// d'état est dessiné, avec son étiquette ; une semaine d'écart ⇒ les deux.
+#[test]
+fn h_ui_185_today_hidden_on_status_day() {
+    let today = rgb(template(TemplateId::Sobre).tokens(Variant::Light).today_line);
+    let mut sobre = demo(TemplateId::Sobre);
+    week(&mut sobre);
+    let x = {
+        let doc = sobre.state().document.as_ref().unwrap();
+        assert_eq!(
+            doc.project().effective_status_date().day(),
+            doc.project().current_date.day(),
+            "exemple : même jour"
+        );
+        let axis = plannercraft_ui_egui::timescale::TimeAxis::new(doc.range, TimeScaleZoom::Week, 0.0);
+        // 4,5 points d'écart au zoom Semaine : c'est la règle du même jour
+        // civil qui retire le trait d'aujourd'hui.
+        let gap = axis.x(doc.project().effective_status_date()) - axis.x(doc.project().current_date);
+        assert!(gap.abs() < 8.0, "écart de {gap} points");
+        axis.x(doc.project().effective_status_date()) - 200.0
+    };
+    sobre.state_mut().dispatch(Action::ScrollGanttX(x.max(0.0)));
+    sobre.run();
+    assert!(
+        texts(&sobre).iter().any(|(_, t)| t == "État 15/01"),
+        "étiquette de la date d'état absente"
+    );
+    assert_eq!(
+        segments(&sobre, today),
+        Vec::<[Pos2; 2]>::new(),
+        "trait d'aujourd'hui dessiné"
+    );
+    // Date d'état une semaine plus tard : aujourd'hui revient.
+    exec(
+        &mut sobre,
+        r#"{"op":"project.set_status_date","date":"2027-01-22T17:00"}"#,
+    );
+    assert_ne!(segments(&sobre, today).len(), 0, "trait d'aujourd'hui absent");
 }
 
 /// H-UI-46 à l'écran : textes du moteur à droite des barres (Sobre : nom),

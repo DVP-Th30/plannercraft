@@ -1681,6 +1681,20 @@ text_ids! {
     PaletteHintClose => "palette-hint-close",
     PaletteHintAsk => "palette-hint-ask",
     PaletteUnavailable => "palette-unavailable",
+    // --- Lot R1 (H-UI-184 et suivantes) : retours d'essai du 2026-11-11.
+    BarTipDate => "bar-tip-date",
+    BarTipWhy => "bar-tip-why",
+    BarTipAfterFinish => "bar-tip-after-finish",
+    BarTipAfterStart => "bar-tip-after-start",
+    BarTipCalendar => "bar-tip-calendar",
+    BarTipConstraint => "bar-tip-constraint",
+    BarTipProjectStart => "bar-tip-project-start",
+    BarTipSummaryGate => "bar-tip-summary-gate",
+    BarTipManual => "bar-tip-manual",
+    BarTipActual => "bar-tip-actual",
+    DetailsOpenerTip => "details-opener-tip",
+    AppliedColumns => "applied-columns",
+    AppliedShowResources => "applied-show-resources",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en
@@ -2127,6 +2141,9 @@ mod tests {
     fn sample_args() -> Vec<(&'static str, Arg<'static>)> {
         vec![
             ("product", Arg::Str("plannercraft".into())),
+            // Lot R1 : infobulle des barres, colonnes affichées.
+            ("link", Arg::Str("FD".into())),
+            ("names", Arg::Str("Noms ressources, Notes".into())),
             // Lot U3 (ADR-0026) : ligne « Demander à l'assistant ».
             ("query", Arg::Str("lier".into())),
             // Lot U2 (ADR-0026) : menu « … » d'un groupe du ruban compact.

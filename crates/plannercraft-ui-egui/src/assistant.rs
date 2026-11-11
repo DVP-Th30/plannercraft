@@ -391,6 +391,10 @@ pub struct AssistantPanel {
     /// Motif de refus en cours de saisie sur la carte d'une proposition
     /// (identifiant, texte ; lot A2).
     pub reject_reason: Option<(u64, String)>,
+    /// Résultat des propositions acceptées, par identifiant (colonnes
+    /// affichées, « Voir les ressources » ; lot R1, H-UI-188) : état de
+    /// l'écran, jamais enregistré.
+    pub applied: std::collections::BTreeMap<u64, crate::applied::Applied>,
     /// Focus demandé à la saisie de la question (ouverture du volet, lot
     /// A5) : servi à la prochaine image de l'onglet.
     pub focus_request: bool,
@@ -443,6 +447,7 @@ impl AssistantPanel {
             doc_key: None,
             copied: None,
             reject_reason: None,
+            applied: std::collections::BTreeMap::new(),
             focus_request: false,
             waker: None,
             #[cfg(target_arch = "wasm32")]
