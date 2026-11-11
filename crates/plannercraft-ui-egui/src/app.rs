@@ -3275,6 +3275,10 @@ impl App {
                 .map(|document| document.origin.name.clone())
                 .unwrap_or_default()
         });
+        // Interface adoucie (lot U2, H-UI-172) : fond de l'application sous
+        // les cartes, peint avant tout panneau.
+        view::cards::set_inset(&ctx, ui.max_rect().left() - ctx.content_rect().left());
+        view::cards::paint_app_background(&ctx);
         {
             // Champs disjoints : le contexte d'image emprunte l'état en
             // lecture, la vue transitoire est empruntée à part.
@@ -3294,7 +3298,7 @@ impl App {
                 window_open: self.view.dialog.is_some(),
                 task_view,
             };
-            view::chrome::menu_bar(ui, &mut fc, self.side.open, self.side.shows_ai());
+            view::chrome::publish_panels(&ctx, self.side.open, self.side.shows_ai());
             let button = view::ribbon::AssistantButton {
                 open: self.side.open,
                 badge: self.assistant_badge,
@@ -3325,18 +3329,46 @@ impl App {
                 let ai = crate::approvals::panel_input(&self.approvals, banner);
                 view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant);
             }
-            if self.state.diagnostics_open {
-                view::diagnostics::panel(ui, &mut fc);
-            }
+            let outer = view::cards::outer_margin(&ctx);
+            let side_beside = self.side.open && !view::side_panel::overlays(ctx.content_rect().width());
+            let diagnostics_shown = self.state.diagnostics_open
+                && view::diagnostics::panel(
+                    ui,
+                    &mut fc,
+                    view::cards::px(outer),
+                    if side_beside { 0 } else { view::cards::px(outer) },
+                );
             let view_state = &mut self.view;
+            // Interface adoucie (lot U2, H-UI-172) : vue centrale posée sur
+            // le fond de l'application, en cartes ; marges extérieures à
+            // gauche (et à droite sans volet latéral à côté), gouttière en
+            // bas (diagnostics ou barre d'état).
+            let frame = egui::Frame::NONE.inner_margin(egui::Margin {
+                left: view::cards::px(outer),
+                right: if side_beside { 0 } else { view::cards::px(outer) },
+                top: 0,
+                bottom: if diagnostics_shown {
+                    0
+                } else {
+                    view::cards::px(view::cards::GUTTER)
+                },
+            });
             if fc.doc.is_some() {
-                let frame = egui::Frame::central_panel(ui.style()).inner_margin(0.0);
                 egui::CentralPanel::default()
                     .frame(frame)
                     .show(ui, |ui| show_view(ui, &mut fc, view_state));
             } else {
-                egui::CentralPanel::default().show(ui, |ui| {
-                    view::chrome::welcome(ui, &mut fc);
+                egui::CentralPanel::default().frame(frame).show(ui, |ui| {
+                    let card = ui.available_rect_before_wrap();
+                    view::cards::paint_fill(ui.painter(), card);
+                    let mut child = ui.new_child(
+                        egui::UiBuilder::new()
+                            .max_rect(view::cards::inner(card).shrink2(egui::vec2(8.0, 2.0)))
+                            .layout(egui::Layout::top_down(egui::Align::Min)),
+                    );
+                    view::chrome::welcome(&mut child, &mut fc);
+                    view::cards::finish(ui.painter(), card);
+                    ui.advance_cursor_after_rect(card);
                 });
             }
         }
@@ -3389,8 +3421,27 @@ impl App {
 /// Vue centrale du document selon `UiState::view` (J7, lot L10).
 fn show_view(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, view_state: &mut ViewTransient) {
     match fc.state.view {
-        ViewKind::ResourceSheet => view::resource_sheet::show(ui, fc, &mut view_state.resources),
-        ViewKind::ResourceUsage => view::usage::show(ui, fc, view_state),
+        ViewKind::ResourceSheet | ViewKind::ResourceUsage => {
+            // Interface adoucie (lot U2, H-UI-172) : la feuille et
+            // l'utilisation des ressources dans une carte (le Gantt découpe
+            // lui-même ses volets en cartes).
+            let card = ui.available_rect_before_wrap();
+            view::cards::paint_fill(ui.painter(), card);
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(view::cards::inner(card))
+                    .layout(egui::Layout::top_down(egui::Align::Min))
+                    .id_salt("plannercraft.resource_view"),
+            );
+            child.set_clip_rect(view::cards::inner(card).intersect(ui.clip_rect()));
+            if fc.state.view == ViewKind::ResourceSheet {
+                view::resource_sheet::show(&mut child, fc, &mut view_state.resources);
+            } else {
+                view::usage::show(&mut child, fc, view_state);
+            }
+            view::cards::finish(ui.painter(), card);
+            ui.advance_cursor_after_rect(card);
+        }
         ViewKind::Gantt => view::main_view::show(ui, fc, view_state),
     }
     // Seconde passe UX (lot L6) : sélecteur de champ ou « Paramètres de

@@ -331,8 +331,13 @@ fn h_ui_123_inspect_opens_why_this_date() {
     let side = harness.state().side_panel();
     assert!(side.open);
     assert_eq!(side.tab, SideTab::WhyThisDate);
-    // Sans sélection : grisé.
+    // Sans sélection : grisé (ruban complet : Inspecter est dans le menu
+    // « … » du ruban compact, lot U2).
     dispatch(&mut harness, Action::Select(None));
+    dispatch(
+        &mut harness,
+        Action::Ribbon(plannercraft_ui_egui::ribbon::RibbonOp::ToggleFull),
+    );
     let panel = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx).panel;
     let label = fr(TextId::RibbonInspect);
     let node = harness

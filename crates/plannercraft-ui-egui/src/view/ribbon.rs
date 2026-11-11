@@ -49,19 +49,22 @@ use egui::{
 use crate::action::Action;
 use crate::i18n::{Arg, Language, TextId, Texts};
 use crate::keymap::{Binding, shortcut_for_os, shortcut_text};
-use crate::ribbon::spec::{GroupSpec, ItemSize, ItemSpec, QUICK_ACCESS, RibbonCmd, percent_value};
-use crate::ribbon::{Icon, RibbonOp, RibbonPrefs, RibbonTab, paint_icon};
+use crate::ribbon::spec::{
+    CompactGroup, GroupSpec, ItemSize, ItemSpec, QUICK_ACCESS, RibbonCmd, compact_split, percent_value,
+};
+use crate::ribbon::{Icon, RibbonMode, RibbonOp, RibbonPrefs, RibbonTab, paint_icon};
 use crate::theme::{ChromeTokens, logo_shapes};
 
 use super::FrameCtx;
 use super::chrome::{dropdown_contents, item_checked, push_cmd, twin_item};
 
-/// Largeur du bouton de l'assistant (lot A5), en points.
-pub const ASSISTANT_W: f32 = 28.0;
-/// Hauteur du bouton de l'assistant.
-const ASSISTANT_H: f32 = 22.0;
+/// Hauteur du bouton de l'assistant (lot A5 ; lot U2 : 30 points, icône et
+/// libellé sur l'accent doux).
+const ASSISTANT_H: f32 = 30.0;
 /// Côté de l'icône du bouton de l'assistant.
-const ASSISTANT_ICON: f32 = 16.0;
+const ASSISTANT_ICON: f32 = 15.0;
+/// Marge horizontale du libellé du bouton de l'assistant.
+const ASSISTANT_PAD: f32 = 12.0;
 /// Pastille au-delà de ce nombre : « 9+ ».
 const BADGE_MAX: u32 = 9;
 
@@ -76,8 +79,11 @@ pub struct AssistantButton {
     pub busy: bool,
 }
 
-/// Hauteur de la bande d'onglets (barre d'accès rapide comprise).
-pub const TAB_BAND_H: f32 = 26.0;
+/// Hauteur de la barre du haut (interface adoucie, lot U2, H-UI-173) :
+/// symbole, menu, accès rapide, onglets et bouton de l'assistant.
+pub const TAB_BAND_H: f32 = 40.0;
+/// Hauteur du ruban compact, bordure comprise (lot U2, H-UI-174).
+pub const COMPACT_H: f32 = 52.0;
 /// Hauteur du corps du ruban (masqué quand le ruban est replié).
 pub const BODY_H: f32 = 92.0;
 /// Hauteur de la zone des éléments (le nom du groupe est dessous).
@@ -121,14 +127,20 @@ const SEP_INSET: f32 = 12.0;
 const CORNER: f32 = 6.0;
 /// Taille du texte des onglets.
 const TAB_TEXT: f32 = 13.0;
-/// Marge horizontale du texte d'un onglet.
-const TAB_PAD: f32 = 10.0;
-/// Épaisseur du trait sous l'onglet actif.
-const TAB_UNDERLINE: f32 = 2.0;
+/// Marge horizontale du texte d'un onglet (pastille de la barre du haut).
+const TAB_PAD: f32 = 12.0;
+/// Hauteur d'un onglet, d'un bouton de la barre du haut.
+const BAR_ITEM: f32 = 30.0;
+/// Côté des icônes de la barre du haut et du ruban compact.
+const BAR_ICON: f32 = 17.0;
+/// Rayon des coins des boutons de la barre du haut.
+const BAR_CORNER: f32 = 7.0;
+/// Marge horizontale de la barre du haut.
+const BAR_PAD: f32 = 2.0;
+/// Écart entre l'accès rapide et les onglets.
+const TABS_GAP: f32 = 14.0;
 /// Côté du symbole de l'application.
-const LOGO: f32 = 20.0;
-/// Hauteur du séparateur entre la barre d'accès rapide et les onglets.
-const QUICK_SEP_H: f32 = 14.0;
+const LOGO: f32 = 26.0;
 /// Marge horizontale du corps.
 const BODY_PAD: f32 = 4.0;
 /// Taille du texte des libellés : 11,5 points en Inter (lot U1, H-UI-169),
@@ -144,8 +156,8 @@ const LINE_H: f32 = 14.0;
 const ARROW_W: f32 = 7.0;
 /// Côté de la case d'une case à cocher sans icône.
 const BOX: f32 = 13.0;
-/// Côté d'un bouton de la barre d'accès rapide.
-const QUICK: f32 = 22.0;
+/// Côté d'un bouton de la barre d'accès rapide (barre du haut, lot U2).
+const QUICK: f32 = 30.0;
 /// Largeur de fenêtre retenue au plus (règle 10 : bornage avant tout
 /// calcul entier).
 const MAX_WIDTH_PX: u32 = 100_000;
@@ -195,6 +207,23 @@ pub enum Kind {
     Percent,
     /// Bouton à icône seule de la barre d'accès rapide.
     Quick,
+    /// Bouton du ruban compact (lot U2) : icône, libellé si `text` ;
+    /// `primary` : sur l'accent doux.
+    CompactButton {
+        /// Libellé affiché.
+        text: bool,
+        /// Bouton principal.
+        primary: bool,
+    },
+    /// Liste du ruban compact : icône, libellé si `text`, flèche.
+    CompactDropdown {
+        /// Libellé affiché.
+        text: bool,
+    },
+    /// Pourcentage du groupe segmenté du ruban compact.
+    CompactPercent,
+    /// Bouton « … » d'un groupe compact.
+    More,
 }
 
 /// Élément placé dans un groupe : rectangle relatif au coin haut gauche du
@@ -333,6 +362,9 @@ fn slot_width(kind: Kind, label: &str, measure: &mut dyn FnMut(&str, f32) -> f32
         Kind::Percent => measure(label, LABEL_SIZE) + 2.0 * PERCENT_PAD,
         Kind::Quick => QUICK,
         Kind::Large | Kind::LargeDropdown => LARGE_MIN_W,
+        Kind::CompactButton { .. } | Kind::CompactDropdown { .. } | Kind::CompactPercent | Kind::More => {
+            compact_width(kind, label, measure)
+        }
     }
 }
 
@@ -487,6 +519,13 @@ fn group_plan(
 /// groupe de rang plus faible peut encore être replié.
 #[must_use]
 pub fn choose_stages(ranks: &[u8], widths: &[[f32; 3]], available: f32) -> Vec<Stage> {
+    choose_stages_with(ranks, widths, available, SEP_W)
+}
+
+/// [`choose_stages`] avec des séparateurs de `sep` points (ruban compact :
+/// filet d'un point).
+#[must_use]
+pub fn choose_stages_with(ranks: &[u8], widths: &[[f32; 3]], available: f32, sep: f32) -> Vec<Stage> {
     let mut stages = vec![Stage::Full; widths.len()];
     let total = |stages: &[Stage]| -> f32 {
         let groups: f32 = stages
@@ -499,7 +538,7 @@ pub fn choose_stages(ranks: &[u8], widths: &[[f32; 3]], available: f32) -> Vec<S
             })
             .sum();
         let count = u16::try_from(stages.len()).unwrap_or(u16::MAX);
-        groups + SEP_W * f32::from(count.saturating_sub(1))
+        groups + sep * f32::from(count.saturating_sub(1))
     };
     let mut order: Vec<usize> = (0..widths.len()).collect();
     order.sort_by_key(|&i| (ranks.get(i).copied().unwrap_or(u8::MAX), i));
@@ -637,14 +676,24 @@ pub struct DrawnItem {
 /// Relevé du ruban de la dernière image.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RibbonDrawn {
-    /// Rectangle du panneau du ruban (bande d'onglets et corps).
+    /// Rectangle du panneau du ruban (barre du haut, carte du ruban et
+    /// gouttières ; lot U2).
     pub panel: Rect,
-    /// Rectangle du corps (en surimpression si le ruban est replié).
+    /// Barre du haut (lot U2, H-UI-173).
+    pub bar: Rect,
+    /// Rectangle du corps (carte du ruban, ou surimpression si le ruban est
+    /// replié).
     pub body: Option<Rect>,
+    /// Forme du ruban dessinée (lot U2, H-UI-174).
+    pub mode: RibbonMode,
     /// Éléments du corps et de la barre d'accès rapide.
     pub items: Vec<DrawnItem>,
     /// Groupes : nom, palier, rectangle.
     pub groups: Vec<(String, Stage, Rect)>,
+    /// Bouton « Menu » de la barre du haut (lot U2, H-UI-173).
+    pub menu: Option<Rect>,
+    /// Chevron compact ⇄ complet (lot U2, H-UI-174).
+    pub chevron: Option<Rect>,
     /// Bouton de l'assistant (lot A5) et sa pastille, si dessinée.
     pub assistant: Option<(Rect, Option<Rect>)>,
     /// Contour « réponse en cours » dessiné autour du bouton (H-UI-166).
@@ -655,9 +704,13 @@ impl Default for RibbonDrawn {
     fn default() -> Self {
         Self {
             panel: Rect::NOTHING,
+            bar: Rect::NOTHING,
             body: None,
+            mode: RibbonMode::default(),
             items: Vec::new(),
             groups: Vec::new(),
+            menu: None,
+            chevron: None,
             assistant: None,
             assistant_ring: false,
         }
@@ -682,9 +735,24 @@ fn keep_id() -> Id {
     Id::unique("plannercraft.ribbon.keep")
 }
 
-/// Dessine le ruban sous la barre de menus. `prefs` : onglet et repli
-/// persistés ; `overlay` : onglet ouvert en surimpression (ruban replié) ;
-/// `assistant` : état du bouton de l'assistant (lot A5).
+/// Hauteur du panneau du ruban pour `mode`, marge extérieure `outer`
+/// comprise (lot U2) : marge, barre du haut, gouttière, carte (compacte
+/// ou complète, aucune si repliée) et gouttière sous la carte.
+#[must_use]
+pub fn panel_height(mode: RibbonMode, outer: f32) -> f32 {
+    let gutter = super::cards::GUTTER;
+    let bar = outer + TAB_BAND_H + gutter;
+    match mode {
+        RibbonMode::Collapsed => bar,
+        RibbonMode::Compact => bar + COMPACT_H + gutter,
+        RibbonMode::Full => bar + BODY_H + 2.0 + gutter,
+    }
+}
+
+/// Dessine la barre du haut et le ruban (interface adoucie, lot U2,
+/// H-UI-173, H-UI-174). `prefs` : onglet et forme persistés ; `overlay` :
+/// onglet ouvert en surimpression (ruban replié) ; `assistant` : état du
+/// bouton de l'assistant (lot A5).
 pub fn show(
     ui: &mut Ui,
     fc: &mut FrameCtx<'_>,
@@ -698,55 +766,97 @@ pub fn show(
         close_overlay_on_escape_or_outside(ui, fc);
     }
     let tokens = ChromeTokens::for_theme(ctx.theme());
-    let height = TAB_BAND_H + if prefs.collapsed { 0.0 } else { BODY_H };
-    // Finitions P4 (H-UI-132) : surface de la fenêtre, pas de bloc gris.
-    let frame = egui::Frame::NONE.fill(tokens.surface).inner_margin(0.0);
-    let band = egui::Panel::top("plannercraft_ribbon")
+    let outer = super::cards::outer_margin(&ctx);
+    let gutter = super::cards::GUTTER;
+    let height = panel_height(prefs.mode, outer);
+    // Barre du haut et ruban sur le fond de l'application (peint par
+    // `App::show`) ; la carte du ruban est dessinée ici.
+    let frame = egui::Frame::NONE.inner_margin(0.0);
+    let bar = egui::Panel::top("plannercraft_ribbon")
         .resizable(false)
         .show_separator_line(false)
         .exact_size(height)
         .frame(frame)
         .show(ui, |ui| {
             let rect = ui.max_rect();
-            record(&ctx, |d| d.panel = rect);
-            // Filet du bas, dans le panneau (sa hauteur reste exacte).
-            ui.painter()
-                .hline(rect.x_range(), rect.bottom() - 0.5, Stroke::new(1.0, tokens.rule));
-            let band = Rect::from_min_size(rect.min, vec2(rect.width(), TAB_BAND_H));
-            tab_band(ui, fc, band, *prefs, overlay);
-            assistant_button(ui, fc, band, assistant);
-            if !prefs.collapsed {
-                let body = Rect::from_min_max(pos2(rect.left(), band.bottom()), rect.max);
-                body_ui(ui, fc, body, prefs.tab);
+            record(&ctx, |d| {
+                d.panel = rect;
+                d.mode = prefs.mode;
+            });
+            let bar = Rect::from_min_max(
+                pos2(rect.left() + outer, rect.top() + outer),
+                pos2(rect.right() - outer, rect.top() + outer + TAB_BAND_H),
+            );
+            record(&ctx, |d| d.bar = bar);
+            let tabs_end = top_bar(ui, fc, bar, *prefs, overlay);
+            assistant_button(ui, fc, bar, tabs_end, assistant);
+            let card_h = match prefs.mode {
+                RibbonMode::Collapsed => None,
+                RibbonMode::Compact => Some(COMPACT_H),
+                RibbonMode::Full => Some(BODY_H + 2.0),
+            };
+            if let Some(card_h) = card_h {
+                let card =
+                    Rect::from_min_size(pos2(bar.left(), bar.bottom() + gutter), vec2(bar.width(), card_h));
+                paint_card(ui.painter(), &tokens, card);
+                let inner = super::cards::inner(card);
+                if prefs.mode == RibbonMode::Full {
+                    let body =
+                        Rect::from_min_max(inner.min, pos2(inner.right() - CHEVRON_ROOM, inner.bottom()));
+                    body_ui(ui, fc, body, prefs.tab);
+                } else {
+                    compact_ui(ui, fc, inner, prefs.tab);
+                }
+                record(&ctx, |d| d.body = Some(card));
+                chevron(ui, fc, inner, prefs.mode);
             }
-            band
+            bar
         })
         .inner;
-    let mut keep = vec![band];
-    if prefs.collapsed
+    let mut keep = vec![bar];
+    if prefs.collapsed()
         && let Some(tab) = overlay
     {
-        let width = band.width();
+        let width = bar.width();
         let area = egui::Area::new(Id::unique("plannercraft_ribbon_overlay"))
             .order(Order::Foreground)
-            .fixed_pos(band.left_bottom())
+            .fixed_pos(pos2(bar.left(), bar.bottom() + gutter))
             .show(&ctx, |ui| {
-                let frame = egui::Frame::popup(ui.style())
-                    .fill(tokens.surface)
-                    .inner_margin(0.0);
-                frame.show(ui, |ui| {
-                    let (rect, _) = ui.allocate_exact_size(vec2(width, BODY_H), Sense::hover());
-                    let before = fc.actions.len();
-                    body_ui(ui, fc, rect, tab);
-                    // Action du ruban ⇒ surimpression refermée (H-UI-72).
-                    if fc.actions.len() > before {
-                        fc.actions.push(Action::Ribbon(RibbonOp::CloseOverlay));
-                    }
-                });
+                let (card, _) = ui.allocate_exact_size(vec2(width, COMPACT_H), Sense::hover());
+                ui.painter().add(
+                    ui.style()
+                        .visuals
+                        .popup_shadow
+                        .as_shape(card, super::cards::RADIUS),
+                );
+                paint_card(ui.painter(), &tokens, card);
+                let before = fc.actions.len();
+                compact_ui(ui, fc, super::cards::inner(card), tab);
+                record(ui.ctx(), |d| d.body = Some(card));
+                // Action du ruban ⇒ surimpression refermée (H-UI-72).
+                if fc.actions.len() > before {
+                    fc.actions.push(Action::Ribbon(RibbonOp::CloseOverlay));
+                }
             });
         keep.push(area.response.rect);
     }
     ctx.data_mut(|data| data.insert_temp(keep_id(), keep));
+}
+
+/// Carte du ruban (lot U2, H-UI-172) : surface, coins de 10 points,
+/// bordure d'un point ; son contenu ne déborde jamais (pas de masque des
+/// coins).
+fn paint_card(painter: &egui::Painter, tokens: &ChromeTokens, card: Rect) {
+    if !card.is_finite() {
+        return;
+    }
+    painter.rect(
+        card,
+        super::cards::RADIUS,
+        tokens.surface,
+        Stroke::new(1.0, tokens.rule),
+        StrokeKind::Inside,
+    );
 }
 
 /// Surimpression ouverte : Échap ou un clic hors de la bande d'onglets et
@@ -774,18 +884,25 @@ fn record(ctx: &egui::Context, f: impl FnOnce(&mut RibbonDrawn)) {
     ctx.data_mut(|data| f(data.get_temp_mut_or_default::<RibbonDrawn>(drawn_id())));
 }
 
-/// Bande d'onglets : barre d'accès rapide (H-UI-76), puis les cinq onglets
-/// (H-UI-69) ; double-clic ⇒ repli (H-UI-72).
-fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, overlay: Option<RibbonTab>) {
+/// Barre du haut (lot U2, H-UI-173) : symbole de l'application, bouton
+/// « Menu » (menus Fichier à Aide en sous-menus), accès rapide (H-UI-76),
+/// puis les cinq onglets (H-UI-69) en pastilles ; double-clic sur un
+/// onglet ⇒ repli (H-UI-72). Rend l'abscisse de fin des onglets.
+fn top_bar(
+    ui: &mut Ui,
+    fc: &mut FrameCtx<'_>,
+    bar: Rect,
+    prefs: RibbonPrefs,
+    overlay: Option<RibbonTab>,
+) -> f32 {
     let texts = fc.texts;
     let tokens = ChromeTokens::for_theme(ui.ctx().theme());
     let builder = UiBuilder::new()
-        .max_rect(band.shrink2(vec2(BODY_PAD, 0.0)))
+        .max_rect(bar.shrink2(vec2(BAR_PAD, 0.0)))
         .layout(Layout::left_to_right(Align::Center));
     ui.scope_builder(builder, |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         // Symbole de l'application (H-UI-132), dessiné, décoratif.
-        ui.add_space(4.0);
         let (logo, _) = ui.allocate_exact_size(Vec2::splat(LOGO), Sense::hover());
         ui.painter().extend(logo_shapes(logo));
         if tokens.logo_ring != tokens.surface {
@@ -797,7 +914,9 @@ fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, 
                 StrokeKind::Outside,
             );
         }
-        ui.add_space(8.0);
+        ui.add_space(6.0);
+        menu_button(ui, fc, &tokens);
+        ui.add_space(2.0);
         for (i, item) in QUICK_ACCESS.iter().enumerate() {
             let (rect, _) = ui.allocate_exact_size(Vec2::splat(QUICK), Sense::hover());
             let lines = [texts.get(item.label)];
@@ -812,25 +931,20 @@ fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, 
             );
             ui.add_space(2.0);
         }
-        // Filet court entre l'accès rapide et les onglets.
-        ui.add_space(6.0);
-        let (sep, _) = ui.allocate_exact_size(vec2(1.0, QUICK_SEP_H), Sense::hover());
-        ui.painter()
-            .vline(sep.center().x, sep.y_range(), Stroke::new(1.0, tokens.rule));
-        ui.add_space(8.0);
+        ui.add_space(TABS_GAP - 2.0);
         for tab in RibbonTab::ALL {
-            let selected = if prefs.collapsed {
+            let selected = if prefs.collapsed() {
                 overlay == Some(tab)
             } else {
                 prefs.tab == tab
             };
             let label = texts.get(tab.label());
-            let response = tab_button(ui, &tokens, &label, selected, band);
+            let response = tab_button(ui, &tokens, &label, selected);
             response.widget_info(|| WidgetInfo::selected(Role::Tab, true, selected, &label));
             let op = if response.double_clicked() {
                 Some(RibbonOp::ToggleCollapsed)
             } else if response.clicked() {
-                Some(match (prefs.collapsed, overlay) {
+                Some(match (prefs.collapsed(), overlay) {
                     (true, Some(open)) if open == tab => RibbonOp::CloseOverlay,
                     (true, _) => RibbonOp::OpenOverlay(tab),
                     (false, _) => RibbonOp::Select(tab),
@@ -843,29 +957,90 @@ fn tab_band(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, prefs: RibbonPrefs, 
             }
             ui.add_space(2.0);
         }
-    });
+        ui.cursor().left()
+    })
+    .inner
 }
 
-/// Bouton de l'assistant (lot A5, H-UI-161, H-UI-166), au bord droit de
-/// la bande `band` : icône `sparkles` ; survol, appui et bascule enfoncée
-/// comme les éléments du ruban (jetons du lifting P4) ; pastille à
-/// l'accent (nombre au-delà d'une nouveauté, « 9+ » au-delà de neuf) si
-/// le volet est fermé ; pendant une réponse, volet fermé, contour à
-/// l'accent qui pulse (fixe si « Réduire les animations ») : volet
-/// ouvert, la réponse s'écrit sous les yeux et le bouton reste fixe.
-/// Clic ⇒ `SideOp::Toggle`.
-fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: AssistantButton) {
-    if !band.is_finite() {
+/// Bouton « Menu » de la barre du haut (lot U2, H-UI-173) : icône à trois
+/// traits ; ouvre les menus Fichier à Aide (`chrome::main_menu`).
+fn menu_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, tokens: &ChromeTokens) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::splat(QUICK), Sense::hover());
+    let id = Id::unique("plannercraft.topbar.menu");
+    let response = ui.interact(rect, id, Sense::click());
+    let name = fc.texts.get(TextId::TopMenu);
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, &name));
+    let popup_id = egui::Popup::default_response_id(&response);
+    let open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    let look = ItemLook::of(tokens, true, &response, false, open);
+    let painter = ui.painter().clone();
+    if let Some(bg) = look.bg {
+        painter.rect_filled(rect, BAR_CORNER, bg);
+    }
+    if response.has_focus() {
+        painter.rect_stroke(
+            rect,
+            BAR_CORNER,
+            Stroke::new(1.5, tokens.accent),
+            StrokeKind::Inside,
+        );
+    }
+    // Trois traits (icône « menu » dessinée : pas de SVG de plus).
+    let icon = Rect::from_center_size(rect.center(), Vec2::splat(BAR_ICON));
+    let stroke = Stroke::new(BAR_ICON * 1.8 / 24.0, tokens.text_weak);
+    for y in [6.0, 12.0, 18.0] {
+        let y = icon.top() + icon.height() * y / 24.0;
+        painter.line_segment(
+            [
+                pos2(icon.left() + icon.width() * 4.0 / 24.0, y),
+                pos2(icon.left() + icon.width() * 20.0 / 24.0, y),
+            ],
+            stroke,
+        );
+    }
+    record(ui.ctx(), |d| d.menu = Some(rect));
+    let tip = fc.texts.get(TextId::TopMenuTip);
+    let response = response.on_hover_ui(|ui| tooltip(ui, &name, &tip, None));
+    egui::Popup::menu(&response).show(|ui| super::chrome::main_menu(ui, fc));
+}
+
+/// Bouton de l'assistant (lot A5, H-UI-161, H-UI-166 ; lot U2 : icône et
+/// libellé sur l'accent doux, 30 points de haut), au bord droit de la
+/// barre `bar` (jamais sur les onglets, qui finissent à `tabs_end`) :
+/// survol et appui comme les éléments du ruban, volet ouvert ⇒ fond plus
+/// soutenu ; pastille à l'accent (nombre au-delà d'une nouveauté, « 9+ »
+/// au-delà de neuf) si le volet est fermé ; pendant une réponse, volet
+/// fermé, contour à l'accent qui pulse (fixe si « Réduire les
+/// animations ») : volet ouvert, la réponse s'écrit sous les yeux et le
+/// bouton reste fixe. Clic ⇒ `SideOp::Toggle`.
+#[allow(
+    clippy::too_many_lines,
+    reason = "bouton, pastille et pulsation dans l'ordre du dessin (lot A5)"
+)]
+fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, bar: Rect, tabs_end: f32, b: AssistantButton) {
+    if !bar.is_finite() {
         return;
     }
     let ctx = ui.ctx().clone();
     let tokens = ChromeTokens::for_theme(ctx.theme());
     let texts = fc.texts;
-    let center = pos2(band.right() - BODY_PAD - ASSISTANT_W / 2.0, band.center().y);
-    let rect = Rect::from_center_size(center, vec2(ASSISTANT_W, ASSISTANT_H));
+    let name = texts.get(TextId::AssistantButton);
+    let galley = ui.painter().layout_no_wrap(
+        name.clone(),
+        crate::theme::strong_font(&ctx, TAB_TEXT),
+        tokens.soft_text,
+    );
+    let full_w = ASSISTANT_PAD + ASSISTANT_ICON + 6.0 + galley.size().x + ASSISTANT_PAD;
+    // Place comptée : libellé si la barre le permet, sinon icône seule.
+    let room = bar.right() - BAR_PAD - tabs_end - 8.0;
+    let with_text = room >= full_w;
+    let width = if with_text { full_w } else { BAR_ITEM };
+    let rect = Rect::from_min_size(
+        pos2(bar.right() - BAR_PAD - width, bar.center().y - ASSISTANT_H / 2.0),
+        vec2(width, ASSISTANT_H),
+    );
     let response = ui.interact(rect, Id::unique("plannercraft.ribbon.assistant"), Sense::click());
     let badge = if b.open { 0 } else { b.badge };
-    let name = texts.get(TextId::AssistantButton);
     let news = (badge > 0).then(|| {
         texts.get_args(
             TextId::AssistantButtonBadge,
@@ -878,20 +1053,36 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: Assistant
     };
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, b.open, &label));
     let down = response.is_pointer_button_down_on();
-    let bg = if down {
-        Some(tokens.pressed)
-    } else if b.open {
-        Some(tokens.toggle_bg)
+    let bg = if down || b.open {
+        tokens.selection_bg
     } else if response.hovered() {
-        Some(tokens.hover)
+        tokens.pressed
     } else {
-        None
+        tokens.toggle_bg
     };
     let painter = ui.painter().clone();
-    paint_frame(&painter, &tokens, rect, bg, response.has_focus());
-    let icon = Rect::from_center_size(rect.center(), Vec2::splat(ASSISTANT_ICON));
-    let ink = if b.open { tokens.accent } else { tokens.text };
-    paint_icon(&painter, icon, Icon::Sparkles, ink);
+    painter.rect_filled(rect, 8.0, bg);
+    if response.has_focus() {
+        painter.rect_stroke(rect, 8.0, Stroke::new(1.5, tokens.accent), StrokeKind::Inside);
+    }
+    let icon_x = if with_text {
+        rect.left() + ASSISTANT_PAD
+    } else {
+        rect.center().x - ASSISTANT_ICON / 2.0
+    };
+    let icon = Rect::from_min_size(
+        pos2(icon_x, rect.center().y - ASSISTANT_ICON / 2.0),
+        Vec2::splat(ASSISTANT_ICON),
+    );
+    paint_icon(&painter, icon, Icon::Sparkles, tokens.soft_text);
+    if with_text {
+        let size = galley.size();
+        painter.galley(
+            pos2(icon.right() + 6.0, rect.center().y - size.y / 2.0),
+            galley,
+            tokens.soft_text,
+        );
+    }
     let ring = b.busy && !b.open;
     if ring {
         let reduce = fc.state.reduce_motion;
@@ -906,7 +1097,7 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: Assistant
         };
         painter.rect_stroke(
             rect,
-            CORNER,
+            8.0,
             Stroke::new(1.5, tokens.accent.gamma_multiply(alpha)),
             StrokeKind::Inside,
         );
@@ -956,38 +1147,531 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, band: Rect, b: Assistant
     }
 }
 
-/// Onglet (H-UI-132) : texte seul ; survol en fond très léger ; actif à
-/// l'accent, souligné d'un trait de 2 px au bas de la bande ; focus
-/// clavier : contour à l'accent.
-fn tab_button(ui: &mut Ui, tokens: &ChromeTokens, label: &str, selected: bool, band: Rect) -> egui::Response {
-    let color = if selected { tokens.accent } else { tokens.text };
-    let galley = ui
-        .painter()
-        .layout_no_wrap(label.to_owned(), FontId::proportional(TAB_TEXT), color);
+/// Onglet de la barre du haut (lot U2, H-UI-173) : pastille de 30 points ;
+/// actif sur la surface, texte appuyé ; les autres en texte atténué, fond
+/// au survol ; focus clavier : contour à l'accent.
+fn tab_button(ui: &mut Ui, tokens: &ChromeTokens, label: &str, selected: bool) -> egui::Response {
+    let (font, color) = if selected {
+        (crate::theme::strong_font(ui.ctx(), TAB_TEXT), tokens.text)
+    } else {
+        (FontId::proportional(TAB_TEXT), tokens.text_weak)
+    };
+    let galley = ui.painter().layout_no_wrap(label.to_owned(), font, color);
     let width = galley.size().x + 2.0 * TAB_PAD;
-    let (slot, response) = ui.allocate_exact_size(vec2(width, band.height()), Sense::click());
+    let (pill, response) = ui.allocate_exact_size(vec2(width, BAR_ITEM), Sense::click());
     let painter = ui.painter();
-    let pill = Rect::from_min_max(
-        pos2(slot.left(), band.top() + 3.0),
-        pos2(slot.right(), band.bottom() - 3.0),
-    );
-    if response.hovered() && !selected {
-        painter.rect_filled(pill, 4.0, tokens.hover);
+    if selected {
+        painter.rect_filled(pill, BAR_CORNER, tokens.surface);
+    } else if response.hovered() {
+        painter.rect_filled(pill, BAR_CORNER, tokens.hover);
     }
     if response.has_focus() {
-        painter.rect_stroke(pill, 4.0, Stroke::new(1.5, tokens.accent), StrokeKind::Inside);
-    }
-    let text_pos = pos2(slot.left() + TAB_PAD, slot.center().y - galley.size().y / 2.0);
-    let text_w = galley.size().x;
-    painter.galley(text_pos, galley, color);
-    if selected {
-        let line = Rect::from_min_max(
-            pos2(slot.left() + TAB_PAD - 2.0, band.bottom() - TAB_UNDERLINE),
-            pos2(slot.left() + TAB_PAD + text_w + 2.0, band.bottom()),
+        painter.rect_stroke(
+            pill,
+            BAR_CORNER,
+            Stroke::new(1.5, tokens.accent),
+            StrokeKind::Inside,
         );
-        painter.rect_filled(line, 1.0, tokens.accent);
     }
+    let size = galley.size();
+    painter.galley(
+        pos2(pill.left() + TAB_PAD, pill.center().y - size.y / 2.0),
+        galley,
+        color,
+    );
     response
+}
+
+/// Place réservée au chevron à droite de la carte du ruban (lot U2).
+const CHEVRON_ROOM: f32 = 36.0;
+/// Côté du chevron.
+const CHEVRON: f32 = 28.0;
+/// Hauteur d'un élément du ruban compact.
+const COMPACT_ITEM_H: f32 = 30.0;
+/// Marge horizontale du libellé d'un élément compact.
+const COMPACT_PAD: f32 = 9.0;
+/// Écart entre l'icône et le libellé d'un élément compact.
+const COMPACT_ICON_GAP: f32 = 6.0;
+/// Écart entre deux éléments compacts.
+const COMPACT_GAP: f32 = 2.0;
+/// Marge de part et d'autre du contenu d'un groupe compact.
+const COMPACT_GROUP_PAD: f32 = 9.0;
+/// Marge intérieure de la carte du ruban compact.
+const COMPACT_CARD_PAD: f32 = 6.0;
+/// Marge intérieure du groupe segmenté (pourcentages).
+const SEGMENT_PAD: f32 = 2.0;
+/// Marge de part et d'autre du texte d'un pourcentage compact.
+const COMPACT_PERCENT_PAD: f32 = 8.0;
+/// Largeur du bouton « … » d'un groupe compact.
+const MORE_W: f32 = 24.0;
+/// Largeur d'un séparateur de groupes compacts (filet d'un point).
+const COMPACT_SEP_W: f32 = 1.0;
+
+/// Élément placé d'un groupe compact (rectangle relatif au bord gauche du
+/// groupe, ordonnée relative au haut de la rangée).
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompactPlaced {
+    /// Indice de l'élément dans `GroupSpec::items`.
+    pub index: usize,
+    /// Rectangle relatif.
+    pub rect: Rect,
+    /// Forme.
+    pub kind: Kind,
+    /// Libellé affiché (vide : icône seule).
+    pub text: String,
+}
+
+/// Disposition d'un groupe compact.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompactGroupPlan {
+    /// Palier retenu (libellés, icônes seules, groupe en un bouton).
+    pub stage: Stage,
+    /// Largeur du groupe (marges comprises).
+    pub width: f32,
+    /// Éléments visibles (vide si replié).
+    pub items: Vec<CompactPlaced>,
+    /// Bouton « … » (éléments hors de la rangée), s'il y en a.
+    pub more: Option<Rect>,
+    /// Fond du groupe segmenté (pourcentages), s'il y en a.
+    pub segment: Option<Rect>,
+}
+
+/// Disposition d'un onglet compact.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CompactPlan {
+    /// Groupes, dans l'ordre.
+    pub groups: Vec<CompactGroupPlan>,
+    /// Largeur totale (séparateurs compris).
+    pub width: f32,
+}
+
+/// Largeur d'un bouton de groupe replié compact (icône du groupe et
+/// flèche).
+const FOLDED_COMPACT_W: f32 = 6.0 + BAR_ICON + 4.0 + ARROW_W + 6.0;
+
+/// Forme compacte d'un élément visible ; `labelled` : libellé affiché.
+fn compact_kind(item: &ItemSpec, labelled: bool, primary: bool) -> Kind {
+    match item.size {
+        ItemSize::PercentRow => Kind::CompactPercent,
+        ItemSize::Check if item.icon.is_none() => Kind::CheckBox,
+        ItemSize::Dropdown => Kind::CompactDropdown { text: labelled },
+        ItemSize::Large | ItemSize::Small | ItemSize::Check => Kind::CompactButton {
+            text: labelled,
+            primary,
+        },
+    }
+}
+
+/// Largeur d'un élément compact de libellé `label`.
+fn compact_width(kind: Kind, label: &str, measure: &mut dyn FnMut(&str, f32) -> f32) -> f32 {
+    match kind {
+        Kind::CompactButton { text: true, .. } => {
+            COMPACT_PAD + BAR_ICON + COMPACT_ICON_GAP + measure(label, LABEL_SIZE) + COMPACT_PAD
+        }
+        Kind::CompactDropdown { text: false } => 6.0 + BAR_ICON + 4.0 + ARROW_W + 6.0,
+        Kind::CompactDropdown { text: true } => {
+            COMPACT_PAD
+                + BAR_ICON
+                + COMPACT_ICON_GAP
+                + measure(label, LABEL_SIZE)
+                + 6.0
+                + ARROW_W
+                + COMPACT_PAD
+        }
+        Kind::CheckBox => slot_width(kind, label, measure),
+        Kind::CompactPercent => measure(label, LABEL_SIZE) + 2.0 * COMPACT_PERCENT_PAD,
+        _ => COMPACT_ITEM_H,
+    }
+}
+
+/// Disposition d'un groupe compact au palier `stage` (H-UI-174) : éléments
+/// visibles de [`spec::compact_split`](crate::ribbon::spec::compact_split)
+/// côte à côte (pourcentages dans un groupe segmenté), puis « … » s'il
+/// reste des éléments ; replié : un bouton.
+fn compact_group_plan(
+    group: &'static GroupSpec,
+    compact: Option<&CompactGroup>,
+    stage: Stage,
+    texts: &Texts,
+    measure: &mut dyn FnMut(&str, f32) -> f32,
+) -> CompactGroupPlan {
+    if stage == Stage::Folded {
+        return CompactGroupPlan {
+            stage,
+            width: FOLDED_COMPACT_W + 2.0 * COMPACT_GROUP_PAD,
+            items: Vec::new(),
+            more: None,
+            segment: None,
+        };
+    }
+    let (shown, more) = compact_split(group, compact);
+    let top = (COMPACT_H - 2.0 - COMPACT_ITEM_H) / 2.0;
+    let mut x = COMPACT_GROUP_PAD;
+    let mut items = Vec::with_capacity(shown.len());
+    let mut segment: Option<Rect> = None;
+    // Début du groupe segmenté en cours (pourcentages contigus).
+    let mut seg_start: Option<f32> = None;
+    let mut first = true;
+    for (item, c) in shown {
+        let Some(index) = group.items.iter().position(|i| core::ptr::eq(i, item)) else {
+            continue;
+        };
+        let labelled = c.text && (stage == Stage::Full || item.icon.is_none());
+        let kind = compact_kind(item, labelled, c.primary);
+        let text = if labelled || matches!(kind, Kind::CheckBox | Kind::CompactPercent) {
+            item_label(texts, item)
+        } else {
+            String::new()
+        };
+        let w = compact_width(kind, &text, measure);
+        let rect = if kind == Kind::CompactPercent {
+            if seg_start.is_none() {
+                if !first {
+                    x += COMPACT_GAP;
+                }
+                seg_start = Some(x);
+                x += SEGMENT_PAD;
+            }
+            Rect::from_min_size(
+                pos2(x, top + SEGMENT_PAD),
+                vec2(w, COMPACT_ITEM_H - 2.0 * SEGMENT_PAD),
+            )
+        } else {
+            if let Some(start) = seg_start.take() {
+                x += SEGMENT_PAD;
+                segment = Some(Rect::from_min_max(
+                    pos2(start, top),
+                    pos2(x, top + COMPACT_ITEM_H),
+                ));
+            }
+            if !first {
+                x += COMPACT_GAP;
+            }
+            Rect::from_min_size(pos2(x, top), vec2(w, COMPACT_ITEM_H))
+        };
+        items.push(CompactPlaced {
+            index,
+            rect,
+            kind,
+            text,
+        });
+        x += w;
+        first = false;
+    }
+    if let Some(start) = seg_start.take() {
+        x += SEGMENT_PAD;
+        segment = Some(Rect::from_min_max(
+            pos2(start, top),
+            pos2(x, top + COMPACT_ITEM_H),
+        ));
+    }
+    let more = (!more.is_empty()).then(|| {
+        if !first {
+            x += COMPACT_GAP;
+        }
+        let r = Rect::from_min_size(pos2(x, top), vec2(MORE_W, COMPACT_ITEM_H));
+        x += MORE_W;
+        r
+    });
+    CompactGroupPlan {
+        stage,
+        width: x + COMPACT_GROUP_PAD,
+        items,
+        more,
+        segment,
+    }
+}
+
+/// Disposition compacte d'un onglet dans `available` points (H-UI-174 ;
+/// fonction pure des largeurs de texte) : même réduction par rang que le
+/// ruban complet (H-UI-75) : libellés retirés, puis groupe en un bouton.
+#[must_use]
+pub fn compact_plan(
+    tab: RibbonTab,
+    texts: &Texts,
+    available: f32,
+    measure: &mut dyn FnMut(&str, f32) -> f32,
+) -> CompactPlan {
+    let groups = tab.groups();
+    let compact = tab.compact_groups();
+    let widths: Vec<[f32; 3]> = groups
+        .iter()
+        .enumerate()
+        .map(|(i, g)| {
+            [Stage::Full, Stage::Compact, Stage::Folded]
+                .map(|s| compact_group_plan(g, compact.get(i), s, texts, measure).width)
+        })
+        .collect();
+    let ranks: Vec<u8> = groups.iter().map(|g| g.shrink_rank).collect();
+    let stages = choose_stages_with(&ranks, &widths, available, COMPACT_SEP_W);
+    let plans: Vec<CompactGroupPlan> = groups
+        .iter()
+        .enumerate()
+        .zip(stages)
+        .map(|((i, g), s)| compact_group_plan(g, compact.get(i), s, texts, measure))
+        .collect();
+    let count = u16::try_from(plans.len()).unwrap_or(u16::MAX);
+    let width =
+        plans.iter().map(|p| p.width).sum::<f32>() + COMPACT_SEP_W * f32::from(count.saturating_sub(1));
+    CompactPlan { groups: plans, width }
+}
+
+/// Cache des dispositions compactes (comme [`PlanCache`]).
+#[derive(Clone, Default)]
+struct CompactCache(Vec<(PlanKey, Arc<CompactPlan>)>);
+
+/// Disposition compacte de `tab` pour la largeur `available`, depuis le
+/// cache de la mémoire d'egui ou calculée.
+fn cached_compact(ui: &Ui, texts: &Texts, tab: RibbonTab, available: f32) -> Arc<CompactPlan> {
+    let key = PlanKey {
+        tab,
+        language: texts.language(),
+        width: width_key(available),
+        ppp: ui.ctx().pixels_per_point().to_bits(),
+    };
+    let id = Id::unique("plannercraft.ribbon.compact_plans");
+    if let Some(found) = ui.ctx().data(|data| {
+        data.get_temp::<CompactCache>(id).and_then(|cache| {
+            cache
+                .0
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, p)| Arc::clone(p))
+        })
+    }) {
+        return found;
+    }
+    let painter = ui.painter();
+    let mut measure = |text: &str, size: f32| {
+        painter
+            .layout_no_wrap(text.to_owned(), FontId::proportional(size), Color32::PLACEHOLDER)
+            .size()
+            .x
+    };
+    let fresh = Arc::new(compact_plan(tab, texts, available, &mut measure));
+    ui.ctx().data_mut(|data| {
+        let cache = data.get_temp_mut_or_default::<CompactCache>(id);
+        cache.0.insert(0, (key, Arc::clone(&fresh)));
+        cache.0.truncate(PLAN_CACHE);
+    });
+    fresh
+}
+
+/// Ruban compact de l'onglet `tab` dans `rect` (intérieur de la carte ;
+/// lot U2, H-UI-174) : une rangée de 30 points, groupes séparés par un
+/// filet, « … » par groupe pour le reste ; chevron à droite (dessiné par
+/// l'appelant).
+fn compact_ui(ui: &mut Ui, fc: &mut FrameCtx<'_>, rect: Rect, tab: RibbonTab) {
+    if !rect.is_finite() || rect.width() <= 0.0 {
+        return;
+    }
+    let left = rect.left() + COMPACT_CARD_PAD;
+    let available = (rect.width() - 2.0 * COMPACT_CARD_PAD - CHEVRON_ROOM).max(0.0);
+    let plan = cached_compact(ui, fc.texts, tab, available);
+    let mut child = ui.new_child(
+        UiBuilder::new()
+            .max_rect(rect)
+            .id_salt(("plannercraft.ribbon.compact", tab)),
+    );
+    child.set_clip_rect(rect.intersect(ui.clip_rect()));
+    let tokens = ChromeTokens::for_theme(child.ctx().theme());
+    let compact = tab.compact_groups();
+    let mut x = left;
+    for (gi, (group, gp)) in tab.groups().iter().zip(&plan.groups).enumerate() {
+        if gi > 0 {
+            let sx = x.floor() + 0.5;
+            child
+                .painter()
+                .vline(sx, rect.y_range(), Stroke::new(1.0, tokens.row_line));
+            x += COMPACT_SEP_W;
+        }
+        let group_rect = Rect::from_min_size(pos2(x, rect.top()), vec2(gp.width, rect.height()));
+        let name = fc.texts.get(group.label);
+        record(child.ctx(), |d| {
+            d.groups.push((name.clone(), gp.stage, group_rect));
+        });
+        let gid = Id::unique(("plannercraft.ribbon.compact.group", tab, gi));
+        let origin = vec2(x, rect.top());
+        if gp.stage == Stage::Folded {
+            let button = Rect::from_min_size(
+                pos2(
+                    x + COMPACT_GROUP_PAD,
+                    rect.top() + (rect.height() - COMPACT_ITEM_H) / 2.0,
+                ),
+                vec2(FOLDED_COMPACT_W, COMPACT_ITEM_H),
+            );
+            compact_folded(&mut child, fc, group, button, gid);
+        } else {
+            if let Some(seg) = gp.segment {
+                child
+                    .painter()
+                    .rect_filled(seg.translate(origin), 8.0, tokens.hover);
+            }
+            for placed in &gp.items {
+                let Some(item) = group.items.get(placed.index) else {
+                    continue;
+                };
+                let lines = [placed.text.clone()];
+                draw_item(
+                    &mut child,
+                    fc,
+                    item,
+                    placed.rect.translate(origin),
+                    placed.kind,
+                    &lines,
+                    gid.with(placed.index),
+                );
+            }
+            if let Some(more) = gp.more {
+                let (_, overflow) = compact_split(group, compact.get(gi));
+                more_button(
+                    &mut child,
+                    fc,
+                    &name,
+                    &overflow,
+                    more.translate(origin),
+                    gid.with("more"),
+                );
+            }
+        }
+        x += gp.width;
+    }
+}
+
+/// Bouton « … » d'un groupe compact (H-UI-174) : menu des éléments du
+/// groupe absents de la rangée (mêmes commandes, listes en sous-menus).
+fn more_button(
+    ui: &mut Ui,
+    fc: &mut FrameCtx<'_>,
+    group: &str,
+    items: &[&'static ItemSpec],
+    rect: Rect,
+    id: Id,
+) {
+    let label = fc.texts.get_args(
+        TextId::RibbonMore,
+        &[("group", Arg::Str(group.to_owned().into()))],
+    );
+    let response = ui.interact(rect, id, Sense::click());
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, &label));
+    let popup_id = egui::Popup::default_response_id(&response);
+    let open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    let tokens = ChromeTokens::for_theme(ui.ctx().theme());
+    let look = ItemLook::of(&tokens, true, &response, false, open);
+    let painter = ui.painter().clone();
+    paint_frame(&painter, &tokens, rect, look.bg, response.has_focus());
+    paint_icon(
+        &painter,
+        Rect::from_center_size(rect.center(), Vec2::splat(SMALL_ICON)),
+        Icon::Ellipsis,
+        tokens.text_weak,
+    );
+    record(ui.ctx(), |d| {
+        d.items.push(DrawnItem {
+            label: label.clone(),
+            rect,
+            cmd: None,
+            kind: Some(Kind::More),
+        });
+    });
+    let response = response.on_hover_text(&label);
+    egui::Popup::menu(&response).show(|ui| items_menu(ui, fc, items));
+}
+
+/// Groupe compact replié en un bouton (icône du groupe et flèche) : menu
+/// de tous ses éléments.
+fn compact_folded(ui: &mut Ui, fc: &mut FrameCtx<'_>, group: &'static GroupSpec, rect: Rect, id: Id) {
+    let name = fc.texts.get(group.label);
+    let response = ui.interact(rect, id, Sense::click());
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, &name));
+    let popup_id = egui::Popup::default_response_id(&response);
+    let open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    let tokens = ChromeTokens::for_theme(ui.ctx().theme());
+    let look = ItemLook::of(&tokens, true, &response, false, open);
+    let painter = ui.painter().clone();
+    paint_frame(&painter, &tokens, rect, look.bg, response.has_focus());
+    let icon = Rect::from_min_size(
+        pos2(rect.left() + 6.0, rect.center().y - BAR_ICON / 2.0),
+        Vec2::splat(BAR_ICON),
+    );
+    paint_icon(&painter, icon, group.icon, look.icon);
+    arrow(
+        &painter,
+        pos2(icon.right() + 4.0, rect.center().y - 2.0),
+        look.text,
+    );
+    record(ui.ctx(), |d| {
+        d.items.push(DrawnItem {
+            label: name.clone(),
+            rect,
+            cmd: None,
+            kind: None,
+        });
+    });
+    let response = response.on_hover_text(&name);
+    let all: Vec<&'static ItemSpec> = group.items.iter().collect();
+    egui::Popup::menu(&response).show(|ui| items_menu(ui, fc, &all));
+}
+
+/// Chevron de la carte du ruban (lot U2, H-UI-174) : bascule compact ⇄
+/// complet, à droite, centré sur la rangée compacte (en haut du ruban
+/// complet).
+fn chevron(ui: &mut Ui, fc: &mut FrameCtx<'_>, inner: Rect, mode: RibbonMode) {
+    let tokens = ChromeTokens::for_theme(ui.ctx().theme());
+    let cy = inner.top() + (COMPACT_H - 2.0) / 2.0;
+    let rect = Rect::from_center_size(
+        pos2(inner.right() - COMPACT_CARD_PAD - CHEVRON / 2.0, cy),
+        Vec2::splat(CHEVRON),
+    );
+    let full = mode == RibbonMode::Full;
+    let label = fc.texts.get(if full {
+        TextId::RibbonShowCompact
+    } else {
+        TextId::RibbonShowFull
+    });
+    let response = ui.interact(rect, Id::unique("plannercraft.ribbon.chevron"), Sense::click());
+    response.widget_info(|| WidgetInfo::selected(Role::Button, true, full, &label));
+    let look = ItemLook::of(&tokens, true, &response, false, false);
+    let painter = ui.painter().clone();
+    paint_frame(&painter, &tokens, rect, look.bg, response.has_focus());
+    // Chevron dessiné (vers le bas : afficher le complet ; vers le haut :
+    // revenir au compact).
+    let c = rect.center();
+    let (dy0, dy1) = if full { (2.0, -2.0) } else { (-2.0, 2.0) };
+    painter.add(Shape::line(
+        vec![
+            pos2(c.x - 4.5, c.y + dy0),
+            pos2(c.x, c.y + dy1),
+            pos2(c.x + 4.5, c.y + dy0),
+        ],
+        Stroke::new(1.6, tokens.text_weak),
+    ));
+    record(ui.ctx(), |d| d.chevron = Some(rect));
+    let response = response.on_hover_text(&label);
+    if response.clicked() {
+        fc.actions.push(Action::Ribbon(RibbonOp::ToggleFull));
+    }
+}
+
+/// Menu d'éléments du ruban (« … », groupe replié) : chaque élément en
+/// entrée de menu (liste ⇒ sous-menu), libellé du ruban, commande
+/// partagée.
+fn items_menu(ui: &mut Ui, fc: &mut FrameCtx<'_>, items: &[&'static ItemSpec]) {
+    let texts = fc.texts;
+    for item in items {
+        let label = item_label(texts, item);
+        if item.size == ItemSize::Dropdown {
+            let enabled = item.cmd.enabled(fc).yes;
+            ui.add_enabled_ui(enabled, |ui| {
+                ui.menu_button(label, |ui| dropdown_contents(ui, fc, item.cmd));
+            });
+        } else {
+            let shortcut = item
+                .binding
+                .and_then(|b| shortcut_for_os(b, ui.ctx().os()).copied());
+            twin_item(ui, fc, item.cmd, label, shortcut);
+        }
+    }
 }
 
 /// Corps de l'onglet `tab` dans `rect` : groupes disposés par [`plan`],
@@ -1147,7 +1831,30 @@ fn draw_item(
     let popup_id = egui::Popup::default_response_id(&response);
     let open = egui::Popup::is_id_open(child.ctx(), popup_id);
     let tokens = ChromeTokens::for_theme(child.ctx().theme());
-    let look = ItemLook::of(&tokens, enabled.yes, &response, pressed, open);
+    let mut look = ItemLook::of(&tokens, enabled.yes, &response, pressed, open);
+    if enabled.yes {
+        match kind {
+            // Barre du haut, sur le fond de l'application (lot U2) : fonds
+            // un cran plus soutenus, icône atténuée au repos.
+            Kind::Quick => {
+                look.bg = look.bg.map(|bg| {
+                    if bg == tokens.hover {
+                        tokens.pressed
+                    } else {
+                        tokens.control_active
+                    }
+                });
+                look.icon = tokens.text_weak;
+            }
+            // Bouton principal du ruban compact : accent doux.
+            Kind::CompactButton { primary: true, .. } => {
+                look.bg = Some(look.bg.map_or(tokens.toggle_bg, |_| tokens.selection_bg));
+                look.text = tokens.soft_text;
+                look.icon = tokens.soft_text;
+            }
+            _ => {}
+        }
+    }
     // Peintre du parent : celui d'un `Ui` désactivé estompe les couleurs,
     // le grisé est déjà porté par `look` (opaque et lisible, H-UI-133).
     let painter = ui.painter().clone();
@@ -1231,7 +1938,8 @@ fn paint_frame(painter: &egui::Painter, t: &ChromeTokens, rect: Rect, bg: Option
 /// Icône, libellé, flèche ou case d'un élément.
 #[allow(
     clippy::too_many_arguments,
-    reason = "dessin d'un élément : jetons, spécification, géométrie, état"
+    clippy::too_many_lines,
+    reason = "dessin d'un élément : jetons, spécification, géométrie, état ; une branche par forme"
 )]
 fn paint_content(
     painter: &egui::Painter,
@@ -1323,7 +2031,7 @@ fn paint_content(
                 left_text(r.right() + 6.0, text);
             }
         }
-        Kind::Percent => {
+        Kind::Percent | Kind::CompactPercent => {
             if let Some(text) = lines.first() {
                 painter.text(
                     rect.center(),
@@ -1338,12 +2046,41 @@ fn paint_content(
             if let Some(icon) = item.icon {
                 paint_icon(
                     painter,
-                    Rect::from_center_size(rect.center(), Vec2::splat(SMALL_ICON)),
+                    Rect::from_center_size(rect.center(), Vec2::splat(BAR_ICON)),
                     icon,
                     look.icon,
                 );
             }
         }
+        Kind::CompactButton { text, .. } | Kind::CompactDropdown { text } => {
+            let dropdown = matches!(kind, Kind::CompactDropdown { .. });
+            let label = lines.first().filter(|_| text);
+            let icon_left = if label.is_some() {
+                rect.left() + COMPACT_PAD
+            } else if dropdown {
+                rect.left() + 6.0
+            } else {
+                rect.center().x - BAR_ICON / 2.0
+            };
+            let mut x = icon_left;
+            if let Some(icon) = item.icon {
+                let r = Rect::from_min_size(
+                    pos2(icon_left, rect.center().y - BAR_ICON / 2.0),
+                    Vec2::splat(BAR_ICON),
+                );
+                paint_icon(painter, r, icon, look.icon);
+                x = r.right();
+            }
+            if let Some(text) = label {
+                let r = left_text(x + COMPACT_ICON_GAP, text);
+                x = r.right();
+            }
+            if dropdown {
+                let gap = if label.is_some() { 6.0 } else { 4.0 };
+                arrow(painter, pos2(x + gap, rect.center().y - 2.0), color);
+            }
+        }
+        Kind::More => {}
     }
 }
 

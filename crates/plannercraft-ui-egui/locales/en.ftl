@@ -1820,3 +1820,14 @@ assistant-button-badge =
     }
 assistant-button-busy = Answer in progress…
 side-splitter-tip = Drag to set the pane width; double-click: default width
+
+## Lot U2: softer interface, structure (H-UI-172 to H-UI-176)
+
+top-menu = Menu
+top-menu-tip = File, Edit, View, Task, Project, Format, Help
+ribbon-show-full = Show the full ribbon
+ribbon-show-compact = Show the compact ribbon
+ribbon-more = More commands: { $group }
+details-task-number = Task { $id }
+details-badge-summary = Summary
+details-badge-milestone = Milestone

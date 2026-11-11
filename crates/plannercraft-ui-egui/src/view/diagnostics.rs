@@ -84,12 +84,17 @@ pub fn severity_range(entries: &[(Severity, String)], severity: Severity) -> std
 /// d'état), redimensionnable ; absent sans document ou sans diagnostic
 /// (H-UI-119). Filtré sur la gravité de [`filter`] s'il en reste ; sinon
 /// tous.
-pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+///
+/// Interface adoucie (lot U2, H-UI-172) : carte sur le fond de
+/// l'application, gouttières au-dessus et au-dessous, marges `left` et
+/// `right` (marge extérieure, ou gouttière portée par le volet latéral).
+/// Rend vrai si le volet est dessiné.
+pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, left: i8, right: i8) -> bool {
     let ctx = ui.ctx().clone();
     let entries = &fc.diagnostics.entries;
     if fc.doc.is_none() || entries.is_empty() {
         ctx.data_mut(|data| data.insert_temp(drawn_id(), false));
-        return;
+        return false;
     }
     let texts = fc.texts;
     // Filtre posé par une pastille ; une gravité sans entrée ⇒ tout.
@@ -99,10 +104,29 @@ pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     let range = filtered.as_ref().map_or(0..entries.len(), |(_, r)| r.clone());
     let shown = entries.get(range).unwrap_or_default();
     let mut show_all = false;
+    let gutter = super::cards::px(super::cards::GUTTER);
+    let frame = egui::Frame::NONE.inner_margin(egui::Margin {
+        left,
+        right,
+        top: gutter,
+        bottom: gutter,
+    });
     egui::Panel::bottom("plannercraft_diagnostics")
         .resizable(true)
+        .show_separator_line(false)
+        .frame(frame)
         .default_size(fc.metrics.row_h * 7.0)
-        .show(ui, |ui| {
+        .show(ui, |outer| {
+            let card = outer.max_rect();
+            super::cards::paint_fill(outer.painter(), card);
+            let inner = super::cards::inner(card).shrink2(egui::vec2(8.0, 4.0));
+            let mut body = outer.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(inner)
+                    .layout(egui::Layout::top_down(egui::Align::Min)),
+            );
+            body.set_clip_rect(inner.intersect(outer.clip_rect()));
+            let ui = &mut body;
             if let Some((severity, _)) = filtered {
                 ui.horizontal(|ui| {
                     let id = match severity {
@@ -137,11 +161,14 @@ pub fn panel(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
                     }
                 },
             );
+            super::cards::finish(outer.painter(), card);
+            outer.advance_cursor_after_rect(card);
         });
     if show_all {
         set_filter(&ctx, None);
     }
     ctx.data_mut(|data| data.insert_temp(drawn_id(), true));
+    true
 }
 
 #[cfg(test)]

@@ -1819,3 +1819,14 @@ assistant-button-badge =
     }
 assistant-button-busy = Réponse en cours…
 side-splitter-tip = Glisser pour régler la largeur du volet ; double-clic : largeur par défaut
+
+## Lot U2 : interface adoucie, structure (H-UI-172 à H-UI-176)
+
+top-menu = Menu
+top-menu-tip = Fichier, Édition, Affichage, Tâche, Projet, Format, Aide
+ribbon-show-full = Afficher le ruban complet
+ribbon-show-compact = Afficher le ruban compact
+ribbon-more = Plus de commandes : { $group }
+details-task-number = Tâche { $id }
+details-badge-summary = Récapitulative
+details-badge-milestone = Jalon

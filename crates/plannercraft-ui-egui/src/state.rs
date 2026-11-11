@@ -1250,11 +1250,11 @@ mod tests {
         assert_eq!(state, UiState::default());
         assert_eq!(state.ribbon, RibbonPrefs::default());
         assert_eq!(state.ribbon.tab, RibbonTab::Task);
-        assert!(state.timeline_visible && !state.ribbon.collapsed);
+        assert!(state.timeline_visible && !state.ribbon.collapsed());
         let state = UiState {
             ribbon: RibbonPrefs {
                 tab: RibbonTab::Format,
-                collapsed: true,
+                mode: crate::ribbon::RibbonMode::Collapsed,
             },
             timeline_visible: false,
             ..UiState::default()

@@ -594,7 +594,7 @@ fn prepare_ribbon(harness: &mut Harness<'static, App>, args: &Args) -> Result<()
             .dispatch(Action::Ribbon(RibbonOp::Select(tab)));
         settle(harness)?;
     }
-    if args.ribbon_collapsed != harness.state().state.ribbon.collapsed {
+    if args.ribbon_collapsed != harness.state().state.ribbon.collapsed() {
         harness
             .state_mut()
             .dispatch(Action::Ribbon(RibbonOp::ToggleCollapsed));

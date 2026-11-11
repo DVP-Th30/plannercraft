@@ -127,12 +127,13 @@ fn h_ui_161_button_menu_ribbon_toggle() {
     let drawn = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx);
     let (rect, dot) = button(&harness);
     assert!(dot.is_none());
+    // Lot U2 (H-UI-173) : au bord droit de la barre du haut.
     assert!(
-        rect.right() <= drawn.panel.right() && rect.right() > drawn.panel.right() - 16.0,
+        rect.right() <= drawn.bar.right() && rect.right() > drawn.bar.right() - 16.0,
         "{rect:?}"
     );
     assert!(
-        rect.top() >= drawn.panel.top() && rect.bottom() <= drawn.panel.top() + 26.0,
+        rect.top() >= drawn.bar.top() && rect.bottom() <= drawn.bar.bottom(),
         "{rect:?}"
     );
     assert!(!button_selected(&harness));
@@ -147,7 +148,7 @@ fn h_ui_161_button_menu_ribbon_toggle() {
         .state_mut()
         .dispatch(Action::Ribbon(RibbonOp::ToggleCollapsed));
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     press_button(&mut harness);
     assert!(open(&harness));
     press_button(&mut harness);
@@ -169,11 +170,13 @@ fn h_ui_161_button_menu_ribbon_toggle() {
     harness.run();
     ribbon_click(&mut harness, RibbonTab::View, &fr(TextId::MenuAssistant));
     assert!(!open(&harness));
-    // Menu Affichage → Assistant IA (case, cochée volet ouvert).
+    // Menu Affichage → Assistant IA (case, cochée volet ouvert) ; lot U2 :
+    // dans le bouton « Menu » de la barre du haut.
     let menu = fr(TextId::MenuView);
+    crate::open_menu_for(&mut harness, &menu);
     harness
         .query_all_by_label(&menu)
-        .filter(|n| n.accesskit_node().role() != Role::Tab)
+        .filter(|n| n.accesskit_node().role() != Role::Tab && !crate::in_ribbon(&harness, n))
         .min_by(|a, b| a.rect().top().total_cmp(&b.rect().top()))
         .expect("menu Affichage")
         .click();
@@ -384,12 +387,12 @@ fn h_ui_165_default_tab_assistant() {
     wait_key_loaded(&mut again);
 }
 
-/// Bord gauche du volet, lu sur le séparateur (nœud accessible : zone de
-/// saisie de 2 points à gauche du bord à 6 points dedans).
+/// Bord gauche du volet, lu sur le séparateur (nœud accessible ; lot U2,
+/// H-UI-172 : la zone de saisie couvre la gouttière, bord gauche du volet).
 fn edge_x(harness: &Harness<'static, App>) -> f32 {
     let label = fr(TextId::SideSplitterTip);
     let node = harness.get_by_role_and_label(Role::Splitter, &label);
-    node.rect().left() + 2.0
+    node.rect().left()
 }
 
 /// Point de saisie du séparateur : dans le volet, 3 points après le bord

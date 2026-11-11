@@ -1661,6 +1661,14 @@ text_ids! {
     AssistantButtonBadge => "assistant-button-badge",
     AssistantButtonBusy => "assistant-button-busy",
     SideSplitterTip => "side-splitter-tip",
+    TopMenu => "top-menu",
+    TopMenuTip => "top-menu-tip",
+    RibbonShowFull => "ribbon-show-full",
+    RibbonShowCompact => "ribbon-show-compact",
+    RibbonMore => "ribbon-more",
+    DetailsTaskNumber => "details-task-number",
+    DetailsBadgeSummary => "details-badge-summary",
+    DetailsBadgeMilestone => "details-badge-milestone",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en
@@ -2107,6 +2115,8 @@ mod tests {
     fn sample_args() -> Vec<(&'static str, Arg<'static>)> {
         vec![
             ("product", Arg::Str("plannercraft".into())),
+            // Lot U2 (ADR-0026) : menu « … » d'un groupe du ruban compact.
+            ("group", Arg::Str("Presse-papiers".into())),
             // Lot A1b (ADR-0024) : conversation de l'assistant.
             ("time", Arg::Str("14:32".into())),
             ("json", Arg::Str("[3]".into())),

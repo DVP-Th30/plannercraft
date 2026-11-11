@@ -90,6 +90,7 @@ mod select_keys;
 mod select_mouse;
 mod session;
 mod snapshots;
+mod soft_structure;
 mod structure;
 mod styled;
 mod task_info;
@@ -285,11 +286,12 @@ fn in_ribbon(harness: &Harness<'static, App>, node: &egui_kittest::Node<'_>) -> 
     if node.accesskit_node().role() == egui::accesskit::Role::Tab && drawn.panel.contains(rect.center()) {
         return true;
     }
-    // Bouton de l'assistant (lot A5), homonyme d'Affichage → Assistant IA.
-    if drawn
-        .assistant
-        .is_some_and(|(button, _)| button.min.distance(rect.min) < 0.5 && button.max.distance(rect.max) < 0.5)
-    {
+    // Bouton de l'assistant (lot A5), homonyme d'Affichage → Assistant IA ;
+    // bouton « Menu » et chevron de la barre du haut (lot U2).
+    let same = |r: Option<egui::Rect>| {
+        r.is_some_and(|b| b.min.distance(rect.min) < 0.5 && b.max.distance(rect.max) < 0.5)
+    };
+    if same(drawn.assistant.map(|(button, _)| button)) || same(drawn.menu) || same(drawn.chevron) {
         return true;
     }
     drawn
@@ -304,6 +306,7 @@ fn in_ribbon(harness: &Harness<'static, App>, node: &egui_kittest::Node<'_>) -> 
 /// « Annuler ») portent le nom d'un menu ou d'un bouton de confirmation ;
 /// un élément du ruban se clique par [`ribbon_click`].
 fn click(harness: &mut Harness<'static, App>, label: &str) {
+    open_menu_for(harness, label);
     {
         let mut found = harness
             .query_all_by_label(label)
@@ -313,6 +316,39 @@ fn click(harness: &mut Harness<'static, App>, label: &str) {
             .unwrap_or_else(|| panic!("« {label} » absent hors du ruban"));
         assert!(found.next().is_none(), "« {label} » en double hors du ruban");
         node.click();
+    }
+    harness.run();
+}
+
+/// Interface adoucie (lot U2, H-UI-173) : les menus Fichier à Aide sont
+/// dans le menu de la barre du haut. Si `label` n'est nulle part hors du
+/// ruban et que le menu est fermé, il est ouvert d'abord (clic sur le
+/// bouton « Menu ») : les tests qui cliquaient un menu de l'ancienne barre
+/// le trouvent ainsi en sous-menu.
+fn open_menu_for(harness: &mut Harness<'static, App>, label: &str) {
+    if egui::Popup::is_any_open(&harness.ctx)
+        || harness.query_all_by_label(label).any(|n| !in_ribbon(harness, &n))
+    {
+        return;
+    }
+    let Some(menu) = plannercraft_ui_egui::view::ribbon::drawn(&harness.ctx).menu else {
+        return;
+    };
+    click_at_point(harness, menu.center());
+}
+
+/// Clic simulé (survol, appui, relâcher) au point `p`.
+fn click_at_point(harness: &mut Harness<'static, App>, p: egui::Pos2) {
+    harness.hover_at(p);
+    harness.step();
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: p,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.step();
     }
     harness.run();
 }
@@ -379,19 +415,52 @@ fn ribbon_click(harness: &mut Harness<'static, App>, tab: RibbonTab, label: &str
     // Bouton de l'assistant (lot A5) : homonyme d'Affichage → Assistant IA,
     // hors du corps du ruban.
     let button = drawn.assistant.map(|(rect, _)| rect);
-    {
+    let visible = {
         let mut found = harness.query_all_by_label(label).filter(|n| {
             n.accesskit_node().role() != Role::Tab
                 && panel.contains(n.rect().center())
                 && button.is_none_or(|b| !b.contains(n.rect().center()))
         });
-        let node = found
-            .next()
-            .unwrap_or_else(|| panic!("« {label} » absent de l'onglet {tab:?} du ruban"));
+        let node = found.next();
         assert!(found.next().is_none(), "« {label} » en double dans le ruban");
-        node.click();
+        node.map(|node| node.rect().center())
+    };
+    if let Some(p) = visible {
+        harness
+            .query_all_by_label(label)
+            .find(|n| n.rect().center().distance(p) < 0.5)
+            .expect("élément du ruban")
+            .click();
+        harness.run();
+        return;
     }
-    harness.run();
+    // Ruban compact (lot U2, H-UI-174) : l'élément est dans le menu « … »
+    // de son groupe, ou dans le menu d'un groupe replié.
+    let menus: Vec<egui::Rect> = drawn
+        .items
+        .iter()
+        .filter(|i| i.cmd.is_none())
+        .map(|i| i.rect)
+        .collect();
+    for menu in menus {
+        click_at_point(harness, menu.center());
+        let entry = harness
+            .query_all_by_label(label)
+            .find(|n| !in_ribbon(harness, n))
+            .map(|n| n.rect().center());
+        if let Some(p) = entry {
+            harness
+                .query_all_by_label(label)
+                .find(|n| n.rect().center().distance(p) < 0.5)
+                .expect("entrée du menu")
+                .click();
+            harness.run();
+            return;
+        }
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+    }
+    panic!("« {label} » absent de l'onglet {tab:?} du ruban (rangée et menus « … »)");
 }
 
 /// Ouvre l'exemple depuis l'écran d'accueil.
@@ -442,12 +511,17 @@ fn language_switch_relabels() {
     let mut harness = harness();
     let file_fr = fr(TextId::MenuFile);
     let file_en = Texts::new(Language::En).get(TextId::MenuFile);
+    // Lot U2 (H-UI-173) : menus dans le bouton « Menu » de la barre du haut.
+    open_menu_for(&mut harness, &file_fr);
     assert!(harness.query_by_label(&file_fr).is_some());
+    harness.key_press(egui::Key::Escape);
+    harness.run();
     harness
         .state_mut()
         .dispatch(Action::SetLanguage(LanguagePref::En));
     harness.run();
     assert_eq!(harness.state().texts().language(), Language::En);
+    open_menu_for(&mut harness, &file_en);
     assert!(harness.query_by_label(&file_en).is_some(), "« File » absent");
     assert!(
         harness.query_by_label(&file_fr).is_none(),

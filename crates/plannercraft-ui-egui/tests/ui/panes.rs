@@ -29,6 +29,8 @@ use plannercraft_ui_egui::view::timeline::{TimelineDrawn, close_id};
 use plannercraft_ui_egui::{Action, App, DocOrigin, UiState};
 use proptest::prelude::*;
 
+use plannercraft_ui_egui::view::cards::GUTTER;
+
 use crate::filters::project_p;
 use crate::fr;
 
@@ -215,7 +217,11 @@ fn h_ui_110_right_click_blank_hides() {
     assert!(app.view().timeline.drawn.is_none());
     assert_eq!(history_len(app), 0);
     let hidden = row_top(&harness, 1, "Gros œuvre");
-    assert!((shown - hidden - height).abs() < 0.5, "{shown} → {hidden}");
+    // Lot U2 (H-UI-172) : la carte de la frise et sa gouttière.
+    assert!(
+        (shown - hidden - height - GUTTER).abs() < 0.5,
+        "{shown} → {hidden}"
+    );
     assert!(
         harness.query_by_label(&fr(TextId::TimelineHide)).is_none(),
         "menu refermé"
@@ -298,7 +304,8 @@ fn h_ui_111_timeline_splitter_drag() {
         "{before:?}"
     );
     let g = grip(before.timeline_splitter);
-    assert!((g.y - before.timeline.unwrap().bottom()).abs() < 0.01);
+    // Lot U2 (H-UI-172) : séparateur au milieu de la gouttière.
+    assert!((g.y - before.timeline.unwrap().bottom() - GUTTER / 2.0).abs() < 0.01);
     harness.hover_at(g);
     harness.run();
     assert_eq!(
@@ -339,6 +346,7 @@ fn h_ui_111_splitter_bounds() {
         let d = panes(&harness);
         d.timeline.unwrap().height() + d.view.height()
     };
+    let span = zone(&panes(&harness));
     let g = grip(panes(&harness).timeline_splitter);
     drag(&mut harness, g, pos2(g.x, -500.0));
     assert_eq!(harness.state().state.timeline_height, TIMELINE_HEIGHT_MIN);
@@ -355,9 +363,7 @@ fn h_ui_111_splitter_bounds() {
     assert_eq!(harness.state().state.timeline_height, PANE_HEIGHT_MAX);
     let d = panes(&harness);
     assert!(d.view.height() >= VIEW_MIN - 0.01, "{d:?}");
-    let sum =
-        d.timeline.map_or(0.0, |r| r.height()) + d.view.height() + d.details.map_or(0.0, |r| r.height());
-    assert!((sum - total).abs() < 0.5, "{d:?}");
+    assert!((zone(&d) - span).abs() < 0.5, "{d:?}");
     // Détails tirés vers le bas au-delà de la fenêtre : 120 points.
     let g = grip(d.details_splitter);
     drag(&mut harness, g, pos2(g.x, 5_000.0));
@@ -411,7 +417,7 @@ fn h_ui_111_details_splitter() {
     let details = d.details.expect("volet affiché");
     let start = details_default(&harness);
     assert!((details.height() - start).abs() < 0.01, "{d:?}");
-    assert!((details.top() - d.view.bottom()).abs() < 0.01);
+    assert!((details.top() - d.view.bottom() - GUTTER).abs() < 0.01);
     assert!((closed.view.bottom() - details.bottom()).abs() < 0.01);
     assert!(harness.query_by_label(&fr(TextId::DetailsCloseTip)).is_some());
     let painted: Vec<String> = harness
@@ -423,7 +429,13 @@ fn h_ui_111_details_splitter() {
             _ => None,
         })
         .collect();
-    assert!(painted.contains(&fr(TextId::DetailsTitle)), "{painted:?}");
+    // Lot U2 (H-UI-176) : en-tête « Tâche N » quand une tâche est suivie,
+    // titre du volet sinon.
+    let number = Texts::new(Language::Fr).get_args(TextId::DetailsTaskNumber, &[("id", Arg::Count(1))]);
+    assert!(
+        painted.contains(&fr(TextId::DetailsTitle)) || painted.contains(&number),
+        "{painted:?}"
+    );
     // Glisser vers le haut : le volet grandit.
     let g = grip(d.details_splitter);
     harness.hover_at(g);
@@ -618,10 +630,7 @@ proptest! {
     #[test]
     fn p63_split_sequences_app(ops in proptest::collection::vec(any_pane_op(), 0..24)) {
         let mut harness = p();
-        let total = {
-            let d = panes(&harness);
-            d.timeline.map_or(0.0, |r| r.height()) + d.view.height()
-        };
+        let total = zone(&panes(&harness));
         for op in ops {
             harness.state_mut().dispatch(Action::Pane(op));
             harness.run();
@@ -631,8 +640,7 @@ proptest! {
             let d = panes(&harness);
             let rects = [d.timeline, Some(d.view), d.details];
             prop_assert!(rects.iter().flatten().all(Rect::is_finite));
-            let sum: f32 = rects.iter().flatten().map(Rect::height).sum();
-            prop_assert!((sum - total).abs() < 0.5, "{d:?}");
+            prop_assert!((zone(&d) - total).abs() < 0.5, "{d:?}");
             prop_assert!(d.view.height() >= VIEW_MIN - 0.01, "{d:?}");
             prop_assert_eq!(d.details.is_some(), state.details.visible);
         }
@@ -641,6 +649,17 @@ proptest! {
         prop_assert!(warning.is_none(), "{warning:?}");
         prop_assert_eq!(&read, state);
     }
+}
+
+/// Hauteur de la zone des volets : volets affichés et gouttières entre eux
+/// (lot U2, H-UI-172).
+fn zone(d: &PanesDrawn) -> f32 {
+    let rects: Vec<Rect> = [d.timeline, Some(d.view), d.details]
+        .into_iter()
+        .flatten()
+        .collect();
+    let gutters = f32::from(u8::try_from(rects.len().saturating_sub(1)).unwrap());
+    rects.iter().map(Rect::height).sum::<f32>() + GUTTER * gutters
 }
 
 /// Hauteur affichée du volet de détails à sa hauteur par défaut dans la

@@ -189,8 +189,10 @@ fn h_ui_78_timeline_shows_project_bounds() {
     let d = drawn(&harness);
     assert!((d.rect.height() - COMPACT_H).abs() < 0.01, "{d:?}");
     // Toute la largeur de la vue (marges du panneau central comprises).
+    // Lot U2 : frise sur toute sa carte, table dans l'intérieur de la
+    // sienne (bordure d'un point).
     let table_left = row_rect(&harness, 1, "Gros œuvre").left();
-    assert!((d.rect.left() - table_left).abs() < 0.5, "{d:?}");
+    assert!((d.rect.left() + 1.0 - table_left).abs() < 0.5, "{d:?}");
     assert!(d.rect.width() > 1400.0, "{d:?}");
     let texts = frise_texts(&harness);
     assert!(texts.iter().any(|t| t == "Début lun 19/10/26"), "{texts:?}");
@@ -236,7 +238,12 @@ fn h_ui_78_toggle_hides() {
     dispatch(&mut harness, Action::Timeline(TimelineOp::SetVisible(false)));
     assert!(harness.state().view().timeline.drawn.is_none());
     let hidden = row_rect(&harness, 1, "Gros œuvre").top();
-    assert!((shown - hidden - COMPACT_H).abs() < 0.5, "{shown} → {hidden}");
+    // Lot U2 (H-UI-172) : la carte de la frise et sa gouttière.
+    let gutter = plannercraft_ui_egui::view::cards::GUTTER;
+    assert!(
+        (shown - hidden - COMPACT_H - gutter).abs() < 0.5,
+        "{shown} → {hidden}"
+    );
     dispatch(&mut harness, Action::Timeline(TimelineOp::SetVisible(true)));
     assert!((row_rect(&harness, 1, "Gros œuvre").top() - shown).abs() < 0.5);
 }

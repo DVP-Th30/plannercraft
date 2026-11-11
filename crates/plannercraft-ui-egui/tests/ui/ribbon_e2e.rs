@@ -222,7 +222,7 @@ fn e2e_ribbon() {
     harness.run();
     let initial = project(harness.state()).clone();
     assert_eq!(harness.state().state.ribbon.tab, RibbonTab::Task);
-    assert!(!harness.state().state.ribbon.collapsed);
+    assert!(!harness.state().state.ribbon.collapsed());
     assert!(harness.state().state.timeline_visible);
     assert!(harness.state().view().timeline.drawn.is_some(), "frise dessinée");
     assert_eq!(history(harness.state()), (0, 0));
@@ -396,7 +396,7 @@ fn e2e_ribbon() {
     // refermée ; OK ⇒ référence 0 enregistrée (un lot) ; Ctrl+F1 déplie.
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     // Au-delà du délai du double-clic sur un onglet (qui replierait).
     for _ in 0..30 {
         harness.step();
@@ -417,7 +417,7 @@ fn e2e_ribbon() {
     assert_eq!(history(harness.state()), (7, 0));
     harness.key_press_modifiers(Modifiers::COMMAND, Key::F1);
     harness.run();
-    assert!(!harness.state().state.ribbon.collapsed);
+    assert!(!harness.state().state.ribbon.collapsed());
 
     // 12. Projet → Mode impression (H-UI-82) : case Chronologie cochée
     // d'office, frise sur la page 1 de l'aperçu seulement ; Exporter en PDF

@@ -130,6 +130,96 @@ fn snapshot_soft_dark_gantt_fr() {
     soft_gantt_capture(ThemePref::Dark, "soft_dark_gantt_fr");
 }
 
+/// Interface adoucie (lot U2, H-UI-172 à H-UI-176) : planche « Niveau 1 +
+/// 2 » de la maquette validée, fenêtre `size` : volets en cartes sur le
+/// fond de l'application, barre du haut, ruban `mode`, « Gros œuvre »
+/// sélectionnée et suivie par le Formulaire tâche, volet latéral ouvert
+/// sur l'assistant (`side_open`).
+fn soft_cards_capture(
+    theme: ThemePref,
+    size: egui::Vec2,
+    mode: plannercraft_ui_egui::ribbon::RibbonMode,
+    side_open: bool,
+    name: &str,
+) {
+    let mut state = UiState {
+        language: LanguagePref::Fr,
+        theme,
+        ..UiState::default()
+    };
+    state.ribbon.mode = mode;
+    state.side_panel.open = side_open;
+    let app = App::new(state, Env::fixed(crate::now()));
+    let mut harness = harness_sized(app, theme, size, 1.0);
+    harness.run();
+    harness.state_mut().open_demo();
+    harness.run();
+    harness
+        .state_mut()
+        .dispatch(Action::Pane(plannercraft_ui_egui::action::PaneOp::ShowDetails(
+            true,
+        )));
+    harness.run();
+    let uid = uid_named(harness.state(), "Gros œuvre");
+    harness.state_mut().dispatch(Action::ScrollToRow(6));
+    harness.state_mut().dispatch(Action::Select(Some(uid)));
+    harness.run();
+    assert_eq!(harness.state().selection, Some(uid));
+    assert_eq!(drawn(&harness.ctx).mode, mode);
+    let badge = Texts::new(Language::Fr).get(TextId::DetailsBadgeSummary);
+    assert!(
+        harness.query_all_by_label(&badge).next().is_some(),
+        "pastille absente"
+    );
+    snapshot(&mut harness, name);
+}
+
+#[test]
+fn snapshot_soft_cards_light_fr() {
+    soft_cards_capture(
+        ThemePref::Light,
+        egui::vec2(1440.0, 900.0),
+        plannercraft_ui_egui::ribbon::RibbonMode::Compact,
+        true,
+        "soft_cards_light_fr",
+    );
+}
+
+#[test]
+fn snapshot_soft_cards_dark_fr() {
+    soft_cards_capture(
+        ThemePref::Dark,
+        egui::vec2(1440.0, 900.0),
+        plannercraft_ui_egui::ribbon::RibbonMode::Compact,
+        true,
+        "soft_cards_dark_fr",
+    );
+}
+
+#[test]
+fn snapshot_soft_ribbon_full_fr() {
+    soft_cards_capture(
+        ThemePref::Light,
+        egui::vec2(1440.0, 900.0),
+        plannercraft_ui_egui::ribbon::RibbonMode::Full,
+        false,
+        "soft_ribbon_full_fr",
+    );
+}
+
+/// Fenêtre de 800 points : marges extérieures de 4 points, ruban compact
+/// réduit par rang, volet latéral fermé.
+#[test]
+fn snapshot_soft_cards_800_fr() {
+    soft_cards_capture(
+        ThemePref::Light,
+        egui::vec2(800.0, 600.0),
+        plannercraft_ui_egui::ribbon::RibbonMode::Compact,
+        false,
+        "soft_cards_800_fr",
+    );
+}
+
 #[test]
 fn snapshot_main_fr_light_week() {
     let mut harness = demo(LanguagePref::Fr, ThemePref::Light);
@@ -486,7 +576,7 @@ fn snapshot_ribbon_collapsed_fr_light() {
         .state_mut()
         .dispatch(Action::Ribbon(RibbonOp::ToggleCollapsed));
     harness.run();
-    assert!(harness.state().state.ribbon.collapsed);
+    assert!(harness.state().state.ribbon.collapsed());
     assert!(drawn(&harness.ctx).body.is_none());
     snapshot(&mut harness, "ribbon_collapsed_fr_light");
 }
@@ -780,6 +870,10 @@ fn snapshot_ribbon_task_editing_fr_light() {
         &[],
     );
     select_tab(&mut harness, RibbonTab::Task);
+    // Ruban complet (lot U2 : « Remplir ▾ » est dans le menu « … » du
+    // compact).
+    harness.state_mut().dispatch(Action::Ribbon(RibbonOp::ToggleFull));
+    harness.run();
     select_block(&mut harness, (2, Column::Duration), (3, Column::Duration));
     let texts = Texts::new(Language::Fr);
     harness.get_by_label(&texts.get(TextId::RibbonFill)).click();
