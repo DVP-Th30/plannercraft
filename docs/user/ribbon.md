@@ -4,7 +4,7 @@ Guide pour l'utilisateur occasionnel de MS Project qui ouvre PlannerCraft. Réf�
 
 ## 1. Ce qui ressemble à MS Project
 
-- **Barre du haut** (depuis l'interface adoucie, ADR-0026) : le symbole de PlannerCraft, le bouton **Menu** (☰ : Fichier, Édition, Affichage, Tâche, Projet, Format, Aide), Enregistrer, Annuler, Rétablir, puis les onglets ; le bouton **Assistant IA** est à droite.
+- **Barre du haut** (depuis l'interface adoucie, ADR-0026) : le symbole de PlannerCraft, le bouton **Menu** (☰ : Fichier, Édition, Affichage, Tâche, Projet, Format, Aide), Enregistrer, Annuler, Rétablir, puis les onglets ; à droite, le champ **Rechercher une commande…** (palette de commandes, voir plus bas) et le bouton **Assistant IA**.
 - **Cinq onglets** dans la barre du haut, dans l'ordre de MS Project : **Tâche, Ressource, Projet, Affichage, Format** (en anglais : Task, Resource, Project, View, Format ; page Microsoft « Learn the Project 2010 Ribbon »). L'onglet Tâche est ouvert au premier lancement, puis PlannerCraft rouvre le dernier choisi.
 - **Groupes nommés** sous chaque onglet (Presse-papiers, Planification, Insérer, Propriétés, Édition…), grands boutons à icône et libellé, petits boutons empilés, listes déroulantes (▾), cases à cocher.
 - **Info-bulles** : survoler un bouton affiche son nom, une phrase d'aide et le raccourci clavier (« Lier les tâches (Ctrl+F2) ») ; un bouton grisé dit pourquoi (« Sélectionnez au moins une tâche », « Retirez le tri ou le filtre »).
@@ -17,6 +17,17 @@ Guide pour l'utilisateur occasionnel de MS Project qui ouvre PlannerCraft. Réf�
 Les libellés français des onglets et des groupes ont été choisis pour ce guide ; ils n'ont pas été comparés à l'interface française de MS Project.
 
 Les **menus** (Fichier, Édition, Affichage, Tâche, Projet, Format, Aide) restent, dans le bouton **Menu** de la barre du haut : chaque bouton du ruban y a son entrée jumelle, qui fait exactement la même chose. Rien n'est accessible par le ruban seul.
+
+### La palette de commandes
+
+Pour lancer une commande sans savoir dans quel onglet ou quel menu elle se trouve :
+
+- **Ouvrir** : **Ctrl+K** (**Cmd+K** sur macOS), ou un clic sur le champ **Rechercher une commande…** de la barre du haut (une simple loupe quand la fenêtre est étroite). Le raccourci marche aussi sans projet ouvert, mais pas pendant que vous tapez dans une cellule ou un champ.
+- **Chercher** : tapez quelques lettres ; les accents et les majuscules ne comptent pas (« echelle » trouve « Échelle de temps »), les débuts de mots suffisent (« litac » trouve « Lier les tâches »), les mots peuvent être dans le désordre. Chaque ligne montre la commande, l'onglet ou le menu d'où elle vient et son raccourci clavier. Toutes les commandes du ruban et des menus y sont, entrées des listes comprises (échelle de temps, thème, langue, filtres, tri, niveaux du plan, regroupement, colonnes affichées) ; pas les couleurs du texte ni les fichiers récents.
+- **Lancer** : **↑** et **↓** pour choisir, **Entrée** (ou un clic) pour lancer : la commande fait exactement ce que fait son bouton du ruban, et s'annule de la même façon. Une commande grisée dit pourquoi (« Sélectionnez au moins une tâche ») et ne se lance pas.
+- **Fermer** : **Échap**, Ctrl+K de nouveau, ou un clic à côté ; le clavier revient au planning.
+- **Demander à l'assistant** : si l'assistant est activé, la dernière ligne propose « Demander à l'assistant : « … » » avec ce que vous avez tapé ; **Entrée** sur elle (ou **Tab**) ouvre le volet de l'assistant avec ce texte dans la question, sans l'envoyer : relisez, puis envoyez. La question qui s'y trouvait est remplacée.
+- **Version web** : Ctrl+K ouvre la palette et non la recherche du navigateur (si le navigateur le garde quand même, cliquez le champ de la barre du haut).
 
 ## 2. Les cinq onglets
 

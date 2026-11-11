@@ -698,6 +698,9 @@ pub struct RibbonDrawn {
     pub assistant: Option<(Rect, Option<Rect>)>,
     /// Contour « réponse en cours » dessiné autour du bouton (H-UI-166).
     pub assistant_ring: bool,
+    /// Champ « Rechercher une commande… » (lot U3, H-UI-177), s'il est
+    /// dessiné.
+    pub palette: Option<Rect>,
 }
 
 impl Default for RibbonDrawn {
@@ -713,6 +716,7 @@ impl Default for RibbonDrawn {
             chevron: None,
             assistant: None,
             assistant_ring: false,
+            palette: None,
         }
     }
 }
@@ -789,7 +793,11 @@ pub fn show(
             );
             record(&ctx, |d| d.bar = bar);
             let tabs_end = top_bar(ui, fc, bar, *prefs, overlay);
-            assistant_button(ui, fc, bar, tabs_end, assistant);
+            let right = assistant_button(ui, fc, bar, tabs_end, assistant).map_or(bar.right(), |r| r.left());
+            // Lot U3 (H-UI-177) : champ de la palette, dans la place que le
+            // bouton de l'assistant laisse.
+            let field = super::palette::top_field(ui, fc, bar, tabs_end, right);
+            record(&ctx, |d| d.palette = field);
             let card_h = match prefs.mode {
                 RibbonMode::Collapsed => None,
                 RibbonMode::Compact => Some(COMPACT_H),
@@ -1012,14 +1020,20 @@ fn menu_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, tokens: &ChromeTokens) {
 /// au-delà de neuf) si le volet est fermé ; pendant une réponse, volet
 /// fermé, contour à l'accent qui pulse (fixe si « Réduire les
 /// animations ») : volet ouvert, la réponse s'écrit sous les yeux et le
-/// bouton reste fixe. Clic ⇒ `SideOp::Toggle`.
+/// bouton reste fixe. Clic ⇒ `SideOp::Toggle`. Rend le rectangle du bouton.
 #[allow(
     clippy::too_many_lines,
     reason = "bouton, pastille et pulsation dans l'ordre du dessin (lot A5)"
 )]
-fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, bar: Rect, tabs_end: f32, b: AssistantButton) {
+fn assistant_button(
+    ui: &mut Ui,
+    fc: &mut FrameCtx<'_>,
+    bar: Rect,
+    tabs_end: f32,
+    b: AssistantButton,
+) -> Option<Rect> {
     if !bar.is_finite() {
-        return;
+        return None;
     }
     let ctx = ui.ctx().clone();
     let tokens = ChromeTokens::for_theme(ctx.theme());
@@ -1145,6 +1159,7 @@ fn assistant_button(ui: &mut Ui, fc: &mut FrameCtx<'_>, bar: Rect, tabs_end: f32
         fc.actions
             .push(Action::SidePanel(crate::view::side_panel::SideOp::Toggle));
     }
+    Some(rect)
 }
 
 /// Onglet de la barre du haut (lot U2, H-UI-173) : pastille de 30 points ;
@@ -1779,7 +1794,7 @@ fn centered_lines(
 
 /// Infobulle d'un élément (H-UI-73) : libellé appuyé avec le raccourci de
 /// `KEYMAP` du système, phrase d'aide, raison du grisé.
-fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>) {
+pub(super) fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>) {
     ui.label(RichText::new(title).strong());
     ui.label(tip);
     if let Some(reason) = reason {
@@ -1788,7 +1803,7 @@ fn tooltip(ui: &mut Ui, title: &str, tip: &str, reason: Option<&str>) {
 }
 
 /// Titre de l'infobulle : « Indenter (Alt+Shift+⏵) ».
-fn tooltip_title(ctx: &egui::Context, label: &str, binding: Option<Binding>) -> String {
+pub(super) fn tooltip_title(ctx: &egui::Context, label: &str, binding: Option<Binding>) -> String {
     match binding.and_then(|b| shortcut_for_os(b, ctx.os())) {
         Some(shortcut) => format!("{label} ({})", shortcut_text(ctx, shortcut)),
         None => label.to_owned(),

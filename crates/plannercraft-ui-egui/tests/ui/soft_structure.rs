@@ -133,11 +133,10 @@ fn h_ui_173_top_bar() {
     let (assistant, _) = d.assistant.expect("bouton de l'assistant");
     let last_tab = tabs.iter().map(Rect::right).fold(0.0, f32::max);
     assert!(assistant.left() > last_tab && (assistant.right() - d.bar.right()).abs() < 4.0);
-    assert!(
-        harness
-            .query_by_label_contains("Rechercher une commande")
-            .is_none()
-    );
+    // Lot U3 (H-UI-177) : champ de la palette entre les onglets et le
+    // bouton de l'assistant.
+    let field = d.palette.expect("champ « Rechercher une commande… »");
+    assert!(field.left() > last_tab && field.right() < assistant.left());
     // Menu : Fichier à Aide, et Fichier → Ouvrir… comme avant.
     crate::click(&mut harness, &fr(TextId::MenuFile));
     assert!(

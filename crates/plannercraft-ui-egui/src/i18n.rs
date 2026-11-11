@@ -1669,6 +1669,18 @@ text_ids! {
     DetailsTaskNumber => "details-task-number",
     DetailsBadgeSummary => "details-badge-summary",
     DetailsBadgeMilestone => "details-badge-milestone",
+    // --- Lot U3 (H-UI-177 à H-UI-183) : palette de commandes.
+    PaletteField => "palette-field",
+    PaletteFieldTip => "palette-field-tip",
+    PaletteName => "palette-name",
+    PaletteList => "palette-list",
+    PaletteAsk => "palette-ask",
+    PaletteNoMatch => "palette-no-match",
+    PaletteHintMove => "palette-hint-move",
+    PaletteHintRun => "palette-hint-run",
+    PaletteHintClose => "palette-hint-close",
+    PaletteHintAsk => "palette-hint-ask",
+    PaletteUnavailable => "palette-unavailable",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en
@@ -2115,6 +2127,8 @@ mod tests {
     fn sample_args() -> Vec<(&'static str, Arg<'static>)> {
         vec![
             ("product", Arg::Str("plannercraft".into())),
+            // Lot U3 (ADR-0026) : ligne « Demander à l'assistant ».
+            ("query", Arg::Str("lier".into())),
             // Lot U2 (ADR-0026) : menu « … » d'un groupe du ruban compact.
             ("group", Arg::Str("Presse-papiers".into())),
             // Lot A1b (ADR-0024) : conversation de l'assistant.

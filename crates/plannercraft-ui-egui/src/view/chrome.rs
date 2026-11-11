@@ -22,6 +22,7 @@ use crate::i18n::{Arg, TextId};
 use crate::io::SaveKind;
 use crate::keymap::{Binding, Shortcut, UiBinding, shortcut_for_os, shortcut_text};
 use crate::notify::{MessageKind, MessageStore};
+use crate::ribbon::Enabled;
 use crate::ribbon::icon_data::Icon;
 use crate::ribbon::icons::paint_icon;
 use crate::ribbon::spec::{PERCENT_STEPS, RibbonCmd, percent_value};
@@ -50,11 +51,20 @@ const THEME_CHOICES: [(ThemePref, TextId); 3] = [
 /// Vues proposées (J7 lots L7, L10, L11 : Gantt, Gantt de suivi, feuille
 /// et utilisation des ressources), dans l'ordre du menu et de la liste
 /// « Diagramme de Gantt ▾ » du ruban.
-const VIEW_CHOICES: [RibbonCmd; 4] = [
+pub(crate) const VIEW_CHOICES: [RibbonCmd; 4] = [
     RibbonCmd::GanttChart,
     RibbonCmd::TrackingGantt,
     RibbonCmd::ResourceSheet,
     RibbonCmd::ResourceUsage,
+];
+
+/// Dernière section du menu Édition (passe UX, H-UI-100) : remplir,
+/// effacer, tout sélectionner ; « Tout sélectionner » n'est que là (lot
+/// U3 : la palette lit cette table).
+pub(crate) const EDIT_FILL_SELECT: [RibbonCmd; 3] = [
+    RibbonCmd::FillDown,
+    RibbonCmd::ClearContents,
+    RibbonCmd::SelectAll,
 ];
 
 /// Clé de la mémoire d'egui où la barre de menus dépose l'état du volet
@@ -120,7 +130,7 @@ fn twin(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: RibbonCmd, binding: Optio
 
 /// Libellé de l'entrée jumelle : [`RibbonCmd::menu_label`] ; « Retirer de
 /// la chronologie » quand la tâche active y est (H-UI-79).
-fn twin_text(fc: &FrameCtx<'_>, cmd: RibbonCmd) -> String {
+pub(crate) fn twin_text(fc: &FrameCtx<'_>, cmd: RibbonCmd) -> String {
     match cmd {
         RibbonCmd::AddToTimeline if cmd.checked(fc) == Some(true) => fc.texts.get(TextId::TimelineRemove),
         RibbonCmd::MarkPercent(step) => fc.texts.get_args(
@@ -230,15 +240,7 @@ pub(crate) fn main_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     ui.menu_button(texts.get(TextId::MenuTask), |ui| task_menu(ui, fc));
     ui.menu_button(texts.get(TextId::MenuProject), |ui| project_menu(ui, fc));
     ui.menu_button(texts.get(TextId::MenuFormat), |ui| format_menu(ui, fc));
-    ui.menu_button(texts.get(TextId::MenuHelp), |ui| {
-        let label = texts.get_args(
-            TextId::MenuAbout,
-            &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
-        );
-        if ui.button(label).clicked() {
-            fc.actions.push(Action::About);
-        }
-    });
+    ui.menu_button(texts.get(TextId::MenuHelp), |ui| menu_cmd(ui, fc, MenuCmd::About));
 }
 
 /// Menu Affichage : vues, zoom, thème, langue, vue des tâches, volet IA,
@@ -318,11 +320,9 @@ fn view_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, _side_open: bool) {
 /// document.
 fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     let has_doc = fc.doc.is_some();
-    let new = Binding::Command("project.new");
-    menu_item(ui, fc, TextId::MenuNew, Some(new), true, Action::NewProject);
-    menu_item(ui, fc, TextId::MenuOpenDemo, None, true, Action::OpenDemo);
-    let open = Binding::Ui(UiBinding::OpenFile);
-    menu_item(ui, fc, TextId::MenuOpen, Some(open), true, Action::OpenDialog);
+    menu_cmd(ui, fc, MenuCmd::New);
+    menu_cmd(ui, fc, MenuCmd::OpenDemo);
+    menu_cmd(ui, fc, MenuCmd::Open);
     // Fichiers récents (H-UI-28) : chemins du desktop seulement.
     if !cfg!(target_arch = "wasm32") {
         let texts = fc.texts;
@@ -330,8 +330,7 @@ fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     }
     ui.separator();
     twin(ui, fc, RibbonCmd::Save, Some(Binding::Command("project.save")));
-    let save_as = Binding::Ui(UiBinding::SaveAs);
-    menu_item(ui, fc, TextId::MenuSaveAs, Some(save_as), has_doc, Action::SaveAs);
+    menu_cmd(ui, fc, MenuCmd::SaveAs);
     // --- J8 L7 : Exporter en PDF ---
     // --- J8 L15 : mise en page, mode impression (H-UI-68) ---
     twin(ui, fc, RibbonCmd::PageSetup, None);
@@ -339,7 +338,7 @@ fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     // --- J8 L10 : Importer CSV ---
     // Fichier → Importer CSV… (H-UI-40) : sans document aussi (le résultat
     // est un nouveau document).
-    menu_item(ui, fc, TextId::MenuImportCsv, None, true, Action::ImportCsv);
+    menu_cmd(ui, fc, MenuCmd::ImportCsv);
     // --- J8 L13 ---
     // Fichier → Exporter (PDF, SVG, CSV) : téléchargement sur le web,
     // boîte « Enregistrer sous » sur le desktop.
@@ -347,31 +346,18 @@ fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     ui.add_enabled_ui(has_doc, |ui| {
         ui.menu_button(texts.get(TextId::MenuExport), |ui| {
             twin(ui, fc, RibbonCmd::ExportPdf, None);
-            for (id, kind) in [
-                (TextId::MenuExportSvg, SaveKind::Svg),
-                (TextId::MenuExportCsv, SaveKind::Csv),
-            ] {
-                menu_item(ui, fc, id, None, true, Action::Export(kind));
-            }
+            menu_cmd(ui, fc, MenuCmd::ExportSvg);
+            menu_cmd(ui, fc, MenuCmd::ExportCsv);
         });
     });
     ui.separator();
     // Fermer (H-UI-109) : raccourci Ctrl/Cmd+W affiché (Ctrl+F4 aussi lu
     // hors macOS) ; même fermeture gardée que la touche.
-    let close = Binding::Ui(UiBinding::CloseDocument);
-    menu_item(
-        ui,
-        fc,
-        TextId::MenuClose,
-        Some(close),
-        has_doc,
-        Action::CloseDocumentGuarded,
-    );
+    menu_cmd(ui, fc, MenuCmd::Close);
     // Quitter : le navigateur ne laisse pas une page fermer son onglet.
-    if !cfg!(target_arch = "wasm32") {
+    if MenuCmd::Quit.available() {
         ui.separator();
-        let quit = Binding::Ui(UiBinding::Quit);
-        menu_item(ui, fc, TextId::MenuQuit, Some(quit), true, Action::Quit);
+        menu_cmd(ui, fc, MenuCmd::Quit);
     }
 }
 
@@ -420,25 +406,6 @@ fn project_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
         RibbonCmd::CustomFields,
     ] {
         twin(ui, fc, cmd, None);
-    }
-}
-
-/// Entrée de menu : libellé traduit, raccourci éventuel de la liaison,
-/// action poussée au clic.
-fn menu_item(
-    ui: &mut egui::Ui,
-    fc: &mut FrameCtx<'_>,
-    label: TextId,
-    binding: Option<Binding>,
-    enabled: bool,
-    action: Action,
-) {
-    let mut button = egui::Button::new(fc.texts.get(label));
-    if let Some(shortcut) = binding.and_then(|binding| shortcut_for_os(binding, ui.ctx().os())) {
-        button = button.shortcut_text(shortcut_text(ui.ctx(), shortcut));
-    }
-    if ui.add_enabled(enabled, button).clicked() {
-        fc.actions.push(action);
     }
 }
 
@@ -504,14 +471,10 @@ fn edit_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     // --- Passe UX (ADR-0018 D10, H-UI-100) : remplir, effacer, tout
     // sélectionner (groupe Editing de Project, S80).
     ui.separator();
-    for cmd in [
-        RibbonCmd::FillDown,
-        RibbonCmd::ClearContents,
-        RibbonCmd::SelectAll,
-    ] {
+    for cmd in EDIT_FILL_SELECT {
         twin_cmd(ui, fc, cmd);
         if cmd == RibbonCmd::FillDown {
-            fill_right_item(ui, fc, TextId::MenuFillRight);
+            menu_cmd(ui, fc, MenuCmd::FillRight);
         }
     }
     // --- J8 L15 : menu Tâche (%, mode, actif) ---
@@ -757,61 +720,27 @@ fn shift_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
 }
 
 /// Entrée « Remplir à droite » (Ctrl/Cmd+R, R-258 amendée, H-UI-120) :
-/// mêmes prédicats que « Remplir vers le bas » ([`RibbonCmd::FillDown`]),
-/// action `CellOp::FillRight`, raccourci du `KEYMAP`.
+/// celle de [`MenuCmd::FillRight`] (mêmes prédicats que « Remplir vers le
+/// bas »), libellé `label`.
 fn fill_right_item(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, label: TextId) {
-    let enabled = RibbonCmd::FillDown.enabled(fc);
-    let mut button = egui::Button::new(fc.texts.get(label));
-    if let Some(shortcut) = binding_shortcut(ui, Some(Binding::Ui(UiBinding::FillRight))) {
-        button = button.shortcut_text(shortcut_text(ui.ctx(), &shortcut));
-    }
-    let response = ui.add_enabled(enabled.yes, button);
-    let response = match enabled.reason {
-        Some(reason) => response.on_disabled_hover_text(fc.texts.get(reason)),
-        None => response,
-    };
-    if response.clicked() {
-        fc.actions.push(Action::Cells(crate::action::CellOp::FillRight));
-    }
+    let mut choice = MenuCmd::FillRight.choice(fc);
+    choice.label = fc.texts.get(label);
+    draw_choice(ui, fc, &choice);
 }
 
 /// Colonnes (Format → Colonnes, liste du ruban ; seconde passe UX, lot
 /// L6, COL-02) : « Insérer une colonne », « Paramètres de champ… »
 /// (commandes partagées du ruban), puis les cases d'affichage des colonnes
 /// de [`Column::ALL`] (ID et Nom grisées) dans un sous-menu « Affichage du
-/// tableau ».
+/// tableau » ([`list_choices`]).
 fn column_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     twin_cmd(ui, fc, RibbonCmd::InsertColumn);
     twin_cmd(ui, fc, RibbonCmd::FieldSettings);
     ui.separator();
     let texts = fc.texts;
     ui.menu_button(texts.get(TextId::MenuTableDisplay), |ui| {
-        for column in Column::ALL {
-            let mut visible = fc.state.shown(column);
-            let check = egui::Checkbox::new(&mut visible, fc.texts.get(column.title()));
-            if ui.add_enabled(column.hideable(), check).clicked() {
-                fc.actions.push(Action::ToggleColumn(column));
-            }
-        }
+        draw_choices(ui, fc, &list_choices(fc, RibbonCmd::ColumnsMenu));
     });
-}
-
-/// Entrée d'un sous-menu de la vue des tâches, raccourci de `binding`.
-fn view_entry(
-    ui: &mut egui::Ui,
-    fc: &mut FrameCtx<'_>,
-    label: TextId,
-    binding: Option<UiBinding>,
-    enabled: bool,
-    op: TaskViewOp,
-) {
-    let mut button = egui::Button::new(fc.texts.get(label));
-    if let Some(shortcut) = binding_shortcut(ui, binding.map(Binding::Ui)) {
-        button = button.shortcut_text(shortcut_text(ui.ctx(), &shortcut));
-    }
-    if ui.add_enabled(enabled, button).clicked() {
-        fc.actions.push(Action::TaskView(op));
-    }
 }
 
 /// Liste « Regrouper par ▾ » (finitions P3, H-UI-129) : Aucun groupe,
@@ -820,16 +749,14 @@ fn view_entry(
 /// de la vue Gantt (prédicat de [`RibbonCmd::GroupByMenu`]).
 fn group_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     let enabled = RibbonCmd::GroupByMenu.enabled(fc).yes;
-    let current = fc.task_view.group_by;
-    let choices = crate::group_view::choices(fc.doc.map(crate::app::OpenDocument::project), fc.texts);
+    let choices = list_choices(fc, RibbonCmd::GroupByMenu);
     ui.add_enabled_ui(enabled, |ui| {
-        for (k, (by, label)) in choices.into_iter().enumerate() {
-            if k == 1 {
+        for choice in &choices {
+            if choice.sep_before {
                 ui.separator();
             }
-            if ui.selectable_label(enabled && current == by, label).clicked() {
-                fc.actions
-                    .push(Action::Group(crate::group_view::GroupOp::Set(by)));
+            if ui.selectable_label(choice.on, choice.label.as_str()).clicked() {
+                fc.actions.push(choice.action.clone());
                 ui.close();
             }
         }
@@ -838,115 +765,19 @@ fn group_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
 
 /// Liste « Trier ▾ » : Trier…, Trier par ID (entrées du menu Affichage).
 fn sort_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    let has_doc = fc.doc.is_some();
-    let sorted = fc.task_view.state.is_sorted();
-    view_entry(
-        ui,
-        fc,
-        TextId::MenuSort,
-        None,
-        has_doc,
-        TaskViewOp::OpenSortDialog,
-    );
-    view_entry(
-        ui,
-        fc,
-        TextId::MenuSortById,
-        Some(UiBinding::SortById),
-        has_doc && sorted,
-        TaskViewOp::ResetSort,
-    );
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::SortMenu));
 }
 
 /// Liste « Mode plan ▾ » : niveaux 1 à 9, Tous, masquer et afficher les
 /// sous-tâches (entrées du menu Affichage).
 fn outline_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    let has_doc = fc.doc.is_some();
-    let texts = fc.texts;
-    ui.add_enabled_ui(has_doc, |ui| {
-        let current = fc.task_view.state.outline_level;
-        for level in 1..=MAX_OUTLINE_LEVEL {
-            let label = texts.get_args(TextId::OutlineLevelN, &[("count", Arg::Count(i64::from(level)))]);
-            if ui.selectable_label(current == Some(level), label).clicked() {
-                fc.actions
-                    .push(Action::TaskView(TaskViewOp::SetOutlineLevel(Some(level))));
-            }
-        }
-        if ui
-            .selectable_label(current.is_none(), texts.get(TextId::OutlineAll))
-            .clicked()
-        {
-            fc.actions
-                .push(Action::TaskView(TaskViewOp::SetOutlineLevel(None)));
-        }
-    });
-    ui.separator();
-    let hide = Some(UiBinding::HideSubtasks);
-    view_entry(
-        ui,
-        fc,
-        TextId::MenuHideSubtasks,
-        hide,
-        has_doc,
-        TaskViewOp::HideSubtasks,
-    );
-    let show = Some(UiBinding::ShowSubtasks);
-    view_entry(
-        ui,
-        fc,
-        TextId::MenuShowSubtasks,
-        show,
-        has_doc,
-        TaskViewOp::ShowSubtasks,
-    );
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::OutlineMenu));
 }
 
 /// Liste « Filtre ▾ » : préréglages, filtres à fenêtre, réappliquer,
 /// effacer (entrées du menu Affichage → Filtre).
 fn filter_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    let has_doc = fc.doc.is_some();
-    let texts = fc.texts;
-    ui.add_enabled_ui(has_doc, |ui| {
-        for (preset, label) in super::task_view::PRESETS {
-            let current = fc.task_view.state.filter == FilterChoice::Preset(preset.clone());
-            if ui
-                .selectable_label(has_doc && current, texts.get(label))
-                .clicked()
-            {
-                fc.actions
-                    .push(Action::TaskView(TaskViewOp::SetFilter(FilterChoice::Preset(
-                        preset,
-                    ))));
-            }
-        }
-    });
-    ui.separator();
-    for (label, mode) in [
-        (TextId::FilterUsingResource, FilterDialogMode::Resource),
-        (TextId::FilterDateRange, FilterDialogMode::DateRange),
-        (TextId::FilterCustom, FilterDialogMode::Custom),
-    ] {
-        view_entry(ui, fc, label, None, has_doc, TaskViewOp::OpenFilterDialog(mode));
-    }
-    ui.separator();
-    let filtered = has_doc && fc.task_view.state.is_filtered();
-    view_entry(
-        ui,
-        fc,
-        TextId::FilterReapply,
-        None,
-        filtered,
-        TaskViewOp::ReapplyFilter,
-    );
-    let clear = Some(UiBinding::ClearFilter);
-    view_entry(
-        ui,
-        fc,
-        TextId::FilterClear,
-        clear,
-        filtered,
-        TaskViewOp::ClearFilter,
-    );
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::FilterMenu));
 }
 
 /// Choix exclusif : une étiquette sélectionnable ; rend `true` au clic. Le
@@ -961,12 +792,7 @@ fn choice(ui: &mut egui::Ui, selected: bool, text: &str) -> bool {
 /// Zoom exclusif Jour / Semaine / Mois / Trimestre ; aucun n'est surligné
 /// sans document (l'ouverture choisira le zoom ajusté).
 fn zoom_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    let has_doc = fc.doc.is_some();
-    for zoom in TimeScaleZoom::ALL {
-        if choice(ui, has_doc && fc.state.zoom == zoom, &fc.texts.get(zoom.label())) {
-            fc.actions.push(Action::SetZoom(zoom));
-        }
-    }
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::TimescaleMenu));
 }
 
 /// Vue exclusive : Diagramme de Gantt / Gantt de suivi (J7, lot L7,
@@ -982,36 +808,506 @@ fn view_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     }
 }
 
-/// Thème exclusif Système / Clair / Sombre.
+/// Thème exclusif Système / Clair / Sombre (écran d'accueil).
 fn theme_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    for (pref, label) in THEME_CHOICES {
-        if choice(ui, fc.state.theme == pref, &fc.texts.get(label)) {
-            fc.actions.push(Action::SetTheme(pref));
-        }
-    }
+    let choices: Vec<Choice> = list_choices(fc, RibbonCmd::ThemeMenu)
+        .into_iter()
+        .filter(|entry| entry.look == ChoiceLook::Exclusive)
+        .collect();
+    draw_choices(ui, fc, &choices);
 }
 
-/// Liste « Thème » (menu Affichage et liste du ruban) : thèmes, puis
-/// « Réduire les animations » (lot A1b, H-UI-147).
+/// Liste « Thème » (menu Affichage et liste du ruban) : thèmes Système /
+/// Clair / Sombre, puis « Réduire les animations » (lot A1b, H-UI-147).
 fn theme_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    theme_choices(ui, fc);
-    ui.separator();
-    let mut reduce = fc.state.reduce_motion;
-    if ui
-        .checkbox(&mut reduce, fc.texts.get(TextId::ReduceMotion))
-        .clicked()
-    {
-        fc.actions.push(Action::SetReduceMotion(reduce));
-    }
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::ThemeMenu));
 }
 
 /// Langue exclusive Système / Français / English.
 fn language_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
-    for (pref, label) in LANGUAGE_CHOICES {
-        if choice(ui, fc.state.language == pref, &fc.texts.get(label)) {
-            fc.actions.push(Action::SetLanguage(pref));
+    draw_choices(ui, fc, &list_choices(fc, RibbonCmd::LanguageMenu));
+}
+
+// --- Lot U3 (palette de commandes, H-UI-178) : entrées des listes du
+// ruban et des menus décrites une fois, dessinées par les menus comme
+// avant et listées par la palette (mêmes libellés, mêmes actions).
+
+/// Dessin d'une entrée de liste : celui que chaque menu avait avant le lot
+/// U3 (aucun changement d'apparence).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ChoiceLook {
+    /// Choix exclusif nommé avec son état ([`choice`] : zoom, thème,
+    /// langue).
+    Exclusive,
+    /// Étiquette sélectionnable simple (niveaux du plan, filtres
+    /// prédéfinis, regroupement).
+    Selectable,
+    /// Bouton avec raccourci éventuel.
+    Button,
+    /// Case à cocher.
+    Check,
+}
+
+/// Entrée d'une liste du ruban ou d'un menu qui n'est pas une
+/// [`RibbonCmd`] : libellé traduit, état, activation, raccourci, action.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Choice {
+    /// Libellé traduit.
+    pub label: String,
+    /// Dessin dans les menus.
+    pub look: ChoiceLook,
+    /// Choix courant ou case cochée.
+    pub on: bool,
+    /// Activation et raison du grisé (la palette l'affiche).
+    pub enabled: Enabled,
+    /// Infobulle de la raison au survol de l'entrée grisée (menus : seul
+    /// « Remplir à droite » l'avait).
+    pub hover_reason: bool,
+    /// Liaison de `KEYMAP` dont le raccourci est affiché.
+    pub binding: Option<Binding>,
+    /// Action poussée au clic.
+    pub action: Action,
+    /// Séparateur avant l'entrée dans les menus.
+    pub sep_before: bool,
+}
+
+impl Choice {
+    /// Entrée `look`, sans raccourci ni séparateur.
+    fn new(label: String, look: ChoiceLook, on: bool, enabled: Enabled, action: Action) -> Self {
+        Self {
+            label,
+            look,
+            on,
+            enabled,
+            hover_reason: false,
+            binding: None,
+            action,
+            sep_before: false,
         }
     }
+
+    /// Avec le raccourci de `binding`.
+    fn with_binding(mut self, binding: Binding) -> Self {
+        self.binding = Some(binding);
+        self
+    }
+
+    /// Avec un séparateur avant.
+    const fn after_separator(mut self) -> Self {
+        self.sep_before = true;
+        self
+    }
+}
+
+/// Activation d'une entrée qui demande un document (et `extra` en plus) :
+/// sans document, « Ouvrez ou créez un projet » ; `extra` faux, raison
+/// générique de la palette.
+const fn needs_doc(has_doc: bool, extra: bool) -> Enabled {
+    if !has_doc {
+        Enabled::no(TextId::RibbonReasonNoDocument)
+    } else if !extra {
+        Enabled::no(TextId::PaletteUnavailable)
+    } else {
+        Enabled::YES
+    }
+}
+
+/// Entrées de la liste déroulante `cmd` du ruban (et de son jumeau de
+/// menu) qui ne sont pas des [`RibbonCmd`] : échelle de temps, thème,
+/// langue, tri, mode plan, filtre, regroupement, colonnes affichées. Vide
+/// pour les autres listes (vues, décaler : leurs entrées sont des
+/// commandes ; couleurs : des valeurs, hors de la palette).
+#[allow(
+    clippy::too_many_lines,
+    reason = "une branche par liste, dans l'ordre des menus"
+)]
+pub(crate) fn list_choices(fc: &FrameCtx<'_>, cmd: RibbonCmd) -> Vec<Choice> {
+    use ChoiceLook::{Button, Check, Exclusive, Selectable};
+    let texts = fc.texts;
+    let has_doc = fc.doc.is_some();
+    let doc = needs_doc(has_doc, true);
+    let view = |op: TaskViewOp| Action::TaskView(op);
+    match cmd {
+        RibbonCmd::TimescaleMenu => TimeScaleZoom::ALL
+            .into_iter()
+            .map(|zoom| {
+                let on = has_doc && fc.state.zoom == zoom;
+                Choice::new(texts.get(zoom.label()), Exclusive, on, doc, Action::SetZoom(zoom))
+            })
+            .collect(),
+        RibbonCmd::ThemeMenu => {
+            let mut out: Vec<Choice> = THEME_CHOICES
+                .into_iter()
+                .map(|(pref, label)| {
+                    let on = fc.state.theme == pref;
+                    Choice::new(
+                        texts.get(label),
+                        Exclusive,
+                        on,
+                        Enabled::YES,
+                        Action::SetTheme(pref),
+                    )
+                })
+                .collect();
+            let reduce = fc.state.reduce_motion;
+            out.push(
+                Choice::new(
+                    texts.get(TextId::ReduceMotion),
+                    Check,
+                    reduce,
+                    Enabled::YES,
+                    Action::SetReduceMotion(!reduce),
+                )
+                .after_separator(),
+            );
+            out
+        }
+        RibbonCmd::LanguageMenu => LANGUAGE_CHOICES
+            .into_iter()
+            .map(|(pref, label)| {
+                let on = fc.state.language == pref;
+                Choice::new(
+                    texts.get(label),
+                    Exclusive,
+                    on,
+                    Enabled::YES,
+                    Action::SetLanguage(pref),
+                )
+            })
+            .collect(),
+        RibbonCmd::SortMenu => {
+            let sorted = fc.task_view.state.is_sorted();
+            vec![
+                Choice::new(
+                    texts.get(TextId::MenuSort),
+                    Button,
+                    false,
+                    doc,
+                    view(TaskViewOp::OpenSortDialog),
+                ),
+                Choice::new(
+                    texts.get(TextId::MenuSortById),
+                    Button,
+                    false,
+                    needs_doc(has_doc, sorted),
+                    view(TaskViewOp::ResetSort),
+                )
+                .with_binding(Binding::Ui(UiBinding::SortById)),
+            ]
+        }
+        RibbonCmd::OutlineMenu => {
+            let current = fc.task_view.state.outline_level;
+            let mut out: Vec<Choice> = (1..=MAX_OUTLINE_LEVEL)
+                .map(|level| {
+                    let label =
+                        texts.get_args(TextId::OutlineLevelN, &[("count", Arg::Count(i64::from(level)))]);
+                    let action = view(TaskViewOp::SetOutlineLevel(Some(level)));
+                    Choice::new(label, Selectable, current == Some(level), doc, action)
+                })
+                .collect();
+            out.push(Choice::new(
+                texts.get(TextId::OutlineAll),
+                Selectable,
+                current.is_none(),
+                doc,
+                view(TaskViewOp::SetOutlineLevel(None)),
+            ));
+            out.push(
+                Choice::new(
+                    texts.get(TextId::MenuHideSubtasks),
+                    Button,
+                    false,
+                    doc,
+                    view(TaskViewOp::HideSubtasks),
+                )
+                .with_binding(Binding::Ui(UiBinding::HideSubtasks))
+                .after_separator(),
+            );
+            out.push(
+                Choice::new(
+                    texts.get(TextId::MenuShowSubtasks),
+                    Button,
+                    false,
+                    doc,
+                    view(TaskViewOp::ShowSubtasks),
+                )
+                .with_binding(Binding::Ui(UiBinding::ShowSubtasks)),
+            );
+            out
+        }
+        RibbonCmd::FilterMenu => {
+            let mut out: Vec<Choice> = super::task_view::PRESETS
+                .into_iter()
+                .map(|(preset, label)| {
+                    let choice = FilterChoice::Preset(preset);
+                    let on = has_doc && fc.task_view.state.filter == choice;
+                    Choice::new(
+                        texts.get(label),
+                        Selectable,
+                        on,
+                        doc,
+                        view(TaskViewOp::SetFilter(choice)),
+                    )
+                })
+                .collect();
+            for (k, (label, mode)) in [
+                (TextId::FilterUsingResource, FilterDialogMode::Resource),
+                (TextId::FilterDateRange, FilterDialogMode::DateRange),
+                (TextId::FilterCustom, FilterDialogMode::Custom),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let entry = Choice::new(
+                    texts.get(label),
+                    Button,
+                    false,
+                    doc,
+                    view(TaskViewOp::OpenFilterDialog(mode)),
+                );
+                out.push(if k == 0 { entry.after_separator() } else { entry });
+            }
+            let filtered = needs_doc(has_doc, fc.task_view.state.is_filtered());
+            out.push(
+                Choice::new(
+                    texts.get(TextId::FilterReapply),
+                    Button,
+                    false,
+                    filtered,
+                    view(TaskViewOp::ReapplyFilter),
+                )
+                .after_separator(),
+            );
+            out.push(
+                Choice::new(
+                    texts.get(TextId::FilterClear),
+                    Button,
+                    false,
+                    filtered,
+                    view(TaskViewOp::ClearFilter),
+                )
+                .with_binding(Binding::Ui(UiBinding::ClearFilter)),
+            );
+            out
+        }
+        RibbonCmd::GroupByMenu => {
+            let enabled = RibbonCmd::GroupByMenu.enabled(fc);
+            let current = fc.task_view.group_by;
+            crate::group_view::choices(fc.doc.map(crate::app::OpenDocument::project), texts)
+                .into_iter()
+                .enumerate()
+                .map(|(k, (by, label))| {
+                    let on = enabled.yes && current == by;
+                    let action = Action::Group(crate::group_view::GroupOp::Set(by));
+                    let entry = Choice::new(label, Selectable, on, enabled, action);
+                    if k == 1 { entry.after_separator() } else { entry }
+                })
+                .collect()
+        }
+        RibbonCmd::ColumnsMenu => Column::ALL
+            .into_iter()
+            .map(|column| {
+                let enabled = if column.hideable() {
+                    Enabled::YES
+                } else {
+                    Enabled::no(TextId::PaletteUnavailable)
+                };
+                let on = fc.state.shown(column);
+                Choice::new(
+                    texts.get(column.title()),
+                    Check,
+                    on,
+                    enabled,
+                    Action::ToggleColumn(column),
+                )
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Dessine `choices` dans un menu (séparateurs compris) ; un clic pousse
+/// l'action de l'entrée.
+pub(crate) fn draw_choices(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, choices: &[Choice]) {
+    for entry in choices {
+        if entry.sep_before {
+            ui.separator();
+        }
+        draw_choice(ui, fc, entry);
+    }
+}
+
+/// Dessine une entrée selon sa forme ([`ChoiceLook`]) ; un clic pousse son
+/// action.
+fn draw_choice(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, entry: &Choice) {
+    let enabled = entry.enabled.yes;
+    let clicked = match entry.look {
+        ChoiceLook::Exclusive | ChoiceLook::Selectable if !enabled => {
+            ui.add_enabled_ui(false, |ui| show_selectable(ui, entry)).inner
+        }
+        ChoiceLook::Exclusive | ChoiceLook::Selectable => show_selectable(ui, entry),
+        ChoiceLook::Button => {
+            let mut button = egui::Button::new(entry.label.as_str());
+            if let Some(shortcut) = binding_shortcut(ui, entry.binding) {
+                button = button.shortcut_text(shortcut_text(ui.ctx(), &shortcut));
+            }
+            let response = ui.add_enabled(enabled, button);
+            let response = match entry.enabled.reason {
+                Some(reason) if entry.hover_reason => response.on_disabled_hover_text(fc.texts.get(reason)),
+                _ => response,
+            };
+            response.clicked()
+        }
+        ChoiceLook::Check => {
+            let mut on = entry.on;
+            ui.add_enabled(enabled, egui::Checkbox::new(&mut on, entry.label.as_str()))
+                .clicked()
+        }
+    };
+    if clicked {
+        fc.actions.push(entry.action.clone());
+    }
+}
+
+/// Étiquette sélectionnable d'une entrée exclusive ou simple.
+fn show_selectable(ui: &mut egui::Ui, entry: &Choice) -> bool {
+    if entry.look == ChoiceLook::Exclusive {
+        choice(ui, entry.on, &entry.label)
+    } else {
+        ui.selectable_label(entry.on, entry.label.as_str()).clicked()
+    }
+}
+
+/// Entrées des menus qui ne sont pas des commandes du ruban (lot U3 :
+/// décrites une fois pour les menus et la palette).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MenuCmd {
+    /// Fichier → Nouveau.
+    New,
+    /// Fichier → Ouvrir l'exemple.
+    OpenDemo,
+    /// Fichier → Ouvrir…
+    Open,
+    /// Fichier → Enregistrer sous…
+    SaveAs,
+    /// Fichier → Importer CSV…
+    ImportCsv,
+    /// Fichier → Exporter → SVG.
+    ExportSvg,
+    /// Fichier → Exporter → CSV.
+    ExportCsv,
+    /// Fichier → Fermer.
+    Close,
+    /// Fichier → Quitter (desktop).
+    Quit,
+    /// Aide → À propos.
+    About,
+    /// Édition → Remplir à droite (aussi dans « Remplir ▾ » du ruban).
+    FillRight,
+}
+
+impl MenuCmd {
+    /// Toutes les entrées, dans l'ordre des menus.
+    pub(crate) const ALL: [Self; 11] = [
+        Self::New,
+        Self::OpenDemo,
+        Self::Open,
+        Self::SaveAs,
+        Self::ImportCsv,
+        Self::ExportSvg,
+        Self::ExportCsv,
+        Self::Close,
+        Self::Quit,
+        Self::FillRight,
+        Self::About,
+    ];
+
+    /// Entrée présente sur cette plateforme (Quitter : desktop seulement,
+    /// le navigateur ne laisse pas une page fermer son onglet).
+    pub(crate) const fn available(self) -> bool {
+        !matches!(self, Self::Quit) || !cfg!(target_arch = "wasm32")
+    }
+
+    /// Menu, puis sous-menus, où l'entrée est dessinée.
+    pub(crate) const fn menu_path(self) -> &'static [TextId] {
+        match self {
+            Self::ExportSvg | Self::ExportCsv => &[TextId::MenuFile, TextId::MenuExport],
+            Self::About => &[TextId::MenuHelp],
+            Self::FillRight => &[TextId::MenuEdit],
+            _ => &[TextId::MenuFile],
+        }
+    }
+
+    /// Libellé, activation, raccourci et action de l'entrée.
+    pub(crate) fn choice(self, fc: &FrameCtx<'_>) -> Choice {
+        use ChoiceLook::Button;
+        let texts = fc.texts;
+        let doc = needs_doc(fc.doc.is_some(), true);
+        let (label, enabled, binding, action) = match self {
+            Self::New => (
+                TextId::MenuNew,
+                Enabled::YES,
+                Some(Binding::Command("project.new")),
+                Action::NewProject,
+            ),
+            Self::OpenDemo => (TextId::MenuOpenDemo, Enabled::YES, None, Action::OpenDemo),
+            Self::Open => (
+                TextId::MenuOpen,
+                Enabled::YES,
+                Some(Binding::Ui(UiBinding::OpenFile)),
+                Action::OpenDialog,
+            ),
+            Self::SaveAs => (
+                TextId::MenuSaveAs,
+                doc,
+                Some(Binding::Ui(UiBinding::SaveAs)),
+                Action::SaveAs,
+            ),
+            Self::ImportCsv => (TextId::MenuImportCsv, Enabled::YES, None, Action::ImportCsv),
+            Self::ExportSvg => (TextId::MenuExportSvg, doc, None, Action::Export(SaveKind::Svg)),
+            Self::ExportCsv => (TextId::MenuExportCsv, doc, None, Action::Export(SaveKind::Csv)),
+            Self::Close => (
+                TextId::MenuClose,
+                doc,
+                Some(Binding::Ui(UiBinding::CloseDocument)),
+                Action::CloseDocumentGuarded,
+            ),
+            Self::Quit => (
+                TextId::MenuQuit,
+                Enabled::YES,
+                Some(Binding::Ui(UiBinding::Quit)),
+                Action::Quit,
+            ),
+            Self::FillRight => {
+                let mut entry = Choice::new(
+                    texts.get(TextId::MenuFillRight),
+                    Button,
+                    false,
+                    RibbonCmd::FillDown.enabled(fc),
+                    Action::Cells(crate::action::CellOp::FillRight),
+                )
+                .with_binding(Binding::Ui(UiBinding::FillRight));
+                entry.hover_reason = true;
+                return entry;
+            }
+            Self::About => {
+                let label = texts.get_args(
+                    TextId::MenuAbout,
+                    &[("product", Arg::Str(plannercraft_core::PRODUCT_NAME.into()))],
+                );
+                return Choice::new(label, Button, false, Enabled::YES, Action::About);
+            }
+        };
+        let mut entry = Choice::new(texts.get(label), Button, false, enabled, action);
+        entry.binding = binding;
+        entry
+    }
+}
+
+/// Entrée de menu d'une [`MenuCmd`].
+fn menu_cmd(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, cmd: MenuCmd) {
+    let entry = cmd.choice(fc);
+    draw_choice(ui, fc, &entry);
 }
 
 /// Écran d'accueil (aucun document ouvert) : titre, boutons d'ouverture et
