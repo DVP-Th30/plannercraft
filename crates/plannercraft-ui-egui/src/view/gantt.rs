@@ -1077,12 +1077,19 @@ fn background_shapes(
                 4.0,
             ));
         }
-        // Aujourd'hui (H-UI-54) : trait pointillé distinct, sauf s'il tombe
-        // sur la date d'état.
+        // Aujourd'hui (H-UI-54) : trait pointillé distinct, sauf le même
+        // jour que la date d'état ou à moins de 4 points de son trait
+        // (H-UI-185, règle partagée avec l'impression).
         if geo.style.scale.today_mark {
             let today = doc.project().current_date;
             let tx = axis.x(today).round() + 0.5;
-            if (tx - sx).abs() > 0.5 && tx.is_finite() && tx >= clip.left() && tx <= clip.right() {
+            let status_drawn = sx.is_finite() && sx >= clip.left() && sx <= clip.right();
+            let gap16 = crate::geom::f32_to_bounded_i64(((tx - sx) * 16.0).round(), i64::from(i32::MAX));
+            if plannercraft_render::geometry::today_line_shown(status, today, status_drawn, gap16)
+                && tx.is_finite()
+                && tx >= clip.left()
+                && tx <= clip.right()
+            {
                 let line = [pos2(tx, clip.top()), pos2(tx, clip.bottom())];
                 out.extend(Shape::dashed_line(
                     &line,

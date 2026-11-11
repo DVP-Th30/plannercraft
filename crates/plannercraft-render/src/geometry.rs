@@ -803,6 +803,22 @@ pub const fn phase_painted(role: crate::style::BarRole) -> bool {
 /// fin de semaine seule (2 jours) ne l'est pas.
 pub const LONG_OFF_DAYS: i64 = 3;
 
+/// Écart minimal, en 1/16 de point, entre le trait d'aujourd'hui et celui
+/// de la date d'état pour que les deux soient dessinés (H-UI-185, 4 points).
+pub const TODAY_STATUS_MIN_GAP16: i64 = 4 * SUB;
+
+/// Le trait d'aujourd'hui est-il dessiné (H-UI-54, H-UI-185) ? Non quand
+/// le trait de la date d'état est tracé (`status_drawn`) et qu'aujourd'hui
+/// tombe le même jour civil que la date d'état, ou à moins de
+/// [`TODAY_STATUS_MIN_GAP16`] de son trait (`gap16`, écart des abscisses en
+/// 1/16 de point) : deux traits presque superposés font un trait bicolore
+/// brouillon, seul celui de la date d'état reste. Règle unique de l'écran,
+/// de l'aperçu, du SVG et du PDF.
+#[must_use]
+pub fn today_line_shown(status: Moment, today: Moment, status_drawn: bool, gap16: i64) -> bool {
+    !(status_drawn && (status.day() == today.day() || gap16.saturating_abs() < TODAY_STATUS_MIN_GAP16))
+}
+
 /// Rang du mois de `day` relatif au mois de `start` (H-UI-67) : 1 pour le
 /// mois du démarrage, 2 le suivant… ; −1, −2… avant (aucun mois 0).
 #[must_use]

@@ -1263,7 +1263,10 @@ pub(crate) fn build(
     }
     if st.scale.today_mark {
         let tx = axis.x16(p.current_date);
-        if tx >= axis.left16() && tx <= axis.right16() && tx != sx {
+        if tx >= axis.left16()
+            && tx <= axis.right16()
+            && crate::geometry::today_line_shown(status, p.current_date, status_in, tx.saturating_sub(sx))
+        {
             items.push(
                 Clip::None,
                 Part::Fixed,

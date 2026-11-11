@@ -67,6 +67,7 @@ Finitions avant `v1.0.0` (ADR-0022, cahier `docs/plans/polish.md`) : les manques
 - Serveur MCP : SDK `rmcp` monté de 3.5.1 à 3.9.0 (alertes RUSTSEC-2026-0457, 0461 et 0462 ; la seconde touchait `plannercraft mcp --http` : mémoire sans borne sur des appels d'outils inconnus). Aucun changement d'outil ni de réponse.
 
 ### Corrigé
+- Gantt, aperçu, SVG et PDF : quand « aujourd'hui » tombe le même jour que la date d'état (ou à moins de 4 points), seul le trait de la date d'état est dessiné ; les deux traits presque superposés faisaient un trait bicolore brouillon sous « État 15/01 » dans l'exemple (ADR-0027 D2).
 - « Insérer une colonne » : défiler la liste des champs à la molette ou à l'ascenseur la ramenait aussitôt en haut ; seule une flèche ou la recherche ramène désormais la ligne choisie à l'écran (ADR-0027 D1).
 - La carte de proposition de l'assistant et le bandeau d'approbation affichaient « 0 tâche touchée » pour un lot qui change des tâches sans déplacer leurs dates (avancement passé à 100 %, renommage…) : ils disent maintenant « 10 tâches modifiées · aucune date déplacée » (« 3 dates déplacées » quand des dates bougent). Le diff des écritures (MCP, `apply`) gagne `touched_total` à côté de `changed_total` (dates déplacées, inchangé), et l'assistant reçoit `touched_tasks` (R-163 amendée).
 - Appliquer un modèle de la galerie vidait la liste de la chronologie du document ; elle est gardée, comme les couleurs de phase, et n'est jamais enregistrée dans un modèle personnel.
