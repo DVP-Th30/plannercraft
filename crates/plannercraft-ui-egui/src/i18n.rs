@@ -2248,6 +2248,8 @@ mod tests {
             ("role", Arg::Str("Barres critiques".into())),
             ("color", Arg::Str("#D55E00".into())),
             ("ratio", Arg::Str("1,6".into())),
+            // Lot R1c : fond en cause dans l'avertissement de contraste.
+            ("bg", Arg::Str("dark".into())),
             ("page", Arg::Count(2)),
             ("pages", Arg::Count(7)),
             ("scale", Arg::Count(95)),

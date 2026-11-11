@@ -1080,7 +1080,11 @@ fp-text-inside = Text inside
 fp-none = None
 fp-duration-after-name = Duration after the name
 fp-details = Details
-fp-contrast-low = Contrast too low on the background: { $ratio }:1 (3:1 at least).
+fp-contrast-low = Contrast too low { $bg ->
+        [dark] on the dark background
+        [print] in print
+       *[light] on the light background
+    }: { $ratio }:1 (3:1 at least).
 fp-use-suggestion = Use { $color }
 fp-revert = Revert to template
 fp-save-template = Save as template…

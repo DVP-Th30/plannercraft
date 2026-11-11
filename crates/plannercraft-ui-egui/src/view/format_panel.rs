@@ -262,22 +262,24 @@ pub fn swatch_rows(model: &PlanStyle, shown: &PlanStyle, v: Variant) -> [Vec<Rgb
 }
 
 /// Avertissement de contraste d'une couleur de barre ou de phase (H-UI-61 ;
-/// lot R1c : la même règle pour les deux) : la couleur vaut pour les trois
-/// variantes, mesurée sur le fond de chacune (`bgs`) ; sous 3:1 sur l'un,
-/// le pire rapport est dit et la couleur conforme la plus proche **sur les
-/// trois** est proposée (aucune si elle n'existe pas). Rend la proposition
-/// cliquée.
+/// lot R1c : la même règle pour les deux) : la couleur est mesurée sur le
+/// fond de chaque variante de `bgs` (les trois pour une couleur choisie, qui
+/// vaut partout ; la variante affichée seule pour une couleur du modèle) ;
+/// sous 3:1 sur l'un, le pire rapport est dit **avec le fond en cause**
+/// (une couleur lisible à l'écran peut ne pas l'être dans l'autre thème) et
+/// la couleur conforme la plus proche sur tous les fonds mesurés est
+/// proposée (aucune si elle n'existe pas). Rend la proposition cliquée.
 fn contrast_warning(
     ui: &mut egui::Ui,
     texts: &Texts,
     lang: Language,
     rgb: Rgb,
-    bgs: &[Rgb; 3],
+    bgs: &[(Variant, Rgb)],
 ) -> Option<Rgb> {
-    let (ratio, worst) = bgs
+    let (ratio, variant, worst) = bgs
         .iter()
-        .map(|bg| (contrast_ratio(rgb, *bg), *bg))
-        .min_by_key(|(r, _)| *r)?;
+        .map(|(v, bg)| (contrast_ratio(rgb, *bg), *v, *bg))
+        .min_by_key(|(r, _, _)| *r)?;
     if ratio >= MIN_BAR {
         return None;
     }
@@ -287,12 +289,21 @@ fn contrast_warning(
     } else {
         shown
     };
+    // Clé du sélecteur de `fp-contrast-low` (fond clair par défaut).
+    let bg = match variant {
+        Variant::Light => "light",
+        Variant::Dark => "dark",
+        Variant::Print => "print",
+    };
     ui.colored_label(
         ui.visuals().warn_fg_color,
-        texts.get_args(TextId::FpContrastLow, &[("ratio", Arg::Str(shown.into()))]),
+        texts.get_args(
+            TextId::FpContrastLow,
+            &[("ratio", Arg::Str(shown.into())), ("bg", Arg::Str(bg.into()))],
+        ),
     );
     let better = nearest_compliant(rgb, worst, MIN_BAR)
-        .filter(|b| bgs.iter().all(|bg| contrast_ratio(*b, *bg) >= MIN_BAR))?;
+        .filter(|b| bgs.iter().all(|(_, bg)| contrast_ratio(*b, *bg) >= MIN_BAR))?;
     let label = texts.get_args(
         TextId::FpUseSuggestion,
         &[("color", Arg::Str(better.hex().into()))],
@@ -506,13 +517,11 @@ pub fn show(
             // phases ; une couleur du modèle (une par variante) l'est sur le
             // fond affiché seulement, comme avant.
             let user = style.tokens(v).bars.get(&role).is_some_and(plannercraft_render::style::BarPaint::is_user);
-            let bgs = if user {
-                [Variant::Light, Variant::Dark, Variant::Print].map(|v| style.tokens(v).bg)
-            } else {
-                [style.tokens(v).bg; 3]
-            };
+            let all = [Variant::Light, Variant::Dark, Variant::Print].map(|v| (v, style.tokens(v).bg));
+            let shown = [(v, style.tokens(v).bg)];
+            let bgs: &[(Variant, Rgb)] = if user { &all } else { &shown };
             if let Some(rgb) = current
-                && let Some(better) = contrast_warning(ui, texts, input.lang, rgb, &bgs)
+                && let Some(better) = contrast_warning(ui, texts, input.lang, rgb, bgs)
             {
                 effects.push(FormatEffect::Exec(color_batch(role, better, input)));
             }
@@ -619,7 +628,7 @@ pub fn show(
                 // le fond de chacune ; proposition sur le fond le plus
                 // exigeant si elle convient aux trois.
                 if let Some(p) = own {
-                    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| style.tokens(v).bg);
+                    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| (v, style.tokens(v).bg));
                     if let Some(better) = contrast_warning(ui, texts, input.lang, p.fill, &bgs) {
                         let mut phases = style.phases.clone();
                         phases.insert(key, PhaseColor { fill: better, ..p });

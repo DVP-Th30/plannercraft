@@ -1079,7 +1079,11 @@ fp-text-inside = Texte dans la barre
 fp-none = Aucun
 fp-duration-after-name = Durée après le nom
 fp-details = Détails
-fp-contrast-low = Contraste insuffisant sur le fond : { $ratio }:1 (3:1 au moins).
+fp-contrast-low = Contraste insuffisant { $bg ->
+        [dark] sur le fond sombre
+        [print] à l'impression
+       *[light] sur le fond clair
+    } : { $ratio }:1 (3:1 au moins).
 fp-use-suggestion = Utiliser { $color }
 fp-revert = Revenir au modèle
 fp-save-template = Enregistrer comme modèle…

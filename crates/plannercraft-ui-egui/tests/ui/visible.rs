@@ -515,8 +515,8 @@ fn h_ui_61_low_contrast_warned() {
     harness.run();
     let warned = texts(&harness)
         .iter()
-        .any(|(_, t)| t.starts_with("Contraste insuffisant"));
-    assert!(warned, "aucun avertissement de contraste");
+        .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond clair"));
+    assert!(warned, "aucun avertissement de contraste sur le fond clair");
     let suggestion =
         plannercraft_automation::command::style::nearest_compliant(yellow, Rgb(0xFF, 0xFF, 0xFF), 3_000)
             .unwrap();
@@ -1397,8 +1397,9 @@ fn snapshot_bar_colors_fr_dark() {
 
 /// H-UI-194 (lot R1c, amende H-UI-61) : une couleur choisie est mesurée
 /// sur les fonds clair, sombre et impression ; bleu nuit `#123456`, lisible
-/// sur le blanc, est signalé (fond sombre) et la proposition convient aux
-/// trois ; appliquée, plus d'avertissement. Couleur du modèle : fond
+/// sur le blanc, est signalé (« sur le fond sombre », le fond en cause est
+/// nommé) et la proposition convient aux trois ; appliquée, plus
+/// d'avertissement. Couleur du modèle : fond
 /// affiché seul (aucun avertissement sur Sobre).
 #[test]
 fn h_ui_194_contrast_three_backgrounds() {
@@ -1422,6 +1423,14 @@ fn h_ui_194_contrast_three_backgrounds() {
     harness.run();
     harness.run();
     assert!(warned(&harness), "aucun avertissement sur le fond sombre");
+    // Le fond en cause est nommé : la couleur est lisible sur l'écran clair
+    // affiché, l'avertissement doit dire pourquoi il apparaît.
+    assert!(
+        texts(&harness)
+            .iter()
+            .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond sombre")),
+        "fond en cause non nommé"
+    );
     let st = effective(harness.state());
     let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| st.tokens(v).bg);
     assert!(plannercraft_render::style::contrast_ratio(navy, bgs[0]) >= 3_000);
