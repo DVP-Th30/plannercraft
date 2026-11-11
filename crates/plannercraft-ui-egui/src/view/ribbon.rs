@@ -131,8 +131,11 @@ const LOGO: f32 = 20.0;
 const QUICK_SEP_H: f32 = 14.0;
 /// Marge horizontale du corps.
 const BODY_PAD: f32 = 4.0;
-/// Taille du texte des libellés.
-const LABEL_SIZE: f32 = 12.0;
+/// Taille du texte des libellés : 11,5 points en Inter (lot U1, H-UI-169),
+/// même œil que les 12 points d'Ubuntu Light d'avant (hauteur d'x d'Inter
+/// plus grande) ; à 12 points, Inter (5 à 8 % plus large) faisait perdre
+/// ses libellés à Propriétés à 1 280 px (H-UI-75).
+const LABEL_SIZE: f32 = 11.5;
 /// Taille du nom des groupes.
 const GROUP_LABEL_SIZE: f32 = 11.0;
 /// Hauteur d'une ligne de libellé d'un grand bouton.

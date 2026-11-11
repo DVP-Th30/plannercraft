@@ -653,7 +653,9 @@ fn h_ui_63_milestone_date_left() {
 #[test]
 fn h_ui_64_labels_above_links() {
     let (harness, _) = sobre_p();
-    let tokens = template(TemplateId::Sobre).tokens(Variant::Light).clone();
+    // Sobre tel que l'écran le dessine (interface adoucie, lot U1).
+    let screen = plannercraft_ui_egui::theme::screen_style(template(TemplateId::Sobre)).0;
+    let tokens = screen.tokens(Variant::Light).clone();
     let all = shapes(&harness);
     let zone = gantt_zone(&harness);
     let link = |s: &Shape| match s {
@@ -715,7 +717,9 @@ fn h_ui_65_phase_color_row_and_bar() {
         .filter(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(red) && r.rect.left() > zone.left()))
         .count();
     assert!(bars >= 2, "sous-barres de la couleur : {bars}");
-    let tint = plannercraft_render::style::phase_row_tint(&st, Variant::Light, red);
+    // Fond de l'écran : Sobre adouci (lot U1).
+    let screen = plannercraft_ui_egui::theme::screen_style(st.clone()).0;
+    let tint = plannercraft_render::style::phase_row_tint(&screen, Variant::Light, red);
     let row = row_rect(&harness, 5, "Second œuvre");
     let filled = all
         .iter()

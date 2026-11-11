@@ -465,10 +465,9 @@ fn snapshot_main_fr_light_non_working() {
     harness.run();
     show(&mut harness, GanttStyle::Standard, TimeScaleZoom::Day);
     scroll_to_day(&mut harness, day(5));
-    // Modèle par défaut (Sobre depuis J8 lot L15) : sa couleur des jours
-    // chômés.
-    let sobre = plannercraft_render::style::template(plannercraft_render::style::TemplateId::Sobre);
-    let non_working = Palette::from_style(&sobre, plannercraft_render::style::Variant::Light).non_working;
+    // Modèle par défaut (Sobre depuis J8 lot L15), adouci à l'écran (lot
+    // U1) : couleur des jours chômés de l'interface adoucie.
+    let non_working = Palette::SOFT_LIGHT.non_working;
     assert!(!rects(&harness, non_working).is_empty());
     snapshot(&mut harness, "main_fr_light_non_working");
 }

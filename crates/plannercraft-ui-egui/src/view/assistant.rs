@@ -775,7 +775,7 @@ fn user_message(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, turn: &Tur
     let galley = ui.painter().layout(
         turn.question.clone(),
         FontId::proportional(BODY_SIZE),
-        t.text,
+        t.user_text,
         wrap,
     );
     let size = vec2(galley.size().x + 24.0, galley.size().y + 16.0);
@@ -792,7 +792,7 @@ fn user_message(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, turn: &Tur
         t.user_bg,
     );
     ui.painter()
-        .galley(pos2(bubble.min.x + 12.0, bubble.min.y + 8.0), galley, t.text);
+        .galley(pos2(bubble.min.x + 12.0, bubble.min.y + 8.0), galley, t.user_text);
     let question = turn.question.clone();
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, question.clone()));
     if let Some(at) = &turn.asked_at

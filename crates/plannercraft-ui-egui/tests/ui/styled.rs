@@ -147,9 +147,8 @@ fn classique_screen_identical_to_j7() {
 fn h_ui_43_default_template_on_screen() {
     let mut harness = demo(TemplateId::Sobre);
     week(&mut harness);
-    let sobre = template(TemplateId::Sobre);
-    let c = sobre.tokens(Variant::Light);
-    let task = rgb(c.bars[&BarRole::Task].fill);
+    // Sobre adouci à l'écran (interface adoucie, lot U1).
+    let task = Palette::SOFT_LIGHT.bar;
     assert_ne!(task, Palette::LIGHT.bar);
     assert_ne!(filled(&harness, task).len(), 0);
     assert_eq!(filled(&harness, Palette::LIGHT.bar).len(), 0);
