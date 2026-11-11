@@ -138,10 +138,14 @@ impl ToolHost for SessionHost<'_> {
         let outcome = call_with(&mut copy, &self.env, "batch.apply", dry)?;
         let id = self.next_proposal;
         self.next_proposal = self.next_proposal.saturating_add(1);
-        let changed = outcome
-            .pointer("/diff/changed_total")
-            .and_then(Value::as_u64)
-            .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX));
+        let count = |path: &str| {
+            outcome
+                .pointer(path)
+                .and_then(Value::as_u64)
+                .map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX))
+        };
+        let changed = count("/diff/changed_total");
+        let touched = count("/diff/touched_total");
         let result = crate::proposal::pending_result(id, label, &outcome, self.env.lang);
         self.proposals.push(QueuedProposal {
             id,
@@ -153,6 +157,7 @@ impl ToolHost for SessionHost<'_> {
             id,
             label: label.to_owned(),
             changed_tasks: changed,
+            touched_tasks: touched,
             result,
         })
     }

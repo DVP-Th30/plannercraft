@@ -1,6 +1,7 @@
 //! Bandeau de validation d'une écriture d'un agent (H-UI-27, ADR-0015 D10,
 //! lot L3) : « L'agent propose sur « plan.xml » : task.update — 3 tâches
-//! modifiées, fin +2j, chemin critique modifié », Accepter / Refuser.
+//! modifiées · 3 dates déplacées, fin +2j, chemin critique modifié »,
+//! Accepter / Refuser.
 //!
 //! Le bandeau ne calcule rien (règle 3) : les compteurs et l'écart de fin
 //! (texte du moteur) viennent du `dry_run` de la commande ([`ApprovalSummary`],
@@ -23,8 +24,11 @@ use crate::view::FrameCtx;
 /// l'interface ne calcule rien.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ApprovalSummary {
-    /// Tâches changées (`diff.changed_total`).
+    /// Tâches aux dates déplacées (`diff.changed_total`).
     pub changed_tasks: u32,
+    /// Tâches touchées par l'écriture (`diff.touched_total`, R-163
+    /// amendée), jamais moins que `changed_tasks`.
+    pub touched_tasks: u32,
     /// Écart de fin du projet en minutes ouvrées (`diff.finish_delta`).
     pub finish_delta: Option<i64>,
     /// Même écart en texte du moteur (« 2j », « -1j »), signé à
@@ -69,7 +73,10 @@ pub fn banner_text(fc: &FrameCtx<'_>, banner: &ApprovalBanner<'_>) -> String {
         Some(summary) => {
             parts.push(texts.get_args(
                 TextId::ApprovalChanged,
-                &[("count", Arg::Count(i64::from(summary.changed_tasks)))],
+                &[
+                    ("touched", Arg::Count(i64::from(summary.touched_tasks))),
+                    ("moved", Arg::Count(i64::from(summary.changed_tasks))),
+                ],
             ));
             match (summary.finish_delta, summary.finish_delta_text.as_deref()) {
                 (Some(minutes), Some(text)) if minutes != 0 => {

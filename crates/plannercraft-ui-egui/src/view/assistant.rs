@@ -1114,9 +1114,13 @@ fn proposal_card(
                     .wrap(),
                 );
             });
+            // « 10 tâches modifiées · aucune date déplacée » (R-163 amendée).
             let changed = texts.get_args(
                 TextId::AssistantProposalChanged,
-                &[("count", Arg::Count(i64::from(card.changed_tasks)))],
+                &[
+                    ("touched", Arg::Count(i64::from(card.touched()))),
+                    ("moved", Arg::Count(i64::from(card.changed_tasks))),
+                ],
             );
             ui.label(RichText::new(changed).size(META_SIZE).color(t.meta));
             ui.add_space(6.0);

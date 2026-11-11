@@ -1050,6 +1050,7 @@ impl Conversation {
                     id: done.id,
                     label: done.label,
                     changed_tasks: done.changed_tasks,
+                    touched_tasks: done.touched_tasks,
                     status: ProposalStatus::Pending,
                 };
                 (done.result.to_string(), Some(card))
