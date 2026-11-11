@@ -156,6 +156,9 @@ pub struct AiHistoryEntry {
     /// Entrée d'annulation du lot accepté : (numéro d'ouverture, position
     /// de l'historique après le lot) ; `None` si rien n'a été appliqué.
     pub undo: Option<(u64, u64)>,
+    /// Colonnes affichées par le lot accepté, « Voir les ressources » (lot
+    /// R1, H-UI-188) ; `None` : rien à dire.
+    pub applied: Option<crate::applied::Applied>,
 }
 
 /// Ajoute `entry` à `history`, en retirant les plus anciennes au-delà de
@@ -562,9 +565,55 @@ fn ai_tab(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, ai: AiPanelInput<'_>) {
                             fc.actions.push(Action::Undo);
                         }
                     });
+                    if let Some(applied) = &entry.applied
+                        && applied_result(ui, fc, applied, None)
+                    {
+                        fc.actions
+                            .push(Action::SetView(crate::state::ViewKind::ResourceSheet));
+                    }
                 });
             }
         });
+}
+
+/// Résultat d'un lot accepté (H-UI-188), sur la carte de résultat (panneau
+/// Opérations IA et carte de la proposition de l'assistant) : « Colonne
+/// affichée : Noms ressources » ; bouton « Voir les ressources » pour un
+/// lot de ressources seules. `color` : couleur du texte (carte de
+/// l'assistant), sinon celle d'egui. Rend vrai si le bouton est cliqué
+/// (l'appelant pousse `Action::SetView`, la même action que le ruban).
+pub(crate) fn applied_result(
+    ui: &mut egui::Ui,
+    fc: &FrameCtx<'_>,
+    applied: &crate::applied::Applied,
+    color: Option<egui::Color32>,
+) -> bool {
+    let texts = fc.texts;
+    if !applied.columns.is_empty() {
+        let project = fc.doc.map(crate::app::OpenDocument::project);
+        let names: Vec<String> = applied
+            .columns
+            .iter()
+            .map(|c| crate::field::column_label(*c, texts, project))
+            .collect();
+        let count = i64::try_from(names.len()).unwrap_or(i64::MAX);
+        let line = texts.get_args(
+            TextId::AppliedColumns,
+            &[
+                ("count", Arg::Count(count)),
+                ("names", Arg::Str(names.join(", ").into())),
+            ],
+        );
+        let text = egui::RichText::new(line);
+        ui.add(
+            egui::Label::new(match color {
+                Some(color) => text.color(color),
+                None => text,
+            })
+            .wrap(),
+        );
+    }
+    applied.resources && ui.small_button(texts.get(TextId::AppliedShowResources)).clicked()
 }
 
 /// Ligne d'historique : heure, outil, document, issue.

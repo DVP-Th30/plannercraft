@@ -1693,6 +1693,8 @@ text_ids! {
     BarTipManual => "bar-tip-manual",
     BarTipActual => "bar-tip-actual",
     DetailsOpenerTip => "details-opener-tip",
+    AppliedColumns => "applied-columns",
+    AppliedShowResources => "applied-show-resources",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

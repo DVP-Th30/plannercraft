@@ -1858,3 +1858,9 @@ bar-tip-summary-gate = Bornée par la récapitulative { $name }
 bar-tip-manual = Dates saisies (tâche manuelle)
 bar-tip-actual = Date réelle saisie
 details-opener-tip = Faire glisser vers le haut pour afficher le volet Détails
+applied-columns =
+    { $count ->
+        [one] Colonne affichée : { $names }
+       *[other] Colonnes affichées : { $names }
+    }
+applied-show-resources = Voir les ressources
