@@ -1681,6 +1681,17 @@ text_ids! {
     PaletteHintClose => "palette-hint-close",
     PaletteHintAsk => "palette-hint-ask",
     PaletteUnavailable => "palette-unavailable",
+    // --- Lot R1 (H-UI-184 et suivantes) : retours d'essai du 2026-11-11.
+    BarTipDate => "bar-tip-date",
+    BarTipWhy => "bar-tip-why",
+    BarTipAfterFinish => "bar-tip-after-finish",
+    BarTipAfterStart => "bar-tip-after-start",
+    BarTipCalendar => "bar-tip-calendar",
+    BarTipConstraint => "bar-tip-constraint",
+    BarTipProjectStart => "bar-tip-project-start",
+    BarTipSummaryGate => "bar-tip-summary-gate",
+    BarTipManual => "bar-tip-manual",
+    BarTipActual => "bar-tip-actual",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

@@ -1844,3 +1844,16 @@ palette-hint-run = ↵ lancer
 palette-hint-close = Échap fermer
 palette-hint-ask = Tab : demander à l'assistant
 palette-unavailable = Indisponible pour l'instant.
+
+## Lot R1 : retours d'essai du 2026-11-11 (H-UI-184 et suivantes)
+
+bar-tip-date = Date
+bar-tip-why = Pourquoi cette date
+bar-tip-after-finish = Après { $name } ({ $link }) : fin { $date }
+bar-tip-after-start = Après { $name } ({ $link }) : début { $date }
+bar-tip-calendar = Calendrier : { $name }
+bar-tip-constraint = Contrainte : { $what }
+bar-tip-project-start = Début du projet
+bar-tip-summary-gate = Bornée par la récapitulative { $name }
+bar-tip-manual = Dates saisies (tâche manuelle)
+bar-tip-actual = Date réelle saisie
