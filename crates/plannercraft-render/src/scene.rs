@@ -19,7 +19,7 @@ use crate::geometry::{
     link_path, place_texts, row_geom_input, row_h16,
 };
 use crate::request::{Lang, RenderReport};
-use crate::style::{BarField, BarRole, BarShape, Pattern, PlanStyle, Rgb, RowBanding, TableColumn};
+use crate::style::{BarField, BarPaint, BarRole, BarShape, Pattern, PlanStyle, Rgb, RowBanding, TableColumn};
 
 /// Hauteur d'un niveau de l'en-tête (22 px).
 pub(crate) const TIER_H: i64 = 22 * SUB;
@@ -337,6 +337,13 @@ pub(crate) fn paints_of(st: &PlanStyle, v: crate::style::Variant) -> impl Fn(Cla
                 }
             }
             Class::Pattern(role) => stroke(c.bars.get(&role).and_then(|p| p.outline).unwrap_or(c.bg)),
+            Class::Progress(role) => fill(
+                c.bars
+                    .get(&role)
+                    .and_then(|p| p.progress)
+                    .or_else(|| c.bars.get(&BarRole::Progress).map(|p| p.fill))
+                    .unwrap_or(c.text),
+            ),
             Class::Link => stroke(c.link),
             Class::LinkCritical => stroke(c.link_critical),
             Class::Arrow => fill(c.link),
@@ -486,6 +493,18 @@ fn grouped_rows<'a>(
     out
 }
 
+/// Le rôle a une couleur posée par l'utilisateur dans l'une des variantes
+/// (lot R1c, H-UI-195).
+fn user_colored(st: &PlanStyle, role: BarRole) -> bool {
+    [
+        crate::style::Variant::Light,
+        crate::style::Variant::Dark,
+        crate::style::Variant::Print,
+    ]
+    .into_iter()
+    .any(|v| st.tokens(v).bars.get(&role).is_some_and(BarPaint::is_user))
+}
+
 /// Primitives d'une barre.
 fn bar_items(items: &mut Items, part: Part, bar: &BarGeom, st: &PlanStyle, phase: Option<u16>) {
     let style = st.bars.get(&bar.role).copied();
@@ -559,12 +578,16 @@ fn bar_items(items: &mut Items, part: Part, bar: &BarGeom, st: &PlanStyle, phase
         );
     }
     if let Some(pr) = bar.progress {
-        items.push(
-            Clip::Gantt,
-            part,
-            Class::Bar(BarRole::Progress),
-            Prim::Rect { r: pr, radius16: 0 },
-        );
+        // Couleur choisie par l'utilisateur (lot R1c, H-UI-195) : avancement
+        // dérivé de la barre, sauf sous une couleur de phase ; modèles
+        // fournis : classe d'avant, sortie inchangée.
+        let own = !matches!(class, Class::Phase(..)) && user_colored(st, bar.role);
+        let progress = if own {
+            Class::Progress(bar.role)
+        } else {
+            Class::Bar(BarRole::Progress)
+        };
+        items.push(Clip::Gantt, part, progress, Prim::Rect { r: pr, radius16: 0 });
     }
 }
 

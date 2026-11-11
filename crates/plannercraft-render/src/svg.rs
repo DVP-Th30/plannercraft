@@ -33,6 +33,7 @@ fn class_name(c: Class) -> std::borrow::Cow<'static, str> {
         Class::TaskFill(i) => format!("tf{i}").into(),
         Class::TextOnBar(r, None) => format!("ti{}", bar_name(r)).into(),
         Class::TextOnBar(r, Some(i)) => format!("ti{i}{}", bar_name(r)).into(),
+        Class::Progress(r) => format!("pg{}", bar_name(r)).into(),
         other => fixed_class_name(other).into(),
     }
 }
@@ -63,6 +64,7 @@ const fn fixed_class_name(c: Class) -> &'static str {
         | Class::Phase(..)
         | Class::PhaseRow(_)
         | Class::TextOnBar(..)
+        | Class::Progress(_)
         | Class::TaskText(_)
         | Class::TaskFill(_) => "",
         Class::TextStrong => "ts",

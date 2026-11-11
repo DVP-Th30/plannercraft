@@ -47,7 +47,7 @@
       "description": "Modèle de départ si le document n'a pas encore de style (défaut :\nClassique) ; ignoré sinon."
     },
     "color": {
-      "description": "Couleur de remplissage `#RRGGBB`.",
+      "description": "Couleur `#RRGGBB` : remplissage (contour d'un rôle « contour seul »),\ncontour et avancement dérivés.",
       "pattern": "^#[0-9A-Fa-f]{6}$",
       "type": [
         "string",
@@ -397,7 +397,7 @@
           "type": "null"
         }
       ],
-      "description": "Variante dont la couleur change (défaut : clair) ; la forme et les\ntextes valent pour toutes."
+      "description": "Variante dont la couleur change (défaut : toutes, clair, sombre et\nimpression, depuis le lot R1c) ; la forme et les textes valent pour\ntoutes."
     }
   },
   "required": [

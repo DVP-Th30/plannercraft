@@ -1150,3 +1150,68 @@ fn h_ui_126_scene_task_text_and_fill() {
 fn sc_uid(p: &Project, id: usize) -> u32 {
     p.tasks.iter().nth(id - 1).unwrap().uid().get()
 }
+
+/// H-UI-195 (I1, I2) : couleur posée sur les tâches (lot R1c) : seule la
+/// peinture des barres de tâches change ; leur avancement prend l'encre
+/// dérivée (`Class::Progress`), celui des barres critiques reste celui du
+/// modèle ; sans réglage, aucune classe nouvelle (sortie inchangée).
+#[test]
+fn h_ui_195_scene_only_the_role_changes() {
+    use plannercraft_render::style::{
+        BarPaint, ColorTokensPatch, Rgb, StylePatch, VariantsPatch, contrast_ratio, resolve,
+    };
+    let mut p = project_p();
+    for (n, pct) in [(2, 5_000), (3, 3_000), (6, 4_000)] {
+        p.tasks.get_mut(uid(n)).unwrap().progress.percent_complete =
+            plannercraft_core::Percent::new(pct).unwrap();
+    }
+    let s = plannercraft_core::schedule(&p);
+    let orange = Rgb(0xE6, 0x9F, 0x00);
+    let mut tokens = ColorTokensPatch::default();
+    tokens.bars.insert(BarRole::Task, BarPaint::solid(orange));
+    let over = StylePatch {
+        colors: Some(VariantsPatch {
+            light: Some(tokens.clone()),
+            dark: Some(tokens),
+            print: None,
+        }),
+        ..StylePatch::default()
+    };
+    for id in TemplateId::ALL {
+        let styled = resolve(id, &over);
+        for variant in [Variant::Light, Variant::Dark, Variant::Print] {
+            let vp = Viewport::new(variant, Lang::Fr);
+            let plain = layout(&p, &s, &template(id), &NoTexts, &vp).0;
+            assert!(!plain.items.iter().any(|i| matches!(i.class, Class::Progress(_))));
+            let sc = layout(&p, &s, &styled, &NoTexts, &vp).0;
+            // Mêmes primitives, classes identiques hors avancement des tâches.
+            assert_eq!(sc.items.len(), plain.items.len(), "{id:?} {variant:?}");
+            let mut own = 0;
+            for (a, b) in sc.items.iter().zip(&plain.items) {
+                assert_eq!(a.prim, b.prim, "{id:?} {variant:?}");
+                if a.class != b.class {
+                    assert_eq!(
+                        (a.class, b.class),
+                        (Class::Progress(BarRole::Task), Class::Bar(BarRole::Progress))
+                    );
+                    own += 1;
+                }
+            }
+            assert!(own > 0, "{id:?} {variant:?} : aucune bande d'avancement de tâche");
+            // Peintures : seules celles des tâches diffèrent.
+            for (class, paint) in &plain.paints {
+                if matches!(
+                    class,
+                    Class::Bar(BarRole::Task) | Class::TextOnBar(BarRole::Task, _)
+                ) {
+                    continue;
+                }
+                assert_eq!(sc.paints.get(class), Some(paint), "{id:?} {variant:?} {class:?}");
+            }
+            let bar = sc.paints[&Class::Bar(BarRole::Task)].fill.unwrap();
+            let ink = sc.paints[&Class::Progress(BarRole::Task)].fill.unwrap();
+            assert_eq!(bar, orange);
+            assert!(contrast_ratio(ink, bar) >= 3_000, "{id:?} {variant:?}");
+        }
+    }
+}

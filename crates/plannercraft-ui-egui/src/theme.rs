@@ -754,11 +754,8 @@ pub fn soft_tokens(variant: Variant) -> Option<ColorTokens> {
     let critical = pick(0x00CC_5A37, 0x00F0_825C);
     let summary = pick(0x003A_3742, 0x00CF_CAD8);
     let gray = pick(0x008D_8998, 0x0080_7B8A);
-    let solid = |fill: Rgb| BarPaint { fill, outline: None };
-    let outlined = |outline: Rgb| BarPaint {
-        fill: bg,
-        outline: Some(outline),
-    };
+    let solid = BarPaint::solid;
+    let outlined = |outline: Rgb| BarPaint::outlined(bg, outline);
     let bars = [
         (BarRole::Task, solid(task)),
         (BarRole::Critical, solid(critical)),
@@ -815,17 +812,24 @@ pub fn soft_tokens(variant: Variant) -> Option<ColorTokens> {
 /// style dont les couleurs claires et sombres sont celles d'un modèle de
 /// [`SOFT_TEMPLATES`] prend les couleurs de l'interface adoucie (claire et
 /// sombre ; l'impression garde celles du modèle, recopiées dans
-/// `colors.print`) ; si ses formes de barres sont aussi celles du modèle,
-/// les barres pleines prennent des coins de 4 px. Rend vrai si le style est
-/// adouci. Un style personnalisé (couleur choisie, autre modèle) est rendu
-/// tel quel : l'aperçu, le SVG et le PDF lisent toujours le style du
+/// `colors.print`) ; les barres pleines dont la forme est celle du modèle
+/// prennent des coins de 4 px. Rend vrai si le style est adouci. Un autre
+/// modèle, ou une surcharge d'une couleur autre que celles des barres, est
+/// rendu tel quel : l'aperçu, le SVG et le PDF lisent toujours le style du
 /// document, jamais celui-ci.
+///
+/// Lot R1c (H-UI-195, ADR-0030) : une couleur de barre posée par
+/// l'utilisateur ([`plannercraft_render::style::BarPaint::is_user`]) ne fait plus perdre l'interface
+/// adoucie au reste de l'écran (avant : tout l'écran repassait aux
+/// couleurs et aux formes de Sobre) ; seul son rôle la porte, contour
+/// dérivé comme le modèle adouci du rôle (aucun s'il n'en a pas), le
+/// remplissage d'un rôle « contour seul » restant le fond adouci. De même,
+/// une forme changée ne retire les coins adoucis qu'à son rôle.
 #[must_use]
 pub fn screen_style(mut style: PlanStyle) -> (PlanStyle, bool) {
-    let model = SOFT_TEMPLATES
-        .into_iter()
-        .map(template)
-        .find(|t| t.colors.light == style.colors.light && t.colors.dark == style.colors.dark);
+    let model = SOFT_TEMPLATES.into_iter().map(template).find(|t| {
+        same_frame(&t.colors.light, &style.colors.light) && same_frame(&t.colors.dark, &style.colors.dark)
+    });
     let (Some(model), Some(light), Some(dark)) =
         (model, soft_tokens(Variant::Light), soft_tokens(Variant::Dark))
     else {
@@ -833,21 +837,67 @@ pub fn screen_style(mut style: PlanStyle) -> (PlanStyle, bool) {
     };
     let print = style.tokens(Variant::Print).clone();
     style.colors.print = Some(print);
+    let light = soft_with_user_bars(light, &style, Variant::Light);
+    let dark = soft_with_user_bars(dark, &style, Variant::Dark);
     style.colors.light = light;
     style.colors.dark = dark;
-    if model.bars == style.bars {
-        for role in [
-            BarRole::Task,
-            BarRole::Critical,
-            BarRole::Inactive,
-            BarRole::Manual,
-        ] {
-            if let Some(bar) = style.bars.get_mut(&role) {
-                bar.radius16 = SOFT_BAR_RADIUS16;
-            }
+    for role in [
+        BarRole::Task,
+        BarRole::Critical,
+        BarRole::Inactive,
+        BarRole::Manual,
+    ] {
+        let same = model.bars.get(&role) == style.bars.get(&role);
+        if same && let Some(bar) = style.bars.get_mut(&role) {
+            bar.radius16 = SOFT_BAR_RADIUS16;
         }
     }
     (style, true)
+}
+
+/// `style` a les couleurs du modèle `model`, barres choisies par
+/// l'utilisateur mises à part (lot R1c) : mêmes couleurs hors barres (fond,
+/// texte, grille…) et mêmes barres pour les rôles non choisis.
+fn same_frame(model: &ColorTokens, style: &ColorTokens) -> bool {
+    let frame = |c: &ColorTokens| ColorTokens {
+        bars: std::collections::BTreeMap::new(),
+        ..c.clone()
+    };
+    frame(model) == frame(style)
+        && model.bars.len() == style.bars.len()
+        && style
+            .bars
+            .iter()
+            .all(|(role, paint)| paint.is_user() || model.bars.get(role) == Some(paint))
+}
+
+/// Jetons adoucis `soft`, couleurs de barres posées par l'utilisateur dans
+/// `style` (variante `v`) gardées (lot R1c, H-UI-195).
+fn soft_with_user_bars(mut soft: ColorTokens, style: &PlanStyle, v: Variant) -> ColorTokens {
+    let bg = soft.bg;
+    for (role, paint) in &style.tokens(v).bars {
+        if !paint.is_user() {
+            continue;
+        }
+        let outline_only = style
+            .bars
+            .get(role)
+            .is_some_and(|b| b.pattern == plannercraft_render::style::Pattern::Outline);
+        let quiet = soft.bars.get(role).copied();
+        let mut own = *paint;
+        if outline_only {
+            own.fill = quiet.map_or(bg, |q| q.fill);
+            if let Some(key) = own.outline {
+                own.progress = Some(plannercraft_render::style::user_progress(key, own.fill));
+            }
+        } else {
+            own.outline = quiet
+                .and_then(|q| q.outline)
+                .map(|_| plannercraft_render::style::user_outline(own.fill, bg));
+        }
+        soft.bars.insert(*role, own);
+    }
+    soft
 }
 
 /// Rayon des barres pleines de l'interface adoucie, en 1/16 px (4 px à
@@ -2054,7 +2104,9 @@ mod tests {
             assert_eq!(screen.texts, style.texts, "{id:?} : textes des barres inchangés");
         }
         assert!(super::soft_tokens(Variant::Print).is_none());
-        // Couleur choisie par l'utilisateur : style rendu tel quel.
+        // Couleur autre que celles des barres : style rendu tel quel (une
+        // couleur de barre choisie garde l'écran adouci depuis le lot R1c,
+        // `h_ui_195_soft_screen_keeps_with_user_color`).
         let mut custom = template(TemplateId::Sobre);
         custom.colors.light.bg = Rgb(0xFF, 0xFF, 0xF0);
         assert!(!super::screen_style(custom).1);
@@ -2069,6 +2121,59 @@ mod tests {
         let light = super::soft_tokens(Variant::Light).unwrap();
         for c in [light.bg, light.text, light.text_strong, light.header_bg] {
             assert!(c != Rgb(0, 0, 0) && c != Rgb(0xFF, 0xFF, 0xFF), "{c:?}");
+        }
+    }
+
+    /// H-UI-195 (lot R1c, I1) : une couleur de barre choisie sur Sobre ne
+    /// fait plus perdre l'interface adoucie au reste de l'écran (constat de
+    /// l'essai du 2026-11-11 : table, autres barres, récapitulatives et
+    /// coins repassaient à Sobre) ; seul son rôle change, avec un avancement
+    /// lisible et sans contour si le rôle adouci n'en a pas ; un rôle
+    /// « contour seul » garde le fond adouci et prend la couleur au contour.
+    #[test]
+    fn h_ui_195_soft_screen_keeps_with_user_color() {
+        use plannercraft_render::style::{
+            BarPaint, BarRole, ColorTokensPatch, StylePatch, VariantsPatch, contrast_ratio, resolve,
+        };
+        let soft_plain = super::screen_style(template(TemplateId::Sobre)).0;
+        for (role, fill) in [
+            (BarRole::Task, Rgb(0xE6, 0x9F, 0x00)),
+            (BarRole::Critical, Rgb(0, 0, 0)),
+            (BarRole::Summary, Rgb(0xF0, 0xE4, 0x42)),
+            (BarRole::Milestone, Rgb(0xC0, 0, 0)),
+            (BarRole::Manual, Rgb(0xC0, 0, 0)),
+        ] {
+            let mut tokens = ColorTokensPatch::default();
+            tokens.bars.insert(role, BarPaint::solid(fill));
+            let over = StylePatch {
+                colors: Some(VariantsPatch {
+                    light: Some(tokens.clone()),
+                    dark: Some(tokens),
+                    print: None,
+                }),
+                ..StylePatch::default()
+            };
+            let (screen, soft) = super::screen_style(resolve(TemplateId::Sobre, &over));
+            assert!(soft, "{role:?} : écran adouci gardé");
+            assert_eq!(screen.bars, soft_plain.bars, "{role:?} : coins adoucis gardés");
+            for v in [Variant::Light, Variant::Dark] {
+                let mut a = screen.tokens(v).clone();
+                let mut b = soft_plain.tokens(v).clone();
+                let own = a.bars.remove(&role).unwrap();
+                let quiet = b.bars.remove(&role).unwrap();
+                assert_eq!(a, b, "{role:?} {v:?} : rien d'autre ne bouge");
+                let progress = own.progress.unwrap();
+                assert!(contrast_ratio(progress, own.fill) >= 3_000, "{role:?} {v:?}");
+                if role == BarRole::Manual {
+                    assert_eq!((own.fill, own.outline), (quiet.fill, Some(fill)));
+                } else {
+                    assert_eq!(own.fill, fill);
+                    assert_eq!(own.outline.is_some(), quiet.outline.is_some(), "{role:?} {v:?}");
+                }
+            }
+            // L'impression garde le style du document (couleur posée).
+            let print = screen.tokens(Variant::Print).bars[&role];
+            assert!(print.is_user());
         }
     }
 

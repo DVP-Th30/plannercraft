@@ -175,14 +175,26 @@ fn r_style_set_bar_role_undo() {
     let st = style::effective_style(s.project(), HEADLESS_DEFAULT);
     let paint = st.tokens(Variant::Light).bars[&BarRole::Critical];
     assert_eq!(paint.fill, Rgb(0xAA, 0, 0));
-    // Contour gardé (celui du modèle), sombre et rôle voisin inchangés.
+    // Lot R1c (H-UI-196) : contour dérivé de la couleur (le modèle en
+    // dessine un), même couleur dans les trois variantes ; rôle voisin
+    // inchangé.
     assert_eq!(
         paint.outline,
-        sobre.tokens(Variant::Light).bars[&BarRole::Critical].outline
+        Some(plannercraft_render::style::user_outline(
+            Rgb(0xAA, 0, 0),
+            Rgb(0xFF, 0xFF, 0xFF)
+        ))
     );
+    for v in [Variant::Dark, Variant::Print] {
+        assert_eq!(
+            st.tokens(v).bars[&BarRole::Critical].fill,
+            Rgb(0xAA, 0, 0),
+            "{v:?}"
+        );
+    }
     assert_eq!(
-        st.tokens(Variant::Dark).bars[&BarRole::Critical],
-        sobre.tokens(Variant::Dark).bars[&BarRole::Critical]
+        st.tokens(Variant::Light).bars[&BarRole::Task],
+        sobre.tokens(Variant::Light).bars[&BarRole::Task]
     );
     assert_eq!(st.bars[&BarRole::Task], sobre.bars[&BarRole::Task]);
     let shape = st.bars[&BarRole::Critical];
@@ -201,6 +213,11 @@ fn r_style_set_bar_role_undo() {
     assert_eq!(
         st.tokens(Variant::Dark).bars[&BarRole::Task].fill,
         Rgb(0, 0x44, 0x88)
+    );
+    // `variant` donné (compatibilité MCP) : cette variante seule.
+    assert_eq!(
+        st.tokens(Variant::Light).bars[&BarRole::Task],
+        sobre.tokens(Variant::Light).bars[&BarRole::Task]
     );
     assert_eq!(
         st.tokens(Variant::Light).bars[&BarRole::Critical].fill,
@@ -231,6 +248,63 @@ fn r_style_set_bar_role_undo() {
         let err = call_with(&mut s, &env(), "style.set_bar_role", params.clone()).unwrap_err();
         assert_eq!(err.code, codes::PARAM_INVALID, "{params}");
     }
+}
+
+/// H-UI-196 (I3) : sans `variant`, une couleur vaut pour le clair, le
+/// sombre et l'impression (qui suit le clair sans couleurs propres : rien
+/// d'écrit pour elle, aucun contraste compté deux fois) ; avec des
+/// couleurs d'impression propres, l'impression la reçoit aussi. Rôle
+/// « contour seul » : la couleur va au contour, le fond reste.
+#[test]
+fn h_ui_196_color_all_variants() {
+    let mut s = session();
+    call(&mut s, "style.apply", json!({ "template": "sobre" }));
+    let sobre = template(TemplateId::Sobre);
+    call(
+        &mut s,
+        "style.set_bar_role",
+        json!({ "role": "task", "color": "#E69F00" }),
+    );
+    let st = style::effective_style(s.project(), HEADLESS_DEFAULT);
+    for v in [Variant::Light, Variant::Dark, Variant::Print] {
+        let p = st.tokens(v).bars[&BarRole::Task];
+        assert_eq!(p.fill, Rgb(0xE6, 0x9F, 0x00), "{v:?}");
+        assert!(p.is_user(), "{v:?}");
+    }
+    let doc = style::doc_style(s.project()).unwrap();
+    let colors = doc.over.colors.unwrap();
+    assert!(colors.light.is_some() && colors.dark.is_some() && colors.print.is_none());
+    assert!(st.colors.print.is_none(), "l'impression suit le clair");
+    // Contour seul : tâche manuelle.
+    call(
+        &mut s,
+        "style.set_bar_role",
+        json!({ "role": "manual", "color": "#C00000" }),
+    );
+    let st = style::effective_style(s.project(), HEADLESS_DEFAULT);
+    for v in [Variant::Light, Variant::Dark] {
+        let p = st.tokens(v).bars[&BarRole::Manual];
+        assert_eq!(p.outline, Some(Rgb(0xC0, 0, 0)), "{v:?}");
+        assert_eq!(p.fill, sobre.tokens(v).bars[&BarRole::Manual].fill, "{v:?}");
+    }
+    assert_eq!(st.bars[&BarRole::Manual], sobre.bars[&BarRole::Manual]);
+    // Couleurs d'impression propres : l'impression reçoit la couleur.
+    call(
+        &mut s,
+        "style.apply",
+        json!({ "patch": { "colors": { "print": { "grid": "#DDDDDD" } } } }),
+    );
+    call(
+        &mut s,
+        "style.set_bar_role",
+        json!({ "role": "critical", "color": "#000000" }),
+    );
+    let st = style::effective_style(s.project(), HEADLESS_DEFAULT);
+    assert_eq!(
+        st.tokens(Variant::Print).bars[&BarRole::Critical].fill,
+        Rgb(0, 0, 0)
+    );
+    assert_eq!(st.tokens(Variant::Print).grid, Rgb(0xDD, 0xDD, 0xDD));
 }
 
 /// H-UI-61 « Revenir au modèle » : toutes les surcharges, ou celles d'un
