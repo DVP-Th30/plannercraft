@@ -7,12 +7,16 @@ use std::iter::Peekable;
 
 use plannercraft_core::calendar::CompiledCalendar;
 use plannercraft_core::{
-    DurationUnit, Minutes, Moment, Project, ResourceLoad, ResourceUid, Schedule, TaskId, TaskOutcome,
-    TaskSchedule, TaskUid,
+    Assignment, DurationUnit, Minutes, Moment, Project, ResourceLoad, ResourceUid, Schedule, TaskId,
+    TaskOutcome, TaskSchedule, TaskUid,
 };
 use serde::Serialize;
 
 use crate::delta::Delta;
+pub use crate::field_change::{FieldChange, FieldKind, FieldValue};
+use crate::field_change::{Side, Writer, assignment_tasks, task_changes};
+use crate::render_text::Labels;
+use crate::session::Simulation;
 use crate::text::TextContext;
 
 /// Diff de planning d'un lot (R-163).
@@ -352,6 +356,9 @@ pub enum RowChange {
     Changed,
     /// Dates inchangées, criticité changée seulement.
     CriticalOnly,
+    /// Tâche touchée (R-163 amendée) sans date ni criticité changées :
+    /// données seules (avancement, nom, ordre…, H-UI-189).
+    DataOnly,
 }
 
 /// Criticité entrée ou sortie.
@@ -377,7 +384,8 @@ pub struct DiffRow {
     pub name: String,
     /// Nature du changement.
     pub change: RowChange,
-    /// Début planifié (avant, après).
+    /// Début planifié (avant, après) ; ligne [`RowChange::DataOnly`] :
+    /// valeur d'après des deux côtés.
     pub start: (Option<Moment>, Option<Moment>),
     /// Fin planifiée (avant, après).
     pub finish: (Option<Moment>, Option<Moment>),
@@ -385,6 +393,10 @@ pub struct DiffRow {
     pub total_slack: (Option<Minutes>, Option<Minutes>),
     /// Criticité entrée ou sortie.
     pub critical: CriticalChange,
+    /// Modifications directes de la tâche (H-UI-189), dans l'ordre de
+    /// [`FieldKind`] ; vide pour une tâche ajoutée ou supprimée et pour une
+    /// tâche que seul le recalcul a changée.
+    pub changes: Vec<FieldChange>,
 }
 
 /// Un côté d'un diff : projet et planning du moteur.
@@ -399,14 +411,15 @@ pub struct DiffSide<'a> {
 /// Diff prêt à afficher d'une écriture proposée par un agent (J8, lot L12,
 /// H-UI-41, ADR-0016 D10), calculé **une fois** à l'arrivée de la demande :
 /// au plus [`MAX_VIEW_ROWS`] lignes (tâches aux dates changées, dans
-/// l'ordre de R-163, puis tâches dont seule la criticité change, par UID),
+/// l'ordre de R-163, puis tâches dont seule la criticité change, par UID,
+/// puis les autres tâches touchées, par ID d'après puis UID : H-UI-189),
 /// le compte des autres (`more`), l'écart de fin du projet en temps ouvré
 /// et le changement du chemin critique.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DiffView {
     /// Lignes, au plus [`MAX_VIEW_ROWS`].
     pub rows: Vec<DiffRow>,
-    /// Tâches changées non affichées.
+    /// Tâches changées ou touchées non affichées.
     pub more: usize,
     /// Fin du projet (avant, après).
     pub project_finish: (Moment, Moment),
@@ -422,11 +435,116 @@ pub struct DiffView {
     pub critical_left: usize,
 }
 
+/// Affectations par tâche, dans l'ordre du projet.
+type ByTask<'a> = BTreeMap<TaskUid, Vec<&'a Assignment>>;
+
+/// Lecture des modifications directes des lignes (H-UI-189) : delta par
+/// entité du lot, tâches déplacées, affectations des tâches concernées.
+struct RowChanges<'a> {
+    before: DiffSide<'a>,
+    after: DiffSide<'a>,
+    entities: &'a Delta,
+    moved: BTreeSet<TaskUid>,
+    assignment_tasks: BTreeSet<TaskUid>,
+    assignments: (ByTask<'a>, ByTask<'a>),
+    writer: Writer<'a>,
+}
+
+impl<'a> RowChanges<'a> {
+    fn new(before: DiffSide<'a>, after: DiffSide<'a>, entities: &'a Delta, text: &'a TextContext) -> Self {
+        let assignment_tasks = assignment_tasks(&entities.assignments.changed);
+        // Affectations des seules tâches dont une affectation a changé, dans
+        // l'ordre du projet (celui de la colonne « Noms ressources »).
+        let of = |p: &'a Project| {
+            let mut m: ByTask<'a> = BTreeMap::new();
+            if !assignment_tasks.is_empty() {
+                for a in &p.assignments {
+                    if assignment_tasks.contains(&a.task) {
+                        m.entry(a.task).or_default().push(a);
+                    }
+                }
+            }
+            m
+        };
+        let assignments = (of(before.project), of(after.project));
+        Self {
+            before,
+            after,
+            entities,
+            moved: moved_tasks(entities.tasks.order.as_ref()),
+            assignment_tasks,
+            assignments,
+            writer: Writer {
+                text,
+                labels: Labels(text.language),
+            },
+        }
+    }
+
+    /// Modifications directes de `uid` (vide pour une tâche absente d'un
+    /// côté).
+    fn of(&self, uid: TaskUid) -> Vec<FieldChange> {
+        let (Some(b), Some(a)) = (
+            self.before.project.tasks.get(uid),
+            self.after.project.tasks.get(uid),
+        ) else {
+            return Vec::new();
+        };
+        let moved = self.moved.contains(&uid).then(|| {
+            let id = |p: &Project| p.task_id(uid).map_or(0, TaskId::get);
+            (id(self.before.project), id(self.after.project))
+        });
+        let assignments_changed = self.assignment_tasks.contains(&uid);
+        let in_delta = self
+            .entities
+            .tasks
+            .changed
+            .binary_search_by_key(&uid, |c| c.0)
+            .is_ok();
+        if !in_delta && moved.is_none() && !assignments_changed {
+            return Vec::new();
+        }
+        let sides = (
+            Side {
+                project: self.before.project,
+                assignments: self.assignments.0.get(&uid).map_or(&[][..], Vec::as_slice),
+            },
+            Side {
+                project: self.after.project,
+                assignments: self.assignments.1.get(&uid).map_or(&[][..], Vec::as_slice),
+            },
+        );
+        task_changes(b, a, sides, moved, assignments_changed, &self.writer)
+    }
+}
+
+/// Vrai si les dates planifiées de `uid` diffèrent, ou si la tâche apparaît
+/// ou disparaît du planning (définition de [`diff_schedules`]).
+fn dates_changed(uid: TaskUid, before: &Schedule, after: &Schedule) -> bool {
+    let (b, a) = (before.tasks.get(&uid), after.tasks.get(&uid));
+    if b.is_some() != a.is_some() {
+        return true;
+    }
+    let dates = |o: Option<&TaskOutcome>| o.and_then(scheduled).map(|s| (s.start, s.finish));
+    dates(b) != dates(a)
+}
+
 impl DiffView {
-    /// Diff affiché de `d`, calculé entre `before` (la session) et `after`
-    /// (l'état simulé du `dry_run`) ; textes dans le contexte `text`.
+    /// Diff affiché du lot simulé `sim` (le `dry_run`, son état après et
+    /// son delta par entité), comparé à `before` (la session) ; textes dans
+    /// le contexte `text`.
     #[must_use]
-    pub fn new(d: &ScheduleDiff, before: DiffSide<'_>, after: DiffSide<'_>, text: &TextContext) -> Self {
+    #[allow(
+        clippy::too_many_lines,
+        reason = "trois familles de lignes à la suite, chacune bornée par la même limite"
+    )]
+    pub fn new(before: DiffSide<'_>, sim: &Simulation, text: &TextContext) -> Self {
+        let d = &sim.outcome.diff;
+        let after = DiffSide {
+            project: &sim.project,
+            schedule: &sim.schedule,
+        };
+        let changes = RowChanges::new(before, after, &sim.entities, text);
         let name_of = |uid: TaskUid| {
             after
                 .project
@@ -458,6 +576,11 @@ impl DiffView {
                 finish: c.finish,
                 total_slack: c.total_slack,
                 critical: critical_of(c.critical),
+                changes: if change == RowChange::Changed {
+                    changes.of(c.uid)
+                } else {
+                    Vec::new()
+                },
             });
         }
         // Criticité changée sans date changée : jointure des deux listes
@@ -471,6 +594,12 @@ impl DiffView {
             .filter(|(u, _)| !listed.contains(u))
             .collect();
         flips.sort_by_key(|(u, _)| *u);
+        let flipped: BTreeSet<TaskUid> = d
+            .critical_entered
+            .iter()
+            .chain(d.critical_left.iter())
+            .copied()
+            .collect();
         let flips_total = flips.len();
         let mut shown_flips = 0usize;
         for (uid, critical) in flips {
@@ -488,14 +617,47 @@ impl DiffView {
                 finish: (b.map(|s| s.finish), a.map(|s| s.finish)),
                 total_slack: (b.map(|s| s.total_slack), a.map(|s| s.total_slack)),
                 critical,
+                changes: changes.of(uid),
             });
             shown_flips = shown_flips.saturating_add(1);
+        }
+        // Troisième famille (H-UI-189) : tâches touchées (R-163 amendée)
+        // sans date ni criticité changées, par ID d'après puis UID.
+        let mut data: Vec<(Option<TaskId>, TaskUid)> =
+            touched_tasks(before.project, after.project, &sim.entities, std::iter::empty())
+                .into_iter()
+                .filter(|u| !flipped.contains(u) && !dates_changed(*u, before.schedule, after.schedule))
+                .map(|u| (after.project.task_id(u), u))
+                .collect();
+        data.sort_unstable();
+        let data_total = data.len();
+        let mut shown_data = 0usize;
+        for (id, uid) in data {
+            if rows.len() >= MAX_VIEW_ROWS {
+                break;
+            }
+            // Valeurs courantes, sans valeur barrée : celles d'après.
+            let a = after.schedule.scheduled(uid).copied();
+            let (start, finish, slack) = (a.map(|s| s.start), a.map(|s| s.finish), a.map(|s| s.total_slack));
+            rows.push(DiffRow {
+                uid,
+                id,
+                name: name_of(uid),
+                change: RowChange::DataOnly,
+                start: (start, start),
+                finish: (finish, finish),
+                total_slack: (slack, slack),
+                critical: CriticalChange::Same,
+                changes: changes.of(uid),
+            });
+            shown_data = shown_data.saturating_add(1);
         }
         let shown_changed = d.changed.len().min(MAX_VIEW_ROWS);
         let more = d
             .changed_total
             .saturating_sub(shown_changed)
-            .saturating_add(flips_total.saturating_sub(shown_flips));
+            .saturating_add(flips_total.saturating_sub(shown_flips))
+            .saturating_add(data_total.saturating_sub(shown_data));
         let (f0, f1) = d.project_finish;
         let working = CompiledCalendar::compile(&before.project.calendars, before.project.calendar)
             .ok()
@@ -535,7 +697,9 @@ mod tests {
 
     use plannercraft_core::TaskUid;
 
-    use super::{CriticalChange, DiffSide, DiffView, MAX_VIEW_ROWS, RowChange, moved_tasks};
+    use super::{
+        CriticalChange, DiffSide, DiffView, FieldKind, FieldValue, MAX_VIEW_ROWS, RowChange, moved_tasks,
+    };
     use crate::command::Batch;
     use crate::session::{ApplyOptions, Session};
     use crate::text::{Language, TextContext};
@@ -570,16 +734,7 @@ mod tests {
             project: s.project(),
             schedule: s.schedule(),
         };
-        let after = DiffSide {
-            project: &sim.project,
-            schedule: &sim.schedule,
-        };
-        DiffView::new(
-            &sim.outcome.diff,
-            before,
-            after,
-            &TextContext::for_project(s.project(), Language::Fr),
-        )
+        DiffView::new(before, &sim, &TextContext::for_project(s.project(), Language::Fr))
     }
 
     /// H-UI-41 : tâche ajoutée nommée d'après l'état simulé, tâche décalée,
@@ -697,5 +852,137 @@ mod tests {
         let last = one.pop().unwrap();
         one.insert(0, last);
         assert_eq!(moved(&before, &one), vec![n]);
+    }
+
+    fn kinds(v: &DiffView, name: &str) -> Vec<FieldKind> {
+        v.rows
+            .iter()
+            .find(|r| r.name == name)
+            .unwrap()
+            .changes
+            .iter()
+            .map(|c| c.field)
+            .collect()
+    }
+
+    /// H-UI-189 : cinq tâches passées à 100 % sans date déplacée ⇒ cinq
+    /// lignes (achevées, elles quittent le chemin critique : lignes de
+    /// criticité, par UID), chacune avec son « % achevé ».
+    #[test]
+    fn h_ui_189_progress_only_rows() {
+        let ops: Vec<Value> = (1..=6)
+            .map(|i| json!({ "op": "task.add", "name": format!("T{i}"), "duration": { "text": "2j" } }))
+            .collect();
+        let s = session(&Value::Array(ops));
+        let ops: Vec<Value> = (1..=5)
+            .map(
+                |uid| json!({ "op": "progress.update", "task": uid, "percent_complete": { "text": "100%" } }),
+            )
+            .collect();
+        let v = view(&s, &Value::Array(ops));
+        assert_eq!(v.rows.len(), 5);
+        assert_eq!(v.more, 0);
+        let ids: Vec<u32> = v.rows.iter().map(|r| r.id.unwrap().get()).collect();
+        assert_eq!(ids, vec![1, 2, 3, 4, 5]);
+        for r in &v.rows {
+            assert_eq!(r.change, RowChange::CriticalOnly);
+            assert_eq!(r.critical, CriticalChange::Left);
+            assert_eq!(r.start.0, r.start.1);
+            let pct = r
+                .changes
+                .iter()
+                .find(|c| c.field == FieldKind::PercentComplete)
+                .unwrap();
+            assert_eq!(pct.before, FieldValue::Text("0\u{a0}%".to_owned()));
+            assert_eq!(pct.after, FieldValue::Text("100\u{a0}%".to_owned()));
+        }
+    }
+
+    /// H-UI-189 : lot mêlé. A passe à 7 j (A et B, son successeur, aux
+    /// dates déplacées : famille 1 ; B sans modification directe), C est
+    /// renommée et E passe en tête (famille 3, « Nom » et « N° »).
+    #[test]
+    fn h_ui_189_mixed_rows() {
+        let s = session(&json!([
+            { "op": "task.add", "name": "A", "as": "$a", "duration": { "text": "5j" } },
+            { "op": "task.add", "name": "B", "as": "$b", "duration": { "text": "1j" } },
+            { "op": "link.add", "pred": "$a", "succ": "$b" },
+            { "op": "task.add", "name": "C", "duration": { "text": "1j" } },
+            { "op": "task.add", "name": "D", "duration": { "text": "1j" } },
+            { "op": "task.add", "name": "E", "duration": { "text": "1j" } }
+        ]));
+        let v = view(
+            &s,
+            &json!([
+                { "op": "task.update", "uid": 1, "duration": { "text": "7j" } },
+                { "op": "task.update", "uid": 3, "name": "C bis" },
+                { "op": "task.move", "uid": 5, "to": { "before": 1 } }
+            ]),
+        );
+        let changes: Vec<(String, RowChange)> = v.rows.iter().map(|r| (r.name.clone(), r.change)).collect();
+        assert_eq!(
+            changes,
+            vec![
+                ("A".to_owned(), RowChange::Changed),
+                ("B".to_owned(), RowChange::Changed),
+                ("E".to_owned(), RowChange::DataOnly),
+                ("C bis".to_owned(), RowChange::DataOnly),
+            ]
+        );
+        assert_eq!(kinds(&v, "A"), vec![FieldKind::Duration]);
+        assert_eq!(kinds(&v, "B"), Vec::<FieldKind>::new(), "conséquence du recalcul");
+        assert_eq!(kinds(&v, "C bis"), vec![FieldKind::Name]);
+        let e = v.rows.iter().find(|r| r.name == "E").unwrap();
+        assert_eq!(e.changes.len(), 1);
+        assert_eq!(e.changes[0].field, FieldKind::Position);
+        assert_eq!(e.changes[0].before, FieldValue::Text("5".to_owned()));
+        assert_eq!(e.changes[0].after, FieldValue::Text("1".to_owned()));
+        let a = v.rows.iter().find(|r| r.name == "A").unwrap();
+        assert_eq!(a.changes[0].before, FieldValue::Text("5 jours".to_owned()));
+        assert_eq!(a.changes[0].after, FieldValue::Text("7 jours".to_owned()));
+    }
+
+    /// H-UI-189 : ressource affectée ⇒ « Noms ressources » ; ajoutée ⇒
+    /// ligne sans liste.
+    #[test]
+    fn h_ui_189_resources_and_added() {
+        let s = session(&json!([
+            { "op": "task.add", "name": "A", "duration": { "text": "2j" } },
+            { "op": "resource.add", "name": "Maçon" }
+        ]));
+        let v = view(
+            &s,
+            &json!([
+                { "op": "assignment.add", "task": 1, "resource": 1 },
+                { "op": "task.add", "name": "N", "duration": { "text": "1j" } }
+            ]),
+        );
+        let n = v.rows.iter().find(|r| r.name == "N").unwrap();
+        assert_eq!(n.change, RowChange::Added);
+        assert_eq!(n.changes.len(), 0);
+        let a = v.rows.iter().find(|r| r.name == "A").unwrap();
+        let res = a
+            .changes
+            .iter()
+            .find(|c| c.field == FieldKind::Resources)
+            .unwrap();
+        assert_eq!(res.before, FieldValue::Text(String::new()));
+        assert_eq!(res.after, FieldValue::Text("Maçon".to_owned()));
+    }
+
+    /// H-UI-189 : la limite de 200 lignes couvre la troisième famille.
+    #[test]
+    fn h_ui_189_data_rows_capped() {
+        let ops: Vec<Value> = (0..250)
+            .map(|i| json!({ "op": "task.add", "name": format!("T{i}"), "duration": { "text": "1j" } }))
+            .collect();
+        let s = session(&Value::Array(ops));
+        let ops: Vec<Value> = (1..=250)
+            .map(|uid| json!({ "op": "task.update", "uid": uid, "name": format!("R{uid}") }))
+            .collect();
+        let v = view(&s, &Value::Array(ops));
+        assert_eq!(v.rows.len(), MAX_VIEW_ROWS);
+        assert_eq!(v.more, 50);
+        assert!(v.rows.iter().all(|r| r.change == RowChange::DataOnly));
     }
 }

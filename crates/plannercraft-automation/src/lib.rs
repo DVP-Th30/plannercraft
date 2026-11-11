@@ -39,6 +39,7 @@ mod diag_delta;
 pub mod diff;
 pub mod error;
 pub mod explain;
+pub mod field_change;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod files;
 pub mod filter;

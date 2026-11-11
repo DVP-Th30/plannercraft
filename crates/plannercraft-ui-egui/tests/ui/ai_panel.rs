@@ -16,13 +16,13 @@ use plannercraft_automation::Batch;
 use plannercraft_automation::command::TaskRef;
 use plannercraft_automation::command::params::ExplainParams;
 use plannercraft_automation::control::{CallState, RelayCall, RelayKind, Reply};
-use plannercraft_automation::diff::RowChange;
+use plannercraft_automation::diff::{FieldKind, RowChange};
 use plannercraft_automation::error::codes;
 use plannercraft_automation::explain::explain_date;
 use plannercraft_core::TaskUid;
 use plannercraft_ui_egui::i18n::{Arg, TextId};
 use plannercraft_ui_egui::view::side_panel::{AiOutcome, MAX_DIFF_ROWS, MAX_HISTORY, SideOp, SideTab};
-use plannercraft_ui_egui::{Action, App, EditOrigin};
+use plannercraft_ui_egui::{Action, App, EditOrigin, LanguagePref, ThemePref};
 use serde_json::{Value, json};
 
 use crate::{fr, harness, open_demo};
@@ -582,4 +582,191 @@ fn relay_j8_scenario(transport: plannercraft_automation::control::Transport, tag
     );
     let pdf = std::fs::read(tmp.path().join("relay_j8.pdf")).unwrap();
     assert!(pdf.starts_with(b"%PDF-"));
+}
+
+// --- Lot R1b (H-UI-189) : troisième famille de lignes, colonne
+// « Modification » ---
+
+/// Tâches de l'exemple passées à 100 % par [`progress_batch`] : cinq
+/// feuilles non critiques (achevée, une tâche critique quitte le
+/// chemin critique : sa ligne serait une ligne de criticité).
+const PROGRESS_UIDS: [u32; 5] = [6, 14, 20, 31, 34];
+
+/// Lot d'avancement seul : cinq tâches de l'exemple passées à 100 %.
+fn progress_batch() -> Value {
+    let ops: Vec<Value> = PROGRESS_UIDS
+        .iter()
+        .map(|uid| json!({ "op": "progress.update", "task": uid, "percent_complete": { "text": "100%" } }))
+        .collect();
+    json!({ "ops": ops })
+}
+
+/// Lot mêlé : une durée qui décale un successeur (Plomberie à 9 j décale
+/// Chauffage), un renommage (Zinguerie), un déplacement (Conduit de
+/// cheminée passé devant Linteaux et chaînages, même niveau).
+fn mixed_batch() -> Value {
+    json!({ "ops": [
+        { "op": "task.update", "uid": 31, "duration": { "text": "9j" } },
+        { "op": "task.update", "uid": 26, "name": "Zinguerie et descentes" },
+        { "op": "task.move", "uid": 20, "to": { "before": 18 } },
+    ] })
+}
+
+/// Ligne « champ : avant → après » de la colonne « Modification ».
+fn change_line(app: &App, field: TextId, before: &str, after: &str) -> String {
+    let texts = app.texts();
+    texts.get_args(
+        TextId::AiChangeLine,
+        &[
+            ("field", Arg::Str(texts.get(field).into())),
+            ("before", Arg::Str(before.to_owned().into())),
+            ("after", Arg::Str(after.to_owned().into())),
+        ],
+    )
+}
+
+/// H-UI-189 : lot d'avancement seul ⇒ le tableau se remplit (cinq lignes,
+/// « % achevé : 0 % → 100 % »), colonne « Modification » après « Nom ».
+#[test]
+fn h_ui_189_progress_only_table() {
+    let (mut harness, tx) = relay_harness();
+    let sent = execute(&tx, "batch.apply", progress_batch());
+    harness.run();
+    assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
+    let app = harness.state();
+    let diff = app.approvals().pending()[0].diff.clone().unwrap();
+    // Témoin : les tâches choisies sont non critiques avant le lot.
+    let doc = app.document.as_ref().unwrap();
+    for uid in PROGRESS_UIDS {
+        let s = doc.schedule().scheduled(TaskUid::new(uid)).unwrap();
+        assert!(!s.critical, "tâche {uid} critique");
+    }
+    let uids: Vec<u32> = diff.rows.iter().map(|r| r.uid.get()).collect();
+    assert_eq!(uids, PROGRESS_UIDS, "cinq lignes, par ID : {:?}", diff.rows);
+    assert_eq!(diff.more, 0);
+    for row in &diff.rows {
+        assert_eq!(row.change, RowChange::DataOnly);
+        assert!(
+            row.changes.iter().any(|c| c.field == FieldKind::PercentComplete),
+            "{row:?}"
+        );
+    }
+    harness.get_by_label(&fr(TextId::AiColChange));
+    let line = change_line(
+        harness.state(),
+        TextId::ColPercentComplete,
+        "0\u{a0}%",
+        "100\u{a0}%",
+    );
+    assert!(
+        !harness.query_all_by_label(&line).collect::<Vec<_>>().is_empty(),
+        "ligne « {line} » absente"
+    );
+}
+
+/// H-UI-189 : lot mêlé ⇒ durée sur la tâche changée, successeurs sans
+/// modification directe (cellule vide), renommage et déplacement en
+/// troisième famille (« N° : 20 → 18 »).
+#[test]
+fn h_ui_189_mixed_table() {
+    let (mut harness, tx) = relay_harness();
+    let sent = execute(&tx, "batch.apply", mixed_batch());
+    harness.run();
+    assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
+    let app = harness.state();
+    let diff = app.approvals().pending()[0].diff.clone().unwrap();
+    let row = |uid: u32| diff.rows.iter().find(|r| r.uid.get() == uid).unwrap();
+    let uids: Vec<u32> = diff.rows.iter().map(|r| r.uid.get()).collect();
+    assert_eq!(
+        uids,
+        [31, 34, 20, 26],
+        "deux familles, dans l'ordre : {:?}",
+        diff.rows
+    );
+    assert_eq!(row(31).change, RowChange::Changed);
+    assert_eq!(
+        row(31).changes.iter().map(|c| c.field).collect::<Vec<_>>(),
+        [FieldKind::Duration]
+    );
+    assert_eq!(row(34).change, RowChange::Changed);
+    assert!(row(34).changes.is_empty(), "successeur : conséquence du recalcul");
+    assert_eq!(row(20).change, RowChange::DataOnly);
+    let moved = row(20);
+    assert_eq!(moved.changes[0].field, FieldKind::Position);
+    let renamed = row(26);
+    assert_eq!(renamed.changes[0].field, FieldKind::Name);
+    // La colonne et ses lignes, dans le volet.
+    for line in [
+        change_line(app, TextId::ColId, "20", "18"),
+        change_line(
+            app,
+            TextId::ColName,
+            "Zinguerie et gouttières",
+            "Zinguerie et descentes",
+        ),
+        change_line(app, TextId::ColDuration, "7 jours", "9 jours"),
+    ] {
+        assert!(
+            !harness.query_all_by_label(&line).collect::<Vec<_>>().is_empty(),
+            "ligne « {line} » absente"
+        );
+    }
+}
+
+/// H-UI-189 : au-delà de trois modifications, « + n autres ».
+#[test]
+fn h_ui_189_more_than_three_changes() {
+    let (mut harness, tx) = relay_harness();
+    let batch = json!({ "ops": [
+        { "op": "task.update", "uid": 6, "name": "Consultation", "notes": "n", "milestone": false, "active": false },
+        { "op": "task.set_deadline", "uid": 6, "deadline": "2027-06-01T17:00" },
+    ] });
+    let sent = execute(&tx, "batch.apply", batch);
+    harness.run();
+    assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
+    let app = harness.state();
+    let diff = app.approvals().pending()[0].diff.clone().unwrap();
+    let row = diff.rows.iter().find(|r| r.uid.get() == 6).unwrap();
+    assert!(row.changes.len() > 3, "{row:?}");
+    let rest = i64::try_from(row.changes.len() - 3).unwrap();
+    let more = app
+        .texts()
+        .get_args(TextId::AiChangeMore, &[("count", Arg::Count(rest))]);
+    harness.get_by_label(&more);
+}
+
+/// Harnais de capture (1280×720) sur l'exemple, file branchée, lot `batch`
+/// en attente et volet ouvert sur « Opérations IA ».
+fn panel_capture(language: LanguagePref, theme: ThemePref, batch: Value) -> Harness<'static, App> {
+    let mut harness = crate::common::harness(language, theme);
+    let (tx, rx) = sync_channel(16);
+    harness.state_mut().control_inbox(rx);
+    harness.run();
+    harness.state_mut().open_demo();
+    harness.run();
+    let sent = execute(&tx, "batch.apply", batch);
+    harness.run();
+    assert_eq!(sent.drain(), [Reply::PendingApproval { id: sent.id }]);
+    harness
+}
+
+/// Capture : tableau avant/après d'un lot d'avancement seul (H-UI-189).
+#[test]
+fn snapshot_ai_panel_progress_fr_light() {
+    let mut harness = panel_capture(LanguagePref::Fr, ThemePref::Light, progress_batch());
+    crate::common::snapshot(&mut harness, "ai_panel_progress_fr_light");
+}
+
+/// Capture : tableau avant/après d'un lot mêlé (H-UI-189).
+#[test]
+fn snapshot_ai_panel_mixed_fr_light() {
+    let mut harness = panel_capture(LanguagePref::Fr, ThemePref::Light, mixed_batch());
+    crate::common::snapshot(&mut harness, "ai_panel_mixed_fr_light");
+}
+
+/// Capture : même lot mêlé, en anglais et thème sombre (H-UI-189).
+#[test]
+fn snapshot_ai_panel_mixed_en_dark() {
+    let mut harness = panel_capture(LanguagePref::En, ThemePref::Dark, mixed_batch());
+    crate::common::snapshot(&mut harness, "ai_panel_mixed_en_dark");
 }

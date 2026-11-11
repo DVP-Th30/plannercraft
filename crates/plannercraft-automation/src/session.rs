@@ -108,6 +108,9 @@ pub struct Simulation {
     pub project: Project,
     /// Planning après le lot simulé.
     pub schedule: Schedule,
+    /// Delta par entité du lot (R-164) : pré- et post-images lues par le
+    /// tableau avant/après ([`crate::diff::DiffView::new`], H-UI-189).
+    pub(crate) entities: Delta,
 }
 
 /// Options d'application d'un lot.
@@ -257,6 +260,7 @@ impl Prepared {
             },
             project: self.work,
             schedule: self.schedule,
+            entities: self.entities,
         }
     }
 }
@@ -419,6 +423,7 @@ impl Session {
                 outcome: self.unchanged_outcome(),
                 project: self.project.clone(),
                 schedule: self.schedule.clone(),
+                entities: Delta::default(),
             });
         }
         Ok(self

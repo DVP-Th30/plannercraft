@@ -1864,3 +1864,21 @@ applied-columns =
        *[other] Colonnes affichées : { $names }
     }
 applied-show-resources = Voir les ressources
+
+## Lot R1b : tableau avant/après, colonne « Modification » (H-UI-189)
+
+ai-col-change = Modification
+ai-change-line = { $field } : { $before } → { $after }
+ai-change-modified = { $field } : modifiées
+ai-change-more =
+    { $count ->
+        [one] + { $count } autre
+       *[other] + { $count } autres
+    }
+ai-change-none = vide
+ai-field-physical-percent = % physique achevé
+ai-field-manual-start = Début saisi
+ai-field-manual-finish = Fin saisie
+ai-field-manual-duration = Durée saisie
+ai-field-calendar = Calendrier de la tâche
+ai-field-other = Autres données

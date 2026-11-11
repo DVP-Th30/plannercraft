@@ -475,3 +475,62 @@ fn n9_open_error_translated_en() {
         harness.state().messages()
     );
 }
+
+/// Tableau avant/après (lot R1b, H-UI-189) en pseudo-langue : en-tête
+/// « Modification » et lignes de modification jamais tronquées pour des
+/// valeurs courtes (durée, nom court, N°), rien de rogné hors de la table.
+#[test]
+fn h_ui_189_pseudo_change_column() {
+    use std::sync::Arc;
+    use std::sync::mpsc::sync_channel;
+
+    use plannercraft_automation::control::{CallState, RelayCall, RelayKind, Reply};
+
+    let labels = pseudo_labels();
+    let mut harness = pseudo_harness(Vec::new());
+    let (tx, rx) = sync_channel(4);
+    harness.state_mut().control_inbox(rx);
+    let (reply, replies) = sync_channel(4);
+    tx.send(RelayCall {
+        id: 9_001,
+        kind: RelayKind::Execute {
+            tool: "batch.apply".to_owned(),
+            params: serde_json::json!({ "ops": [
+                { "op": "task.update", "uid": 31, "duration": { "text": "9d" } },
+                { "op": "task.update", "uid": 34, "name": "Chauffe" },
+                { "op": "task.move", "uid": 20, "to": { "before": 18 } },
+            ] }),
+        },
+        state: Arc::new(CallState::new()),
+        reply,
+    })
+    .unwrap();
+    harness.run();
+    assert_eq!(
+        replies.try_iter().collect::<Vec<_>>(),
+        [Reply::PendingApproval { id: 9_001 }]
+    );
+    harness
+        .state_mut()
+        .dispatch(Action::SidePanel(SideOp::Open(SideTab::AiOperations)));
+    harness.run();
+    let seen = seen_ids(&harness, &labels);
+    assert!(seen.contains(&TextId::AiColChange), "en-tête absent : {seen:?}");
+    assert_not_cut(&harness, &labels, "tableau avant/après", 6);
+    // Lignes de modification (avec arguments, hors de `labels`) : aucune
+    // tronquée.
+    let mut lines = Vec::new();
+    for ClippedShape { shape, .. } in &harness.output().shapes {
+        let mut flat = Vec::new();
+        flatten(egui::Rect::EVERYTHING, shape, &mut flat);
+        for (_, s) in flat {
+            if let Shape::Text(t) = s
+                && t.galley.job.text.contains('→')
+            {
+                lines.push((t.galley.job.text.clone(), t.galley.elided));
+            }
+        }
+    }
+    assert_eq!(lines.len(), 3, "{lines:?}");
+    assert!(lines.iter().all(|(_, elided)| !elided), "{lines:?}");
+}
