@@ -395,6 +395,73 @@ pub struct Task {
     pub extras: Extras,
 }
 
+/// Champs d'une tâche, par référence (UID compris) : vue que le code hors du
+/// cœur peut déstructurer **sans `..`** (le champ `uid` de [`Task`] est
+/// privé), pour qu'un champ ajouté à `Task` oblige chaque comparaison champ
+/// par champ à décider de son sort (lot R1b, tableau avant/après). Construite
+/// par [`Task::fields`], elle-même écrite par déstructuration exhaustive.
+#[derive(Clone, Copy, Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "miroir des champs de Task, qui porte les mêmes drapeaux MSPDI"
+)]
+pub struct TaskFields<'a> {
+    /// UID.
+    pub uid: TaskUid,
+    /// GUID.
+    pub guid: &'a Option<Guid>,
+    /// Nom.
+    pub name: &'a str,
+    /// Ligne vide.
+    pub is_null: bool,
+    /// Niveau hiérarchique.
+    pub outline_level: OutlineLevel,
+    /// Code WBS.
+    pub wbs: &'a Option<String>,
+    /// Durée.
+    pub duration: &'a Duration,
+    /// Travail.
+    pub work: Work,
+    /// Type de tâche.
+    pub task_type: TaskType,
+    /// Pilotée par l'effort.
+    pub effort_driven: bool,
+    /// Jalon.
+    pub milestone: bool,
+    /// Contrainte.
+    pub constraint: &'a Constraint,
+    /// Échéance.
+    pub deadline: Option<Moment>,
+    /// Calendrier propre.
+    pub calendar: Option<CalendarUid>,
+    /// Ignorer le calendrier des ressources.
+    pub ignore_resource_calendar: bool,
+    /// Priorité.
+    pub priority: Priority,
+    /// Retard de nivellement enregistré.
+    pub leveling_delay: &'a Option<LevelingDelay>,
+    /// Avancement saisi.
+    pub progress: &'a Progress,
+    /// Liens vers les prédécesseurs.
+    pub predecessors: &'a [Link],
+    /// Notes.
+    pub notes: &'a str,
+    /// Mode de planification.
+    pub mode: &'a SchedulingMode,
+    /// Active.
+    pub active: bool,
+    /// Récurrente.
+    pub recurring: bool,
+    /// Date de création.
+    pub created: Option<Moment>,
+    /// Lignes de base.
+    pub baselines: &'a BTreeMap<BaselineNumber, TaskBaseline>,
+    /// Champs personnalisés.
+    pub custom: &'a BTreeMap<CustomFieldId, CustomValue>,
+    /// Données hors modèle.
+    pub extras: &'a Extras,
+}
+
 impl HasUid for Task {
     type Uid = TaskUid;
     fn uid(&self) -> TaskUid {
@@ -453,6 +520,69 @@ impl Task {
     #[must_use]
     pub const fn uid(&self) -> TaskUid {
         self.uid
+    }
+
+    /// Tous les champs, par référence ([`TaskFields`]).
+    #[must_use]
+    pub fn fields(&self) -> TaskFields<'_> {
+        let Self {
+            uid,
+            guid,
+            name,
+            is_null,
+            outline_level,
+            wbs,
+            duration,
+            work,
+            task_type,
+            effort_driven,
+            milestone,
+            constraint,
+            deadline,
+            calendar,
+            ignore_resource_calendar,
+            priority,
+            leveling_delay,
+            progress,
+            predecessors,
+            notes,
+            mode,
+            active,
+            recurring,
+            created,
+            baselines,
+            custom,
+            extras,
+        } = self;
+        TaskFields {
+            uid: *uid,
+            guid,
+            name,
+            is_null: *is_null,
+            outline_level: *outline_level,
+            wbs,
+            duration,
+            work: *work,
+            task_type: *task_type,
+            effort_driven: *effort_driven,
+            milestone: *milestone,
+            constraint,
+            deadline: *deadline,
+            calendar: *calendar,
+            ignore_resource_calendar: *ignore_resource_calendar,
+            priority: *priority,
+            leveling_delay,
+            progress,
+            predecessors,
+            notes,
+            mode,
+            active: *active,
+            recurring: *recurring,
+            created: *created,
+            baselines,
+            custom,
+            extras,
+        }
     }
 }
 

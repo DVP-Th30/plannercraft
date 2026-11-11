@@ -33,9 +33,10 @@ pub struct SessionTexts<'a> {
 }
 
 /// Mots des unités et marques d'une langue (mêmes formes que les `.ftl` de
-/// l'interface, J7 lot L6).
+/// l'interface, J7 lot L6) ; aussi les valeurs du tableau avant/après
+/// (`diff::DiffView`, H-UI-189).
 #[derive(Clone, Copy, Debug)]
-struct Labels(Language);
+pub(crate) struct Labels(pub(crate) Language);
 
 impl DisplayLabels for Labels {
     fn decimal_sep(&self) -> char {

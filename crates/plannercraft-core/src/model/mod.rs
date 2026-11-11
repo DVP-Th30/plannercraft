@@ -38,7 +38,7 @@ pub use link::{Link, LinkType};
 pub use options::{ProgressOption, ProgressOptions, ProjectOptions};
 pub use resource::{Resource, ResourceKind, resource_id};
 pub use task::{
-    Constraint, ConstraintKind, OutlineLevel, Priority, Progress, SchedulingMode, Task, TaskType,
+    Constraint, ConstraintKind, OutlineLevel, Priority, Progress, SchedulingMode, Task, TaskFields, TaskType,
 };
 
 use crate::arena::Arena;

@@ -360,12 +360,8 @@ pub(crate) fn preview_diff(
         project: session.project(),
         schedule: session.schedule(),
     };
-    let after = DiffSide {
-        project: &sim.project,
-        schedule: &sim.schedule,
-    };
     let text = TextContext::for_project(session.project(), lang);
-    Some(DiffView::new(&sim.outcome.diff, before, after, &text))
+    Some(DiffView::new(before, &sim, &text))
 }
 
 /// Données du panneau d'opérations IA : tête de file (`banner`), son diff

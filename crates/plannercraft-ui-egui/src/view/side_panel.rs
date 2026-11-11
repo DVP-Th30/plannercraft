@@ -35,16 +35,19 @@ use std::collections::VecDeque;
 
 use plannercraft_automation::command::TaskRef;
 use plannercraft_automation::command::params::ExplainParams;
-use plannercraft_automation::diff::{CriticalChange, DiffRow, DiffView, MAX_VIEW_ROWS, RowChange};
+use plannercraft_automation::diff::{
+    CriticalChange, DiffRow, DiffView, FieldChange, FieldKind, FieldValue, MAX_VIEW_ROWS, RowChange,
+};
 use plannercraft_automation::explain::{ExplainView, explain_date};
 use plannercraft_automation::text::Language as ToolLanguage;
-use plannercraft_core::{ConversionFactors, Minutes, Moment, TaskUid};
+use plannercraft_core::{ConversionFactors, Minutes, Moment, Project, TaskUid};
 
 use super::FrameCtx;
 use super::approval::{ApprovalBanner, decision_row};
 use crate::action::{Action, UiOp};
 use crate::app::OpenDocument;
-use crate::format::{FormatLabels, format_date, format_slack};
+use crate::column::Column;
+use crate::format::{FormatLabels, format_date, format_slack, format_yes_no};
 use crate::i18n::{Arg, TextId};
 
 /// Entrées au plus dans l'historique du panneau (règle 10 de J8).
@@ -52,6 +55,14 @@ pub const MAX_HISTORY: usize = 50;
 /// Lignes au plus dans un diff affiché (règle 10 de J8) : celles du
 /// [`DiffView`] du moteur.
 pub const MAX_DIFF_ROWS: usize = MAX_VIEW_ROWS;
+
+/// Modifications affichées au plus dans une cellule de la colonne
+/// « Modification » (H-UI-189), puis « + n autres ».
+pub const MAX_CHANGES_PER_CELL: usize = 3;
+
+/// Largeur au plus d'une ligne de la colonne « Modification », en points :
+/// au-delà, la ligne est tronquée par « … » (texte complet au survol).
+const CHANGE_MAX_WIDTH: f32 = 320.0;
 
 /// Largeur du volet par défaut, en points logiques.
 pub const DEFAULT_WIDTH: f32 = 460.0;
@@ -667,21 +678,14 @@ fn diff_table(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, diff: &DiffView) {
         .show(ui, |ui| {
             egui::Grid::new("plannercraft_ai_diff_grid")
                 .striped(true)
-                .num_columns(6)
+                .num_columns(7)
                 .show(ui, |ui| {
-                    for id in [
-                        TextId::ColId,
-                        TextId::ColName,
-                        TextId::ColStart,
-                        TextId::ColFinish,
-                        TextId::ColTotalSlack,
-                        TextId::ColCritical,
-                    ] {
+                    for id in diff_columns(diff.dates_moved) {
                         ui.label(egui::RichText::new(texts.get(id)).strong());
                     }
                     ui.end_row();
                     for row in diff.rows.iter().take(MAX_DIFF_ROWS) {
-                        diff_row(ui, fc, row, labels, factors, muted);
+                        diff_row(ui, fc, row, labels, factors, muted, diff.dates_moved);
                         ui.end_row();
                     }
                 });
@@ -692,7 +696,36 @@ fn diff_table(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, diff: &DiffView) {
     }
 }
 
-/// Une ligne de la table avant/après.
+/// En-têtes de la table avant/après (H-UI-189, ADR-0028 D2) : sans date
+/// déplacée, « Modification » juste après « Nom » ; sinon en dernier, pour
+/// ne pas pousser Début et Fin hors du volet.
+#[must_use]
+pub const fn diff_columns(dates_moved: bool) -> [TextId; 7] {
+    if dates_moved {
+        [
+            TextId::ColId,
+            TextId::ColName,
+            TextId::ColStart,
+            TextId::ColFinish,
+            TextId::ColTotalSlack,
+            TextId::ColCritical,
+            TextId::AiColChange,
+        ]
+    } else {
+        [
+            TextId::ColId,
+            TextId::ColName,
+            TextId::AiColChange,
+            TextId::ColStart,
+            TextId::ColFinish,
+            TextId::ColTotalSlack,
+            TextId::ColCritical,
+        ]
+    }
+}
+
+/// Une ligne de la table avant/après ; `dates_moved` : colonne
+/// « Modification » en dernier, sur une ligne ([`diff_columns`]).
 fn diff_row(
     ui: &mut egui::Ui,
     fc: &FrameCtx<'_>,
@@ -700,6 +733,7 @@ fn diff_row(
     labels: &FormatLabels,
     factors: ConversionFactors,
     muted: egui::Color32,
+    dates_moved: bool,
 ) {
     let texts = fc.texts;
     ui.add(egui::Label::new(row.id.map(|id| id.get().to_string()).unwrap_or_default()).extend());
@@ -708,9 +742,12 @@ fn diff_row(
         RowChange::Removed => {
             texts.get_args(TextId::AiRemoved, &[("name", Arg::Str(row.name.as_str().into()))])
         }
-        RowChange::Changed | RowChange::CriticalOnly => row.name.clone(),
+        RowChange::Changed | RowChange::CriticalOnly | RowChange::DataOnly => row.name.clone(),
     };
     ui.add(egui::Label::new(name).extend());
+    if !dates_moved {
+        change_cell(ui, fc, row, labels);
+    }
     let date = |m: Option<Moment>| m.map(|m| format_date(m, labels)).unwrap_or_default();
     let slack = |m: Option<Minutes>| m.map(|m| format_slack(m, &factors, labels)).unwrap_or_default();
     pair_cell(ui, &date(row.start.0), &date(row.start.1), muted);
@@ -722,6 +759,134 @@ fn diff_row(
         CriticalChange::Left => texts.get(TextId::AiCriticalLeft),
     };
     ui.label(critical);
+    if dates_moved && !row.changes.is_empty() {
+        change_inline(ui, fc, row, labels);
+    }
+}
+
+/// Cellule « Modification » d'une table où des dates bougent (H-UI-189) :
+/// les mêmes textes que [`change_cell`] (trois au plus puis « + n
+/// autres »), joints par « · » sur une seule ligne, jamais repliée : la
+/// hauteur des lignes reste celle des colonnes de dates. Colonne en bout de
+/// défilement horizontal, sans troncature.
+fn change_inline(ui: &mut egui::Ui, fc: &FrameCtx<'_>, row: &DiffRow, labels: &FormatLabels) {
+    let texts = fc.texts;
+    let project = fc.doc.map(OpenDocument::project);
+    let mut parts: Vec<String> = row
+        .changes
+        .iter()
+        .take(MAX_CHANGES_PER_CELL)
+        .map(|c| change_line(texts, labels, project, c))
+        .collect();
+    let rest = row.changes.len().saturating_sub(MAX_CHANGES_PER_CELL);
+    if rest > 0 {
+        let count = i64::try_from(rest).unwrap_or(i64::MAX);
+        parts.push(texts.get_args(TextId::AiChangeMore, &[("count", Arg::Count(count))]));
+    }
+    let line = parts.join(&texts.get(TextId::AiChangeSeparator));
+    ui.add(egui::Label::new(line).extend());
+}
+
+/// Cellule « Modification » (H-UI-189) : une ligne par modification
+/// directe (« % achevé : 0 % → 100 % », « Notes : modifiées »), trois au
+/// plus puis « + n autres » ; vide pour une tâche que seul le recalcul a
+/// changée. Lignes jamais coupées, tronquées par « … » au-delà de
+/// [`CHANGE_MAX_WIDTH`] (texte complet au survol).
+fn change_cell(ui: &mut egui::Ui, fc: &FrameCtx<'_>, row: &DiffRow, labels: &FormatLabels) {
+    let texts = fc.texts;
+    let project = fc.doc.map(OpenDocument::project);
+    ui.vertical(|ui| {
+        ui.set_max_width(CHANGE_MAX_WIDTH);
+        for c in row.changes.iter().take(MAX_CHANGES_PER_CELL) {
+            ui.add(egui::Label::new(change_line(texts, labels, project, c)).truncate());
+        }
+        let rest = row.changes.len().saturating_sub(MAX_CHANGES_PER_CELL);
+        if rest > 0 {
+            let count = i64::try_from(rest).unwrap_or(i64::MAX);
+            ui.add(
+                egui::Label::new(texts.get_args(TextId::AiChangeMore, &[("count", Arg::Count(count))]))
+                    .truncate(),
+            );
+        }
+    });
+}
+
+/// Texte d'une modification : libellé du champ (titre de sa colonne quand
+/// elle existe), valeurs d'avant et d'après.
+fn change_line(
+    texts: &crate::i18n::Texts,
+    labels: &FormatLabels,
+    project: Option<&Project>,
+    c: &FieldChange,
+) -> String {
+    let field = field_label(texts, project, c.field);
+    match c.field {
+        FieldKind::Notes | FieldKind::Other => {
+            texts.get_args(TextId::AiChangeModified, &[("field", Arg::Str(field.into()))])
+        }
+        _ => texts.get_args(
+            TextId::AiChangeLine,
+            &[
+                ("field", Arg::Str(field.into())),
+                ("before", Arg::Str(value_text(texts, labels, &c.before).into())),
+                ("after", Arg::Str(value_text(texts, labels, &c.after).into())),
+            ],
+        ),
+    }
+}
+
+/// Libellé d'un champ modifié : le titre de la colonne du tableau (mêmes
+/// `TextId`, alias d'un champ personnalisé compris), sinon un texte propre
+/// au tableau avant/après.
+fn field_label(texts: &crate::i18n::Texts, project: Option<&Project>, field: FieldKind) -> String {
+    let id = match field {
+        FieldKind::Position => TextId::ColId,
+        FieldKind::OutlineLevel => TextId::ColOutlineLevel,
+        FieldKind::Name => TextId::ColName,
+        FieldKind::Duration => TextId::ColDuration,
+        FieldKind::PercentComplete => TextId::ColPercentComplete,
+        FieldKind::PercentWorkComplete => TextId::ColPercentWorkComplete,
+        FieldKind::PhysicalPercentComplete => TextId::AiFieldPhysicalPercent,
+        FieldKind::ActualStart => TextId::ColActualStart,
+        FieldKind::ActualFinish => TextId::ColActualFinish,
+        FieldKind::ActualDuration => TextId::ColActualDuration,
+        FieldKind::RemainingDuration => TextId::ColRemainingDuration,
+        FieldKind::ActualWork => TextId::ColActualWork,
+        FieldKind::RemainingWork => TextId::ColRemainingWork,
+        FieldKind::Mode => TextId::ColMode,
+        FieldKind::ManualStart => TextId::AiFieldManualStart,
+        FieldKind::ManualFinish => TextId::AiFieldManualFinish,
+        FieldKind::ManualDuration => TextId::AiFieldManualDuration,
+        FieldKind::ConstraintType => TextId::ColConstraintType,
+        FieldKind::ConstraintDate => TextId::ColConstraintDate,
+        FieldKind::Deadline => TextId::ColDeadline,
+        FieldKind::Calendar => TextId::AiFieldCalendar,
+        FieldKind::Predecessors => TextId::ColPredecessors,
+        FieldKind::Resources => TextId::ColResourceNames,
+        FieldKind::Priority => TextId::ColPriority,
+        FieldKind::Milestone => TextId::ColMilestone,
+        FieldKind::Active => TextId::ColActive,
+        FieldKind::Notes => TextId::ColNotes,
+        FieldKind::Custom(id) => return crate::field::column_label(Column::Custom(id), texts, project),
+        FieldKind::Other => TextId::AiFieldOther,
+    };
+    texts.get(id)
+}
+
+/// Valeur d'avant ou d'après : texte du moteur, ou libellé de la colonne
+/// pour une valeur à choix (Oui / Non, mode, type de contrainte), date au
+/// format des colonnes de dates du tableau (`format_date`) ; « vide » sans
+/// valeur.
+fn value_text(texts: &crate::i18n::Texts, labels: &FormatLabels, v: &FieldValue) -> String {
+    match v {
+        FieldValue::Text(s) if !s.is_empty() => s.clone(),
+        FieldValue::None | FieldValue::Text(_) => texts.get(TextId::AiChangeNone),
+        FieldValue::YesNo(b) => format_yes_no(*b, labels),
+        FieldValue::Manual(true) => labels.mode_manual.clone(),
+        FieldValue::Manual(false) => labels.mode_auto.clone(),
+        FieldValue::Constraint(kind) => crate::field::field_labels(texts).constraint(*kind).to_owned(),
+        FieldValue::Date(m) => format_date(*m, labels),
+    }
 }
 
 /// Cellule avant/après : la valeur d'après, puis celle d'avant barrée si

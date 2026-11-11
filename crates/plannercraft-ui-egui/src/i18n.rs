@@ -1695,6 +1695,18 @@ text_ids! {
     DetailsOpenerTip => "details-opener-tip",
     AppliedColumns => "applied-columns",
     AppliedShowResources => "applied-show-resources",
+    AiColChange => "ai-col-change",
+    AiChangeLine => "ai-change-line",
+    AiChangeModified => "ai-change-modified",
+    AiChangeMore => "ai-change-more",
+    AiChangeNone => "ai-change-none",
+    AiChangeSeparator => "ai-change-separator",
+    AiFieldPhysicalPercent => "ai-field-physical-percent",
+    AiFieldManualStart => "ai-field-manual-start",
+    AiFieldManualFinish => "ai-field-manual-finish",
+    AiFieldManualDuration => "ai-field-manual-duration",
+    AiFieldCalendar => "ai-field-calendar",
+    AiFieldOther => "ai-field-other",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en
@@ -2141,6 +2153,9 @@ mod tests {
     fn sample_args() -> Vec<(&'static str, Arg<'static>)> {
         vec![
             ("product", Arg::Str("plannercraft".into())),
+            // Lot R1b : colonne « Modification » du tableau avant/après.
+            ("before", Arg::Str("0 %".into())),
+            ("after", Arg::Str("100 %".into())),
             // Lot R1 : infobulle des barres, colonnes affichées.
             ("link", Arg::Str("FD".into())),
             ("names", Arg::Str("Noms ressources, Notes".into())),

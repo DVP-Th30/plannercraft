@@ -81,7 +81,7 @@ pub use model::{
     Assignment, AssignmentBaseline, Constraint, ConstraintKind, CustomFieldDef, CustomFieldId, CustomKind,
     CustomValue, CustomValueError, ExtraEntry, Extras, LevelingDelay, Link, LinkType, OutlineLevel, Priority,
     Progress, ProgressOption, ProgressOptions, Project, ProjectInfo, ProjectInit, ProjectOptions, Resource,
-    ResourceBaseline, ResourceKind, ScheduleAnchor, SchedulingMode, Task, TaskBaseline, TaskType,
+    ResourceBaseline, ResourceKind, ScheduleAnchor, SchedulingMode, Task, TaskBaseline, TaskFields, TaskType,
     WorkContour, resource_id,
 };
 pub use progress::{ProgressFacts, ProgressState};

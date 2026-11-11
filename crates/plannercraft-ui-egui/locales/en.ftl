@@ -1865,3 +1865,18 @@ applied-columns =
        *[other] Columns shown: { $names }
     }
 applied-show-resources = View resources
+
+## Lot R1b: before/after table, "Change" column (H-UI-189)
+
+ai-col-change = Change
+ai-change-line = { $field }: { $before } → { $after }
+ai-change-modified = { $field }: modified
+ai-change-more = + { $count } more
+ai-change-separator = { " · " }
+ai-change-none = empty
+ai-field-physical-percent = Physical % complete
+ai-field-manual-start = Entered start
+ai-field-manual-finish = Entered finish
+ai-field-manual-duration = Entered duration
+ai-field-calendar = Task calendar
+ai-field-other = Other data
