@@ -393,7 +393,7 @@ pub fn paint_header(
     let clip = rect.intersect(ui.clip_rect());
     let painter = ui.painter().with_clip_rect(clip);
     let palette = fc.palette;
-    let font = cell_font(ui);
+    let font = grid::title_font(ui.style());
     let mut shapes = 0_usize;
     painter.rect_filled(rect, 0.0, palette.header_bg);
     shapes = shapes.saturating_add(1);

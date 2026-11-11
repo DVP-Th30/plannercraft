@@ -139,10 +139,25 @@ pub const NAME_MIN_TEXT_ROOM: f32 = 40.0;
 /// Épaisseur du cadre de la cellule courante, en points.
 pub const CURSOR_STROKE: f32 = 2.0;
 
-/// Police des cellules et des titres.
+/// Police des cellules.
 #[must_use]
 pub fn cell_font(ui: &egui::Ui) -> FontId {
     egui::TextStyle::Body.resolve(ui.style())
+}
+
+/// Corps des titres de colonne (interface adoucie, lot U1, H-UI-169) :
+/// Inter est plus large que l'ancienne police de l'interface, un titre au
+/// corps des cellules ne tient plus dans les largeurs par défaut
+/// (`pseudo_main_view_no_truncation`).
+pub const TITLE_SIZE: f32 = 11.5;
+
+/// Police des titres de colonne : celle des cellules au corps
+/// [`TITLE_SIZE`].
+#[must_use]
+pub fn title_font(style: &egui::Style) -> FontId {
+    let mut font = egui::TextStyle::Body.resolve(style);
+    font.size = TITLE_SIZE;
+    font
 }
 
 /// Galley d'un texte tronqué à `max_w` (« … »), couleur fixée au dessin.
