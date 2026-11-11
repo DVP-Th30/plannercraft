@@ -629,7 +629,7 @@ fn picker_entry(app: &App, column: Column) -> String {
 
 /// Haut du nœud `label` (bouton de la liste du sélecteur).
 fn entry_top(harness: &Harness<'static, App>, label: &str) -> f32 {
-    harness.get_by_label(label).rect().min.y as f32
+    harness.get_by_label(label).rect().min.y
 }
 
 /// H-UI-184 (retours d'essai du 2026-11-11, F1) : défiler la liste du
@@ -649,7 +649,7 @@ fn h_ui_184_picker_scroll_holds() {
     assert!(list.len() > 20, "{list:?}");
     let first = picker_entry(harness.state(), list[0]);
     let second = picker_entry(harness.state(), list[1]);
-    let search_bottom = harness.get_by_label(&fr(TextId::FieldPickerSearch)).rect().max.y as f32;
+    let search_bottom = harness.get_by_label(&fr(TextId::FieldPickerSearch)).rect().max.y;
     let top0 = entry_top(&harness, &second);
     assert!(top0 >= search_bottom, "{top0} < {search_bottom}");
     // Molette vers le bas, au-dessus de la liste.

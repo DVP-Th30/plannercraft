@@ -1857,3 +1857,4 @@ bar-tip-project-start = Début du projet
 bar-tip-summary-gate = Bornée par la récapitulative { $name }
 bar-tip-manual = Dates saisies (tâche manuelle)
 bar-tip-actual = Date réelle saisie
+details-opener-tip = Faire glisser vers le haut pour afficher le volet Détails

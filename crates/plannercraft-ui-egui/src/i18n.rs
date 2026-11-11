@@ -1692,6 +1692,7 @@ text_ids! {
     BarTipSummaryGate => "bar-tip-summary-gate",
     BarTipManual => "bar-tip-manual",
     BarTipActual => "bar-tip-actual",
+    DetailsOpenerTip => "details-opener-tip",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

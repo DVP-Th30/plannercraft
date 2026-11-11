@@ -1858,3 +1858,4 @@ bar-tip-project-start = Project start
 bar-tip-summary-gate = Bounded by summary task { $name }
 bar-tip-manual = Entered dates (manual task)
 bar-tip-actual = Actual date entered
+details-opener-tip = Drag up to show the Details pane
