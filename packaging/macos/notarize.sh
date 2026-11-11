@@ -24,7 +24,7 @@ trap 'rm -f "$key" "$result"' EXIT
 (umask 077 && printf '%s\n' "$APPLE_API_KEY_P8" > "$key")
 auth=(--key "$key" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID")
 
-echo "Notarisation de $file…"
+echo "Notarisation de ${file}…"
 # notarytool peut sortir en succès avec un statut « Invalid » : le verdict se
 # lit dans le JSON, pas dans le code de sortie.
 xcrun notarytool submit "$file" "${auth[@]}" --wait --timeout 30m --output-format json > "$result" || true
