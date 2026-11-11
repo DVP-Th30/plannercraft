@@ -238,8 +238,10 @@ async fn replay_daily_j8_memory() {
             .unwrap_or_else(|| panic!("appel {} : 6 inchangée", i + 1))
     };
     // R-253 : bascule en manuel sans effet sur les dates ; 3 allongée de
-    // 2 j ⇒ 6 manuelle garde son début (S73).
+    // 2 j ⇒ 6 manuelle garde son début (S73). Aucune date déplacée, mais
+    // la tâche est touchée (son mode change, R-163 amendée).
     assert_eq!(ok(6)["diff"]["changed_total"], json!(0));
+    assert_eq!(ok(6)["diff"]["touched_total"], json!(1));
     assert_eq!(ok(8)["start"], json!("2026-11-09T08:00"));
     // R-254 : début saisi ⇒ fin = début + 4 j ; fin avant le début refusée.
     assert_eq!(task_after(9)["start_after"], json!("2026-11-16T08:00"));

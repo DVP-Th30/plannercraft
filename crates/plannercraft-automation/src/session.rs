@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 pub use crate::command::AnchorSpec;
 use crate::command::Batch;
 use crate::command::exec::{BatchCache, Ctx, Exec};
-use crate::delta::{Dir, apply_delta, approx_bytes, diff_projects, json_len};
+use crate::delta::{Delta, Dir, apply_delta, approx_bytes, diff_projects, json_len};
 use crate::diag_delta::{blame, diagnostics_delta, state_diagnostics};
 pub use crate::diff::DEFAULT_DIFF_TASKS;
 use crate::diff::{ScheduleDiff, diff_schedules};
@@ -229,6 +229,10 @@ struct Prepared {
     labels: BTreeMap<String, TaskUid>,
     created: Vec<TaskUid>,
     diff: ScheduleDiff,
+    /// Delta par entité du lot (R-164) : calculé une fois, il donne les
+    /// tâches touchées du diff (R-163) et devient l'entrée d'historique au
+    /// commit.
+    entities: Delta,
     warnings: Vec<Diagnostic>,
     effects: Vec<SideEffect>,
     resource_labels: BTreeMap<String, ResourceUid>,
@@ -486,12 +490,12 @@ impl Session {
             labels,
             created,
             diff,
+            entities: entity_delta,
             warnings,
             mut effects,
             resource_labels,
             created_resources,
         } = prepared;
-        let entity_delta = diff_projects(&self.project, &work);
         let bytes = approx_bytes(&entity_delta).saturating_add(json_len(record));
         uids.observe(&work);
         self.project = work;
@@ -582,7 +586,8 @@ impl Session {
         } else {
             DEFAULT_DIFF_TASKS
         };
-        let diff = diff_schedules(&self.project, &self.schedule, &work, &schedule, n);
+        let entities = diff_projects(&self.project, &work);
+        let diff = diff_schedules(&self.project, &self.schedule, &work, &schedule, n, &entities);
         Ok(Prepared {
             work,
             schedule,
@@ -591,6 +596,7 @@ impl Session {
             labels,
             created,
             diff,
+            entities,
             warnings: delta.warnings,
             effects,
             resource_labels,
@@ -621,9 +627,10 @@ impl Session {
         }
     }
 
-    /// Remplace l'état par `project` (déjà modifié par un delta) : recalcul,
-    /// diff, avertissements nouveaux, génération.
-    fn replace_state(&mut self, project: Project) -> ApplyOutcome {
+    /// Remplace l'état par `project` (déjà modifié par `entities`, le delta
+    /// de l'entrée d'historique) : recalcul, diff, avertissements nouveaux,
+    /// génération.
+    fn replace_state(&mut self, project: Project, entities: &Delta) -> ApplyOutcome {
         let schedule = plannercraft_core::schedule(&project);
         let diagnostics = state_diagnostics(&project, &schedule);
         let warnings = diagnostics_delta(&self.diagnostics, &diagnostics).warnings;
@@ -633,6 +640,7 @@ impl Session {
             &project,
             &schedule,
             DEFAULT_DIFF_TASKS,
+            entities,
         );
         self.uids.observe(&project);
         self.project = project;
@@ -668,7 +676,7 @@ impl Session {
             self.history.push_undo_back(entry);
             return Err(HistoryError::Inconsistent(e));
         }
-        let mut outcome = self.replace_state(project);
+        let mut outcome = self.replace_state(project, &entry.delta);
         self.history.push_redo(entry);
         outcome.history_len = self.history.len();
         Ok(outcome)
@@ -688,7 +696,7 @@ impl Session {
             self.history.push_redo(entry);
             return Err(HistoryError::Inconsistent(e));
         }
-        let mut outcome = self.replace_state(project);
+        let mut outcome = self.replace_state(project, &entry.delta);
         self.history.push_undo_back(entry);
         outcome.history_len = self.history.len();
         Ok(outcome)

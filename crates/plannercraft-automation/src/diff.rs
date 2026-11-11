@@ -12,6 +12,7 @@ use plannercraft_core::{
 };
 use serde::Serialize;
 
+use crate::delta::Delta;
 use crate::text::TextContext;
 
 /// Diff de planning d'un lot (R-163).
@@ -25,8 +26,14 @@ pub struct ScheduleDiff {
     pub critical_entered: Vec<TaskUid>,
     /// Tâches qui ne sont plus critiques, par UID.
     pub critical_left: Vec<TaskUid>,
-    /// Nombre exact de tâches changées.
+    /// Nombre exact de tâches aux dates changées (début ou fin planifiés
+    /// déplacés), apparues ou disparues : « dates déplacées ».
     pub changed_total: usize,
+    /// Nombre exact de tâches touchées par le lot (R-163 amendée) : donnée
+    /// enregistrée changée (champ de la tâche ou de l'une de ses
+    /// affectations), ajoutées ou supprimées, réunies avec les tâches de
+    /// `changed_total`. Toujours `>= changed_total`.
+    pub touched_total: usize,
     /// Tâches changées, triées, au plus N.
     pub changed: Vec<TaskChange>,
     /// Vrai si `changed` a été coupé.
@@ -72,6 +79,7 @@ impl ScheduleDiff {
             critical_entered: Vec::new(),
             critical_left: Vec::new(),
             changed_total: 0,
+            touched_total: 0,
             changed: Vec::new(),
             truncated: false,
             overallocated_new: Vec::new(),
@@ -89,12 +97,17 @@ pub const DEFAULT_DIFF_TASKS: usize = 10;
 /// son début ou sa fin planifiés diffèrent, ou si elle apparaît ou
 /// disparaît. La criticité est suivie sur toutes les tâches. Tri : |Δ fin|
 /// décroissant, ID d'après croissant (absent en dernier), UID.
+///
+/// `entities` est le delta par entité des deux projets (R-164, celui que
+/// l'historique garde) : il donne les tâches touchées (`touched_total`)
+/// sans seconde comparaison.
 pub(crate) fn diff_schedules(
     before_p: &Project,
     before: &Schedule,
     after_p: &Project,
     after: &Schedule,
     n: usize,
+    entities: &Delta,
 ) -> ScheduleDiff {
     let mut d = ScheduleDiff {
         project_finish: (before.project_finish, after.project_finish),
@@ -102,6 +115,7 @@ pub(crate) fn diff_schedules(
         critical_entered: Vec::new(),
         critical_left: Vec::new(),
         changed_total: 0,
+        touched_total: 0,
         changed: Vec::new(),
         truncated: false,
         overallocated_new: Vec::new(),
@@ -141,10 +155,36 @@ pub(crate) fn diff_schedules(
     }
     changed.sort_by(compare);
     d.changed_total = changed.len();
+    d.touched_total = touched_tasks(before_p, after_p, entities, &changed).len();
     d.truncated = changed.len() > n;
     changed.truncate(n);
     d.changed = changed;
     d
+}
+
+/// Tâches touchées (R-163 amendée), triées par UID : tâches du delta par
+/// entité (champ changé, ajoutée, supprimée), tâches des affectations
+/// changées, ajoutées ou retirées (tâche d'avant et d'après de
+/// l'affectation, si elle existe d'un côté), et tâches aux dates changées.
+/// L'ordre seul (déplacement dans la liste, IDs renumérotés) ne touche
+/// aucune tâche.
+fn touched_tasks(
+    before_p: &Project,
+    after_p: &Project,
+    entities: &Delta,
+    changed: &[TaskChange],
+) -> BTreeSet<TaskUid> {
+    let mut touched: BTreeSet<TaskUid> = entities.tasks.changed.iter().map(|c| c.0).collect();
+    let exists = |uid: TaskUid| before_p.tasks.contains(uid) || after_p.tasks.contains(uid);
+    for (_, b, a) in &entities.assignments.changed {
+        for task in [b.as_ref(), a.as_ref()].into_iter().flatten().map(|x| x.task) {
+            if exists(task) {
+                touched.insert(task);
+            }
+        }
+    }
+    touched.extend(changed.iter().map(|c| c.uid));
+    touched
 }
 
 /// Surutilisations apparues et résolues (J5, ADR-0013 D9) : jointure
