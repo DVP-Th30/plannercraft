@@ -93,6 +93,43 @@ fn snapshot_main_en_dark() {
     snapshot(&mut harness, "main_en_dark");
 }
 
+/// Interface adoucie (lot U1, H-UI-167 à H-UI-171) : vue Gantt de
+/// l'exemple dans le modèle par défaut, comme la planche « Niveau 1 seul »
+/// de la maquette validée (même ruban et mêmes volets qu'avant ; couleurs,
+/// lignes, police et barres adoucies) : récapitulative « Gros œuvre »
+/// sélectionnée, ligne 7 en tête. Pas de zébrure, filet vertical de la
+/// table après le N° seulement, « Planning cohérent » dans la barre d'état.
+fn soft_gantt_capture(theme: ThemePref, name: &str) {
+    let mut harness = demo(LanguagePref::Fr, theme);
+    let style = {
+        let app = harness.state();
+        app.state
+            .effective_style(app.document.as_ref().unwrap().project())
+    };
+    assert!(
+        plannercraft_ui_egui::theme::screen_style(style).1,
+        "modèle par défaut adouci"
+    );
+    let uid = uid_named(harness.state(), "Gros œuvre");
+    harness.state_mut().dispatch(Action::ScrollToRow(6));
+    harness.state_mut().dispatch(Action::Select(Some(uid)));
+    harness.run();
+    assert_eq!(harness.state().selection, Some(uid));
+    let consistent = Texts::new(Language::Fr).get(TextId::StatusConsistent);
+    assert!(harness.query_by_label(&consistent).is_some());
+    snapshot(&mut harness, name);
+}
+
+#[test]
+fn snapshot_soft_light_gantt_fr() {
+    soft_gantt_capture(ThemePref::Light, "soft_light_gantt_fr");
+}
+
+#[test]
+fn snapshot_soft_dark_gantt_fr() {
+    soft_gantt_capture(ThemePref::Dark, "soft_dark_gantt_fr");
+}
+
 #[test]
 fn snapshot_main_fr_light_week() {
     let mut harness = demo(LanguagePref::Fr, ThemePref::Light);
@@ -1055,8 +1092,8 @@ fn demo_with_diagnostics() -> Harness<'static, App> {
 }
 
 /// H-UI-119 : sans diagnostic (exemple embarqué, ou aucun document), la
-/// case Affichage → Diagnostics cochée ne dessine aucun volet (les
-/// pastilles disent déjà « aucune erreur ») ; avec un diagnostic, le
+/// case Affichage → Diagnostics cochée ne dessine aucun volet (la barre
+/// d'état dit déjà « Planning cohérent ») ; avec un diagnostic, le
 /// volet est là.
 #[test]
 fn h_ui_119_no_empty_diagnostics_pane() {
@@ -1066,10 +1103,8 @@ fn h_ui_119_no_empty_diagnostics_pane() {
     harness.run();
     assert!(harness.state().state.diagnostics_open, "case gardée cochée");
     assert!(!drawn(&harness.ctx), "volet vide dessiné");
-    let none = Texts::new(Language::Fr).get_args(
-        TextId::StatusErrors,
-        &[("count", plannercraft_ui_egui::i18n::Arg::Count(0))],
-    );
+    // Interface adoucie (lot U1, H-UI-171) : « Planning cohérent ».
+    let none = Texts::new(Language::Fr).get(TextId::StatusConsistent);
     assert_eq!(harness.query_all_by_label(&none).count(), 1, "pastille seule");
     harness.state_mut().dispatch(Action::CloseDocument);
     harness.run();

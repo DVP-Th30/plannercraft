@@ -363,16 +363,32 @@ pub fn paint_titles<C: Copy>(
     at: HeaderPlace,
     font: &FontId,
 ) -> (Vec<(C, f32, f32)>, usize) {
-    paint_titles_aligned(painter, columns, title, |_| CellAlign::Center, palette, at, font)
+    paint_titles_aligned(
+        painter,
+        columns,
+        title,
+        |_| CellAlign::Center,
+        |_| true,
+        palette,
+        at,
+        font,
+    )
 }
 
 /// Comme [`paint_titles`], chaque titre aligné selon `align` (« Paramètres
-/// de champ », H-UI-115, seconde passe UX lot L6).
+/// de champ », H-UI-115, seconde passe UX lot L6) ; séparateur vertical à
+/// droite des seules colonnes où `rule` est vrai (interface adoucie, lot
+/// U1 : après la colonne figée seulement).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "peintre, colonnes et trois règles de dessin"
+)]
 pub fn paint_titles_aligned<C: Copy>(
     painter: &Painter,
     columns: &[(C, u16)],
     title: impl Fn(C) -> String,
     align: impl Fn(C) -> CellAlign,
+    rule: impl Fn(C) -> bool,
     palette: &Palette,
     at: HeaderPlace,
     font: &FontId,
@@ -400,8 +416,10 @@ pub fn paint_titles_aligned<C: Copy>(
             painter.galley(pos2(x, y), galley, palette.text_strong);
             shapes = shapes.saturating_add(1);
         }
-        painter.vline(right - 0.5, rect.y_range(), Stroke::new(1.0, palette.grid_major));
-        shapes = shapes.saturating_add(1);
+        if rule(column) {
+            painter.vline(right - 0.5, rect.y_range(), Stroke::new(1.0, palette.grid_major));
+            shapes = shapes.saturating_add(1);
+        }
         edges.push((column, left, right));
         left = right;
     }
@@ -417,14 +435,27 @@ pub fn paint_column_lines<C>(
     clip: Rect,
     color: Color32,
 ) -> usize {
+    paint_column_lines_where(painter, columns, cols_left, clip, color, |_| true)
+}
+
+/// Comme [`paint_column_lines`], à droite des seules colonnes où `rule`
+/// est vrai (interface adoucie, lot U1 : colonne figée seulement).
+pub fn paint_column_lines_where<C>(
+    painter: &Painter,
+    columns: &[(C, u16)],
+    cols_left: f32,
+    clip: Rect,
+    color: Color32,
+    rule: impl Fn(&C) -> bool,
+) -> usize {
     let mut shapes = 0_usize;
     let mut x = cols_left;
-    for (_, width) in columns {
+    for (column, width) in columns {
         x += f32::from(*width);
         if x > clip.right() {
             break;
         }
-        if x <= clip.left() {
+        if x <= clip.left() || !rule(column) {
             continue;
         }
         painter.vline(x - 0.5, clip.y_range(), Stroke::new(1.0, color));

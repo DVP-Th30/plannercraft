@@ -250,6 +250,7 @@ text_ids! {
     StatusErrors => "status-errors",
     StatusWarnings => "status-warnings",
     StatusNoDocument => "status-no-document",
+    StatusConsistent => "status-consistent",
     // Ouverture.
     OpenErrorTitle => "open-error-title",
     OpenErrorRead => "open-error-read",
@@ -2253,6 +2254,9 @@ mod tests {
             fr.get_args(TextId::StatusErrors, &[("count", Arg::Count(0))]),
             "aucune erreur"
         );
+        // Interface adoucie (lot U1, H-UI-171).
+        assert_eq!(fr.get(TextId::StatusConsistent), "Planning cohérent");
+        assert_eq!(en.get(TextId::StatusConsistent), "Schedule consistent");
         assert_eq!(en.get(TextId::MenuFile), "File");
         assert_eq!(fr.get(TextId::MenuFile), "Fichier");
     }

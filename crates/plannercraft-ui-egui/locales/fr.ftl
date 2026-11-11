@@ -172,6 +172,7 @@ status-warnings =
         [one] { $count } avertissement
        *[other] { $count } avertissements
     }
+status-consistent = Planning cohérent
 status-no-document = Aucun document ouvert
 
 ## Ouverture de fichiers

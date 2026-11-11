@@ -583,12 +583,16 @@ fn close_document_returns_to_welcome() {
 fn diagnostics_panel_toggles() {
     let mut harness = harness();
     open_demo(&mut harness);
+    // Interface adoucie (lot U1, H-UI-171) : sans diagnostic, « Planning
+    // cohérent » remplace les deux compteurs à zéro, même clic.
+    let consistent = Texts::new(Language::Fr).get(TextId::StatusConsistent);
     let no_errors = Texts::new(Language::Fr).get_args(TextId::StatusErrors, &[("count", Arg::Count(0))]);
-    click(&mut harness, &no_errors);
+    assert!(harness.query_by_label(&no_errors).is_none());
+    click(&mut harness, &consistent);
     assert!(harness.state().state.diagnostics_open);
     // Exemple sans diagnostic : aucun volet (H-UI-119, lot L10), la
-    // pastille seule dit « aucune erreur ».
-    assert_eq!(harness.query_all_by_label(&no_errors).count(), 1);
+    // pastille seule dit « Planning cohérent ».
+    assert_eq!(harness.query_all_by_label(&consistent).count(), 1);
     harness.state_mut().dispatch(Action::ToggleDiagnostics);
     harness.run();
     assert!(!harness.state().state.diagnostics_open);
