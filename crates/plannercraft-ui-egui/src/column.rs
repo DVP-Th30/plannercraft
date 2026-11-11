@@ -943,8 +943,9 @@ impl crate::App {
     pub(crate) fn fit_column(&mut self, column: Column, ctx: &egui::Context) {
         let (screen, _) = self.screen_style(ctx.theme());
         let metrics = crate::view::Metrics::default();
-        let title_font = egui::TextStyle::Body.resolve(&ctx.global_style());
-        let mut font = title_font.clone();
+        let style = ctx.global_style();
+        let title_font = crate::grid::title_font(&style);
+        let mut font = egui::TextStyle::Body.resolve(&style);
         if screen.inter() {
             font.family = egui::FontFamily::Name(crate::theme::PLAN_FAMILY.into());
         }

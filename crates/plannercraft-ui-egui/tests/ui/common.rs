@@ -119,6 +119,11 @@ pub fn harness_sized(
 pub fn snapshot(harness: &mut Harness<'static, App>, name: &str) {
     // Même scénario dans les deux modes : pointeur retiré (pas de survol).
     harness.remove_cursor();
+    // Curseur de texte fixe : la phase de son clignotement dépend du nombre
+    // d'images écoulées, donc du minutage des fils (faux relais).
+    harness
+        .ctx
+        .all_styles_mut(|style| style.visuals.text_cursor.blink = false);
     harness.run();
     match snapshot_mode() {
         SnapshotMode::Required => harness.snapshot(name),

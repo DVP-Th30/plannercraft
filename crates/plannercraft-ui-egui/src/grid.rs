@@ -139,10 +139,25 @@ pub const NAME_MIN_TEXT_ROOM: f32 = 40.0;
 /// Épaisseur du cadre de la cellule courante, en points.
 pub const CURSOR_STROKE: f32 = 2.0;
 
-/// Police des cellules et des titres.
+/// Police des cellules.
 #[must_use]
 pub fn cell_font(ui: &egui::Ui) -> FontId {
     egui::TextStyle::Body.resolve(ui.style())
+}
+
+/// Corps des titres de colonne (interface adoucie, lot U1, H-UI-169) :
+/// Inter est plus large que l'ancienne police de l'interface, un titre au
+/// corps des cellules ne tient plus dans les largeurs par défaut
+/// (`pseudo_main_view_no_truncation`).
+pub const TITLE_SIZE: f32 = 11.5;
+
+/// Police des titres de colonne : celle des cellules au corps
+/// [`TITLE_SIZE`].
+#[must_use]
+pub fn title_font(style: &egui::Style) -> FontId {
+    let mut font = egui::TextStyle::Body.resolve(style);
+    font.size = TITLE_SIZE;
+    font
 }
 
 /// Galley d'un texte tronqué à `max_w` (« … »), couleur fixée au dessin.
@@ -363,16 +378,32 @@ pub fn paint_titles<C: Copy>(
     at: HeaderPlace,
     font: &FontId,
 ) -> (Vec<(C, f32, f32)>, usize) {
-    paint_titles_aligned(painter, columns, title, |_| CellAlign::Center, palette, at, font)
+    paint_titles_aligned(
+        painter,
+        columns,
+        title,
+        |_| CellAlign::Center,
+        |_| true,
+        palette,
+        at,
+        font,
+    )
 }
 
 /// Comme [`paint_titles`], chaque titre aligné selon `align` (« Paramètres
-/// de champ », H-UI-115, seconde passe UX lot L6).
+/// de champ », H-UI-115, seconde passe UX lot L6) ; séparateur vertical à
+/// droite des seules colonnes où `rule` est vrai (interface adoucie, lot
+/// U1 : après la colonne figée seulement).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "peintre, colonnes et trois règles de dessin"
+)]
 pub fn paint_titles_aligned<C: Copy>(
     painter: &Painter,
     columns: &[(C, u16)],
     title: impl Fn(C) -> String,
     align: impl Fn(C) -> CellAlign,
+    rule: impl Fn(C) -> bool,
     palette: &Palette,
     at: HeaderPlace,
     font: &FontId,
@@ -400,8 +431,10 @@ pub fn paint_titles_aligned<C: Copy>(
             painter.galley(pos2(x, y), galley, palette.text_strong);
             shapes = shapes.saturating_add(1);
         }
-        painter.vline(right - 0.5, rect.y_range(), Stroke::new(1.0, palette.grid_major));
-        shapes = shapes.saturating_add(1);
+        if rule(column) {
+            painter.vline(right - 0.5, rect.y_range(), Stroke::new(1.0, palette.grid_major));
+            shapes = shapes.saturating_add(1);
+        }
         edges.push((column, left, right));
         left = right;
     }
@@ -417,14 +450,27 @@ pub fn paint_column_lines<C>(
     clip: Rect,
     color: Color32,
 ) -> usize {
+    paint_column_lines_where(painter, columns, cols_left, clip, color, |_| true)
+}
+
+/// Comme [`paint_column_lines`], à droite des seules colonnes où `rule`
+/// est vrai (interface adoucie, lot U1 : colonne figée seulement).
+pub fn paint_column_lines_where<C>(
+    painter: &Painter,
+    columns: &[(C, u16)],
+    cols_left: f32,
+    clip: Rect,
+    color: Color32,
+    rule: impl Fn(&C) -> bool,
+) -> usize {
     let mut shapes = 0_usize;
     let mut x = cols_left;
-    for (_, width) in columns {
+    for (column, width) in columns {
         x += f32::from(*width);
         if x > clip.right() {
             break;
         }
-        if x <= clip.left() {
+        if x <= clip.left() || !rule(column) {
             continue;
         }
         painter.vline(x - 0.5, clip.y_range(), Stroke::new(1.0, color));

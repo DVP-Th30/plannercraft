@@ -12,8 +12,8 @@
 //!
 //! Seconde passe UX (lot L10, H-UI-119) : le volet n'est dessiné que si le
 //! document a au moins un diagnostic (la case Affichage → Diagnostics peut
-//! rester cochée sans volet : rien à montrer, les pastilles de la barre
-//! d'état disent déjà « aucune erreur ») ; une pastille de la barre d'état
+//! rester cochée sans volet : rien à montrer, la barre d'état dit déjà
+//! « Planning cohérent », lot U1) ; une pastille de la barre d'état
 //! l'ouvre filtré sur sa gravité ([`set_filter`]), « Tout afficher » retire
 //! le filtre.
 

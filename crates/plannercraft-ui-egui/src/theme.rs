@@ -140,6 +140,68 @@ impl Palette {
         hover_row: Color32::from_rgb(0x2B, 0x29, 0x32),
     };
 
+    /// Palette claire de l'interface adoucie (lot U1, H-UI-167) : Sobre,
+    /// modèle par défaut, tel que l'écran le dessine ([`screen_style`] ;
+    /// relue par `sobre_screen_equals_soft_palette`).
+    pub const SOFT_LIGHT: Self = Self {
+        background: hex32(0x00FA_F9FC),
+        text: hex32(0x002B_2931),
+        text_strong: hex32(0x002B_2931),
+        text_weak: hex32(0x006B_6775),
+        grid: hex32(0x00EF_EDF3),
+        grid_major: hex32(0x00E4_E1EA),
+        header_bg: hex32(0x00F3_F1F6),
+        selection: hex32(0x00CC_A9E0),
+        bar: hex32(0x004E_7EC7),
+        bar_outline: hex32(0x004E_7EC7),
+        critical: hex32(0x00CC_5A37),
+        milestone: hex32(0x003A_3742),
+        summary: hex32(0x003A_3742),
+        link: hex32(0x007F_7B89),
+        status_date: hex32(0x006B_3FA0),
+        splitter: hex32(0x00E4_E1EA),
+        non_working: hex32(0x00F2_F0F5),
+        summary_critical: hex32(0x00B2_4F30),
+        message_error_bg: hex32(0x00FD_ECEA),
+        message_warning_bg: hex32(0x00FF_F4D6),
+        cursor: hex32(0x0077_19AA),
+        baseline: hex32(0x008D_8998),
+        progress: hex32(0x0020_3452),
+        selection_border: hex32(0x0077_19AA),
+        header_selected: hex32(0x00E6_D9EF),
+        hover_row: hex32(0x00F0_E9F6),
+    };
+
+    /// Palette sombre de l'interface adoucie (même règle).
+    pub const SOFT_DARK: Self = Self {
+        background: hex32(0x001D_1C21),
+        text: hex32(0x00E7_E4EC),
+        text_strong: hex32(0x00E7_E4EC),
+        text_weak: hex32(0x00A2_9DAE),
+        grid: hex32(0x0027_252E),
+        grid_major: hex32(0x0030_2D38),
+        header_bg: hex32(0x0024_222A),
+        selection: hex32(0x0055_416B),
+        bar: hex32(0x006F_A3EA),
+        bar_outline: hex32(0x006F_A3EA),
+        critical: hex32(0x00F0_825C),
+        milestone: hex32(0x00CF_CAD8),
+        summary: hex32(0x00CF_CAD8),
+        link: hex32(0x007D_7887),
+        status_date: hex32(0x00B7_94F6),
+        splitter: hex32(0x0030_2D38),
+        non_working: hex32(0x0022_2027),
+        summary_critical: hex32(0x00F5_A88C),
+        message_error_bg: hex32(0x003A_1414),
+        message_warning_bg: hex32(0x003A_3012),
+        cursor: hex32(0x00D4_AEF0),
+        baseline: hex32(0x0080_7B8A),
+        progress: hex32(0x0039_5377),
+        selection_border: hex32(0x00D4_AEF0),
+        header_selected: hex32(0x0036_2D41),
+        hover_row: hex32(0x002A_2531),
+    };
+
     /// Palette tirée d'un style du planning (ADR-0016 D5) pour une variante.
     ///
     /// Le séparateur table / Gantt prend la grille marquée (égaux en J7). Un
@@ -265,46 +327,83 @@ pub struct ChromeTokens {
     /// Chiffre de la pastille du bouton de l'assistant, sur l'accent (lot
     /// A5, H-UI-166).
     pub on_accent: Color32,
+    /// Fond de l'application (interface adoucie, H-UI-167) : barre d'état,
+    /// sous la surface des volets.
+    pub app: Color32,
+    /// Fond des en-têtes (table, échelle de temps, frise).
+    pub header: Color32,
+    /// Fond des champs de saisie.
+    pub field: Color32,
+    /// Trait fin entre deux lignes de table.
+    pub row_line: Color32,
+    /// Liens du Gantt de l'interface adoucie (gris doux, ≥ 3:1).
+    pub link: Color32,
+    /// Fond d'un bouton d'egui au repos (et des cases à cocher).
+    pub control: Color32,
+    /// Fond d'un bouton d'egui survolé.
+    pub control_hover: Color32,
+    /// Fond d'un bouton d'egui appuyé.
+    pub control_active: Color32,
+    /// Contour d'un bouton, d'un champ et d'une case à cocher d'egui au
+    /// repos (cahier : « bordure 1 px », un cran au-dessus du filet pour que
+    /// la case vide reste visible sur la surface).
+    pub control_border: Color32,
+    /// Texte sur l'accent doux (`toggle_bg`) : message de l'utilisateur.
+    pub soft_text: Color32,
+    /// Succès (point « Planning cohérent », lecture réussie).
+    pub ok: Color32,
 }
 
 impl ChromeTokens {
-    /// Thème clair.
+    /// Thème clair (interface adoucie, lot U1 : plus de blanc pur ni de noir
+    /// pur).
     pub const LIGHT: Self = Self {
-        surface: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-        rule: Color32::from_rgb(0xE2, 0xE1, 0xE6),
-        text: Color32::from_rgb(0x1F, 0x1F, 0x23),
-        text_weak: Color32::from_rgb(0x6C, 0x6B, 0x74),
+        surface: hex32(0x00FA_F9FC),
+        rule: hex32(0x00E4_E1EA),
+        text: hex32(0x002B_2931),
+        text_weak: hex32(0x006B_6775),
         disabled: Color32::from_rgb(0x7A, 0x79, 0x82),
         accent: BRAND_VIOLET,
-        hover: Color32::from_rgb(0xF2, 0xF0, 0xF5),
-        pressed: Color32::from_rgb(0xE7, 0xE2, 0xED),
-        toggle_bg: Color32::from_rgb(0xF1, 0xE6, 0xF8),
-        timeline_bg: Color32::from_rgb(0xF8, 0xF8, 0xFA),
+        hover: hex32(0x00EF_EDF3),
+        pressed: hex32(0x00E4_E1EA),
+        toggle_bg: hex32(0x00F0_E6F7),
+        timeline_bg: hex32(0x00F3_F1F6),
         timeline_bar: Color32::from_rgb(0xEB, 0xDD, 0xF5),
-        timeline_bar_text: Color32::from_rgb(0x1F, 0x1F, 0x23),
+        timeline_bar_text: hex32(0x002B_2931),
         window_fill: Color32::from_rgba_unmultiplied_const(0x77, 0x19, 0xAA, 0x06),
         window_stroke: Color32::from_rgba_unmultiplied_const(0x77, 0x19, 0xAA, 0x99),
         selection_bg: Color32::from_rgb(0xE6, 0xD5, 0xF3),
         selection_fg: BRAND_VIOLET,
-        logo_ring: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        logo_ring: hex32(0x00FA_F9FC),
         table_cursor: BRAND_VIOLET,
         on_accent: Color32::WHITE,
+        app: hex32(0x00EE_ECF2),
+        header: hex32(0x00F3_F1F6),
+        field: Color32::WHITE,
+        row_line: hex32(0x00EF_EDF3),
+        link: hex32(0x007F_7B89),
+        control: hex32(0x00EC_EAF0),
+        control_hover: hex32(0x00E4_E1EA),
+        control_active: hex32(0x00D9_D5E0),
+        control_border: hex32(0x00D6_D2DD),
+        soft_text: hex32(0x005E_1389),
+        ok: hex32(0x002E_8B57),
     };
 
-    /// Thème sombre.
+    /// Thème sombre (interface adoucie, lot U1).
     pub const DARK: Self = Self {
-        surface: Color32::from_rgb(0x1E, 0x1F, 0x22),
-        rule: Color32::from_rgb(0x36, 0x37, 0x3D),
-        text: Color32::from_rgb(0xE6, 0xE6, 0xEA),
-        text_weak: Color32::from_rgb(0x9E, 0x9D, 0xA7),
+        surface: hex32(0x001D_1C21),
+        rule: hex32(0x0030_2D38),
+        text: hex32(0x00E7_E4EC),
+        text_weak: hex32(0x00A2_9DAE),
         disabled: Color32::from_rgb(0x7E, 0x7E, 0x87),
         accent: Color32::from_rgb(0xB5, 0x7B, 0xE0),
-        hover: Color32::from_rgb(0x2A, 0x2B, 0x30),
-        pressed: Color32::from_rgb(0x34, 0x35, 0x3B),
-        toggle_bg: Color32::from_rgb(0x3A, 0x2D, 0x48),
-        timeline_bg: Color32::from_rgb(0x23, 0x24, 0x28),
+        hover: hex32(0x0027_252E),
+        pressed: hex32(0x0030_2D38),
+        toggle_bg: hex32(0x0035_264A),
+        timeline_bg: hex32(0x0024_222A),
         timeline_bar: Color32::from_rgb(0x3F, 0x2D, 0x54),
-        timeline_bar_text: Color32::from_rgb(0xE6, 0xE6, 0xEA),
+        timeline_bar_text: hex32(0x00E7_E4EC),
         window_fill: Color32::from_rgba_unmultiplied_const(0xB5, 0x7B, 0xE0, 0x0A),
         window_stroke: Color32::from_rgba_unmultiplied_const(0xB5, 0x7B, 0xE0, 0x99),
         selection_bg: Color32::from_rgb(0x4A, 0x30, 0x63),
@@ -313,7 +412,18 @@ impl ChromeTokens {
         table_cursor: Color32::from_rgb(0xD4, 0xAE, 0xF0),
         // Accent clair du sombre : chiffre foncé (≈ 6:1), le blanc n'y
         // atteint pas 3:1.
-        on_accent: Color32::from_rgb(0x1E, 0x1F, 0x22),
+        on_accent: hex32(0x001D_1C21),
+        app: hex32(0x0014_1317),
+        header: hex32(0x0024_222A),
+        field: hex32(0x0024_222A),
+        row_line: hex32(0x0027_252E),
+        link: hex32(0x007D_7887),
+        control: hex32(0x002A_2830),
+        control_hover: hex32(0x0034_313C),
+        control_active: hex32(0x003F_3B48),
+        control_border: hex32(0x003F_3B48),
+        soft_text: hex32(0x00D9_B8F2),
+        ok: hex32(0x005F_C08A),
     };
 
     /// Jetons du thème résolu.
@@ -325,18 +435,66 @@ impl ChromeTokens {
         }
     }
 
-    /// Pose les couleurs de sélection d'egui (texte sélectionné, éléments
-    /// choisis, focus des zones de saisie) des deux thèmes de `ctx` sur
-    /// l'accent (H-UI-132) ; le reste des visuels d'egui est inchangé.
+    /// Pose les visuels d'egui des deux thèmes de `ctx` sur les jetons de
+    /// l'habillage ([`soft_visuals`]) : sélection à l'accent (H-UI-132),
+    /// surfaces, filets, champs, boutons et textes de l'interface adoucie
+    /// (lot U1, H-UI-167).
     pub fn install(ctx: &egui::Context) {
         for theme in [egui::Theme::Light, egui::Theme::Dark] {
-            let t = Self::for_theme(theme);
-            ctx.style_mut_of(theme, |style| {
-                style.visuals.selection.bg_fill = t.selection_bg;
-                style.visuals.selection.stroke = egui::Stroke::new(1.0, t.selection_fg);
-            });
+            ctx.style_mut_of(theme, |style| style.visuals = soft_visuals(theme));
         }
     }
+}
+
+/// Visuels d'egui de l'interface adoucie pour `theme` (lot U1, H-UI-167) :
+/// ceux d'egui, dont les couleurs passent aux jetons de [`ChromeTokens`].
+/// Volets, fenêtres et menus sur la surface (plus de blanc pur ni de gris
+/// d'egui), champs sur `field`, boutons sur `control`, filets et contours
+/// sur `rule`, textes sur `text` (plus de noir pur, y compris le texte
+/// « fort » d'egui), texte atténué sur `text_weak`, sélection à l'accent
+/// (H-UI-132), liens hypertexte à l'accent. Formes, marges et rayons
+/// d'egui inchangés.
+#[must_use]
+pub fn soft_visuals(theme: egui::Theme) -> egui::Visuals {
+    use egui::Stroke;
+    let t = ChromeTokens::for_theme(theme);
+    let mut v = match theme {
+        egui::Theme::Light => egui::Visuals::light(),
+        egui::Theme::Dark => egui::Visuals::dark(),
+    };
+    v.panel_fill = t.surface;
+    v.window_fill = t.surface;
+    v.window_stroke = Stroke::new(1.0, t.rule);
+    v.extreme_bg_color = t.field;
+    v.text_edit_bg_color = Some(t.field);
+    v.faint_bg_color = t.header;
+    v.code_bg_color = t.header;
+    v.weak_text_color = Some(t.text_weak);
+    v.hyperlink_color = t.accent;
+    v.selection.bg_fill = t.selection_bg;
+    v.selection.stroke = Stroke::new(1.0, t.selection_fg);
+    let w = &mut v.widgets;
+    w.noninteractive.bg_fill = t.surface;
+    w.noninteractive.weak_bg_fill = t.surface;
+    w.noninteractive.bg_stroke = Stroke::new(1.0, t.rule);
+    w.noninteractive.fg_stroke = Stroke::new(1.0, t.text);
+    w.inactive.bg_fill = t.control;
+    w.inactive.weak_bg_fill = t.control;
+    w.inactive.fg_stroke = Stroke::new(1.0, t.text);
+    w.inactive.bg_stroke = Stroke::new(1.0, t.control_border);
+    w.hovered.bg_fill = t.control_hover;
+    w.hovered.weak_bg_fill = t.control_hover;
+    w.hovered.bg_stroke = Stroke::new(1.0, t.text_weak);
+    w.hovered.fg_stroke = Stroke::new(1.5, t.text);
+    w.active.bg_fill = t.control_active;
+    w.active.weak_bg_fill = t.control_active;
+    w.active.bg_stroke = Stroke::new(1.0, t.text);
+    w.active.fg_stroke = Stroke::new(2.0, t.text);
+    w.open.bg_fill = t.surface;
+    w.open.weak_bg_fill = t.control_hover;
+    w.open.bg_stroke = Stroke::new(1.0, t.rule);
+    w.open.fg_stroke = Stroke::new(1.0, t.text);
+    v
 }
 
 /// Jetons de la conversation de l'assistant (lot A1b d'ADR-0024, cahier
@@ -354,9 +512,11 @@ pub struct ChatTokens {
     pub strong: Color32,
     /// Méta : pied de message, lignes d'outils, barre d'état, réflexion.
     pub meta: Color32,
-    /// Fond du message de l'utilisateur (accent à ~9 % en clair, ~16 % en
-    /// sombre, rendu opaque sur le volet).
+    /// Fond du message de l'utilisateur : accent doux de l'interface
+    /// adoucie (lot U1), opaque sur le volet.
     pub user_bg: Color32,
+    /// Texte du message de l'utilisateur (lot U1 : texte de l'accent doux).
+    pub user_text: Color32,
     /// Filet gauche du bloc réflexion déplié.
     pub rule: Color32,
     /// Lecture réussie (✓).
@@ -387,46 +547,50 @@ pub struct ChatTokens {
 }
 
 impl ChatTokens {
-    /// Thème clair.
+    /// Thème clair (interface adoucie, lot U1).
     pub const LIGHT: Self = Self {
-        panel: Color32::from_rgb(0xF8, 0xF8, 0xF8),
-        text: Color32::from_rgb(0x30, 0x30, 0x36),
-        strong: Color32::from_rgb(0x00, 0x00, 0x00),
-        meta: Color32::from_rgb(0x63, 0x62, 0x6B),
-        user_bg: Color32::from_rgb(0xEC, 0xE4, 0xF1),
-        rule: Color32::from_rgb(0xD6, 0xD0, 0xDE),
-        ok: Color32::from_rgb(0x2E, 0x7D, 0x32),
+        panel: ChromeTokens::LIGHT.surface,
+        text: ChromeTokens::LIGHT.text,
+        // Gras par la couleur : un cran plus foncé que le texte, sans noir
+        // pur.
+        strong: hex32(0x0017_161B),
+        meta: ChromeTokens::LIGHT.text_weak,
+        user_bg: ChromeTokens::LIGHT.toggle_bg,
+        user_text: ChromeTokens::LIGHT.soft_text,
+        rule: hex32(0x00D6_D0DE),
+        ok: ChromeTokens::LIGHT.ok,
         warn: Color32::from_rgb(0xA8, 0x4B, 0x00),
         error_bg: Color32::from_rgb(0xFC, 0xEE, 0xED),
         error_border: Color32::from_rgb(0xE3, 0xA5, 0xA0),
         error_text: Color32::from_rgb(0x8A, 0x1C, 0x1C),
-        surface: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-        border: Color32::from_rgb(0xDD, 0xDB, 0xE2),
+        surface: ChromeTokens::LIGHT.field,
+        border: ChromeTokens::LIGHT.rule,
         send_bg: BRAND_VIOLET,
         send_fg: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-        send_disabled_bg: Color32::from_rgb(0xE4, 0xE2, 0xE8),
+        send_disabled_bg: ChromeTokens::LIGHT.control,
         send_disabled_fg: Color32::from_rgb(0x8E, 0x8C, 0x96),
         accent: BRAND_VIOLET,
     };
 
-    /// Thème sombre.
+    /// Thème sombre (interface adoucie, lot U1).
     pub const DARK: Self = Self {
-        panel: Color32::from_rgb(0x1B, 0x1B, 0x1B),
-        text: Color32::from_rgb(0xD4, 0xD4, 0xDA),
+        panel: ChromeTokens::DARK.surface,
+        text: ChromeTokens::DARK.text,
         strong: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-        meta: Color32::from_rgb(0xA3, 0xA2, 0xAC),
-        user_bg: Color32::from_rgb(0x34, 0x2A, 0x3B),
+        meta: ChromeTokens::DARK.text_weak,
+        user_bg: ChromeTokens::DARK.toggle_bg,
+        user_text: ChromeTokens::DARK.soft_text,
         rule: Color32::from_rgb(0x45, 0x40, 0x4D),
-        ok: Color32::from_rgb(0x6F, 0xCF, 0x7F),
+        ok: ChromeTokens::DARK.ok,
         warn: Color32::from_rgb(0xF0, 0xB3, 0x5A),
         error_bg: Color32::from_rgb(0x38, 0x20, 0x20),
         error_border: Color32::from_rgb(0x8C, 0x45, 0x45),
         error_text: Color32::from_rgb(0xF6, 0xBE, 0xBE),
-        surface: Color32::from_rgb(0x24, 0x25, 0x29),
-        border: Color32::from_rgb(0x3D, 0x3E, 0x45),
+        surface: ChromeTokens::DARK.field,
+        border: ChromeTokens::DARK.rule,
         send_bg: Color32::from_rgb(0xB5, 0x7B, 0xE0),
-        send_fg: Color32::from_rgb(0x1B, 0x1B, 0x1B),
-        send_disabled_bg: Color32::from_rgb(0x34, 0x35, 0x3B),
+        send_fg: ChromeTokens::DARK.surface,
+        send_disabled_bg: ChromeTokens::DARK.control,
         send_disabled_fg: Color32::from_rgb(0x7E, 0x7E, 0x87),
         accent: Color32::from_rgb(0xB5, 0x7B, 0xE0),
     };
@@ -469,6 +633,12 @@ pub fn logo_shapes(rect: egui::Rect) -> Vec<egui::Shape> {
     ]
 }
 
+/// Graine de la teinte de sélection à l'accent (H-UI-136), claire et
+/// sombre : la bascule de l'habillage d'avant le lot U1, gardée telle
+/// quelle pour que l'écran de Classique ne bouge pas quand l'accent doux de
+/// l'interface adoucie (`ChromeTokens::toggle_bg`) change.
+const ACCENT_SELECTION_SEED: [Rgb; 2] = [Rgb(0xF1, 0xE6, 0xF8), Rgb(0x3A, 0x2D, 0x48)];
+
 /// Modèles dont la sélection d'origine est le bleu par défaut (H-UI-136) :
 /// leur sélection et leur curseur passent à l'accent de l'interface.
 pub const BLUE_SELECTION_TEMPLATES: [TemplateId; 2] = [TemplateId::Classique, TemplateId::Sobre];
@@ -481,7 +651,7 @@ pub const BLUE_SELECTION_TEMPLATES: [TemplateId; 2] = [TemplateId::Classique, Te
 /// Impression N&B), couleur choisie par l'utilisateur, ou variante
 /// d'impression (rien ne change à l'impression).
 ///
-/// Graine de la teinte : la bascule de l'habillage (violet très clair),
+/// Graine de la teinte : [`ACCENT_SELECTION_SEED`] (violet très clair),
 /// renforcée par [`SelectionTokens::derive`] vers le curseur jusqu'aux
 /// seuils de H-UI-103 ; curseur et bordure du bloc :
 /// [`ChromeTokens::table_cursor`].
@@ -508,10 +678,171 @@ pub fn accent_selection_tokens(style: &PlanStyle, variant: Variant) -> Option<Co
     }
     let rgb = |v: Color32| Rgb(v.r(), v.g(), v.b());
     let mut out = c.clone();
-    out.selection = rgb(chrome.toggle_bg);
+    out.selection = if variant == Variant::Dark {
+        ACCENT_SELECTION_SEED[1]
+    } else {
+        ACCENT_SELECTION_SEED[0]
+    };
     out.cursor = rgb(chrome.table_cursor);
     Some(out)
 }
+
+/// Modèles affichés à l'écran dans l'**interface adoucie** (lot U1,
+/// ADR-0026, H-UI-167) : Sobre, modèle par défaut des préférences (le
+/// « thème d'interface par défaut »). Classique garde l'écran de J7
+/// (`Palette::LIGHT` / `DARK`) et les autres modèles le leur : choisir un
+/// modèle dans la galerie change toujours l'écran.
+pub const SOFT_TEMPLATES: [TemplateId; 1] = [TemplateId::Sobre];
+
+/// Couleur `0xRRGGBB` en [`Rgb`].
+const fn hex(v: u32) -> Rgb {
+    let [_, r, g, b] = v.to_be_bytes();
+    Rgb(r, g, b)
+}
+
+/// Couleur `0xRRGGBB` en [`Color32`].
+const fn hex32(v: u32) -> Color32 {
+    let [_, r, g, b] = v.to_be_bytes();
+    Color32::from_rgb(r, g, b)
+}
+
+/// Encre d'avancement d'une barre de remplissage `fill` (interface adoucie,
+/// H-UI-170) : la même teinte assombrie, par pas de 1 % vers le noir,
+/// jusqu'à 3:1 sur la barre (H-UI-22) ; le noir si rien n'y parvient.
+#[must_use]
+pub fn progress_ink(fill: Rgb) -> Rgb {
+    (0..=100_u8)
+        .map(|k| blend(fill, Rgb(0, 0, 0), k))
+        .find(|c| contrast_ratio(*c, fill) >= 3000)
+        .unwrap_or(Rgb(0, 0, 0))
+}
+
+/// Jetons de couleur de l'interface adoucie pour la variante d'écran
+/// `variant` (H-UI-167) ; `None` pour l'impression, qui garde toujours les
+/// couleurs du modèle. Valeurs du cahier « Interface adoucie » (maquette
+/// validée le 2026-11-10) ; les liens sont assombris jusqu'à 3:1 sur le
+/// fond, les jours chômés et la ligne sélectionnée (le gris doux du cahier,
+/// `#A9A4B5`, n'atteint que 2,3:1 sur la surface) ; avancement : teinte de
+/// la barre assombrie ([`progress_ink`]). Sélection et curseur : ceux de
+/// l'habillage (H-UI-136).
+#[must_use]
+pub fn soft_tokens(variant: Variant) -> Option<ColorTokens> {
+    use plannercraft_render::style::BarPaint;
+    let light = match variant {
+        Variant::Light => true,
+        Variant::Dark => false,
+        Variant::Print => return None,
+    };
+    let chrome = if light {
+        ChromeTokens::LIGHT
+    } else {
+        ChromeTokens::DARK
+    };
+    let pick = |l: u32, d: u32| hex(if light { l } else { d });
+    let bg = pick(0x00FA_F9FC, 0x001D_1C21);
+    let task = pick(0x004E_7EC7, 0x006F_A3EA);
+    let critical = pick(0x00CC_5A37, 0x00F0_825C);
+    let summary = pick(0x003A_3742, 0x00CF_CAD8);
+    let gray = pick(0x008D_8998, 0x0080_7B8A);
+    let solid = |fill: Rgb| BarPaint { fill, outline: None };
+    let outlined = |outline: Rgb| BarPaint {
+        fill: bg,
+        outline: Some(outline),
+    };
+    let bars = [
+        (BarRole::Task, solid(task)),
+        (BarRole::Critical, solid(critical)),
+        (BarRole::Summary, solid(summary)),
+        (BarRole::SummaryCritical, solid(pick(0x00B2_4F30, 0x00F5_A88C))),
+        (BarRole::Milestone, solid(summary)),
+        (BarRole::MilestoneCritical, solid(critical)),
+        // Jeton unique (palette, Gantt de suivi hors écran adouci) : bleu
+        // assombri lisible aussi sur la barre critique ; à l'écran,
+        // chaque barre prend sa propre teinte ([`progress_ink`]).
+        (
+            BarRole::Progress,
+            solid(
+                (0..=100_u8)
+                    .map(|k| blend(task, Rgb(0, 0, 0), k))
+                    .find(|c| contrast_ratio(*c, task) >= 3000 && contrast_ratio(*c, critical) >= 3000)
+                    .unwrap_or(Rgb(0, 0, 0)),
+            ),
+        ),
+        (BarRole::Baseline, solid(gray)),
+        (BarRole::Inactive, outlined(gray)),
+        (BarRole::Manual, outlined(task)),
+        (BarRole::Slack, solid(gray)),
+        (BarRole::Deadline, solid(pick(0x00B5_4700, 0x00FF_8C42))),
+    ]
+    .into_iter()
+    .collect();
+    let rgb = |c: Color32| Rgb(c.r(), c.g(), c.b());
+    Some(ColorTokens {
+        bg,
+        text: rgb(chrome.text),
+        // Plus de noir pur (cahier) : le texte appuyé ne se distingue que
+        // par la graisse.
+        text_strong: rgb(chrome.text),
+        text_muted: rgb(chrome.text_weak),
+        header_bg: rgb(chrome.header),
+        grid: rgb(chrome.row_line),
+        grid_major: rgb(chrome.rule),
+        band: [bg, rgb(chrome.header)],
+        non_working: pick(0x00F2_F0F5, 0x0022_2027),
+        status_line: pick(0x006B_3FA0, 0x00B7_94F6),
+        today_line: pick(0x000B_7A55, 0x004F_D1A5),
+        link: rgb(chrome.link),
+        link_critical: critical,
+        selection: rgb(chrome.toggle_bg),
+        cursor: rgb(chrome.table_cursor),
+        message_error_bg: pick(0x00FD_ECEA, 0x003A_1414),
+        message_warning_bg: pick(0x00FF_F4D6, 0x003A_3012),
+        bars,
+    })
+}
+
+/// Style du planning tel que l'écran le dessine (lot U1, H-UI-167) : un
+/// style dont les couleurs claires et sombres sont celles d'un modèle de
+/// [`SOFT_TEMPLATES`] prend les couleurs de l'interface adoucie (claire et
+/// sombre ; l'impression garde celles du modèle, recopiées dans
+/// `colors.print`) ; si ses formes de barres sont aussi celles du modèle,
+/// les barres pleines prennent des coins de 4 px. Rend vrai si le style est
+/// adouci. Un style personnalisé (couleur choisie, autre modèle) est rendu
+/// tel quel : l'aperçu, le SVG et le PDF lisent toujours le style du
+/// document, jamais celui-ci.
+#[must_use]
+pub fn screen_style(mut style: PlanStyle) -> (PlanStyle, bool) {
+    let model = SOFT_TEMPLATES
+        .into_iter()
+        .map(template)
+        .find(|t| t.colors.light == style.colors.light && t.colors.dark == style.colors.dark);
+    let (Some(model), Some(light), Some(dark)) =
+        (model, soft_tokens(Variant::Light), soft_tokens(Variant::Dark))
+    else {
+        return (style, false);
+    };
+    let print = style.tokens(Variant::Print).clone();
+    style.colors.print = Some(print);
+    style.colors.light = light;
+    style.colors.dark = dark;
+    if model.bars == style.bars {
+        for role in [
+            BarRole::Task,
+            BarRole::Critical,
+            BarRole::Inactive,
+            BarRole::Manual,
+        ] {
+            if let Some(bar) = style.bars.get_mut(&role) {
+                bar.radius16 = SOFT_BAR_RADIUS16;
+            }
+        }
+    }
+    (style, true)
+}
+
+/// Rayon des barres pleines de l'interface adoucie, en 1/16 px (4 px à
+/// l'échelle 100 %, cahier U1 § 4).
+pub const SOFT_BAR_RADIUS16: u16 = 64;
 
 /// Contraste exigé du texte d'une notification sur son fond (H-UI-104,
 /// WCAG AA, millièmes).
@@ -720,19 +1051,26 @@ static INTER_REGULAR: &[u8] = include_bytes!("../../../assets/fonts/Inter-Regula
 static INTER_SEMIBOLD: &[u8] = include_bytes!("../../../assets/fonts/Inter-SemiBold.ttf");
 
 /// Installe les deux familles Inter du planning dans `ctx` (sans effet si
-/// elles y sont déjà ; egui ne relit que les noms). Les polices d'egui
-/// suivent en repli pour les caractères absents d'Inter.
+/// elles y sont déjà ; egui ne relit que les noms), Inter Regular aussi en
+/// tête de la famille proportionnelle de l'interface (lot U1). Les polices
+/// d'egui suivent en repli pour les caractères absents d'Inter.
 pub fn install_plan_fonts(ctx: &egui::Context) {
     use egui::epaint::text::{FontData, FontInsert, FontPriority, InsertFontFamily};
     for (name, bytes) in [(PLAN_FAMILY, INTER_REGULAR), (PLAN_FAMILY_STRONG, INTER_SEMIBOLD)] {
-        ctx.add_font(FontInsert::new(
-            name,
-            FontData::from_static(bytes),
-            vec![InsertFontFamily {
-                family: egui::FontFamily::Name(name.into()),
+        let mut families = vec![InsertFontFamily {
+            family: egui::FontFamily::Name(name.into()),
+            priority: FontPriority::Highest,
+        }];
+        // Interface adoucie (lot U1, H-UI-169) : Inter Regular devient la
+        // police proportionnelle de toute l'interface, en tête de la
+        // famille (Ubuntu d'egui en repli pour les glyphes absents).
+        if name == PLAN_FAMILY {
+            families.push(InsertFontFamily {
+                family: egui::FontFamily::Proportional,
                 priority: FontPriority::Highest,
-            }],
-        ));
+            });
+        }
+        ctx.add_font(FontInsert::new(name, FontData::from_static(bytes), families));
     }
 }
 
@@ -775,6 +1113,10 @@ pub struct ScreenStyle {
     /// (finitions P2, H-UI-126), par UID ; vide sans mise en forme.
     /// Calculée une fois par style (cache), jamais pendant une image.
     pub text_looks: Arc<TextLooks>,
+    /// Style adouci par [`screen_style`] (lot U1, H-UI-167) : table sans
+    /// zébrure ni filets verticaux, barres et avancement de l'interface
+    /// adoucie.
+    pub soft: bool,
 }
 
 /// Apparence du texte des tâches mises en forme (H-UI-126) : UID → aspect
@@ -812,14 +1154,16 @@ pub fn phase_colors(p: &plannercraft_core::Project, style: &PlanStyle) -> PhaseC
 }
 
 impl Default for ScreenStyle {
-    /// Classique clair (J7).
+    /// Classique clair (J7), non adouci (lot U1 : Sobre seul l'est).
     fn default() -> Self {
+        let (style, soft) = screen_style(template(TemplateId::Classique));
         Self {
-            style: Arc::new(template(TemplateId::Classique)),
+            style: Arc::new(style),
             variant: Variant::Light,
             phases: Arc::new(Vec::new()),
             phase_colors: Arc::new(PhaseColors::new()),
             text_looks: Arc::new(TextLooks::new()),
+            soft,
         }
     }
 }
@@ -846,8 +1190,10 @@ pub struct StyleCache {
     /// Clé du style gardé : (ouverture, génération) du document, modèle
     /// par défaut.
     key: Option<(Option<(u64, u64)>, TemplateId)>,
-    /// Style gardé.
+    /// Style gardé (tel que dessiné à l'écran, [`screen_style`]).
     style: Arc<PlanStyle>,
+    /// Le style gardé est adouci (lot U1).
+    soft: bool,
     /// Palettes claire et sombre du style gardé.
     palettes: Option<(Palette, Palette)>,
     /// Apparences du texte des tâches, claire et sombre (finitions P2).
@@ -865,6 +1211,7 @@ impl Default for StyleCache {
         Self {
             key: None,
             style: ScreenStyle::default().style,
+            soft: ScreenStyle::default().soft,
             palettes: None,
             looks: (Arc::new(TextLooks::new()), Arc::new(TextLooks::new())),
             phases: (None, Arc::new(Vec::new())),
@@ -886,7 +1233,10 @@ impl StyleCache {
     ) -> (ScreenStyle, Palette) {
         let key = (doc_key, default);
         if self.key != Some(key) || self.palettes.is_none() {
-            let style = resolve();
+            // Interface adoucie (lot U1) : l'écran dessine le style adouci ;
+            // l'aperçu, le SVG et le PDF relisent le style du document.
+            let (style, soft) = screen_style(resolve());
+            self.soft = soft;
             self.palettes = Some((
                 Palette::from_style(&style, Variant::Light),
                 Palette::from_style(&style, Variant::Dark),
@@ -916,6 +1266,7 @@ impl StyleCache {
             phases: Arc::new(Vec::new()),
             phase_colors: Arc::new(PhaseColors::new()),
             text_looks: Arc::clone(looks),
+            soft: self.soft,
         };
         (screen, palette)
     }
@@ -980,8 +1331,15 @@ mod tests {
         plannercraft_render::style::luminance_ppm(Rgb(c.r(), c.g(), c.b()))
     }
 
-    fn palettes() -> [(&'static str, Palette); 2] {
-        [("clair", Palette::LIGHT), ("sombre", Palette::DARK)]
+    /// Palettes écrites en dur : Classique (J7) et interface adoucie (lot
+    /// U1), claires et sombres.
+    fn palettes() -> [(&'static str, Palette); 4] {
+        [
+            ("clair", Palette::LIGHT),
+            ("sombre", Palette::DARK),
+            ("clair adouci", Palette::SOFT_LIGHT),
+            ("sombre adouci", Palette::SOFT_DARK),
+        ]
     }
 
     #[test]
@@ -1116,12 +1474,13 @@ mod tests {
     }
 
     /// Le modèle Classique reproduit J7 champ par champ (ADR-0016 D6), dans
-    /// les deux thèmes, sauf la sélection et le curseur passés à l'accent
+    /// les deux thèmes (l'interface adoucie du lot U1 ne le touche pas), sauf la sélection et le curseur passés à l'accent
     /// de l'interface (H-UI-136) ; la variante d'impression garde le bleu
     /// du modèle.
     #[test]
     fn classique_equals_j7_palette() {
         let style = template(TemplateId::Classique);
+        assert_eq!(super::screen_style(style.clone()), (style.clone(), false));
         assert_eq!(Palette::from_style(&style, Variant::Light), Palette::LIGHT);
         assert_eq!(Palette::from_style(&style, Variant::Dark), Palette::DARK);
         let print = Palette::from_style(&style, Variant::Print);
@@ -1136,6 +1495,22 @@ mod tests {
                 ..print
             },
             Palette::LIGHT
+        );
+    }
+
+    /// Sobre (modèle par défaut) à l'écran = palettes de l'interface
+    /// adoucie (lot U1, H-UI-167), dans les deux thèmes ; sa variante
+    /// d'impression reste celle du modèle.
+    #[test]
+    fn sobre_screen_equals_soft_palette() {
+        let style = template(TemplateId::Sobre);
+        let (screen, soft) = super::screen_style(style.clone());
+        assert!(soft);
+        assert_eq!(Palette::from_style(&screen, Variant::Light), Palette::SOFT_LIGHT);
+        assert_eq!(Palette::from_style(&screen, Variant::Dark), Palette::SOFT_DARK);
+        assert_eq!(
+            Palette::from_style(&screen, Variant::Print),
+            Palette::from_style(&style, Variant::Print)
         );
     }
 
@@ -1204,14 +1579,12 @@ mod tests {
         });
         assert_eq!(cache.builds(), 1);
         assert_eq!(a.style, b.style);
-        assert_eq!(
-            light,
-            Palette::from_style(&template(TemplateId::Sobre), Variant::Light)
-        );
-        assert_eq!(
-            dark,
-            Palette::from_style(&template(TemplateId::Sobre), Variant::Dark)
-        );
+        // Sobre est adouci à l'écran (lot U1).
+        let soft = super::screen_style(template(TemplateId::Sobre)).0;
+        assert_eq!(light, Palette::from_style(&soft, Variant::Light));
+        assert_eq!(dark, Palette::from_style(&soft, Variant::Dark));
+        assert_eq!(light, Palette::SOFT_LIGHT);
+        assert!(a.soft);
         assert_eq!(b.variant, Variant::Dark);
         cache.screen(Some((1, 1)), TemplateId::Sobre, egui::Theme::Dark, sobre);
         cache.screen(Some((1, 1)), TemplateId::Classique, egui::Theme::Dark, sobre);
@@ -1243,15 +1616,19 @@ mod tests {
     /// cadre de la cellule active ≥ 3:1 sur la teinte.
     #[test]
     fn h_ui_103_selection_contrast() {
-        for id in TemplateId::ALL {
-            let style = template(id);
+        // Modèles tels quels et tels que l'écran les dessine (interface
+        // adoucie, lot U1 : Classique et Sobre).
+        let styles = TemplateId::ALL
+            .into_iter()
+            .flat_map(|id| [(id, template(id)), (id, super::screen_style(template(id)).0)]);
+        for (id, style) in styles {
             let min = plannercraft_render::style::min_text_contrast(&style);
             for variant in [Variant::Light, Variant::Dark] {
                 let c = style.tokens(variant);
                 let p = Palette::from_style(&style, variant);
                 let rgb = |v: Rgb| Color32::from_rgb(v.0, v.1, v.2);
                 let zebra = p.background.lerp_to_gamma(p.header_bg, 0.6);
-                let name = format!("{id:?} {variant:?}");
+                let name = format!("{id:?} {variant:?} {}", style.colors.print.is_some());
                 let on_bg = contrast(p.selection, p.background);
                 assert!(
                     on_bg >= super::SELECTION_ON_BG,
@@ -1345,15 +1722,16 @@ mod tests {
             .map(|(name, p)| (name.to_owned(), p))
             .collect();
         for id in TemplateId::ALL {
-            let style = template(id);
-            for variant in [Variant::Light, Variant::Dark] {
-                cases.push((
-                    format!("{id:?} {variant:?}"),
-                    Palette::from_style(&style, variant),
-                ));
+            for (screen, style) in [(false, template(id)), (true, super::screen_style(template(id)).0)] {
+                for variant in [Variant::Light, Variant::Dark] {
+                    cases.push((
+                        format!("{id:?} {variant:?} écran {screen}"),
+                        Palette::from_style(&style, variant),
+                    ));
+                }
             }
         }
-        assert_eq!(cases.len(), 2 + 2 * TemplateId::ALL.len());
+        assert_eq!(cases.len(), 4 + 4 * TemplateId::ALL.len());
         for (name, p) in cases {
             let t = super::ToastTokens::of(&p);
             assert_eq!((t.bg.a(), t.text.a(), t.border.a()), (255, 255, 255), "{name}");
@@ -1464,6 +1842,64 @@ mod tests {
         assert_eq!(ChromeTokens::for_theme(egui::Theme::Dark), ChromeTokens::DARK);
     }
 
+    /// H-UI-167 (lot U1) : jetons de l'interface adoucie, clair et sombre.
+    /// Textes sur le fond d'application, les en-têtes, les champs et les
+    /// boutons d'egui ≥ 4,5:1 ; texte atténué ≥ 4,5:1 ; point « Planning
+    /// cohérent » et liens ≥ 3:1 ; filets, lignes et en-têtes distincts de
+    /// la surface ; jetons opaques.
+    #[test]
+    fn h_ui_167_soft_chrome_tokens() {
+        use super::{CHROME_GRAPHIC_CONTRAST as GRAPHIC, CHROME_TEXT_CONTRAST as TEXT, ChromeTokens};
+        for (name, t) in [("clair", ChromeTokens::LIGHT), ("sombre", ChromeTokens::DARK)] {
+            // Interface adoucie (lot U1, H-UI-167) : fond d'application,
+            // en-têtes, champs et boutons d'egui ; texte sur l'accent doux ;
+            // point « Planning cohérent » et liens du Gantt visibles.
+            for (label, back) in [
+                ("fond d'application", t.app),
+                ("en-tête", t.header),
+                ("champ", t.field),
+                ("bouton", t.control),
+                ("bouton survolé", t.control_hover),
+                ("bouton appuyé", t.control_active),
+            ] {
+                let ratio = contrast(t.text, back);
+                assert!(ratio >= TEXT, "{name} : texte sur {label} = {ratio}‰");
+            }
+            for (label, back) in [
+                ("fond d'application", t.app),
+                ("en-tête", t.header),
+                ("surface", t.surface),
+            ] {
+                let ratio = contrast(t.text_weak, back);
+                assert!(ratio >= TEXT, "{name} : texte atténué sur {label} = {ratio}‰");
+                let ratio = contrast(t.ok, back);
+                assert!(ratio >= GRAPHIC, "{name} : succès sur {label} = {ratio}‰");
+            }
+            let ratio = contrast(t.soft_text, t.toggle_bg);
+            assert!(ratio >= TEXT, "{name} : texte sur l'accent doux = {ratio}‰");
+            let ratio = contrast(t.link, t.surface);
+            assert!(ratio >= GRAPHIC, "{name} : lien sur la surface = {ratio}‰");
+            for (label, back) in [("filet", t.rule), ("ligne", t.row_line), ("en-tête", t.header)] {
+                assert_ne!(back, t.surface, "{name} : {label} = surface");
+            }
+            for c in [
+                t.app,
+                t.header,
+                t.field,
+                t.row_line,
+                t.link,
+                t.control,
+                t.control_hover,
+                t.control_active,
+                t.control_border,
+                t.soft_text,
+                t.ok,
+            ] {
+                assert_eq!(c.a(), 255, "{name} : {c:?}");
+            }
+        }
+    }
+
     /// H-UI-143 (lot A1b) : jetons de la conversation, clair et sombre.
     /// Textes (messages, méta, erreur, message de l'utilisateur) ≥ 4,5:1 sur
     /// leur fond ; icônes d'état, accent et bouton Envoyer ≥ 3:1 ; fond du
@@ -1472,8 +1908,12 @@ mod tests {
     fn h_ui_143_chat_contrast() {
         use super::{CHROME_GRAPHIC_CONTRAST as GRAPHIC, CHROME_TEXT_CONTRAST as TEXT, ChatTokens};
         for (name, t, visuals) in [
-            ("clair", ChatTokens::LIGHT, egui::Visuals::light()),
-            ("sombre", ChatTokens::DARK, egui::Visuals::dark()),
+            (
+                "clair",
+                ChatTokens::LIGHT,
+                super::soft_visuals(egui::Theme::Light),
+            ),
+            ("sombre", ChatTokens::DARK, super::soft_visuals(egui::Theme::Dark)),
         ] {
             assert_eq!(t.panel, visuals.panel_fill, "{name} : fond du volet");
             for (what, ink, back) in [
@@ -1481,6 +1921,7 @@ mod tests {
                 ("texte appuyé", t.strong, t.panel),
                 ("méta", t.meta, t.panel),
                 ("texte sur message utilisateur", t.text, t.user_bg),
+                ("message de l'utilisateur", t.user_text, t.user_bg),
                 ("méta sur message utilisateur", t.meta, t.user_bg),
                 ("texte d'erreur", t.error_text, t.error_bg),
                 ("texte sur surface", t.text, t.surface),
@@ -1545,6 +1986,127 @@ mod tests {
             super::logo_shapes(Rect::from_min_size(Pos2::ZERO, vec2(0.0, 16.0))).len(),
             0
         );
+    }
+
+    /// H-UI-167 (lot U1) : l'écran adoucit Classique et Sobre tels quels
+    /// (couleurs claires et sombres de l'interface, coins de 4 px), garde
+    /// leur variante d'impression, et rend tout autre style tel quel :
+    /// autres modèles, couleur choisie par l'utilisateur. Formes
+    /// personnalisées : couleurs adoucies, formes gardées. Plus de blanc
+    /// pur ni de noir pur dans le thème clair adouci.
+    #[test]
+    fn h_ui_167_soft_screen_style() {
+        use plannercraft_render::style::BarRole;
+        for id in TemplateId::ALL {
+            let style = template(id);
+            let (screen, soft) = super::screen_style(style.clone());
+            assert_eq!(soft, super::SOFT_TEMPLATES.contains(&id), "{id:?}");
+            assert_eq!(
+                screen.tokens(Variant::Print),
+                style.tokens(Variant::Print),
+                "{id:?} : impression"
+            );
+            if !soft {
+                assert_eq!(screen, style, "{id:?} : rendu tel quel");
+                continue;
+            }
+            for v in [Variant::Light, Variant::Dark] {
+                assert_eq!(
+                    Some(screen.tokens(v).clone()),
+                    super::soft_tokens(v),
+                    "{id:?} {v:?}"
+                );
+            }
+            for role in [
+                BarRole::Task,
+                BarRole::Critical,
+                BarRole::Inactive,
+                BarRole::Manual,
+            ] {
+                assert_eq!(
+                    screen.bars.get(&role).map(|b| b.radius16),
+                    Some(super::SOFT_BAR_RADIUS16),
+                    "{id:?} {role:?}"
+                );
+            }
+            assert_eq!(screen.texts, style.texts, "{id:?} : textes des barres inchangés");
+        }
+        assert!(super::soft_tokens(Variant::Print).is_none());
+        // Couleur choisie par l'utilisateur : style rendu tel quel.
+        let mut custom = template(TemplateId::Sobre);
+        custom.colors.light.bg = Rgb(0xFF, 0xFF, 0xF0);
+        assert!(!super::screen_style(custom).1);
+        // Formes personnalisées : couleurs adoucies, formes gardées.
+        let mut shaped = template(TemplateId::Sobre);
+        if let Some(bar) = shaped.bars.get_mut(&BarRole::Task) {
+            bar.radius16 = 0;
+        }
+        let (screen, soft) = super::screen_style(shaped);
+        assert!(soft);
+        assert_eq!(screen.bars.get(&BarRole::Task).map(|b| b.radius16), Some(0));
+        let light = super::soft_tokens(Variant::Light).unwrap();
+        for c in [light.bg, light.text, light.text_strong, light.header_bg] {
+            assert!(c != Rgb(0, 0, 0) && c != Rgb(0xFF, 0xFF, 0xFF), "{c:?}");
+        }
+    }
+
+    /// H-UI-169 (lot U1) : visuels d'egui adoucis. Volets, fenêtres et
+    /// menus sur la surface ; champs sur `field` ; textes (courant, fort,
+    /// boutons) au texte de l'habillage, jamais noir ni blanc purs ;
+    /// sélection à l'accent (H-UI-132).
+    #[test]
+    fn h_ui_169_soft_visuals() {
+        use super::{ChromeTokens, soft_visuals};
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            let t = ChromeTokens::for_theme(theme);
+            let v = soft_visuals(theme);
+            assert_eq!(v.dark_mode, theme == egui::Theme::Dark);
+            assert_eq!(v.panel_fill, t.surface, "{theme:?}");
+            assert_eq!(v.window_fill, t.surface, "{theme:?}");
+            assert_eq!(v.text_edit_bg_color(), t.field, "{theme:?}");
+            assert_eq!(v.text_color(), t.text, "{theme:?}");
+            assert_eq!(v.strong_text_color(), t.text, "{theme:?}");
+            assert_eq!(v.weak_text_color(), t.text_weak, "{theme:?}");
+            assert_eq!(v.widgets.inactive.text_color(), t.text, "{theme:?}");
+            assert_eq!(v.widgets.hovered.text_color(), t.text, "{theme:?}");
+            assert_eq!(v.selection.bg_fill, t.selection_bg, "{theme:?}");
+            assert_eq!(v.selection.stroke.color, t.selection_fg, "{theme:?}");
+            for c in [v.text_color(), v.strong_text_color(), v.panel_fill, v.window_fill] {
+                assert!(c != Color32::BLACK && c != Color32::WHITE, "{theme:?} {c:?}");
+            }
+        }
+    }
+
+    /// H-UI-170 (lot U1) : avancement de l'interface adoucie dans la teinte
+    /// de la barre, assombrie (aucune composante plus claire), à 3:1 au
+    /// moins sur la barre, pour les barres et critiques des deux thèmes.
+    #[test]
+    fn h_ui_170_progress_same_hue() {
+        use plannercraft_render::style::BarRole;
+        for v in [Variant::Light, Variant::Dark] {
+            let c = super::soft_tokens(v).unwrap();
+            for role in [BarRole::Task, BarRole::Critical] {
+                let fill = c.bars.get(&role).unwrap().fill;
+                let ink = super::progress_ink(fill);
+                let rgb = |x: Rgb| Color32::from_rgb(x.0, x.1, x.2);
+                let ratio = contrast(rgb(ink), rgb(fill));
+                assert!(ratio >= 3000, "{v:?} {role:?} : {ratio}‰");
+                assert!(
+                    ink.0 <= fill.0 && ink.1 <= fill.1 && ink.2 <= fill.2,
+                    "{v:?} {role:?}"
+                );
+                // Même teinte : composante dominante gardée.
+                let dominant = |x: Rgb| if x.2 >= x.0 { 2 } else { 0 };
+                assert_eq!(dominant(ink), dominant(fill), "{v:?} {role:?}");
+            }
+            // Jeton de la palette : bleu assombri, lisible sur les deux.
+            let token = c.bars.get(&BarRole::Progress).unwrap().fill;
+            let task = c.bars.get(&BarRole::Task).unwrap().fill;
+            assert!(
+                token.0 <= task.0 && token.1 <= task.1 && token.2 <= task.2,
+                "{v:?}"
+            );
+        }
     }
 
     #[test]

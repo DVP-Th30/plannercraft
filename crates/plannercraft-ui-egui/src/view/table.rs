@@ -393,7 +393,7 @@ pub fn paint_header(
     let clip = rect.intersect(ui.clip_rect());
     let painter = ui.painter().with_clip_rect(clip);
     let palette = fc.palette;
-    let font = cell_font(ui);
+    let font = grid::title_font(ui.style());
     let mut shapes = 0_usize;
     painter.rect_filled(rect, 0.0, palette.header_bg);
     shapes = shapes.saturating_add(1);
@@ -420,11 +420,15 @@ pub fn paint_header(
             title_of(column)
         }
     };
+    // Interface adoucie (lot U1, H-UI-168) : séparateur vertical après la
+    // colonne figée (N°) seulement.
+    let soft = fc.task_view.style.soft;
     let (edges, drawn) = grid::paint_titles_aligned(
         &painter,
         &columns,
         painted_title,
         align_of,
+        |column| !soft || column == Column::Id,
         palette,
         HeaderPlace {
             rect,
@@ -517,11 +521,13 @@ fn add_column_header(
         galley,
         fc.palette.text_weak,
     );
-    painter.vline(
-        slot.right() - 0.5,
-        rect.y_range(),
-        Stroke::new(1.0, fc.palette.grid_major),
-    );
+    if !fc.task_view.style.soft {
+        painter.vline(
+            slot.right() - 0.5,
+            rect.y_range(),
+            Stroke::new(1.0, fc.palette.grid_major),
+        );
+    }
     let response = ui.interact(
         hit,
         Id::unique("plannercraft.table.add_column.hit"),
@@ -1181,16 +1187,20 @@ pub fn paint_body(
     // curseur, refus, lâcher.
     shapes = shapes.saturating_add(track_row_drag(ui, &painter, fc, sheet.rows, row_drag, &body_at));
 
-    // Séparateurs verticaux de colonnes, sur toute la hauteur visible.
-    shapes = shapes.saturating_add(grid::paint_column_lines(
+    // Séparateurs verticaux de colonnes, sur toute la hauteur visible ;
+    // interface adoucie (lot U1, H-UI-168) : après la colonne figée (N°)
+    // seulement, en filet de la grille marquée.
+    let soft = fc.task_view.style.soft;
+    shapes = shapes.saturating_add(grid::paint_column_lines_where(
         &painter,
         sheet.columns(),
         cols_left,
         clip,
-        palette.grid,
+        if soft { palette.grid_major } else { palette.grid },
+        |column| !soft || *column == Column::Id,
     ));
     // Bord droit de la colonne « Ajouter une nouvelle colonne » (H-UI-114).
-    if add_column_slot(ui.ctx()) && !fc.state.chart_only {
+    if add_column_slot(ui.ctx()) && !fc.state.chart_only && !soft {
         let content: f32 = sheet.columns().iter().map(|(_, w)| f32::from(*w)).sum();
         let x = cols_left + content + ADD_COLUMN_W;
         if x.is_finite() && x > clip.left() && x <= clip.right() {
@@ -1549,8 +1559,9 @@ struct RowFill {
     band: [plannercraft_render::style::Rgb; 2],
     /// Fond du style (une bande de cette couleur n'est pas dessinée).
     bg: plannercraft_render::style::Rgb,
-    /// Zébrage J7 (lignes impaires).
-    zebra: egui::Color32,
+    /// Zébrage J7 (lignes impaires) ; aucun dans l'interface adoucie (lot
+    /// U1, H-UI-168).
+    zebra: Option<egui::Color32>,
     /// Phases du modèle (bandes de phase).
     phases: std::sync::Arc<Vec<u8>>,
     /// Couleurs de phase des tâches (H-UI-65, J8 lot L15).
@@ -1578,7 +1589,7 @@ impl RowFill {
             banding: screen.style.grid.rows,
             band: tokens.band,
             bg: tokens.bg,
-            zebra: fc.palette.background.lerp_to_gamma(fc.palette.header_bg, 0.6),
+            zebra: (!screen.soft).then(|| fc.palette.background.lerp_to_gamma(fc.palette.header_bg, 0.6)),
             phases: std::sync::Arc::clone(&screen.phases),
             phase_colors: std::sync::Arc::clone(&screen.phase_colors),
             inks: [tokens.text, tokens.text_strong, tokens.text_muted],
@@ -1608,7 +1619,7 @@ impl RowFill {
             return Some(egui::Color32::from_rgb(tint.0, tint.1, tint.2));
         }
         if self.banding == RowBanding::None {
-            return (!i.is_multiple_of(2)).then_some(self.zebra);
+            return self.zebra.filter(|_| !i.is_multiple_of(2));
         }
         let band = super::gantt::band_of(self.banding, rows, i, &self.phases)?;
         let rgb = if band == 0 { self.band[0] } else { self.band[1] };

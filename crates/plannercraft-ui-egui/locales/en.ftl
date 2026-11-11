@@ -173,6 +173,7 @@ status-warnings =
         [one] { $count } warning
        *[other] { $count } warnings
     }
+status-consistent = Schedule consistent
 status-no-document = No document open
 
 ## Ouverture de fichiers

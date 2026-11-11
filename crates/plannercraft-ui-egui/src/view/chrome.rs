@@ -1094,22 +1094,28 @@ fn centered_row(ui: &mut egui::Ui, labels: &[String], add_contents: impl FnOnce(
 /// surimpression, en bas à droite au-dessus de la barre) et fenêtre de
 /// l'historique (H-UI-104). Les notifications ne déplacent aucune vue.
 pub fn status_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, messages: &MessageStore) {
-    let bar = egui::Panel::bottom("plannercraft_status_bar").show(ui, |ui| {
-        ui.horizontal(|ui| {
-            // Bouton de l'historique à droite, seulement s'il y a un
-            // message (barre inchangée sinon).
-            if messages.history().is_empty() {
-                status_contents(ui, fc);
-            } else {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    history_button(ui, fc, messages);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        status_contents(ui, fc);
+    // Interface adoucie (lot U1, H-UI-167) : barre d'état sur le fond de
+    // l'application, sous la surface des vues.
+    let app_bg = crate::theme::ChromeTokens::for_theme(ui.ctx().theme()).app;
+    let frame = egui::Frame::side_top_panel(ui.style()).fill(app_bg);
+    let bar = egui::Panel::bottom("plannercraft_status_bar")
+        .frame(frame)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                // Bouton de l'historique à droite, seulement s'il y a un
+                // message (barre inchangée sinon).
+                if messages.history().is_empty() {
+                    status_contents(ui, fc);
+                } else {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        history_button(ui, fc, messages);
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            status_contents(ui, fc);
+                        });
                     });
-                });
-            }
+                }
+            });
         });
-    });
     let bar_h = bar.response.rect.height();
     let bar_h = if bar_h.is_finite() {
         bar_h.clamp(0.0, 200.0)
@@ -1198,11 +1204,27 @@ fn status_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
         super::diagnostics::closed(ui.ctx());
     }
     let filter = super::diagnostics::filter(ui.ctx());
-    for (id, count, color, severity) in counters {
-        let mut text = egui::RichText::new(texts.get_args(id, &[("count", Arg::Count(count))]));
-        if count > 0 {
-            text = text.color(color);
+    // Interface adoucie (lot U1, H-UI-171) : sans erreur ni avertissement,
+    // un point vert et « Planning cohérent » (même clic que l'ancienne
+    // pastille « aucune erreur » : ouvre ou referme le panneau) ; sinon les
+    // seuls compteurs non nuls, mêmes clics qu'avant.
+    if errors == 0 && warnings == 0 {
+        let ok = crate::theme::ChromeTokens::for_theme(ui.ctx().theme()).ok;
+        let (dot, _) = ui.allocate_exact_size(egui::vec2(STATUS_DOT, STATUS_DOT), egui::Sense::hover());
+        ui.painter().circle_filled(dot.center(), STATUS_DOT / 2.0, ok);
+        if ui
+            .selectable_label(open, texts.get(TextId::StatusConsistent))
+            .clicked()
+        {
+            super::diagnostics::set_filter(ui.ctx(), None);
+            fc.actions.push(Action::ToggleDiagnostics);
         }
+    }
+    for (id, count, color, severity) in counters {
+        if count == 0 {
+            continue;
+        }
+        let text = egui::RichText::new(texts.get_args(id, &[("count", Arg::Count(count))])).color(color);
         let selected = open && filter.is_none_or(|f| f == severity);
         if ui.selectable_label(selected, text).clicked() {
             if open && filter == Some(severity) {
@@ -1218,6 +1240,9 @@ fn status_contents(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     // --- J8 L9 : « Filtre : Critiques » (rien sans filtre).
     super::task_view::status_indicator(ui, fc);
 }
+
+/// Diamètre du point vert de « Planning cohérent » (lot U1, H-UI-171).
+const STATUS_DOT: f32 = 7.0;
 
 /// Largeur maximale d'une notification (H-UI-104).
 pub const TOAST_W: f32 = 420.0;

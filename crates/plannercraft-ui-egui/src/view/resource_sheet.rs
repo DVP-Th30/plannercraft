@@ -160,7 +160,7 @@ fn paint_header(ui: &egui::Ui, fc: &mut FrameCtx<'_>, rect: Rect) {
             left: rect.left(),
             pad: fc.metrics.pad_x,
         },
-        &cell_font(ui),
+        &grid::title_font(ui.style()),
     );
     painter.hline(
         rect.x_range(),

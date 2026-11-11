@@ -366,6 +366,9 @@ pub struct GanttGeo<'a> {
     /// Surbrillance du chemin critique (H-UI-38) : sans elle, barres et
     /// liens critiques prennent le style des non critiques.
     pub highlight_critical: bool,
+    /// Interface adoucie (lot U1, H-UI-170) : récapitulative en barre fine
+    /// à embouts discrets, avancement dans la teinte de la barre.
+    pub soft: bool,
 }
 
 impl<'a> GanttGeo<'a> {
@@ -378,6 +381,7 @@ impl<'a> GanttGeo<'a> {
             variant: fc.task_view.style.variant,
             tracking: fc.state.gantt_style == GanttStyle::Tracking,
             highlight_critical: fc.task_view.state.highlight_critical,
+            soft: fc.task_view.style.soft,
         }
     }
 
@@ -590,6 +594,23 @@ fn bracket_parts(r: Rect) -> (Rect, [Pos2; 3], [Pos2; 3]) {
     (bar, left, right)
 }
 
+/// Récapitulative de l'interface adoucie dans `r` (lot U1, H-UI-170) :
+/// barre fine aux bouts arrondis (60 % de la hauteur, 2 px au moins) et deux
+/// embouts discrets, triangles de la moitié de la hauteur en largeur qui
+/// descendent jusqu'au bas de `r` (au lieu des pointes des 5/8 de la
+/// hauteur).
+fn soft_bracket_parts(r: Rect) -> (Rect, [[Pos2; 3]; 2]) {
+    let h = r.height();
+    let thick = (h * 0.6).max(2.0).min(h);
+    let w = (h * 0.5).min(r.width() / 2.0).max(1.0);
+    let (x0, x1, top, bottom) = (r.left(), r.right(), r.top(), r.bottom());
+    let bar = Rect::from_min_max(pos2(x0, top), pos2(x1, top + thick));
+    let y = top + thick / 2.0;
+    let left = [pos2(x0, y), pos2(x0 + w, y), pos2(x0, bottom)];
+    let right = [pos2(x1 - w, y), pos2(x1, y), pos2(x1, bottom)];
+    (bar, [left, right])
+}
+
 /// Contour d'une barre à crochets : barre pleine et pointes, d'un seul
 /// trait.
 fn bracket_outline(r: Rect) -> Vec<Pos2> {
@@ -641,6 +662,13 @@ fn bar_shapes(b: &ScreenBar, geo: &GanttGeo<'_>, phase: Option<Rgb>, out: &mut V
                 out.push(Shape::rect_filled(r, radius, fill));
             }
             out.push(Shape::rect_stroke(r, radius, stroke, StrokeKind::Inside));
+        }
+        BarShape::Bracket if geo.soft && !outline_only => {
+            let (bar, caps) = soft_bracket_parts(r);
+            out.push(Shape::rect_filled(bar, bar.height() / 2.0, fill));
+            for cap in caps {
+                out.push(Shape::convex_polygon(cap.to_vec(), fill, Stroke::NONE));
+            }
         }
         BarShape::Bracket => {
             if outline_only {
@@ -1309,8 +1337,17 @@ pub fn paint_body(
             let phase = screen.phase_colors.get(&row.uid).map(|(rgb, _)| *rgb);
             bar_shapes(&bar, &geo, phase, &mut shapes);
             hatch_shapes(&bar, &geo, clip, &mut shapes);
+            // Interface adoucie (lot U1, H-UI-170) : avancement dans la
+            // teinte de la barre, assombrie jusqu'à 3:1.
+            let progress = if geo.soft {
+                let role_fill = c.bars.get(&bar.g.role).map_or(c.text, |p| p.fill);
+                let phase_fill = phase.filter(|_| plannercraft_render::geometry::phase_painted(bar.g.role));
+                color(crate::theme::progress_ink(phase_fill.unwrap_or(role_fill)))
+            } else {
+                fill(BarRole::Progress)
+            };
             if geo.tracking
-                && let Some(shape) = progress_shape(row, &bar, axis, fill(BarRole::Progress))
+                && let Some(shape) = progress_shape(row, &bar, axis, progress)
             {
                 shapes.push(shape);
             }
@@ -1710,6 +1747,7 @@ mod tests {
             variant: Variant::Light,
             tracking: false,
             highlight_critical: true,
+            soft: false,
         };
         let last = doc.range.end.checked_add_days(-1).unwrap();
         let vp = Viewport {
@@ -1879,6 +1917,7 @@ mod tests {
             variant: Variant::Light,
             tracking: false,
             highlight_critical: true,
+            soft: false,
         };
         let g = Geom16 {
             role: BarRole::Critical,

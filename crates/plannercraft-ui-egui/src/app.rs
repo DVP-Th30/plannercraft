@@ -3229,9 +3229,9 @@ impl App {
         // Style effectif du document (J8, lot L11) : palette, densité,
         // police du planning ; relu seulement quand le document change.
         let (screen, palette) = self.screen_style(ctx.theme());
-        if screen.inter() {
-            crate::theme::install_plan_fonts(&ctx);
-        }
+        // Inter pour toute l'interface (lot U1, H-UI-169) : installée à
+        // chaque image (sans effet une fois faite), avant le premier texte.
+        crate::theme::install_plan_fonts(&ctx);
         // Densité : table et Gantt seulement ; feuilles des ressources à
         // 22 px comme J7.
         let metrics = Metrics {
