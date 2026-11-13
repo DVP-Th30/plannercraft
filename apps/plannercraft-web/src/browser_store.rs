@@ -219,10 +219,12 @@ async fn read_all(db: &web_sys::IdbDatabase) -> Result<BTreeMap<String, Vec<u8>>
         Ok((store.get_all_keys()?, store.get_all()?))
     };
     let (keys, values) = read().map_err(|error| js_text(&error))?;
-    JsFuture::from(request_promise(&keys))
-        .await
-        .map_err(|error| js_text(&error))?;
-    JsFuture::from(request_promise(&values))
+    // Les deux écouteurs sont posés avant toute attente : la seconde
+    // requête peut aboutir pendant qu'on attend la première.
+    let keys_done = request_promise(&keys);
+    let values_done = request_promise(&values);
+    JsFuture::from(keys_done).await.map_err(|error| js_text(&error))?;
+    JsFuture::from(values_done)
         .await
         .map_err(|error| js_text(&error))?;
     let keys = keys.result().map_err(|error| js_text(&error))?;
