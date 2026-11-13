@@ -455,8 +455,9 @@ fn rules_separate(xs: &[Cpt], found: &[Found]) -> bool {
 /// Bornes sans quadrillage : entre deux intitulés voisins A et B, la
 /// borne est au milieu du plus large vide de la projection horizontale des
 /// mots des lignes du tableau (sous l'en-tête) entre la fin de l'intitulé
-/// de A et le milieu de celui de B (une durée alignée à droite déborde à
-/// gauche de son intitulé) ; la dernière colonne s'arrête au premier vide de plus de
+/// de A et le début de celui de B plus un corps (une durée alignée à
+/// droite déborde un peu à gauche de son intitulé), à défaut le milieu de
+/// celui de B ; la dernière colonne s'arrête au premier vide de plus de
 /// trois corps après son intitulé.
 fn projected(lines: &[TextLine], header_last_line: usize, found: &[Found]) -> Vec<Column> {
     let body: Vec<&TextLine> = lines.iter().skip(header_last_line.saturating_add(1)).collect();
@@ -492,7 +493,12 @@ fn projected(lines: &[TextLine], header_last_line: usize, found: &[Found]) -> Ve
     });
     for (i, (kind, _, p)) in found.iter().enumerate() {
         let right = if let Some((_, _, next)) = found.get(i.saturating_add(1)) {
-            widest_gap(p.x1, mid(next.x0, next.x1)).unwrap_or_else(|| mid(p.x1, next.x0))
+            // D'abord un vide avant le début de l'intitulé suivant (un
+            // corps de marge) ; à défaut, jusqu'à son milieu.
+            let size = next.words.first().map_or(800, |w| w.size);
+            widest_gap(p.x1, next.x0.saturating_add(size))
+                .or_else(|| widest_gap(p.x1, mid(next.x0, next.x1)))
+                .unwrap_or_else(|| mid(p.x1, next.x0))
         } else {
             {
                 let size = p.words.first().map_or(800, |w| w.size);

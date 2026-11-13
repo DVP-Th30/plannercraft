@@ -1,15 +1,15 @@
 //! Conversion du planning lu en projet (étape 7), par les commandes du
 //! moteur (`task.add`, `link.add`, `task.set_constraint`), jamais en
 //! écrivant le modèle à la main. **Règle 3 : les dates viennent du
-//! moteur.** Les dates lues servent seulement (ADR-0032 D5, R-300 à
-//! R-302) :
-//! - à fixer la date de début du projet (plus petit début lu, R-300) ;
+//! moteur.** Les dates lues servent seulement (ADR-0032 D5, R-270 à
+//! R-272) :
+//! - à fixer la date de début du projet (plus petit début lu, R-270) ;
 //! - à poser « Début au plus tôt le » (début lu) sur une feuille sans
 //!   prédécesseur propre que le moteur, sans elle, placerait avant son
-//!   début lu (R-301 ; sur demande, aussi sur les feuilles liées dont
+//!   début lu (R-271 ; sur demande, aussi sur les feuilles liées dont
 //!   aucun prédécesseur n'est en avance) ;
 //! - à comparer : après calcul, chaque date calculée qui diffère au jour
-//!   de la date lue est listée avec l'écart (R-302).
+//!   de la date lue est listée avec l'écart (R-272).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -96,7 +96,7 @@ pub struct ConvertOptions {
     pub now: Moment,
     /// Langue de la session.
     pub lang: Language,
-    /// R-301 étendue : poser « Début au plus tôt le » aussi sur les
+    /// R-271 étendue : poser « Début au plus tôt le » aussi sur les
     /// feuilles qui ont des prédécesseurs, quand le moteur les place avant
     /// leur début lu (contrainte invisible dans le PDF, décalage non
     /// imprimé) ; sinon seulement sur les feuilles sans prédécesseur.
@@ -108,7 +108,7 @@ fn label(k: usize) -> String {
     format!("$t{k}")
 }
 
-/// R-300 : début du projet = plus petit début lu ; à défaut, plus petite
+/// R-270 : début du projet = plus petit début lu ; à défaut, plus petite
 /// fin lue ramenée à l'heure de début par défaut.
 fn project_start(plan: &ImportedPlan) -> Option<Moment> {
     plan.tasks.iter().filter_map(|t| t.start).min().or_else(|| {
@@ -130,8 +130,8 @@ const fn link_json(kind: LinkType) -> LinkTypeJson {
     }
 }
 
-/// Construit le projet : tâches et hiérarchie, liens, contraintes (R-301),
-/// puis compare les dates calculées aux dates lues (R-302).
+/// Construit le projet : tâches et hiérarchie, liens, contraintes (R-271),
+/// puis compare les dates calculées aux dates lues (R-272).
 ///
 /// # Errors
 ///
@@ -223,7 +223,7 @@ pub fn convert(plan: &ImportedPlan, options: &ConvertOptions) -> Result<Converte
         }
     }
 
-    // 3. R-301 : « Début au plus tôt le » (début lu) sur les feuilles que le
+    // 3. R-271 : « Début au plus tôt le » (début lu) sur les feuilles que le
     // moteur place avant leur début lu : sans prédécesseur propre par
     // défaut ; avec `pin_read_starts`, aussi celles qui en ont, par passes
     // successives, en commençant par celles dont aucun prédécesseur n'est
@@ -307,7 +307,7 @@ pub fn convert(plan: &ImportedPlan, options: &ConvertOptions) -> Result<Converte
     };
     let session = Session::from_project(session.project().clone(), origin, now, lang);
 
-    // 4. R-302 : comparaison au jour.
+    // 4. R-272 : comparaison au jour.
     let mut gaps = Vec::new();
     let mut compared = 0_u32;
     let mut equal = 0_u32;

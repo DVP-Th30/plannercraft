@@ -3924,6 +3924,7 @@ dependencies = [
  "hayro-syntax",
  "plannercraft-automation",
  "plannercraft-core",
+ "plannercraft-render",
  "serde",
  "serde_json",
  "unicode-normalization",

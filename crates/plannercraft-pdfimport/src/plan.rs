@@ -98,6 +98,8 @@ pub enum WarningCode {
     IdConflict,
     /// Ligne vide (N° sans nom) : ignorée.
     BlankRow,
+    /// Nom coupé à l'impression (« … » final) : à compléter.
+    NameTruncated,
     /// Durée illisible.
     DurationUnreadable,
     /// Durée absente d'une feuille.
@@ -142,6 +144,7 @@ impl WarningCode {
             Self::IdGap => "pdfimport.id_gap",
             Self::IdConflict => "pdfimport.id_conflict",
             Self::BlankRow => "pdfimport.blank_row",
+            Self::NameTruncated => "pdfimport.name_truncated",
             Self::DurationUnreadable => "pdfimport.duration_unreadable",
             Self::DurationMissing => "pdfimport.duration_missing",
             Self::DateUnreadable => "pdfimport.date_unreadable",
@@ -175,6 +178,10 @@ impl WarningCode {
                 "duplicate ID with different content: first row kept",
             ),
             Self::BlankRow => ("ligne vide ignorée", "blank row ignored"),
+            Self::NameTruncated => (
+                "nom coupé à l'impression (« … ») : à compléter",
+                "name cut at print time (\"…\"): to be completed",
+            ),
             Self::DurationUnreadable => (
                 "durée illisible : durée par défaut",
                 "unreadable duration: default duration used",
@@ -695,6 +702,14 @@ pub fn build(extracted: &Extracted, options: &ImportOptions) -> Result<ImportedP
         let name = row.cell(ColumnKind::Name).unwrap_or("").to_owned();
         if name.is_empty() {
             penalty = penalty.saturating_add(30);
+        } else if name.ends_with('…') || name.ends_with("...") {
+            penalty = penalty.saturating_add(5);
+            warnings.push(Warning {
+                code: WarningCode::NameTruncated,
+                id: Some(id),
+                page,
+                value: Some(cite(&name)),
+            });
         }
         stats.durations_read = stats.durations_read.saturating_add(u32::from(duration.is_some()));
         stats.starts_read = stats.starts_read.saturating_add(u32::from(start.is_some()));
@@ -890,9 +905,29 @@ fn is_na(text: &str) -> bool {
     )
 }
 
-/// Mêmes cellules (tableau répété sur une autre page).
+/// Mêmes cellules (tableau répété sur une autre page) ; le rappel d'une
+/// récapitulative en haut de page, « Phase 1 (suite) » / « (continued) »,
+/// est la même ligne.
 fn same_content(a: &RawRow, b: &RawRow) -> bool {
-    a.cells == b.cells
+    let strip = |r: &RawRow| -> BTreeMap<ColumnKind, String> {
+        r.cells
+            .iter()
+            .map(|(k, v)| {
+                let v = if *k == ColumnKind::Name {
+                    let t = v.trim_end();
+                    t.strip_suffix("(suite)")
+                        .or_else(|| t.strip_suffix("(continued)"))
+                        .unwrap_or(t)
+                        .trim_end()
+                        .to_owned()
+                } else {
+                    v.clone()
+                };
+                (*k, v)
+            })
+            .collect()
+    };
+    strip(a) == strip(b)
 }
 
 /// En-tête incomplet : un nom de tâche et un N° reconnus sur une même
@@ -1124,5 +1159,302 @@ fn source_info(extracted: &Extracted, tables: &[TablePage]) -> SourceInfo {
         page_size: page.map_or((0, 0), |p| (p.width, p.height)),
         columns: first.map(|t| t.layout.columns.clone()).unwrap_or_default(),
         bar_colors,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::unwrap_used,
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "tests : les interdits de la règle 10 ne s'appliquent pas, un échec doit paniquer"
+    )]
+
+    use super::*;
+    use crate::extract::{PageContent, Word};
+
+    /// Bords gauches des colonnes N°, Nom, Durée, Début, Fin, Préd.
+    const X: [Cpt; 6] = [400, 2000, 20000, 25000, 32000, 39000];
+
+    fn word(text: &str, x0: Cpt, baseline: Cpt, bold: bool) -> Word {
+        let n = Cpt::try_from(text.chars().count()).unwrap();
+        Word {
+            text: text.to_owned(),
+            x0,
+            x1: x0.saturating_add(n.saturating_mul(420)),
+            baseline,
+            size: 800,
+            bold,
+            glyphs: Vec::new(),
+        }
+    }
+
+    /// Ligne : cellules (texte, retrait du nom en centièmes de point).
+    struct Row<'a> {
+        cells: [&'a str; 6],
+        indent: Cpt,
+        bold: bool,
+    }
+
+    fn page(header: [&str; 6], rows: &[Row<'_>]) -> Extracted {
+        let mut words = Vec::new();
+        let mut y: Cpt = 1000;
+        let put = |cells: [&str; 6], indent: Cpt, bold: bool, y: Cpt, words: &mut Vec<Word>| {
+            for (k, cell) in cells.iter().enumerate() {
+                let mut x = X[k] + if k == 1 { indent } else { 0 };
+                for w in cell.split_whitespace() {
+                    let wd = word(w, x, y, bold && k == 1);
+                    x = wd.x1 + 300;
+                    words.push(wd);
+                }
+            }
+        };
+        put(header, 0, false, y, &mut words);
+        for r in rows {
+            y += 1200;
+            put(r.cells, r.indent, r.bold, y, &mut words);
+        }
+        let content = PageContent {
+            words,
+            width: 84_000,
+            height: 59_500,
+            glyphs: 5_000,
+            ..PageContent::default()
+        };
+        Extracted {
+            pages: vec![content],
+            page_count: 1,
+            producer: None,
+            creator: None,
+        }
+    }
+
+    const FR: [&str; 6] = ["N°", "Nom de la tâche", "Durée", "Début", "Fin", "Prédécesseurs"];
+    const EN: [&str; 6] = ["ID", "Task Name", "Duration", "Start", "Finish", "Predecessors"];
+
+    fn row(cells: [&str; 6], indent: Cpt, bold: bool) -> Row<'_> {
+        Row { cells, indent, bold }
+    }
+
+    #[test]
+    fn levels_links_and_milestones_from_a_word_table() {
+        let ex = page(
+            FR,
+            &[
+                row(
+                    ["1", "Lot 1", "10 jours", "Lun 05/01/26", "Ven 16/01/26", ""],
+                    0,
+                    true,
+                ),
+                row(
+                    ["2", "Fouilles", "3 jrs", "Lun 05/01/26", "Mer 07/01/26", ""],
+                    970,
+                    false,
+                ),
+                row(
+                    [
+                        "3",
+                        "Béton",
+                        "1 sem",
+                        "Jeu 08/01/26",
+                        "Mer 14/01/26",
+                        "2FD+0 jour",
+                    ],
+                    970,
+                    false,
+                ),
+                row(
+                    [
+                        "4",
+                        "Fin du lot",
+                        "0 jour",
+                        "Ven 16/01/26",
+                        "Ven 16/01/26",
+                        "3;2DD+1 j",
+                    ],
+                    970,
+                    false,
+                ),
+                row(
+                    ["5", "Réception", "0 jour", "Ven 16/01/26", "Ven 16/01/26", "4"],
+                    0,
+                    false,
+                ),
+            ],
+        );
+        let plan = build(&ex, &ImportOptions::default()).unwrap();
+        let levels: Vec<u16> = plan.tasks.iter().map(|t| t.level).collect();
+        assert_eq!(levels, [1, 2, 2, 2, 1]);
+        assert!(plan.tasks[0].summary);
+        assert!(plan.tasks[3].milestone() && plan.tasks[4].milestone());
+        assert_eq!(plan.tasks[3].predecessors.len(), 2);
+        assert_eq!(
+            plan.tasks[3].predecessors[1].kind,
+            plannercraft_core::LinkType::StartToStart
+        );
+        assert_eq!(plan.date_order, Some(NumericOrder::DayMonth));
+        assert_eq!(plan.date_order_source, DateOrderSource::Values);
+        assert_eq!(plan.stats.summaries_consistent, 1);
+        assert_eq!(plan.stats.links_read, 4);
+        assert!(plan.warnings.is_empty(), "{:?}", plan.warnings);
+    }
+
+    #[test]
+    fn unknown_and_unreadable_predecessors_are_reported_not_imported() {
+        let ex = page(
+            EN,
+            &[
+                row(["1", "A", "1 day", "1/5/26", "1/5/26", ""], 0, false),
+                row(["2", "B", "1 day", "1/6/26", "1/6/26", "1,9,2,zz"], 0, false),
+            ],
+        );
+        let plan = build(&ex, &ImportOptions::default()).unwrap();
+        assert_eq!(plan.tasks[1].predecessors.len(), 1);
+        let codes: Vec<WarningCode> = plan.warnings.iter().map(|w| w.code).collect();
+        assert!(codes.contains(&WarningCode::PredecessorUnknown));
+        assert!(codes.contains(&WarningCode::PredecessorSelf));
+        assert!(codes.contains(&WarningCode::PredecessorUnreadable));
+    }
+
+    #[test]
+    fn ambiguous_dates_follow_the_header_language_with_a_warning() {
+        let ex = page(
+            EN,
+            &[
+                row(["1", "A", "1 day", "03/04/26", "03/04/26", ""], 0, false),
+                row(["2", "B", "1 day", "05/06/26", "05/06/26", ""], 0, false),
+            ],
+        );
+        let plan = build(&ex, &ImportOptions::default()).unwrap();
+        assert_eq!(plan.date_order, Some(NumericOrder::MonthDay));
+        assert_eq!(plan.date_order_source, DateOrderSource::Language);
+        assert!(
+            plan.warnings
+                .iter()
+                .any(|w| w.code == WarningCode::DateOrderAssumed)
+        );
+        assert_eq!(plan.tasks[0].start.unwrap().to_string(), "2026-03-04T08:00");
+        // Imposé par l'appelant : pas d'avertissement.
+        let forced = ImportOptions {
+            date_order: Some(NumericOrder::DayMonth),
+            ..ImportOptions::default()
+        };
+        let plan = build(&ex, &forced).unwrap();
+        assert_eq!(plan.tasks[0].start.unwrap().to_string(), "2026-04-03T08:00");
+        assert!(
+            plan.warnings
+                .iter()
+                .all(|w| w.code != WarningCode::DateOrderAssumed)
+        );
+    }
+
+    #[test]
+    fn weekday_settles_the_order_of_uk_dates() {
+        // 05/01/26 est un lundi en JJ/MM (5 janvier 2026), un vendredi en
+        // MM/JJ (1er mai 2026) : « Mon » tranche malgré l'en-tête anglais.
+        let ex = page(
+            EN,
+            &[row(
+                ["1", "A", "1 day", "Mon 05/01/26", "Mon 05/01/26", ""],
+                0,
+                false,
+            )],
+        );
+        let plan = build(&ex, &ImportOptions::default()).unwrap();
+        assert_eq!(plan.date_order, Some(NumericOrder::DayMonth));
+        assert_eq!(plan.date_order_source, DateOrderSource::Values);
+    }
+
+    #[test]
+    fn flat_list_with_bold_titles_is_refused_unless_flattened() {
+        let rows = [
+            row(
+                ["1", "LOT GROS OEUVRE", "10 jours", "05/01/26", "16/01/26", ""],
+                0,
+                true,
+            ),
+            row(["2", "Fouilles", "3 jours", "05/01/26", "07/01/26", ""], 0, false),
+            row(
+                ["3", "LOT CHARPENTE", "5 jours", "19/01/26", "23/01/26", ""],
+                0,
+                true,
+            ),
+            row(["4", "Pose", "5 jours", "19/01/26", "23/01/26", ""], 0, false),
+        ];
+        let ex = page(FR, &rows);
+        assert_eq!(
+            build(&ex, &ImportOptions::default()),
+            Err(ImportError::FlatHierarchy)
+        );
+        let flat = ImportOptions {
+            allow_flat_hierarchy: true,
+            ..ImportOptions::default()
+        };
+        let plan = build(&ex, &flat).unwrap();
+        assert!(plan.tasks.iter().all(|t| t.level == 1 && !t.summary));
+        assert!(plan.warnings.iter().any(|w| w.code == WarningCode::Flattened));
+    }
+
+    #[test]
+    fn indents_contradicting_summary_dates_are_refused() {
+        // Feuilles au bord, récapitulatives en retrait (vu dans le corpus) :
+        // les « récapitulatives » ne contiennent pas les dates des lignes
+        // suivantes.
+        let rows = [
+            row(
+                ["1", "Phase A", "5 jours", "05/01/26", "09/01/26", ""],
+                970,
+                false,
+            ),
+            row(["2", "a1", "5 jours", "12/01/26", "16/01/26", ""], 1940, false),
+            row(
+                ["3", "Phase B", "5 jours", "19/01/26", "23/01/26", ""],
+                970,
+                false,
+            ),
+            row(["4", "b1", "5 jours", "26/01/26", "30/01/26", ""], 1940, false),
+            row(
+                ["5", "Phase C", "5 jours", "02/02/26", "06/02/26", ""],
+                970,
+                false,
+            ),
+            row(["6", "c1", "5 jours", "09/02/26", "13/02/26", ""], 1940, false),
+        ];
+        let ex = page(FR, &rows);
+        assert_eq!(
+            build(&ex, &ImportOptions::default()),
+            Err(ImportError::InconsistentHierarchy)
+        );
+    }
+
+    #[test]
+    fn table_without_dates_is_refused() {
+        let ex = page(
+            ["N°", "Nom de la tâche", "Durée", "", "", ""],
+            &[row(["1", "A", "3 jours", "", "", ""], 0, false)],
+        );
+        assert_eq!(build(&ex, &ImportOptions::default()), Err(ImportError::NoDates));
+    }
+
+    #[test]
+    fn scanned_and_textless_pages_are_refused() {
+        let mut ex = page(FR, &[]);
+        ex.pages[0].words.clear();
+        ex.pages[0].glyphs = 0;
+        assert_eq!(build(&ex, &ImportOptions::default()), Err(ImportError::NoText));
+        ex.pages[0].image_permille = 1000;
+        assert_eq!(build(&ex, &ImportOptions::default()), Err(ImportError::Scanned));
+        // Texte reconnu (OCR) invisible sur une image pleine page.
+        ex.pages[0].glyphs = 3000;
+        ex.pages[0].invisible_glyphs = 3000;
+        assert_eq!(build(&ex, &ImportOptions::default()), Err(ImportError::Scanned));
+    }
+
+    #[test]
+    fn page_without_table_is_refused() {
+        let mut ex = page(["Compte", "rendu", "de", "réunion", "du", "lundi"], &[]);
+        ex.pages[0].glyphs = 5000;
+        assert_eq!(build(&ex, &ImportOptions::default()), Err(ImportError::NoTable));
     }
 }

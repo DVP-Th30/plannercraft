@@ -59,13 +59,13 @@ pub struct TaskView {
 /// Conversion, vue JSON.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConversionView {
-    /// Début du projet (plus petit début lu, R-300).
+    /// Début du projet (plus petit début lu, R-270).
     pub project_start: String,
-    /// Contraintes « Début au plus tôt le » posées (R-301).
+    /// Contraintes « Début au plus tôt le » posées (R-271).
     pub constraints: u32,
     /// Liens posés.
     pub links: u32,
-    /// Dates lues comparées (R-302).
+    /// Dates lues comparées (R-272).
     pub dates_compared: u32,
     /// Dates calculées égales aux dates lues, au jour.
     pub dates_equal: u32,
