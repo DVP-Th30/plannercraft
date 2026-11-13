@@ -1895,3 +1895,15 @@ ai-field-manual-finish = Entered finish
 ai-field-manual-duration = Entered duration
 ai-field-calendar = Task calendar
 ai-field-other = Other data
+
+## Lot W1 (ADR-0031): autosave in the browser, web files.
+autosave-restored = Plan restored from this browser: “{ $name }”.
+autosave-restored-new = New blank plan
+autosave-restored-dismiss = Hide
+autosave-other-tab = PlannerCraft is already open in another tab of this browser: this tab is not saved automatically. Save your work, or close the other tab and reload this one.
+autosave-unavailable = Autosave is not available in this browser ({ $detail }): save your plan regularly.
+autosave-unreadable = The plan kept by this browser cannot be reopened: { $detail }
+autosave-stopped = Autosave stopped in this browser: { $detail }. You can keep editing; save your plan so nothing is lost.
+autosave-gap = one change could not be saved
+web-file-denied = the browser did not allow writing to “{ $name }”. The plan is still modified; “Save As” picks another file.
+web-file-missing = “{ $name }” cannot be found (moved or deleted); “Save As” picks another file.

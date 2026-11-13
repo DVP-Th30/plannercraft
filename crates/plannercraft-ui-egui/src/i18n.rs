@@ -789,6 +789,17 @@ text_ids! {
     WhyNoTask => "why-no-task",
     WhyDrivers => "why-drivers",
     WhyUnavailable => "why-unavailable",
+    // --- Lot W1 (ADR-0031) : sauvegarde du navigateur, fichiers du web ---
+    AutosaveRestored => "autosave-restored",
+    AutosaveRestoredNew => "autosave-restored-new",
+    AutosaveRestoredDismiss => "autosave-restored-dismiss",
+    AutosaveOtherTab => "autosave-other-tab",
+    AutosaveUnavailable => "autosave-unavailable",
+    AutosaveUnreadable => "autosave-unreadable",
+    AutosaveStopped => "autosave-stopped",
+    AutosaveGap => "autosave-gap",
+    WebFileDenied => "web-file-denied",
+    WebFileMissing => "web-file-missing",
     // --- J8 L13 ---
     WebStartFailed => "web-start-failed",
     DroppedFirstOnly => "dropped-first-only",

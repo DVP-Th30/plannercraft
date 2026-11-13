@@ -29,7 +29,28 @@ wasm-bindgen-futures.workspace = true
 # `BeforeUnloadEvent` : garde de fermeture de l'onglet (relecture finale J4,
 # F3). `KeyboardEvent` : garde des raccourcis (H-UI-55) ; `Node` : bloc
 # « Chargement… » remplacé ou retiré (H-UI-57).
-web-sys = { workspace = true, features = ["BeforeUnloadEvent", "Event", "EventTarget", "KeyboardEvent", "Node"] }
+# Sauvegarde automatique (lot W1, ADR-0031) : `Navigator` (verrou Web Locks
+# par `js_sys::Reflect`), IndexedDB (`Idb*`, `DomException`,
+# `DomStringList`).
+web-sys = { workspace = true, features = [
+    "BeforeUnloadEvent",
+    "Event",
+    "EventTarget",
+    "KeyboardEvent",
+    "Node",
+    "Navigator",
+    "DomException",
+    "DomStringList",
+    "IdbFactory",
+    "IdbDatabase",
+    "IdbOpenDbRequest",
+    "IdbRequest",
+    "IdbRequestReadyState",
+    "IdbTransaction",
+    "IdbTransactionMode",
+    "IdbObjectStore",
+    "IdbKeyRange",
+] }
 
 [lints]
 workspace = true

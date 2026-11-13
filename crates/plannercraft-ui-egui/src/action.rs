@@ -637,7 +637,8 @@ pub enum UiOp {
     Language(LanguagePref),
 }
 
-/// Réponse au bandeau de reprise après plantage (J7, lot L15).
+/// Réponse au bandeau de reprise après plantage (J7, lot L15) ou au
+/// bandeau du planning rouvert par la sauvegarde du navigateur (lot W1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RecoverChoice {
     /// Restaure l'orphelin d'identifiant donné.
@@ -646,6 +647,9 @@ pub enum RecoverChoice {
     Discard(String),
     /// Décide plus tard (le bandeau revient au prochain démarrage).
     Later,
+    /// Masque le bandeau « Planning retrouvé dans ce navigateur » (version
+    /// web, lot W1, H-UI-199).
+    DismissRestored,
 }
 
 /// Réponse au bandeau de confirmation d'un document modifié (fermer, ouvrir

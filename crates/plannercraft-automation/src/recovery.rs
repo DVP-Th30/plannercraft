@@ -1,5 +1,7 @@
 //! Reprise après plantage (J7, lot L15 ; ADR-0005 « journal write-ahead »,
-//! ADR-0015 « base JSON, pas MSPDI »). Natif seulement.
+//! ADR-0015 « base JSON, pas MSPDI »). Dossier sur le desktop ; sur le web,
+//! le même journal (base et lignes, [`replay_bytes`]) est écrit dans un
+//! emplacement du navigateur par un autre [`Store`] (lot W1, ADR-0031).
 //!
 //! Un document ouvert dans l'application tient un **journal** dans son
 //! propre dossier, `<recovery>/<pid>-<n>/` :
@@ -31,9 +33,16 @@
 //! ([`Recorder`]) : l'édition n'est jamais bloquée, l'erreur est signalée
 //! une fois.
 
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufRead as _, BufReader, Read as _, Write as _};
-use std::path::{Path, PathBuf};
+use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
+use std::fs::{File, OpenOptions};
+use std::io;
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::{BufRead as _, BufReader, Read as _, Write as _};
+use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use plannercraft_core::{Moment, Project};
@@ -57,9 +66,13 @@ pub const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
 /// tests.
 pub const RECOVERY_DIR_ENV: &str = "PLANNERCRAFT_RECOVERY_DIR";
 
+#[cfg(not(target_arch = "wasm32"))]
 const BASE_FILE: &str = "base.json";
+#[cfg(not(target_arch = "wasm32"))]
 const BASE_TMP: &str = "base.json.tmp";
+#[cfg(not(target_arch = "wasm32"))]
 const OPS_FILE: &str = "ops.jsonl";
+#[cfg(not(target_arch = "wasm32"))]
 const LOCK_FILE: &str = "lock";
 
 /// Changement journalisé.
@@ -173,6 +186,13 @@ struct BaseFile {
 
 /// En-tête de `base.json` (le projet est sauté).
 #[derive(Deserialize)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        dead_code,
+        reason = "web : seule la version est lue (`replay_bytes`), le reste sert aux orphelins du desktop"
+    )
+)]
 struct BaseMeta {
     v: u32,
     epoch: u64,
@@ -185,6 +205,7 @@ struct BaseMeta {
 }
 
 /// Version seule d'un `base.json` (autre format reconnu à son en-tête).
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct BaseVersion {
     v: u32,
@@ -207,9 +228,11 @@ pub enum RecoveryError {
     TooLarge(u64),
 }
 
-/// Écritures d'un journal : le dossier réel ([`DirStore`]) ou un écrivain
-/// simulé.
-pub trait Store: Send {
+/// Écritures d'un journal : le dossier réel ([`DirStore`]), l'emplacement
+/// du navigateur (version web, lot W1 : `plannercraft_ui_egui::autosave`,
+/// écritures remises à `IndexedDB`, d'où l'absence de borne `Send`) ou un
+/// écrivain simulé.
+pub trait Store {
     /// Remplace `base.json` de façon atomique.
     ///
     /// # Errors
@@ -241,6 +264,7 @@ pub trait Store: Send {
 /// sinon `recovery` à côté du dossier du canal de contrôle
 /// (`state_dir()/../recovery`).
 #[must_use]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn recovery_dir() -> Option<PathBuf> {
     if let Some(value) = std::env::var_os(RECOVERY_DIR_ENV) {
         let path = PathBuf::from(value);
@@ -254,6 +278,7 @@ pub fn recovery_dir() -> Option<PathBuf> {
 
 /// Crée `dir` et ses parents, en 0700 sur Unix (le journal contient le
 /// projet).
+#[cfg(not(target_arch = "wasm32"))]
 fn create_private_dir_all(dir: &Path) -> io::Result<()> {
     let mut builder = fs::DirBuilder::new();
     builder.recursive(true);
@@ -266,6 +291,7 @@ fn create_private_dir_all(dir: &Path) -> io::Result<()> {
 }
 
 /// Crée `dir` (qui ne doit pas exister), en 0700 sur Unix.
+#[cfg(not(target_arch = "wasm32"))]
 fn create_private_dir(dir: &Path) -> io::Result<()> {
     let mut builder = fs::DirBuilder::new();
     #[cfg(unix)]
@@ -278,12 +304,14 @@ fn create_private_dir(dir: &Path) -> io::Result<()> {
 
 /// Journal dans un dossier `<root>/<pid>-<n>/`, verrou tenu.
 #[derive(Debug)]
+#[cfg(not(target_arch = "wasm32"))]
 pub struct DirStore {
     dir: PathBuf,
     ops: File,
     lock: File,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl DirStore {
     /// Crée un dossier de journal neuf sous `root` (créé au besoin) et prend
     /// son verrou.
@@ -335,6 +363,7 @@ impl DirStore {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Store for DirStore {
     fn replace_base(&mut self, bytes: &[u8]) -> io::Result<()> {
         let tmp = self.dir.join(BASE_TMP);
@@ -510,6 +539,7 @@ impl Journal {
     /// # Errors
     ///
     /// Dossier, verrou ou base impossibles à écrire.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create(root: &Path, session: &Session) -> io::Result<Self> {
         Self::start(Box::new(DirStore::create(root)?), session)
     }
@@ -633,6 +663,7 @@ impl Journal {
     clippy::struct_excessive_bools,
     reason = "constats indépendants lus sur le disque, pas un état à plusieurs valeurs"
 )]
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Orphan {
     /// Identifiant : nom du dossier (`<pid>-<n>`).
     pub id: String,
@@ -661,6 +692,7 @@ pub struct Orphan {
     pub file_changed: bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Orphan {
     /// Le journal porte des modifications non enregistrées.
     #[must_use]
@@ -689,6 +721,7 @@ impl Orphan {
 }
 
 /// Contenu d'un fichier du journal, borné par [`MAX_FILE_BYTES`].
+#[cfg(not(target_arch = "wasm32"))]
 fn read_bounded(path: &Path) -> Result<Vec<u8>, RecoveryError> {
     let file = File::open(path).map_err(|e| RecoveryError::Io(e.to_string()))?;
     let len = file
@@ -706,6 +739,7 @@ fn read_bounded(path: &Path) -> Result<Vec<u8>, RecoveryError> {
 }
 
 /// Le verrou de `dir` est libre (ou absent : dossier inachevé).
+#[cfg(not(target_arch = "wasm32"))]
 fn lock_free(dir: &Path) -> bool {
     match OpenOptions::new()
         .read(true)
@@ -719,6 +753,7 @@ fn lock_free(dir: &Path) -> bool {
 
 /// Entrées de l'époque `epoch` dans `ops.jsonl` (les lignes illisibles
 /// comptent : le rejeu s'y arrêtera, avec un message).
+#[cfg(not(target_arch = "wasm32"))]
 fn count_entries(dir: &Path, epoch: u64) -> usize {
     let Ok(file) = File::open(dir.join(OPS_FILE)) else {
         return 0;
@@ -735,6 +770,7 @@ fn count_entries(dir: &Path, epoch: u64) -> usize {
 /// verrou est libre. Un dossier illisible est rendu `unreadable` (sans
 /// valeur, à supprimer).
 #[must_use]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn orphans(root: &Path) -> Vec<Orphan> {
     let Ok(entries) = fs::read_dir(root) else {
         return Vec::new();
@@ -755,6 +791,7 @@ pub fn orphans(root: &Path) -> Vec<Orphan> {
 /// Description de l'orphelin du dossier `dir`. Base d'une autre version
 /// ou trop grande : gardée (`kept`), jamais supprimée sans l'accord de
 /// l'utilisateur ; base absente ou JSON invalide : illisible.
+#[cfg(not(target_arch = "wasm32"))]
 fn orphan_at(id: String, dir: PathBuf) -> Orphan {
     let unreadable = |id: String, dir: PathBuf, name: Option<String>, kept: bool| Orphan {
         name: name.unwrap_or_else(|| id.clone()),
@@ -821,6 +858,7 @@ pub struct ReplayReport {
 /// # Errors
 ///
 /// Base illisible ou de version inconnue.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn replay(o: &Orphan, lang: Language) -> Result<(Session, ReplayReport), RecoveryError> {
     let base = read_bounded(&o.dir.join(BASE_FILE))?;
     let ops = match read_bounded(&o.dir.join(OPS_FILE)) {
@@ -908,8 +946,10 @@ fn run(session: &mut Session, entry: Entry, lang: Language) -> Result<(), String
     }
 }
 
-/// Journal de reprise vu de l'application (desktop) ; aucun sur le web ni
-/// sous test (`App` sans journal).
+/// Journal de reprise vu de l'application : [`Recorder`] dans un dossier
+/// sur le desktop ; sur le web (lot W1, ADR-0031), le même [`Recorder`]
+/// écrit dans un emplacement du navigateur (`IndexedDB`), relu au démarrage
+/// suivant pour rouvrir le planning ; aucun sous test (`App` sans journal).
 pub trait RecoveryLog {
     /// Le document courant a peut-être changé : `(numéro d'ouverture,
     /// session)`, ou `None` (aucun document : le précédent a été fermé
@@ -951,6 +991,7 @@ impl std::fmt::Debug for Recorder {
 impl Recorder {
     /// Journaux dans `root` (dossiers [`DirStore`]).
     #[must_use]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn in_dir(root: PathBuf) -> Self {
         Self::with_factory(Box::new(move || {
             DirStore::create(&root).map(|s| Box::new(s) as Box<dyn Store>)

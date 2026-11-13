@@ -113,6 +113,10 @@ pub struct OpenDocument {
     pub opening: u64,
     /// Calendriers compilés, une fois par génération (N3, J7 lot L7).
     pub(crate) calendar_cache: crate::document::CalendarCache,
+    /// Fichier du navigateur lié (version web, File System Access, lot W1,
+    /// H-UI-204) : posé par « Ouvrir » ou « Enregistrer sous » quand le
+    /// navigateur donne un descripteur, réécrit par « Enregistrer ».
+    pub web_file: Option<crate::io::WebFile>,
 }
 
 impl OpenDocument {
@@ -129,6 +133,7 @@ impl OpenDocument {
             origin,
             opening,
             calendar_cache: crate::document::CalendarCache::new(),
+            web_file: loaded.web_file,
         }
     }
 
@@ -448,10 +453,17 @@ pub struct App {
     pub(crate) assistant: crate::assistant::AssistantPanel,
     /// Palette de commandes (interface adoucie, lot U3) : jamais persistée.
     pub(crate) palette: crate::palette::PaletteState,
-    /// Journal de reprise après plantage (desktop, J7 lot L15) : branché
-    /// par [`App::set_recovery`], suit le document à chaque changement.
-    #[cfg(not(target_arch = "wasm32"))]
+    /// Journal de reprise après plantage (desktop, J7 lot L15) ou
+    /// sauvegarde automatique du navigateur (web, lot W1) : branché par
+    /// [`App::set_recovery`], suit le document à chaque changement.
     recovery: Option<Box<dyn plannercraft_automation::recovery::RecoveryLog>>,
+    /// Message d'une écriture du journal impossible : reprise après
+    /// plantage (desktop) ou sauvegarde du navigateur (web, H-UI-201).
+    recovery_cut_text: TextId,
+    /// Numéro d'ouverture du planning rouvert depuis la sauvegarde du
+    /// navigateur (H-UI-199) : bandeau « Planning retrouvé » tant que ce
+    /// document est ouvert et que le bandeau n'est pas masqué.
+    restored: Option<u64>,
     /// Journaux orphelins proposés par le bandeau de reprise (le premier est
     /// affiché), posés par [`App::offer_recovery`].
     #[cfg(not(target_arch = "wasm32"))]
@@ -527,8 +539,9 @@ impl App {
             last_focus: None,
             assistant: crate::assistant::AssistantPanel::new(crate::assistant::AssistantServices::offline()),
             palette: crate::palette::PaletteState::default(),
-            #[cfg(not(target_arch = "wasm32"))]
             recovery: None,
+            recovery_cut_text: TextId::RecoveryJournalCut,
+            restored: None,
             #[cfg(not(target_arch = "wasm32"))]
             orphans: Vec::new(),
             clipboard: None,
@@ -546,12 +559,12 @@ impl App {
     }
 
     /// Signale le document courant à l'observateur.
-    /// Le journal de reprise suit aussi le document (desktop).
+    /// Le journal de reprise suit aussi le document (desktop), comme la
+    /// sauvegarde automatique du navigateur (web, lot W1).
     pub(crate) fn notify_observer(&mut self) {
         if let Some(observer) = &mut self.observer {
             observer.document_changed(self.document.as_ref());
         }
-        #[cfg(not(target_arch = "wasm32"))]
         self.record_recovery();
     }
 
@@ -906,6 +919,7 @@ impl App {
                     import_diagnostics: Vec::new(),
                     range: range.span,
                     range_truncated: range.truncated,
+                    web_file: None,
                 };
                 let origin = DocOrigin {
                     name,
@@ -1045,14 +1059,7 @@ impl App {
             return;
         };
         let written = document.session.save_bytes(&self.state.write_options());
-        let target = match (&document.origin.path, save_as) {
-            (Some(path), false) => SaveTarget::Path(path.clone()),
-            _ => SaveTarget::Dialog {
-                suggested_name: suggested_file_name(&document.origin.name),
-                title: self.texts.get(TextId::DialogSaveTitle),
-                filter: self.texts.get(TextId::FileFilterMspdi),
-            },
-        };
+        let target = save_target(document, save_as, &self.texts);
         self.saving = Some(SaveJob {
             key: document.cache_key(),
             then,
@@ -1161,7 +1168,7 @@ impl App {
             match event {
                 SaveEvent::Cancelled => {}
                 SaveEvent::Failed(detail) => self.report_export_error(detail),
-                SaveEvent::Saved { name, .. } => {
+                SaveEvent::Saved { name, .. } | SaveEvent::SavedFile { name, .. } => {
                     self.clear_titled(TextId::ExportErrorTitle);
                     let text = self
                         .texts
@@ -1280,16 +1287,25 @@ impl App {
                         .get_args(TextId::SaveErrorWrite, &[("detail", Arg::Str(detail.into()))]);
                     self.push_titled(Severity::Error, Some(TextId::SaveErrorTitle), text);
                 }
-                SaveEvent::Saved { name, path } => self.finish_save(job, name, path, ctx),
+                SaveEvent::Saved { name, path } => self.finish_save(job, name, path, None, ctx),
+                SaveEvent::SavedFile { name, file } => self.finish_save(job, name, None, Some(file), ctx),
             }
         }
     }
 
-    /// Enregistrement réussi : nouvelle origine, `mark_saved` si le document
-    /// est resté celui dont les octets ont été écrits, puis opération
-    /// suspendue éventuelle. Un document fermé ou remplacé entre-temps
-    /// n'est pas touché.
-    fn finish_save(&mut self, job: SaveJob, name: String, path: Option<String>, ctx: &egui::Context) {
+    /// Enregistrement réussi : nouvelle origine et fichier du navigateur lié
+    /// (`file`, H-UI-204 ; `None` après un téléchargement), `mark_saved` si
+    /// le document est resté celui dont les octets ont été écrits, puis
+    /// opération suspendue éventuelle. Un document fermé ou remplacé
+    /// entre-temps n'est pas touché.
+    fn finish_save(
+        &mut self,
+        job: SaveJob,
+        name: String,
+        path: Option<String>,
+        file: Option<crate::io::WebFile>,
+        ctx: &egui::Context,
+    ) {
         let Some(document) = &mut self.document else {
             return;
         };
@@ -1304,6 +1320,7 @@ impl App {
             path,
             demo: false,
         });
+        document.web_file = file;
         let saved = document.generation() == job.key.1;
         if saved {
             document.session.mark_saved();
@@ -2353,6 +2370,8 @@ impl App {
             Action::SetGanttStyle(style) => self.state.gantt_style = style,
             Action::SetView(kind) => self.set_view(kind),
             Action::OpenRecent(index) => self.open_recent(index, ctx),
+            // Bandeau « Planning retrouvé » masqué (H-UI-199), web et desktop.
+            Action::Recover(crate::action::RecoverChoice::DismissRestored) => self.restored = None,
             #[cfg(not(target_arch = "wasm32"))]
             Action::Recover(choice) => self.recover(choice, ctx),
             #[cfg(target_arch = "wasm32")]
@@ -3356,6 +3375,7 @@ impl App {
         let mut stats = FrameStats::default();
         #[cfg(not(target_arch = "wasm32"))]
         let recovery_offer = self.recovery_offer();
+        let restored_name = self.restored_banner().map(str::to_owned);
         // Nom du document du bandeau de confirmation, s'il y en a un.
         let confirm_name = self.confirm.as_ref().map(|_| {
             self.document
@@ -3414,6 +3434,7 @@ impl App {
                 }
                 #[cfg(not(target_arch = "wasm32"))]
                 view::recovery::recovery_banner(ui, &mut fc, recovery_offer);
+                view::recovery::restored_banner(ui, &mut fc, restored_name.as_deref());
                 let ai = crate::approvals::panel_input(&self.approvals, banner);
                 view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant, button);
             }
@@ -3546,8 +3567,8 @@ fn show_errors(state: &mut TaskInfoState, errors: Vec<FieldError>) {
     state.errors = errors;
 }
 
-/// Reprise après plantage (desktop, J7 lot L15).
-#[cfg(not(target_arch = "wasm32"))]
+/// Journal du document : reprise après plantage (desktop, J7 lot L15) et
+/// sauvegarde automatique du navigateur (web, lot W1, ADR-0031).
 impl App {
     /// Branche le journal de reprise : il suit aussitôt le document courant,
     /// puis chaque ouverture, changement, enregistrement et fermeture.
@@ -3556,6 +3577,137 @@ impl App {
         self.record_recovery();
     }
 
+    /// Journalise l'état du document ; une écriture impossible (disque
+    /// plein, stockage du navigateur refusé) coupe le journal et s'affiche
+    /// une fois, sans jamais bloquer l'édition.
+    fn record_recovery(&mut self) {
+        let Some(log) = &mut self.recovery else {
+            return;
+        };
+        let now = (self.env.now)();
+        log.record(
+            self.document
+                .as_ref()
+                .map(|document| (document.opening, &document.session)),
+            now,
+        );
+        if let Some(detail) = log.take_issue() {
+            let text = self
+                .texts
+                .get_args(self.recovery_cut_text, &[("detail", Arg::Str(detail.into()))]);
+            self.push_message(Severity::Warning, text);
+        }
+    }
+
+    /// Démarre la sauvegarde automatique du navigateur (version web, lot
+    /// W1, H-UI-199 à H-UI-201) d'après `plan` : rouvre le dernier planning
+    /// gardé (bandeau « Planning retrouvé »), ou démarre vide en disant
+    /// pourquoi il n'y a pas de sauvegarde automatique ; puis, si cet onglet
+    /// tient la sauvegarde, branche le journal sur `writer`. À appeler une
+    /// fois, après l'observateur et avant toute ouverture.
+    pub fn start_browser_autosave(
+        &mut self,
+        plan: crate::autosave::StartPlan,
+        writer: Option<Box<dyn crate::autosave::SlotWriter>>,
+    ) {
+        use crate::autosave::StartPlan;
+        let owner = plan.writes();
+        match plan {
+            StartPlan::Restore(content) => self.restore_browser_slot(&content),
+            StartPlan::Empty => {}
+            StartPlan::Unreadable(detail) => {
+                let text = self
+                    .texts
+                    .get_args(TextId::AutosaveUnreadable, &[("detail", Arg::Str(detail.into()))]);
+                self.push_message(Severity::Warning, text);
+            }
+            StartPlan::OtherTab => {
+                let text = self.texts.get(TextId::AutosaveOtherTab);
+                self.push_message(Severity::Warning, text);
+            }
+            StartPlan::Unavailable(detail) => {
+                let text = self.texts.get_args(
+                    TextId::AutosaveUnavailable,
+                    &[("detail", Arg::Str(detail.into()))],
+                );
+                self.push_message(Severity::Warning, text);
+            }
+        }
+        if owner && let Some(writer) = writer {
+            self.recovery_cut_text = TextId::AutosaveStopped;
+            self.set_recovery(Box::new(crate::autosave::BrowserAutosave::new(writer)));
+        }
+    }
+
+    /// Rouvre le planning gardé par le navigateur (H-UI-199) : rejeu du
+    /// journal, document installé tel qu'il était (nom, état « modifié »,
+    /// modifications depuis la dernière base annulables), sans fichier lié ;
+    /// bandeau « Planning retrouvé ». Un rejeu arrêté sur une entrée refusée
+    /// rouvre ce qui précède et le dit ; une base illisible : message, page
+    /// vide.
+    fn restore_browser_slot(&mut self, content: &crate::autosave::SlotContent) {
+        let lang = self.text_language();
+        match plannercraft_automation::recovery::replay_bytes(&content.base, &content.ops, lang) {
+            Ok((session, report)) => {
+                let name = session.origin().name.clone();
+                let range = default_range(session.project(), session.schedule());
+                let loaded = LoadedDocument {
+                    session,
+                    import_diagnostics: Vec::new(),
+                    range: range.span,
+                    range_truncated: range.truncated,
+                    web_file: None,
+                };
+                let origin = DocOrigin {
+                    name: name.clone(),
+                    path: None,
+                    demo: false,
+                };
+                self.install(loaded, origin);
+                self.restored = self.document.as_ref().map(|document| document.opening);
+                if report.stopped_at.is_some() || content.dropped > 0 {
+                    let count = i64::try_from(report.applied).unwrap_or(i64::MAX);
+                    let text = self.texts.get_args(
+                        TextId::RecoveryPartial,
+                        &[
+                            ("name", Arg::Str(name.into())),
+                            ("count", Arg::Count(count)),
+                            (
+                                "detail",
+                                Arg::Str(
+                                    report
+                                        .error
+                                        .unwrap_or_else(|| self.texts.get(TextId::AutosaveGap))
+                                        .into(),
+                                ),
+                            ),
+                        ],
+                    );
+                    self.push_message(Severity::Warning, text);
+                }
+            }
+            Err(error) => {
+                let text = self.texts.get_args(
+                    TextId::AutosaveUnreadable,
+                    &[("detail", Arg::Str(error.to_string().into()))],
+                );
+                self.push_message(Severity::Warning, text);
+            }
+        }
+    }
+
+    /// Planning rouvert depuis la sauvegarde du navigateur, encore ouvert
+    /// et bandeau non masqué (H-UI-199) : son nom.
+    #[must_use]
+    pub fn restored_banner(&self) -> Option<&str> {
+        let document = self.document.as_ref()?;
+        (self.restored == Some(document.opening)).then_some(document.origin.name.as_str())
+    }
+}
+
+/// Reprise après plantage (desktop, J7 lot L15).
+#[cfg(not(target_arch = "wasm32"))]
+impl App {
     /// Propose les journaux orphelins qui portent des modifications, ou qui
     /// viennent d'une autre version (bandeau de reprise, un à la fois).
     pub fn offer_recovery(&mut self, orphans: Vec<plannercraft_automation::recovery::Orphan>) {
@@ -3585,28 +3737,6 @@ impl App {
         &self.orphans
     }
 
-    /// Journalise l'état du document ; une écriture impossible (disque
-    /// plein) coupe le journal et s'affiche une fois, sans jamais bloquer
-    /// l'édition.
-    fn record_recovery(&mut self) {
-        let Some(log) = &mut self.recovery else {
-            return;
-        };
-        let now = (self.env.now)();
-        log.record(
-            self.document
-                .as_ref()
-                .map(|document| (document.opening, &document.session)),
-            now,
-        );
-        if let Some(detail) = log.take_issue() {
-            let text = self
-                .texts
-                .get_args(TextId::RecoveryJournalCut, &[("detail", Arg::Str(detail.into()))]);
-            self.push_message(Severity::Warning, text);
-        }
-    }
-
     /// Réponse au bandeau de reprise après plantage (J7, lot L15) :
     /// Restaurer (après confirmation si le document courant est modifié),
     /// Ignorer (journal supprimé) ou Plus tard (bandeau retiré, journaux
@@ -3626,6 +3756,7 @@ impl App {
                 }
             }
             crate::action::RecoverChoice::Later => self.orphans.clear(),
+            crate::action::RecoverChoice::DismissRestored => self.restored = None,
         }
     }
 
@@ -3668,6 +3799,7 @@ impl App {
                     import_diagnostics: Vec::new(),
                     range: range.span,
                     range_truncated: range.truncated,
+                    web_file: None,
                 };
                 let origin = if orphan.file_changed {
                     DocOrigin {
@@ -3723,6 +3855,31 @@ fn recovered_name(texts: &Texts, name: &str) -> String {
     };
     let stem = texts.get_args(TextId::RecoveredFileName, &[("stem", Arg::Str(stem.into()))]);
     format!("{stem}{ext}")
+}
+
+/// Destination d'« Enregistrer » (`save_as` faux) ou d'« Enregistrer sous »
+/// (vrai) : chemin connu (desktop) ⇒ écriture directe ; fichier du
+/// navigateur lié (web, H-UI-204) ⇒ réécriture ; sinon boîte (desktop),
+/// sélecteur ou téléchargement (web, voir [`crate::io::web_save_route`]).
+#[must_use]
+pub fn save_target(document: &OpenDocument, save_as: bool, texts: &Texts) -> SaveTarget {
+    let suggested_name = suggested_file_name(&document.origin.name);
+    let title = texts.get(TextId::DialogSaveTitle);
+    let filter = texts.get(TextId::FileFilterMspdi);
+    match (&document.origin.path, document.web_file, save_as) {
+        (Some(path), _, false) => SaveTarget::Path(path.clone()),
+        (None, Some(file), false) => SaveTarget::File {
+            file,
+            suggested_name,
+            title,
+            filter,
+        },
+        _ => SaveTarget::Dialog {
+            suggested_name,
+            title,
+            filter,
+        },
+    }
 }
 
 /// Nom affiché d'un fichier déposé : dernier composant de son chemin (le
@@ -4099,5 +4256,395 @@ mod tests {
         frame(&ctx, &mut app);
         assert!(app.document.is_some());
         frame(&ctx, &mut app);
+    }
+}
+
+/// Version web, lot W1 (ADR-0031) : sauvegarde automatique du navigateur
+/// vue par l'application (H-UI-199 à H-UI-201) et enregistrement direct
+/// dans le fichier (H-UI-202 à H-UI-204), testés en natif avec un faux
+/// stockage et un faux service de fichiers.
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    reason = "tests : un échec doit s'arrêter net et lisiblement"
+)]
+mod browser_tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use std::sync::mpsc::Sender;
+
+    use plannercraft_automation::Batch;
+    use plannercraft_core::{Moment, TaskUid};
+
+    use super::{App, EditOrigin, Env};
+    use crate::action::{Action, RecoverChoice};
+    use crate::autosave::{LockState, MemorySlot, StartPlan, plan_start};
+    use crate::i18n::{Language, TextId, Texts};
+    use crate::io::{
+        FileFailure, FileService, OpenEvent, SaveEvent, SaveKind, SaveRequest, SaveTarget, WebFile,
+        WebSaveRoute, classify_file_error, file_failure_detail, web_save_route,
+    };
+    use crate::state::{LanguagePref, UiState};
+
+    fn now() -> Moment {
+        "2027-01-15T08:00".parse().unwrap()
+    }
+
+    fn app_with(files: Box<dyn FileService>) -> App {
+        let state = UiState {
+            language: LanguagePref::Fr,
+            ..UiState::default()
+        };
+        let mut env = Env::fixed(now());
+        env.files = files;
+        App::new(state, env)
+    }
+
+    fn app() -> App {
+        app_with(Box::new(crate::io::NoFileService))
+    }
+
+    fn frame(ctx: &egui::Context, app: &mut App) {
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| crate::ui(ui, app));
+        output.textures_delta.clear();
+    }
+
+    fn rename(app: &mut App, name: &str) {
+        let batch = Batch::from_json_str(&format!(
+            r#"{{"format_version":1,"ops":[{{"op":"task.update","uid":3,"name":"{name}"}}]}}"#
+        ))
+        .unwrap();
+        app.execute(&batch, EditOrigin::User).unwrap();
+    }
+
+    fn task3(app: &App) -> String {
+        let document = app.document.as_ref().unwrap();
+        let task = document
+            .project()
+            .tasks
+            .iter()
+            .find(|t| t.uid() == TaskUid::new(3))
+            .unwrap();
+        task.name.clone()
+    }
+
+    /// Onglet qui tient la sauvegarde, sur `slot`, relu comme au démarrage.
+    fn reopen(slot: &MemorySlot) -> App {
+        let mut app = app();
+        let plan = plan_start(LockState::Acquired, Some(Ok(slot.entries())));
+        app.start_browser_autosave(plan, Some(Box::new(slot.clone())));
+        app
+    }
+
+    fn history_has(app: &App, id: TextId) -> usize {
+        let texts = Texts::new(Language::Fr);
+        let probe = texts.get(id);
+        // Début du message, avant sa première variable.
+        let head: String = probe.chars().take(30).collect();
+        app.messages
+            .history()
+            .iter()
+            .filter(|m| m.text.starts_with(&head))
+            .count()
+    }
+
+    /// H-UI-199 : le dernier planning de ce navigateur est rouvert
+    /// automatiquement, modifications non enregistrées comprises : même nom,
+    /// état « modifié », modifications depuis la dernière base annulables
+    /// jusqu'à l'état enregistré ; bandeau « Planning retrouvé » masquable,
+    /// retiré par un autre document ; « Nouveau planning vide » remplace la
+    /// sauvegarde.
+    #[test]
+    fn h_ui_199_restores_last_plan_with_unsaved_edits() {
+        let slot = MemorySlot::new();
+        let mut first = reopen(&slot);
+        assert!(first.document.is_none(), "rien à rouvrir la première fois");
+        assert_eq!(first.restored_banner(), None);
+        first.open_demo();
+        let name = first.document.as_ref().unwrap().origin.name.clone();
+        let original = task3(&first);
+        rename(&mut first, "Terrassement W1");
+        drop(first);
+        let mut app = reopen(&slot);
+        let document = app.document.as_ref().unwrap();
+        assert_eq!(document.origin.name, name);
+        assert!(document.origin.path.is_none() && document.web_file.is_none());
+        assert!(document.is_dirty());
+        assert_eq!(task3(&app), "Terrassement W1");
+        assert_eq!(app.restored_banner(), Some(name.as_str()));
+        // Annuler revient à l'état enregistré (la base du journal).
+        app.undo().unwrap();
+        assert_eq!(task3(&app), original);
+        assert!(!app.document.as_ref().unwrap().is_dirty());
+        // Masquer le bandeau.
+        let ctx = egui::Context::default();
+        app.dispatch(Action::Recover(RecoverChoice::DismissRestored));
+        frame(&ctx, &mut app);
+        assert_eq!(app.restored_banner(), None);
+        // « Nouveau planning vide » : la sauvegarde suit le nouveau projet.
+        // L'annulation a ramené la sauvegarde à l'état enregistré.
+        let mut app = reopen(&slot);
+        assert!(app.restored_banner().is_some());
+        assert!(!app.document.as_ref().unwrap().is_dirty());
+        assert_eq!(task3(&app), original);
+        app.dispatch(Action::NewProject);
+        frame(&ctx, &mut app);
+        assert_eq!(app.restored_banner(), None, "autre document : bandeau retiré");
+        let new_name = app.document.as_ref().unwrap().origin.name.clone();
+        drop(app);
+        let app = reopen(&slot);
+        assert_eq!(app.document.as_ref().unwrap().origin.name, new_name);
+        assert!(!app.document.as_ref().unwrap().is_dirty());
+    }
+
+    /// H-UI-199 : le style du document (gardé dans le projet) revient avec
+    /// lui ; la vue (état d'interface d'eframe) n'en dépend pas.
+    #[test]
+    fn h_ui_199_document_style_is_kept() {
+        let slot = MemorySlot::new();
+        let mut first = reopen(&slot);
+        first.open_demo();
+        let batch =
+            Batch::from_json_str(r#"{"format_version":1,"ops":[{"op":"style.apply","template":"sobre"}]}"#)
+                .unwrap();
+        first.execute(&batch, EditOrigin::User).unwrap();
+        let style = |app: &App| {
+            plannercraft_automation::command::style::doc_style(app.document.as_ref().unwrap().project())
+        };
+        let before = style(&first);
+        assert!(before.is_some());
+        drop(first);
+        let app = reopen(&slot);
+        assert_eq!(style(&app), before);
+    }
+
+    /// H-UI-199 : un planning enregistré (téléchargé) est rouvert aussi, non
+    /// modifié ; fermer le document vide la sauvegarde : page vide au
+    /// prochain démarrage, sans planning fantôme.
+    #[test]
+    fn h_ui_199_saved_plan_reopens_and_close_clears() {
+        let slot = MemorySlot::new();
+        let mut first = reopen(&slot);
+        first.open_demo();
+        drop(first);
+        let mut app = reopen(&slot);
+        assert!(app.document.is_some());
+        assert!(!app.document.as_ref().unwrap().is_dirty());
+        let ctx = egui::Context::default();
+        app.dispatch(Action::CloseDocument);
+        frame(&ctx, &mut app);
+        assert!(app.document.is_none());
+        assert_eq!(
+            plan_start(LockState::Acquired, Some(Ok(slot.entries()))),
+            StartPlan::Empty
+        );
+        let app = reopen(&slot);
+        assert!(app.document.is_none());
+    }
+
+    /// H-UI-200 : un second onglet (verrou tenu ailleurs) démarre vide, le
+    /// dit, et n'écrit jamais dans la sauvegarde de l'autre ; sans verrou
+    /// ni stockage, pas de sauvegarde, dit aussi.
+    #[test]
+    fn h_ui_200_second_tab_never_touches_the_slot() {
+        let slot = MemorySlot::new();
+        let mut owner = reopen(&slot);
+        owner.open_demo();
+        rename(&mut owner, "Propriétaire");
+        let kept = slot.entries();
+        let mut guest = app();
+        let plan = plan_start(LockState::HeldElsewhere, None);
+        guest.start_browser_autosave(plan, Some(Box::new(slot.clone())));
+        assert!(guest.document.is_none());
+        assert_eq!(history_has(&guest, TextId::AutosaveOtherTab), 1);
+        guest.open_demo();
+        rename(&mut guest, "Invité");
+        assert_eq!(slot.entries(), kept, "l'invité n'écrit rien");
+        let mut none = app();
+        none.start_browser_autosave(plan_start(LockState::Unsupported, None), None);
+        assert_eq!(history_has(&none, TextId::AutosaveUnavailable), 1);
+    }
+
+    /// H-UI-201 : stockage en panne (quota plein…) : l'édition continue,
+    /// un message traduit le dit une fois, jamais de panique.
+    #[test]
+    fn h_ui_201_storage_failure_message_once() {
+        let slot = MemorySlot::new();
+        let mut app = reopen(&slot);
+        app.open_demo();
+        slot.fail("QuotaExceededError : quota plein");
+        for name in ["A", "B", "C"] {
+            rename(&mut app, name);
+        }
+        assert_eq!(task3(&app), "C");
+        assert_eq!(history_has(&app, TextId::AutosaveStopped), 1);
+        assert!(
+            app.messages
+                .history()
+                .iter()
+                .any(|m| m.text.contains("QuotaExceededError"))
+        );
+    }
+
+    /// H-UI-202 : chemin d'un enregistrement web. Sans sélecteurs du
+    /// navigateur (Safari, Firefox) ou pour un export : téléchargement ;
+    /// sinon fichier lié réécrit, ou sélecteur.
+    #[test]
+    fn h_ui_202_web_save_route() {
+        let dialog = SaveTarget::Dialog {
+            suggested_name: "a.xml".to_owned(),
+            title: String::new(),
+            filter: String::new(),
+        };
+        let file = SaveTarget::File {
+            file: WebFile(7),
+            suggested_name: "a.xml".to_owned(),
+            title: String::new(),
+            filter: String::new(),
+        };
+        for kind in SaveKind::ALL {
+            assert_eq!(web_save_route(false, kind, &file), WebSaveRoute::Download);
+            assert_eq!(web_save_route(false, kind, &dialog), WebSaveRoute::Download);
+        }
+        for kind in [SaveKind::Pdf, SaveKind::Svg, SaveKind::Csv] {
+            assert_eq!(
+                web_save_route(true, kind, &file),
+                WebSaveRoute::Download,
+                "{kind:?}"
+            );
+        }
+        assert_eq!(
+            web_save_route(true, SaveKind::Mspdi, &file),
+            WebSaveRoute::Rewrite(WebFile(7))
+        );
+        assert_eq!(web_save_route(true, SaveKind::Mspdi, &dialog), WebSaveRoute::Pick);
+    }
+
+    /// H-UI-203 : refus de permission, fichier disparu : message traduit
+    /// qui nomme le fichier ; annulation du sélecteur : aucun message.
+    #[test]
+    fn h_ui_203_file_errors_are_translated() {
+        assert_eq!(classify_file_error("AbortError"), FileFailure::Cancelled);
+        assert_eq!(classify_file_error("NotAllowedError"), FileFailure::Denied);
+        assert_eq!(classify_file_error("SecurityError"), FileFailure::Denied);
+        assert_eq!(classify_file_error("NotFoundError"), FileFailure::Missing);
+        assert_eq!(classify_file_error("TypeError"), FileFailure::Other);
+        assert_eq!(
+            file_failure_detail(FileFailure::Cancelled, "a.xml", "x", Language::Fr),
+            None
+        );
+        let denied = file_failure_detail(FileFailure::Denied, "a.xml", "x", Language::Fr).unwrap();
+        assert!(denied.contains("a.xml") && denied.contains("permis"), "{denied}");
+        let missing = file_failure_detail(FileFailure::Missing, "a.xml", "x", Language::En).unwrap();
+        assert!(
+            missing.contains("a.xml") && missing.contains("cannot be found"),
+            "{missing}"
+        );
+        assert_eq!(
+            file_failure_detail(FileFailure::Other, "a.xml", "disque plein", Language::Fr).as_deref(),
+            Some("disque plein")
+        );
+    }
+
+    /// Service simulé : répond d'avance par `reply` et garde les demandes.
+    struct FakeFiles {
+        reply: Rc<RefCell<Option<SaveEvent>>>,
+        requests: Rc<RefCell<Vec<SaveRequest>>>,
+    }
+
+    impl FileService for FakeFiles {
+        fn pick_and_open(
+            &mut self,
+            ctx: &egui::Context,
+            now: Moment,
+            _: String,
+            _: String,
+            tx: Sender<OpenEvent>,
+        ) {
+            // Ouverture par le sélecteur du navigateur : fichier lié.
+            let mut loaded = crate::document::load(crate::DEMO_MSPDI, now).unwrap();
+            loaded.web_file = Some(WebFile(1));
+            let origin = super::DocOrigin {
+                name: "chantier.xml".to_owned(),
+                path: None,
+                demo: false,
+            };
+            tx.send(OpenEvent::Opened {
+                origin,
+                result: Ok(loaded),
+            })
+            .unwrap();
+            ctx.request_repaint();
+        }
+
+        fn save(&mut self, ctx: &egui::Context, request: SaveRequest, tx: Sender<SaveEvent>) {
+            self.requests.borrow_mut().push(request);
+            if let Some(event) = self.reply.borrow_mut().take() {
+                tx.send(event).unwrap();
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// H-UI-204 : un fichier ouvert par le sélecteur du navigateur est lié
+    /// au document ; « Enregistrer » vise ce fichier, « Enregistrer sous »
+    /// le sélecteur ; un échec laisse le document modifié et lié ; un
+    /// enregistrement réussi dans un autre fichier lie ce dernier, un
+    /// téléchargement délie.
+    #[test]
+    fn h_ui_204_file_binding_follows_document() {
+        let reply = Rc::new(RefCell::new(None));
+        let requests = Rc::new(RefCell::new(Vec::new()));
+        let mut app = app_with(Box::new(FakeFiles {
+            reply: Rc::clone(&reply),
+            requests: Rc::clone(&requests),
+        }));
+        let ctx = egui::Context::default();
+        app.dispatch(Action::OpenDialog);
+        frame(&ctx, &mut app);
+        frame(&ctx, &mut app);
+        assert_eq!(app.document.as_ref().unwrap().web_file, Some(WebFile(1)));
+        rename(&mut app, "X");
+        // Enregistrer : fichier lié ; refus ⇒ toujours modifié et lié.
+        *reply.borrow_mut() = Some(SaveEvent::Failed("refus".to_owned()));
+        app.dispatch(Action::Save);
+        frame(&ctx, &mut app);
+        frame(&ctx, &mut app);
+        assert!(matches!(
+            requests.borrow()[0].target,
+            SaveTarget::File { file: WebFile(1), .. }
+        ));
+        let document = app.document.as_ref().unwrap();
+        assert!(document.is_dirty());
+        assert_eq!(document.web_file, Some(WebFile(1)));
+        // Enregistrer sous : sélecteur ; succès ⇒ nouveau fichier lié.
+        *reply.borrow_mut() = Some(SaveEvent::SavedFile {
+            name: "copie.xml".to_owned(),
+            file: WebFile(2),
+        });
+        app.dispatch(Action::SaveAs);
+        frame(&ctx, &mut app);
+        frame(&ctx, &mut app);
+        assert!(matches!(requests.borrow()[1].target, SaveTarget::Dialog { .. }));
+        let document = app.document.as_ref().unwrap();
+        assert!(!document.is_dirty());
+        assert_eq!(document.web_file, Some(WebFile(2)));
+        assert_eq!(document.origin.name, "copie.xml");
+        // Téléchargement (navigateur sans sélecteurs) : plus de fichier lié.
+        rename(&mut app, "Y");
+        *reply.borrow_mut() = Some(SaveEvent::Saved {
+            name: "copie.xml".to_owned(),
+            path: None,
+        });
+        app.dispatch(Action::Save);
+        frame(&ctx, &mut app);
+        frame(&ctx, &mut app);
+        assert!(matches!(
+            requests.borrow()[2].target,
+            SaveTarget::File { file: WebFile(2), .. }
+        ));
+        assert_eq!(app.document.as_ref().unwrap().web_file, None);
+        assert!(!app.document.as_ref().unwrap().is_dirty());
     }
 }

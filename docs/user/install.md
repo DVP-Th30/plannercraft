@@ -75,4 +75,6 @@ tar xzf plannercraft-<version>-web.tar.gz
 python3 -m http.server -d dist 8080
 ```
 
-puis ouvrir `http://localhost:8080` dans un navigateur récent (WebGPU ou WebGL2). La version web ne relie pas `plannercraft mcp` et ne garde pas de fichiers récents ; le planning ouvert reste dans l'onglet.
+puis ouvrir `http://localhost:8080` dans un navigateur récent (WebGPU ou WebGL2). La version web ne relie pas `plannercraft mcp` et ne garde pas de fichiers récents.
+
+Le planning en cours est gardé dans le navigateur (stockage local du site, jamais envoyé à un serveur) et rouvert automatiquement au retour, modifications non enregistrées comprises ; Fichier → Fermer repart d'une page vide. Un seul onglet à la fois est sauvegardé : un second onglet ouvert en même temps le dit. Dans Chrome et Edge, « Enregistrer » écrit dans le fichier ouvert ou choisi ; dans Safari et Firefox, il télécharge le fichier. Ces deux fonctions exigent une page servie en HTTPS ou depuis `localhost` : servie en HTTP sous un autre nom, la page télécharge et ne garde rien (un message le dit). Les données gardées par le navigateur s'effacent avec les données du site.
