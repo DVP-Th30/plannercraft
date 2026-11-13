@@ -7,6 +7,7 @@ members = [
     "crates/plannercraft-mspdi",
     "crates/plannercraft-render",
     "crates/plannercraft-pdf",
+    "crates/plannercraft-pdfimport",
     "crates/plannercraft-automation",
     "crates/plannercraft-mcp",
     "crates/plannercraft-assistant",
