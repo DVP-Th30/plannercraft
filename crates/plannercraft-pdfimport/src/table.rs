@@ -68,14 +68,14 @@ fn is_outline_symbol(word: &Word) -> bool {
 /// Premier mot d'une ligne de légende ou de pied de page MS Project :
 /// fin du tableau de la page.
 fn is_legend(line: &TextLine) -> bool {
-    let Some(first) = line.words.first() else {
+    let mut words = line.words.iter().map(|w| fold(&w.text));
+    let (Some(first), second) = (words.next(), words.next()) else {
         return false;
     };
-    let f = fold(&first.text);
-    matches!(
-        f.as_str(),
-        "project:" | "projet:" | "projet" | "project" | "date:"
-    )
+    // « Projet : … », « Project: … », « Date : … » ; un nom de tâche qui
+    // commence par « projet » n'est pas une légende (corpus).
+    matches!(first.as_str(), "project:" | "projet:" | "date:")
+        || (matches!(first.as_str(), "projet" | "project" | "date") && second.as_deref() == Some(":"))
 }
 
 /// Vrai si `text` est un N° de tâche (1 à 7 chiffres).
@@ -101,7 +101,9 @@ fn joiner(kind: ColumnKind) -> &'static str {
 /// voisines dessinées sans espace (« 12/19/19Wed ») forment un seul mot à
 /// l'extraction ; il est coupé au premier glyphe de la colonne suivante.
 fn split_words(line: &TextLine, layout: &TableLayout) -> TextLine {
-    let edges: Vec<Cpt> = layout.columns.iter().map(|c| c.x1).collect();
+    // Bords tirés du quadrillage seulement : une borne déduite des vides
+    // peut tomber dans un nom (« PSP-1 » coupé en « PSP- » et « 1 »).
+    let edges: Vec<Cpt> = layout.columns.iter().filter(|c| c.ruled).map(|c| c.x1).collect();
     let mut words = Vec::with_capacity(line.words.len());
     for w in &line.words {
         let mut rest = w.clone();

@@ -894,3 +894,50 @@ fn cli_export_pdf() {
     let o = run(&["export-pdf", s(&plan), s(&dir.join("e.pdf")), "--pages-wide", "0"]);
     assert_eq!(code(&o), 2, "usage");
 }
+
+/// `plannercraft import-pdf` (ADR-0032, lot P1a) : un PDF exporté avec les
+/// colonnes d'impression se relit en MSPDI (rapport texte et JSON) ; un PDF
+/// sans dates (colonnes N° et Nom seules) est refusé avec le code 4 ; un
+/// fichier absent donne le code 3.
+#[test]
+fn cli_import_pdf() {
+    let dir = TempDir::new("importpdf");
+    let plan = house_copy(&dir);
+    // Sans colonnes de dates : refus.
+    let bare = dir.join("bare.pdf");
+    assert_eq!(code(&run(&["--now", NOW, "export-pdf", s(&plan), s(&bare)])), 0);
+    let o = run(&["--now", NOW, "import-pdf", s(&bare), "-o", s(&dir.join("x.xml"))]);
+    assert_eq!(code(&o), 4, "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("pdfimport.no_dates"));
+    assert!(!dir.join("x.xml").exists());
+    // Colonnes N°, Nom, Durée, Début, Fin.
+    let mut page =
+        plannercraft_render::style::template(plannercraft_render::style::TemplateId::Classique).page;
+    page.columns = Some(plannercraft_render::style::TableColumn::PRINT_DEFAULT.to_vec());
+    let batch = dir.join("style.json");
+    let ops = json!({"format_version": 1, "ops": [{"op": "style.apply", "patch": {"page": page}}]});
+    std::fs::write(&batch, ops.to_string()).unwrap();
+    let o = run(&["--now", NOW, "apply", s(&plan), s(&batch)]);
+    assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
+    let pdf = dir.join("full.pdf");
+    assert_eq!(code(&run(&["--now", NOW, "export-pdf", s(&plan), s(&pdf)])), 0);
+    let out = dir.join("relu.xml");
+    let o = run(&["--now", NOW, "--lang", "fr", "import-pdf", s(&pdf), "-o", s(&out)]);
+    assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
+    let text = String::from_utf8_lossy(&o.stdout).into_owned();
+    assert!(text.contains("Tâches lues"), "{text}");
+    assert!(
+        text.contains("Dates calculées par le moteur et dates lues"),
+        "{text}"
+    );
+    let o = run(&["summary", s(&out), "--json"]);
+    assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(stdout_json(&o)["tasks"].as_u64().unwrap() > 0);
+    let o = run(&["--now", NOW, "import-pdf", s(&pdf), "--dry-run", "--json"]);
+    assert_eq!(code(&o), 0);
+    let view = stdout_json(&o);
+    assert!(view["tasks_imported"].as_u64().unwrap() > 0);
+    assert!(view["conversion"]["dates_compared"].as_u64().unwrap() > 0);
+    let o = run(&["import-pdf", s(&dir.join("absent.pdf")), "--dry-run"]);
+    assert_eq!(code(&o), 3);
+}

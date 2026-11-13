@@ -3855,6 +3855,7 @@ dependencies = [
  "plannercraft-core",
  "plannercraft-mcp",
  "plannercraft-mspdi",
+ "plannercraft-pdfimport",
  "plannercraft-render",
  "rmcp",
  "serde_json",

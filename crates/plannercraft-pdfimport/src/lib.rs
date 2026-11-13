@@ -237,6 +237,29 @@ mod dev_dump {
                 p.segments.len()
             );
             let lines = crate::lines::group_lines(&p.words);
+            let small = p
+                .rects
+                .iter()
+                .filter(|r| !r.is_rect && r.x1 - r.x0 < 600 && r.y1 - r.y0 < 600)
+                .count();
+            let bars = p
+                .rects
+                .iter()
+                .filter(|r| r.is_rect && r.y1 - r.y0 > 300 && r.y1 - r.y0 < 2000)
+                .count();
+            let mut colors: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+            for r in p
+                .rects
+                .iter()
+                .filter(|r| r.is_rect && r.y1 - r.y0 > 300 && r.y1 - r.y0 < 2000)
+            {
+                *colors.entry(r.color.hex()).or_default() += 1;
+            }
+            let vseg = p.segments.iter().filter(|s| s.is_vertical()).count();
+            println!(
+                "SHAPES small_nonrect {small} bars {bars} segs {} vertical {vseg} colors {colors:?}",
+                p.segments.len()
+            );
             if let Some(t) = crate::header::find_table(p, &lines) {
                 for c in &t.columns {
                     println!(

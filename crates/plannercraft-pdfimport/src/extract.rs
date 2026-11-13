@@ -743,9 +743,10 @@ impl<'a> Device<'a> for Collector {
 /// Regroupe les glyphes en mots, dans l'ordre de dessin : un glyphe
 /// rejoint le mot courant s'il est sur la même ligne de base (écart < 20 %
 /// du corps), de même graisse, et commence au plus à 25 % du corps après
-/// la fin du précédent — 10 % s'il vient d'un autre appel de dessin, car
+/// la fin du précédent — 3 % s'il vient d'un autre appel de dessin, car
 /// deux cellules voisines sont dessinées par deux appels et peuvent
-/// presque se toucher (« 04/05/15 » puis « TCE ») — ni loin derrière (un
+/// presque se toucher (« 04/05/15 » puis « TCE », « Phase 1 » puis
+/// « 20 days » lus « 120 days » à 10 %) — ni loin derrière (un
 /// retour en arrière de plus d'un demi-corps commence un mot). Une espace
 /// termine le mot.
 fn group_words(chars: &[PlacedChar]) -> Vec<Word> {
@@ -762,7 +763,7 @@ fn group_words(chars: &[PlacedChar]) -> Vec<Word> {
             Some(w)
                 if (c.baseline - w.baseline).abs() < 0.2 * w.size.max(c.size)
                     && c.bold == w.bold
-                    && c.x0 - w.x1 < if c.run == w.run { 0.25 } else { 0.1 } * w.size.max(c.size)
+                    && c.x0 - w.x1 < if c.run == w.run { 0.25 } else { 0.03 } * w.size.max(c.size)
                     && c.x0 - w.x1 > -0.5 * w.size.max(c.size) =>
             {
                 w.glyphs.push((w.text.len(), c.x0));
