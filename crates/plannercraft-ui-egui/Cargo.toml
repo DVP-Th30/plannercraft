@@ -50,7 +50,20 @@ wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
 # Enregistrement web : téléchargement direct (Blob, URL d'objet, ancre
 # `download`) au lieu de la fenêtre de rfd (relecture finale J4, F3).
-web-sys = { workspace = true, features = ["Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlElement"] }
+# File System Access (lot W1, ADR-0031) : descripteurs, lecture et flux
+# d'écriture (API stables de web-sys ; sélecteurs par `js_sys::Reflect`).
+web-sys = { workspace = true, features = [
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+    "HtmlAnchorElement",
+    "HtmlElement",
+    "File",
+    "FileSystemHandle",
+    "FileSystemFileHandle",
+    "FileSystemWritableFileStream",
+    "WritableStream",
+] }
 
 [dev-dependencies]
 egui_kittest.workspace = true

@@ -30,6 +30,10 @@ pub struct LoadedDocument {
     /// La plage a été tronquée à 20 ans (projet trop long) : l'application
     /// le signale par un message traduit.
     pub range_truncated: bool,
+    /// Fichier du navigateur d'où vient le document (version web, File
+    /// System Access, lot W1, H-UI-204) : « Enregistrer » le réécrit.
+    /// `None` ailleurs.
+    pub web_file: Option<crate::io::WebFile>,
 }
 
 /// Échec d'ouverture d'un document.
@@ -132,6 +136,7 @@ pub fn load(bytes: &[u8], now: Moment) -> Result<LoadedDocument, OpenError> {
         import_diagnostics,
         range: range.span,
         range_truncated: range.truncated,
+        web_file: None,
     })
 }
 
@@ -151,6 +156,7 @@ pub fn load_project(project: Project, now: Moment) -> LoadedDocument {
         import_diagnostics: Vec::new(),
         range: range.span,
         range_truncated: range.truncated,
+        web_file: None,
     }
 }
 

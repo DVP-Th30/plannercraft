@@ -33,6 +33,17 @@
 //! de PlannerCraft et non celle du navigateur. L'évènement n'est pas arrêté :
 //! eframe le reçoit ensuite comme avant.
 //!
+//! Sauvegarde automatique (lot W1, ADR-0031, H-UI-198 à H-UI-201) : avant
+//! de lancer l'interface, [`browser_store::start`] demande le verrou du
+//! navigateur (Web Locks : un seul onglet écrit) et relit l'emplacement
+//! `IndexedDB` ; `App::start_browser_autosave` rouvre alors le dernier
+//! planning de ce navigateur, enregistré ou non (bandeau « Planning
+//! retrouvé »), puis le journal du document y est écrit à chaque
+//! changement. Rien ne part vers un serveur. Enregistrer et Ouvrir passent
+//! par la File System Access API quand le navigateur l'offre (Chrome,
+//! Edge), sinon par le téléchargement et le sélecteur de rfd
+//! (`plannercraft_ui_egui::io`, H-UI-202 à H-UI-204).
+//!
 //! Compilée pour une cible native (ce que fait `cargo check --workspace`), le
 //! binaire se contente d'indiquer qu'il faut passer par trunk.
 
@@ -83,6 +94,9 @@ pub fn start_error_message(language: Option<Language>, detail: &str) -> String {
         ],
     )
 }
+
+#[cfg(target_arch = "wasm32")]
+mod browser_store;
 
 #[cfg(target_arch = "wasm32")]
 mod web {
@@ -308,6 +322,9 @@ mod web {
             document: document.clone(),
             unsaved,
         };
+        // Lot W1 : verrou et lecture de la sauvegarde avant l'interface
+        // (lecture asynchrone d'IndexedDB, bornée dans le temps).
+        let autosave = super::browser_store::start().await;
         let canvas = document
             .get_element_by_id(CANVAS_ID)
             .ok_or_else(|| JsValue::from_str("canevas introuvable"))?
@@ -329,6 +346,11 @@ mod web {
                     // mémoire, connexion OpenRouter par redirection.
                     app.app_mut()
                         .set_assistant_services(plannercraft_ui_egui::assistant::AssistantServices::web());
+                    // Sauvegarde automatique (lot W1) : après l'observateur
+                    // (titre de l'onglet, garde de fermeture du planning
+                    // rouvert).
+                    app.app_mut()
+                        .start_browser_autosave(autosave.plan, autosave.writer);
                     Ok(Box::new(WebApp { inner: app, scope }))
                 }),
             )

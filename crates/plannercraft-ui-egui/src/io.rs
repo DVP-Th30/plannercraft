@@ -22,7 +22,20 @@
 //! Web : téléchargement direct par `web_sys` (`Blob`, URL d'objet, ancre
 //! `download`), sans la fenêtre de rfd. Tout chemin
 //! qui se termine envoie un [`SaveEvent`] ; l'application ne marque le
-//! document enregistré qu'à la réception de [`SaveEvent::Saved`].
+//! document enregistré qu'à la réception de [`SaveEvent::Saved`] (ou
+//! [`SaveEvent::SavedFile`]).
+//!
+//! Enregistrement direct dans le fichier (lot W1, ADR-0031, H-UI-202 à
+//! H-UI-204) : là où le navigateur offre la File System Access API
+//! (`showOpenFilePicker` et `showSaveFilePicker`, Chrome et Edge ; détectée
+//! à l'exécution, [`web_save_route`]), « Ouvrir » passe par
+//! `showOpenFilePicker` et garde le descripteur du fichier, « Enregistrer »
+//! réécrit ce fichier, « Enregistrer sous » ouvre `showSaveFilePicker`. Le
+//! descripteur reste dans le navigateur ; l'application n'en tient qu'un
+//! jeton ([`WebFile`]). Ailleurs (Safari, Firefox), rien ne change :
+//! sélecteur de rfd et téléchargement. Les exports (PDF, SVG, CSV) restent
+//! des téléchargements partout. Les sélecteurs ne sont pas dans `web-sys`
+//! stable : appelés par `js_sys::Reflect`, sans JavaScript écrit à la main.
 
 use std::sync::mpsc::Sender;
 
@@ -49,12 +62,33 @@ pub enum OpenEvent {
     },
 }
 
+/// Jeton d'un fichier du navigateur (File System Access, version web) :
+/// le descripteur reste dans le navigateur, gardé par le service de
+/// fichiers ; le jeton le désigne (H-UI-204). Un jeton dont le
+/// descripteur n'est plus connu fait repasser par le sélecteur.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WebFile(pub u64);
+
 /// Destination d'un enregistrement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SaveTarget {
     /// Chemin connu (desktop, « Enregistrer » d'un document déjà lié à un
     /// fichier) : écriture directe, sans boîte de dialogue.
     Path(String),
+    /// Fichier du navigateur lié au document (web, File System Access,
+    /// H-UI-204) : réécrit sur place ; sélecteur (textes ci-dessous) si son
+    /// descripteur n'est plus connu. Sur le desktop (jamais produit) :
+    /// boîte « Enregistrer sous ».
+    File {
+        /// Jeton du fichier.
+        file: WebFile,
+        /// Nom de fichier proposé si le sélecteur s'ouvre.
+        suggested_name: String,
+        /// Titre de la boîte, traduit.
+        title: String,
+        /// Libellé du filtre MSPDI, traduit.
+        filter: String,
+    },
     /// Boîte « Enregistrer sous » (desktop) ou téléchargement (web).
     Dialog {
         /// Nom de fichier proposé (déjà assaini, avec `.xml`).
@@ -94,8 +128,98 @@ pub enum SaveEvent {
         /// chemin non UTF-8 (le prochain « Enregistrer » redemandera).
         path: Option<String>,
     },
+    /// Octets écrits dans un fichier du navigateur (web, File System Access,
+    /// H-UI-202) : « Enregistrer » le réécrira.
+    SavedFile {
+        /// Nom du fichier écrit.
+        name: String,
+        /// Jeton du fichier.
+        file: WebFile,
+    },
     /// Écriture impossible : détail déjà traduit (cause système comprise).
     Failed(String),
+}
+
+/// Chemin d'un enregistrement sur le web (H-UI-202).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WebSaveRoute {
+    /// Téléchargement (`Blob` et ancre `download`) : navigateur sans File
+    /// System Access, ou export.
+    Download,
+    /// Sélecteur « Enregistrer sous » du navigateur, puis écriture.
+    Pick,
+    /// Réécriture du fichier lié.
+    Rewrite(WebFile),
+}
+
+/// Chemin d'un enregistrement web : sans les sélecteurs de fichiers du
+/// navigateur (`pickers` faux : Safari, Firefox, page hors contexte
+/// sécurisé) ou pour un export (`kind` autre que MSPDI), téléchargement ;
+/// sinon réécriture du fichier lié ([`SaveTarget::File`]) ou sélecteur.
+#[must_use]
+pub const fn web_save_route(pickers: bool, kind: SaveKind, target: &SaveTarget) -> WebSaveRoute {
+    if !pickers || !matches!(kind, SaveKind::Mspdi) {
+        return WebSaveRoute::Download;
+    }
+    match target {
+        SaveTarget::File { file, .. } => WebSaveRoute::Rewrite(*file),
+        SaveTarget::Path(_) | SaveTarget::Dialog { .. } => WebSaveRoute::Pick,
+    }
+}
+
+/// Nom de fichier d'une destination (proposé, ou chemin tel quel).
+#[must_use]
+pub fn target_name(target: &SaveTarget) -> &str {
+    match target {
+        SaveTarget::Path(path) => path,
+        SaveTarget::File { suggested_name, .. } | SaveTarget::Dialog { suggested_name, .. } => suggested_name,
+    }
+}
+
+/// Échec d'un sélecteur ou d'un fichier du navigateur, d'après le nom de
+/// l'exception (`DOMException.name`, H-UI-203).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileFailure {
+    /// Sélecteur refermé sans choisir (`AbortError`) : rien n'est écrit,
+    /// aucun message.
+    Cancelled,
+    /// Permission refusée (`NotAllowedError`, `SecurityError`).
+    Denied,
+    /// Fichier disparu (`NotFoundError`, `NotReadableError`).
+    Missing,
+    /// Autre échec : détail du navigateur.
+    Other,
+}
+
+/// Classe une exception du navigateur par son nom.
+#[must_use]
+pub fn classify_file_error(name: &str) -> FileFailure {
+    match name {
+        "AbortError" => FileFailure::Cancelled,
+        "NotAllowedError" | "SecurityError" => FileFailure::Denied,
+        "NotFoundError" | "NotReadableError" => FileFailure::Missing,
+        _ => FileFailure::Other,
+    }
+}
+
+/// Détail traduit d'un échec d'écriture dans le fichier `name` (repris
+/// par « Écriture du fichier impossible : … ») ; `None` pour une
+/// annulation, qui laisse simplement le document modifié.
+#[must_use]
+pub fn file_failure_detail(
+    failure: FileFailure,
+    name: &str,
+    detail: &str,
+    language: crate::i18n::Language,
+) -> Option<String> {
+    let texts = crate::i18n::Texts::new(language);
+    let name = crate::i18n::Arg::Str(name.into());
+    match failure {
+        FileFailure::Cancelled => None,
+        FileFailure::Denied => Some(texts.get_args(crate::i18n::TextId::WebFileDenied, &[("name", name)])),
+        FileFailure::Missing => Some(texts.get_args(crate::i18n::TextId::WebFileMissing, &[("name", name)])),
+        FileFailure::Other => Some(detail.to_owned()),
+    }
 }
 
 /// Accès aux fichiers, injecté par l'application (`Env::files`).
@@ -272,6 +396,12 @@ impl FileService for RfdFileService {
         filter: String,
         tx: Sender<OpenEvent>,
     ) {
+        // Lot W1 (H-UI-204) : File System Access si le navigateur l'offre,
+        // pour garder le descripteur (« Enregistrer » réécrira le fichier).
+        if fsa::available() {
+            fsa::open(ctx, now, &filter, tx);
+            return;
+        }
         let ctx = ctx.clone();
         // Le réducteur s'exécute en fin d'image (dans `requestAnimationFrame`,
         // pas dans le gestionnaire du clic) et `pick_file` ne crée le
@@ -331,7 +461,8 @@ impl FileService for RfdFileService {
         let thread_tx = tx.clone();
         let known = match &target {
             SaveTarget::Path(path) => Some(std::path::PathBuf::from(path)),
-            SaveTarget::Dialog { .. } => None,
+            // `File` n'existe que sur le web : traité comme une boîte.
+            SaveTarget::Dialog { .. } | SaveTarget::File { .. } => None,
         };
         let spawned = std::thread::Builder::new()
             .name("plannercraft-save".to_owned())
@@ -356,13 +487,19 @@ impl FileService for RfdFileService {
             deliver(&tx, ctx, SaveEvent::Failed(error.to_string()));
             return;
         }
-        let SaveTarget::Dialog {
-            suggested_name,
-            title,
-            filter,
-        } = target
-        else {
-            return;
+        let (suggested_name, title, filter) = match target {
+            SaveTarget::Path(_) => return,
+            SaveTarget::Dialog {
+                suggested_name,
+                title,
+                filter,
+            }
+            | SaveTarget::File {
+                suggested_name,
+                title,
+                filter,
+                ..
+            } => (suggested_name, title, filter),
         };
         // Créé sur le fil d'interface (feuille attachée à la fenêtre sur
         // macOS, ADR-0011), attendu dans `plannercraft-save`.
@@ -458,23 +595,39 @@ impl FileService for RfdFileService {
     #[cfg(target_arch = "wasm32")]
     fn save(&mut self, ctx: &egui::Context, request: SaveRequest, tx: Sender<SaveEvent>) {
         let SaveRequest {
-            bytes, kind, target, ..
+            bytes,
+            kind,
+            target,
+            language,
         } = request;
-        // Pas de chemin sur le web : un chemin connu (impossible ici) est
-        // traité comme un téléchargement sous son nom.
-        let name = match target {
-            SaveTarget::Path(path) => path,
-            SaveTarget::Dialog { suggested_name, .. } => suggested_name,
+        let name = target_name(&target).to_owned();
+        let filter = match &target {
+            SaveTarget::Path(_) => String::new(),
+            SaveTarget::File { filter, .. } | SaveTarget::Dialog { filter, .. } => filter.clone(),
         };
-        // Téléchargement direct (Blob + ancre `download`, relecture finale
-        // J4, F3) : rfd 0.17 affichait sa propre fenêtre, dont « Ok » et
-        // « Annuler » rendaient tous deux `Ok` sans rien télécharger, et le
-        // document passait à tort à « enregistré ».
-        let event = match download(&name, kind.mime(), &bytes) {
-            Ok(()) => SaveEvent::Saved { name, path: None },
-            Err(detail) => SaveEvent::Failed(detail),
-        };
-        deliver(&tx, ctx, event);
+        // Lot W1 (H-UI-202) : File System Access si le navigateur l'offre
+        // (détectée à l'exécution), pour le projet seulement. Sélecteur et
+        // permission demandés ici, dans la fenêtre d'activation du clic
+        // (comme `pick_and_open`), avant toute attente.
+        match web_save_route(fsa::available(), kind, &target) {
+            WebSaveRoute::Rewrite(file) => match fsa::handle(file) {
+                Some(handle) => fsa::rewrite(ctx, handle, file, bytes, language, tx),
+                None => fsa::save_as(ctx, &name, &filter, bytes, language, tx),
+            },
+            WebSaveRoute::Pick => fsa::save_as(ctx, &name, &filter, bytes, language, tx),
+            WebSaveRoute::Download => {
+                // Téléchargement direct (Blob + ancre `download`, relecture
+                // finale J4, F3) : rfd 0.17 affichait sa propre fenêtre, dont
+                // « Ok » et « Annuler » rendaient tous deux `Ok` sans rien
+                // télécharger, et le document passait à tort à
+                // « enregistré ».
+                let event = match download(&name, kind.mime(), &bytes) {
+                    Ok(()) => SaveEvent::Saved { name, path: None },
+                    Err(detail) => SaveEvent::Failed(detail),
+                };
+                deliver(&tx, ctx, event);
+            }
+        }
     }
 }
 
@@ -519,6 +672,305 @@ fn download(name: &str, mime: &str, bytes: &[u8]) -> Result<(), String> {
         log::warn!("révocation de l'URL de téléchargement non planifiée");
     }
     Ok(())
+}
+
+/// File System Access (lot W1, ADR-0031, H-UI-202 à H-UI-204) :
+/// `showOpenFilePicker` et `showSaveFilePicker`, absents de `web-sys`
+/// stable, appelés par `js_sys::Reflect` ; descripteurs
+/// (`FileSystemFileHandle`, stable) gardés ici, désignés par un
+/// [`WebFile`]. Ils ne survivent pas au rechargement de la page.
+#[cfg(target_arch = "wasm32")]
+mod fsa {
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
+    use std::sync::mpsc::Sender;
+
+    use plannercraft_core::Moment;
+    use wasm_bindgen_futures::JsFuture;
+    use wasm_bindgen_futures::wasm_bindgen::{JsCast, JsValue};
+
+    use super::{
+        OpenEvent, SaveEvent, WebFile, classify_file_error, deliver, file_failure_detail, js_error_text,
+    };
+    use crate::app::DocOrigin;
+    use crate::document::{self, LoadedDocument, OpenError};
+    use crate::i18n::Language;
+
+    /// Descripteurs gardés au plus : au-delà, le plus ancien part (son
+    /// document repasse par le sélecteur à « Enregistrer »).
+    const MAX_HANDLES: usize = 32;
+
+    /// Descripteurs connus et dernier jeton attribué.
+    #[derive(Default)]
+    struct Handles {
+        last: u64,
+        map: BTreeMap<u64, web_sys::FileSystemFileHandle>,
+    }
+
+    thread_local! {
+        static HANDLES: RefCell<Handles> = RefCell::new(Handles::default());
+    }
+
+    /// Garde `handle` et rend son jeton.
+    fn register(handle: web_sys::FileSystemFileHandle) -> WebFile {
+        HANDLES.with(|cell| {
+            let mut handles = cell.borrow_mut();
+            handles.last = handles.last.saturating_add(1);
+            let id = handles.last;
+            handles.map.insert(id, handle);
+            while handles.map.len() > MAX_HANDLES {
+                handles.map.pop_first();
+            }
+            WebFile(id)
+        })
+    }
+
+    /// Descripteur du jeton `file`, s'il est encore connu.
+    pub(super) fn handle(file: WebFile) -> Option<web_sys::FileSystemFileHandle> {
+        HANDLES.with(|cell| cell.borrow().map.get(&file.0).cloned())
+    }
+
+    /// Fonction `name` de `target`, si c'en est une.
+    fn function(target: &JsValue, name: &str) -> Option<js_sys::Function> {
+        js_sys::Reflect::get(target, &JsValue::from_str(name))
+            .ok()?
+            .dyn_into::<js_sys::Function>()
+            .ok()
+    }
+
+    /// Le navigateur offre les deux sélecteurs (détection à l'exécution :
+    /// Chrome et Edge en contexte sécurisé ; ni Safari ni Firefox).
+    pub(super) fn available() -> bool {
+        web_sys::window().is_some_and(|window| {
+            let window: JsValue = window.into();
+            function(&window, "showOpenFilePicker").is_some()
+                && function(&window, "showSaveFilePicker").is_some()
+        })
+    }
+
+    /// `target[key] = value`.
+    fn set(target: &js_sys::Object, key: &str, value: &JsValue) -> Result<(), JsValue> {
+        js_sys::Reflect::set(target, &JsValue::from_str(key), value).map(drop)
+    }
+
+    /// Options d'un sélecteur : un seul type, « MSPDI (.xml) ».
+    fn picker_options(filter: &str) -> Result<js_sys::Object, JsValue> {
+        let accept = js_sys::Object::new();
+        set(
+            &accept,
+            "application/xml",
+            &js_sys::Array::of1(&JsValue::from_str(".xml")),
+        )?;
+        let kind = js_sys::Object::new();
+        set(&kind, "description", &JsValue::from_str(filter))?;
+        set(&kind, "accept", &accept)?;
+        let options = js_sys::Object::new();
+        set(&options, "types", &js_sys::Array::of1(&kind))?;
+        Ok(options)
+    }
+
+    /// `window[name](options)` : promesse du sélecteur. Appelé pendant le
+    /// traitement de l'action, dans la fenêtre d'activation du clic.
+    fn call_picker(name: &str, options: &js_sys::Object) -> Result<js_sys::Promise, JsValue> {
+        let window: JsValue = web_sys::window()
+            .ok_or_else(|| JsValue::from_str("window introuvable"))?
+            .into();
+        let picker = function(&window, name).ok_or_else(|| JsValue::from_str(name))?;
+        picker
+            .call1(&window, options.as_ref())?
+            .dyn_into::<js_sys::Promise>()
+    }
+
+    /// Nom d'une exception (`DOMException.name`).
+    fn error_name(error: &JsValue) -> String {
+        js_sys::Reflect::get(error, &JsValue::from_str("name"))
+            .ok()
+            .and_then(|name| name.as_string())
+            .unwrap_or_default()
+    }
+
+    /// Événement d'un échec d'enregistrement : annulation sans message,
+    /// sinon détail traduit (H-UI-203).
+    fn save_failure(error: &JsValue, name: &str, language: Language) -> SaveEvent {
+        let failure = classify_file_error(&error_name(error));
+        match file_failure_detail(failure, name, &js_error_text(error), language) {
+            None => SaveEvent::Cancelled,
+            Some(detail) => SaveEvent::Failed(detail),
+        }
+    }
+
+    /// Écrit `bytes` à la place du contenu de `handle` : flux d'écriture,
+    /// écriture, fermeture (le navigateur remplace le fichier à la
+    /// fermeture) ; flux abandonné sur un échec (fichier laissé intact).
+    async fn write(handle: &web_sys::FileSystemFileHandle, bytes: &[u8]) -> Result<(), JsValue> {
+        let writable = JsFuture::from(handle.create_writable())
+            .await?
+            .dyn_into::<web_sys::FileSystemWritableFileStream>()?;
+        let written = match writable.write_with_u8_array(bytes) {
+            Ok(promise) => JsFuture::from(promise).await.map(drop),
+            Err(error) => Err(error),
+        };
+        if let Err(error) = written {
+            if JsFuture::from(writable.abort()).await.is_err() {
+                log::warn!("flux d'écriture non abandonné");
+            }
+            return Err(error);
+        }
+        JsFuture::from(writable.close()).await.map(drop)
+    }
+
+    /// « Enregistrer » d'un document lié (H-UI-202) : permission d'écriture
+    /// demandée tout de suite (fenêtre d'activation), puis réécriture.
+    /// Refus, fichier disparu : message, document toujours modifié.
+    pub(super) fn rewrite(
+        ctx: &egui::Context,
+        handle: web_sys::FileSystemFileHandle,
+        file: WebFile,
+        bytes: Vec<u8>,
+        language: Language,
+        tx: Sender<SaveEvent>,
+    ) {
+        let ctx = ctx.clone();
+        let name = handle.name();
+        // `requestPermission` (Chrome, Edge) : absent de `web-sys` stable.
+        let permission = function(handle.as_ref(), "requestPermission").map(|request| {
+            let options = js_sys::Object::new();
+            set(&options, "mode", &JsValue::from_str("readwrite"))?;
+            request
+                .call1(handle.as_ref(), options.as_ref())?
+                .dyn_into::<js_sys::Promise>()
+        });
+        wasm_bindgen_futures::spawn_local(async move {
+            // Pas de `requestPermission` : l'écriture dira elle-même un refus.
+            let refused = match permission {
+                None => None,
+                Some(Err(error)) => Some(save_failure(&error, &name, language)),
+                Some(Ok(promise)) => match JsFuture::from(promise).await {
+                    Ok(state) if state.as_string().as_deref() == Some("granted") => None,
+                    Ok(_) => Some(
+                        file_failure_detail(super::FileFailure::Denied, &name, "", language)
+                            .map_or(SaveEvent::Cancelled, SaveEvent::Failed),
+                    ),
+                    Err(error) => Some(save_failure(&error, &name, language)),
+                },
+            };
+            let event = match refused {
+                Some(event) => event,
+                None => match write(&handle, &bytes).await {
+                    Ok(()) => SaveEvent::SavedFile { name, file },
+                    Err(error) => save_failure(&error, &name, language),
+                },
+            };
+            deliver(&tx, &ctx, event);
+        });
+    }
+
+    /// « Enregistrer sous » (ou premier « Enregistrer ») : sélecteur du
+    /// navigateur ouvert tout de suite, puis écriture et descripteur gardé.
+    pub(super) fn save_as(
+        ctx: &egui::Context,
+        suggested: &str,
+        filter: &str,
+        bytes: Vec<u8>,
+        language: Language,
+        tx: Sender<SaveEvent>,
+    ) {
+        let picked = picker_options(filter).and_then(|options| {
+            set(&options, "suggestedName", &JsValue::from_str(suggested))?;
+            call_picker("showSaveFilePicker", &options)
+        });
+        let ctx = ctx.clone();
+        let suggested = suggested.to_owned();
+        wasm_bindgen_futures::spawn_local(async move {
+            let picked = match picked {
+                Ok(promise) => JsFuture::from(promise).await,
+                Err(error) => Err(error),
+            };
+            let event = match picked.and_then(JsCast::dyn_into::<web_sys::FileSystemFileHandle>) {
+                Err(error) => save_failure(&error, &suggested, language),
+                Ok(handle) => {
+                    let name = handle.name();
+                    match write(&handle, &bytes).await {
+                        Ok(()) => SaveEvent::SavedFile {
+                            name,
+                            file: register(handle),
+                        },
+                        Err(error) => save_failure(&error, &name, language),
+                    }
+                }
+            };
+            deliver(&tx, &ctx, event);
+        });
+    }
+
+    /// « Ouvrir » par `showOpenFilePicker` (H-UI-204) : fichier lu (taille
+    /// contrôlée avant la lecture), document chargé et lié au descripteur.
+    pub(super) fn open(ctx: &egui::Context, now: Moment, filter: &str, tx: Sender<OpenEvent>) {
+        let picked = picker_options(filter).and_then(|options| call_picker("showOpenFilePicker", &options));
+        let ctx = ctx.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let picked = match picked {
+                Ok(promise) => JsFuture::from(promise).await,
+                Err(error) => Err(error),
+            };
+            let event = match picked {
+                Err(error) => open_failure(&error),
+                Ok(list) => {
+                    let first = list
+                        .dyn_into::<js_sys::Array>()
+                        .ok()
+                        .and_then(|list| list.get(0).dyn_into::<web_sys::FileSystemFileHandle>().ok());
+                    match first {
+                        None => OpenEvent::Cancelled,
+                        Some(handle) => read_handle(handle, now).await,
+                    }
+                }
+            };
+            deliver(&tx, &ctx, event);
+        });
+    }
+
+    /// Échec du sélecteur d'ouverture : annulation sans message, sinon
+    /// erreur de lecture.
+    fn open_failure(error: &JsValue) -> OpenEvent {
+        match classify_file_error(&error_name(error)) {
+            super::FileFailure::Cancelled => OpenEvent::Cancelled,
+            _ => OpenEvent::Opened {
+                origin: DocOrigin::default(),
+                result: Err(OpenError::Read(js_error_text(error))),
+            },
+        }
+    }
+
+    /// Lit et charge le fichier de `handle` ; le document garde le jeton.
+    async fn read_handle(handle: web_sys::FileSystemFileHandle, now: Moment) -> OpenEvent {
+        let origin = DocOrigin {
+            name: handle.name(),
+            path: None,
+            demo: false,
+        };
+        let result = read_and_load(&handle, now).await.map(|mut loaded| {
+            loaded.web_file = Some(register(handle));
+            loaded
+        });
+        OpenEvent::Opened { origin, result }
+    }
+
+    /// Contenu de `handle` chargé : `getFile`, taille, `arrayBuffer`.
+    async fn read_and_load(
+        handle: &web_sys::FileSystemFileHandle,
+        now: Moment,
+    ) -> Result<LoadedDocument, OpenError> {
+        let read = |error: JsValue| OpenError::Read(js_error_text(&error));
+        let file = JsFuture::from(handle.get_file())
+            .await
+            .map_err(read)?
+            .dyn_into::<web_sys::File>()
+            .map_err(read)?;
+        document::check_blob_size(file.size())?;
+        let buffer = JsFuture::from(file.array_buffer()).await.map_err(read)?;
+        document::load(&js_sys::Uint8Array::new(&buffer).to_vec(), now)
+    }
 }
 
 /// Futur d'une boîte « Enregistrer sous » native, envoyé au fil

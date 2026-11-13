@@ -15,6 +15,7 @@ pub mod app;
 pub mod applied;
 pub mod approvals;
 pub mod assistant;
+pub mod autosave;
 pub mod block;
 pub mod cells;
 pub mod clipboard;

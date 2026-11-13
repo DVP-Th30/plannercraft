@@ -70,7 +70,9 @@ impl FileService for SimFiles {
 fn saved_event(target: &SaveTarget) -> SaveEvent {
     let path = match target {
         SaveTarget::Path(path) => path.clone(),
-        SaveTarget::Dialog { suggested_name, .. } => format!("/projets/{suggested_name}"),
+        SaveTarget::Dialog { suggested_name, .. } | SaveTarget::File { suggested_name, .. } => {
+            format!("/projets/{suggested_name}")
+        }
     };
     let name = path.rsplit('/').next().unwrap().to_owned();
     SaveEvent::Saved {

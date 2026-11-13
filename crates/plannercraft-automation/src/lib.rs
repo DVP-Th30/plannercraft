@@ -50,7 +50,9 @@ pub mod journal;
 pub mod json;
 pub mod outcome;
 pub mod pdf;
-#[cfg(not(target_arch = "wasm32"))]
+/// Journal de reprise : dossiers et orphelins sur le desktop seulement ;
+/// journal, rejeu et [`recovery::Recorder`] aussi sur le web (sauvegarde
+/// automatique du navigateur, lot W1, ADR-0031).
 pub mod recovery;
 pub mod registry;
 pub mod render_text;

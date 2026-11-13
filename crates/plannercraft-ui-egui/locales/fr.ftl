@@ -1898,3 +1898,15 @@ ai-field-manual-finish = Fin saisie
 ai-field-manual-duration = Durée saisie
 ai-field-calendar = Calendrier de la tâche
 ai-field-other = Autres données
+
+## Lot W1 (ADR-0031) : sauvegarde automatique dans le navigateur, fichiers du web.
+autosave-restored = Planning retrouvé dans ce navigateur : « { $name } ».
+autosave-restored-new = Nouveau planning vide
+autosave-restored-dismiss = Masquer
+autosave-other-tab = PlannerCraft est déjà ouvert dans un autre onglet de ce navigateur : cet onglet-ci n'est pas sauvegardé automatiquement. Enregistrez votre travail, ou fermez l'autre onglet puis rechargez celui-ci.
+autosave-unavailable = Sauvegarde automatique indisponible dans ce navigateur ({ $detail }) : enregistrez régulièrement votre planning.
+autosave-unreadable = Le planning gardé par ce navigateur ne peut pas être rouvert : { $detail }
+autosave-stopped = Sauvegarde automatique interrompue dans ce navigateur : { $detail }. L'édition continue ; enregistrez votre planning pour ne rien perdre.
+autosave-gap = une modification n'avait pas pu être sauvegardée
+web-file-denied = le navigateur n'a pas permis d'écrire dans « { $name } ». Le planning reste modifié ; « Enregistrer sous » choisit un autre fichier.
+web-file-missing = « { $name } » est introuvable (déplacé ou supprimé) ; « Enregistrer sous » choisit un autre fichier.
