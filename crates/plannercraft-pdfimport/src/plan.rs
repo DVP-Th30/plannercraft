@@ -943,7 +943,12 @@ fn has_partial_header(lines: &[crate::lines::TextLine]) -> bool {
         let name = kinds.contains(&ColumnKind::Name)
             || joined.contains("nom de la tache")
             || joined.contains("task name");
-        name && kinds.contains(&ColumnKind::Id)
+        // Des intitulés de dates présents mais non reconnus comme un tableau
+        // de tâches (autre outil : « Activity Name ») : pas ce cas-là.
+        let dates = kinds
+            .iter()
+            .any(|k| matches!(k, ColumnKind::Start | ColumnKind::Finish | ColumnKind::Duration));
+        name && kinds.contains(&ColumnKind::Id) && !dates
     })
 }
 

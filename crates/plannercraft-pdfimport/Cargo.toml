@@ -25,6 +25,8 @@ unicode-normalization.workspace = true
 # Aller-retour export PDF → import (style d'impression : colonnes).
 plannercraft-render.workspace = true
 serde_json.workspace = true
+# Manifeste du corpus de l'import PDF (`tests/corpus.rs`).
+toml.workspace = true
 
 [lints]
 workspace = true
