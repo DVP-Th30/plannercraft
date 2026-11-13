@@ -123,7 +123,6 @@ pub fn open(ws: &mut Workspace, plan: &str) -> Result<Value, ToolError> {
 pub type Run = Result<(), ExitCode>;
 
 /// Code de sortie d'un [`Run`].
-#[must_use]
 pub fn finish(r: Run) -> ExitCode {
     match r {
         Ok(()) => ExitCode::from(exit::SUCCESS),

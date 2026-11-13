@@ -624,14 +624,19 @@ pub(crate) mod relay_app {
         json!({ "uid": 3, "name": "Plans revus pendant l'attente" })
     }
 
-    /// Binaire `plannercraft` : `PLANNERCRAFT_MCP_BIN`, sinon à côté de `deps/`.
+    /// Binaire `plannercraft` : `PLANNERCRAFT_MCP_BIN`, sinon le premier
+    /// dossier au-dessus de l'exécutable de test qui le contient (`deps/`
+    /// jusqu'à Cargo 1.99, `build/<paquet>/<empreinte>/out/` depuis 1.100).
     pub(crate) fn mcp_binary() -> Option<PathBuf> {
         if let Some(path) = std::env::var_os("PLANNERCRAFT_MCP_BIN") {
             return Some(PathBuf::from(path));
         }
         let exe = std::env::current_exe().ok()?;
-        let dir = exe.parent()?.parent()?;
-        Some(dir.join("plannercraft"))
+        exe.ancestors()
+            .skip(1)
+            .take(6)
+            .map(|dir| dir.join("plannercraft"))
+            .find(|path| path.is_file())
     }
 
     /// Client JSON-RPC stdio minimal (`initialize`, `tools/call`) dans un

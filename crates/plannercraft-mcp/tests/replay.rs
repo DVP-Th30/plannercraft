@@ -1087,8 +1087,8 @@ async fn replay_claude_run_2() {
     assert_eq!(over, [&json!(1), &json!(5)]);
     // Trois essais en `dry_run`, rien d'appliqué ; le premier fait
     // apparaître une surcharge du Plaquiste (UID 4).
-    for i in 7..=9 {
-        assert_eq!(s.calls[i].params["dry_run"], json!(true));
+    for (i, call) in s.calls.iter().enumerate().take(10).skip(7) {
+        assert_eq!(call.params["dry_run"], json!(true));
         assert_eq!(ok(i)["committed"], json!(false));
     }
     assert_eq!(
