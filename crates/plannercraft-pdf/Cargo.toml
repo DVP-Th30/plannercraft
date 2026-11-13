@@ -12,6 +12,12 @@ plannercraft-core.workspace = true
 plannercraft-render.workspace = true
 krilla.workspace = true
 skrifa.workspace = true
+# Moteur de compression des flux de krilla fixé (ADR-0032 D9) : flate2 prend
+# `zlib-rs` dès qu'une autre crate du graphe le demande (hayro-syntax, sous
+# plannercraft-pdfimport), et les octets compressés changent. Demandé ici
+# pour que tous les binaires (application, web, CLI, MCP) écrivent les mêmes
+# octets (H-R13). Version déjà au lock, Rust pur.
+flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs"] }
 
 [dev-dependencies]
 # Lecture des PDF écrits dans les tests (flux FlateDecode) : P57,

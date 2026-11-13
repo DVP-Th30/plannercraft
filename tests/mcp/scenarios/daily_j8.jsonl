@@ -27,7 +27,7 @@
 {"v":1,"seq":14,"tool":"list_tasks","params":{"active":false}}
 {"v":1,"seq":14,"tool":"list_tasks","params":null,"result":{"ok":{"next_cursor":null,"tasks":[{"constraint":null,"critical":false,"deadline":null,"diagnostics":[],"duration":{"elapsed":false,"estimated":false,"minutes":2400,"text":"5j","unit":"day"},"finish":null,"free_slack":null,"id":2,"level":2,"milestone":false,"name":"Fondations","predecessors":[],"start":null,"summary":false,"total_slack":null,"uid":2}],"total":1}}}
 {"v":1,"seq":15,"tool":"export_pdf","params":{"page":{"landscape":true,"pages_wide":2,"paper":"a3"},"path":"$TMP/daily_j8.pdf","style":"sobre"}}
-{"v":1,"seq":15,"tool":"export_pdf","params":null,"result":{"ok":{"bytes":17764,"diagnostics":[],"hidden":0,"missing_glyphs":"","pages":2,"path":"$TMP/daily_j8.pdf","scale_pct":100,"shown":7,"truncated_days":false}}}
+{"v":1,"seq":15,"tool":"export_pdf","params":null,"result":{"ok":{"bytes":17837,"diagnostics":[],"hidden":0,"missing_glyphs":"","pages":2,"path":"$TMP/daily_j8.pdf","scale_pct":100,"shown":7,"truncated_days":false}}}
 {"v":1,"seq":16,"tool":"save_project","params":{"path":"$TMP/daily_j8.xml"}}
 {"v":1,"seq":16,"tool":"save_project","params":null,"result":{"ok":{"bytes":18924,"diagnostics":[],"dirty":false,"path":"$TMP/daily_j8.xml"}}}
 {"v":1,"seq":17,"tool":"undo","params":{}}
