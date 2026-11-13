@@ -2,7 +2,9 @@
 //!
 //! 0 succès ; 1 commande refusée (erreur métier du moteur ou du registre) ;
 //! 2 usage (arguments, commande indisponible) ; 3 fichier
-//! (lecture, écriture, MSPDI ou CSV inexploitable).
+//! (lecture, écriture, MSPDI ou CSV inexploitable) ; 4 PDF refusé par
+//! l'import (numérisé, sans tableau, sans dates, hiérarchie illisible ;
+//! ADR-0032).
 
 /// Succès.
 pub const SUCCESS: u8 = 0;
@@ -12,6 +14,9 @@ pub const REFUSED: u8 = 1;
 pub const USAGE: u8 = 2;
 /// Fichier (lecture, écriture, MSPDI illisible).
 pub const FILE: u8 = 3;
+/// PDF refusé par `import-pdf` (le fichier se lit, mais son contenu n'est
+/// pas un planning importable sûrement).
+pub const PDF_REFUSED: u8 = 4;
 
 /// Code de sortie d'une erreur d'outil, d'après son code stable : `file.*`
 /// (lecture, écriture, taille, MSPDI inexploitable, fichier tenu par
@@ -40,5 +45,6 @@ mod tests {
         assert_eq!(for_code("param.invalid"), REFUSED);
         assert_eq!(SUCCESS, 0);
         assert_eq!(USAGE, 2);
+        assert_eq!(PDF_REFUSED, 4);
     }
 }

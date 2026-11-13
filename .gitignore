@@ -4,6 +4,8 @@
 
 # Corpus public : fichiers non versionnés (droits d'auteur), seul le manifeste l'est
 /tests/corpus/files/
+# Corpus de l'import PDF (ADR-0032) : mêmes règles
+/tests/corpus-pdf/files/
 
 # Schéma MSPDI de Microsoft, extrait par `cargo xtask schema fetch` (jamais commité)
 /tests/schema/mspdi_pj15.xsd

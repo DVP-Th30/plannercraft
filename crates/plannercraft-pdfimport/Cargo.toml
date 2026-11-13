@@ -1,0 +1,32 @@
+[package]
+name = "plannercraft-pdfimport"
+description = "Import d'un planning Gantt reçu en PDF (export MS Project) dans PlannerCraft, sans interface."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+chrono.workspace = true
+# Lecture du PDF (ADR-0032) : Rust pur, sans `unsafe` dans la crate,
+# MIT OR Apache-2.0. `embed-fonts` : polices de substitution des 14
+# polices standard et des polices non embarquées (sans elles, le texte
+# des PDF qui n'embarquent pas Arial n'est pas interprété, observé sur le
+# corpus) ; pas `embed-cmaps` (CMaps CJK prédéfinies, ~ hors périmètre).
+hayro-interpret = { version = "0.9.0", default-features = false, features = ["embed-fonts"] }
+hayro-syntax = { version = "0.9.0", default-features = false }
+plannercraft-automation.workspace = true
+plannercraft-core.workspace = true
+serde.workspace = true
+unicode-normalization.workspace = true
+
+[dev-dependencies]
+# Aller-retour export PDF → import (style d'impression : colonnes).
+plannercraft-render.workspace = true
+serde_json.workspace = true
+# Manifeste du corpus de l'import PDF (`tests/corpus.rs`).
+toml.workspace = true
+
+[lints]
+workspace = true

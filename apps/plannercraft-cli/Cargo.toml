@@ -20,6 +20,8 @@ plannercraft-automation.workspace = true
 # `http` : `plannercraft mcp --http` (lot L17).
 plannercraft-mcp = { workspace = true, features = ["http"] }
 plannercraft-mspdi.workspace = true
+# `plannercraft import-pdf` (ADR-0032, lot P1a).
+plannercraft-pdfimport.workspace = true
 plannercraft-render.workspace = true
 clap.workspace = true
 serde_json.workspace = true

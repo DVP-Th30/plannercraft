@@ -1901,3 +1901,35 @@ Passe UX (ADR-0018, contrat L0, 2026-10-28) : numéros **réservés** R-257 (col
 - **Source** : hypothèse (ADR-0022 D1 ; aucune page Microsoft relue pour ce lot) ; contrainte SNET posée sur une tâche automatique comme une date de début saisie (R-158).
 - **Statut** : `hypothèse`.
 - **Tests** : `tests/rules/r267_shift_tasks.rs` (`r267_auto_forward_sets_snet`, `r267_week_on_task_calendar_and_minutes_form`, `r267_backward_limited_by_predecessors`, `r267_manual_moves_dates_keeps_duration`, `r267_summary_means_leaves_skips_inactive_and_complete`, `r267_other_constraint_replaced`, `r267_zero_and_errors`, `r267_mcp_shift_tasks`) ; schéma de référence `crates/plannercraft-automation/tests/golden/schemas/task.shift.json`.
+
+### Import PDF (R-270 à R-273 ; ADR-0032, lot P1a)
+
+Construction d'un projet depuis un planning Gantt lu dans un PDF (`plannercraft-pdfimport`). Règle 3 : les dates lues ne sont jamais recopiées comme dates calculées ; elles fixent le début du projet, posent des contraintes comme une saisie, et sont comparées au calcul. Plan : `docs/plans/pdf-import.md`.
+
+## R-270 — Import PDF : début du projet
+- **Formulation** : le projet est planifié depuis le début (R-108) ; sa date de début est le plus petit début lu dans le tableau (jour lu, heure lue, sinon heure de début par défaut, R-033) ; sans aucun début lu, la plus petite fin lue ramenée à l'heure de début par défaut ; sans aucune date lue, pas de projet (l'import refuse d'ailleurs un tableau sans dates, `pdfimport.no_dates`). Calendrier du projet : celui d'un projet neuf (R-032) ; le calendrier du PDF (jours fériés, semaines de 4 jours) n'est pas lisible.
+  - Exemple : débuts lus 07/01/2026 et 05/01/2026 ⇒ début du projet lun 05/01/2026 08:00.
+- **Source** : hypothèse (comme un projet saisi dont la première tâche commence au début du projet).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-pdfimport/tests/rules.rs` (`r270_project_start_is_the_earliest_read_start`).
+
+## R-271 — Import PDF : « Début au plus tôt le » au début lu
+- **Formulation** : après l'ajout des tâches et des liens (commandes `task.add`, `link.add`), le moteur calcule ; chaque **feuille** (jamais une récapitulative) **sans prédécesseur propre** dont le début lu est postérieur au début du projet et que le moteur place un jour **avant** son début lu reçoit « Début au plus tôt le » (SNET, `task.set_constraint`) à son début lu, comme une date de début saisie dans MS Project (S30, R-158). Une feuille déjà placée au jour de son début lu (ou après) n'est pas contrainte. Option `pin_read_starts` (CLI `--pin-starts`) : la règle vaut aussi pour les feuilles qui ont des prédécesseurs, par passes successives (50 au plus) où seules sont contraintes les feuilles dont aucun prédécesseur n'a de fin calculée avant sa fin lue : la contrainte est posée à la source d'un écart (décalage ou contrainte invisibles dans le PDF), une tâche en aval rattrapée ne l'est pas. Lien ou contrainte refusés par le moteur (boucle, lien sur une récapitulative descendante) : ignorés, `pdfimport.link_refused` / `pdfimport.constraint_refused`.
+  - Exemple : feuille sans lien lue au lun 12/01/2026 dans un projet qui commence le lun 05/01 ⇒ SNET 12/01 08:00 ; feuille liée à une fin du mar 13/01 et lue au jeu 15/01 ⇒ placée au mer 14/01 par défaut (écart −1 j listé, R-272), au jeu 15/01 avec `pin_read_starts`.
+- **Source** : S30 (« une date saisie devient une contrainte ») ; choix des feuilles et des passes : hypothèse.
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-pdfimport/tests/rules.rs` (`r271_snet_only_where_the_engine_would_start_earlier`, `r271_pin_read_starts_constrains_the_source_of_the_gap_only`).
+
+## R-272 — Import PDF : comparaison des dates lues et calculées
+- **Formulation** : pour chaque tâche, le début et la fin calculés par le moteur sont comparés **au jour** au début et à la fin lus ; une fin calculée à 00:00 compte pour le jour précédent. Chaque différence est listée (N°, champ, jour lu, jour calculé, écart signé en jours calendaires = calculé − lu), dans l'ordre des tâches ; le rapport donne le nombre de dates comparées et égales. Rien n'est corrigé : l'écart est une information (calendrier ou jours fériés inconnus, contraintes, décalages ou nivellement non visibles dans le PDF).
+  - Exemple : « 3 jours » lu du ven 09/01/2026 au lun 12/01 ⇒ fin calculée mar 13/01 17:00 (Standard), écart `finish` +1 j.
+- **Source** : hypothèse.
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-pdfimport/tests/rules.rs` (`r272_gaps_are_signed_calendar_days`) ; aller-retour `crates/plannercraft-pdfimport/tests/roundtrip.rs` (aucun écart quand le calendrier est connu).
+
+## R-273 — Import PDF : ordre jour/mois des dates numériques
+- **Formulation** : les dates `a/b/aa(aa)` (séparateurs `/`, `.`, `-`) d'un même document se lisent toutes dans le même ordre. Ordre retenu : celui dans lequel **toutes** les dates lues existent et s'accordent avec leur jour de la semaine lu (« Lun », « Mon ») s'il est le seul ; si les deux ordres conviennent et qu'une date se lit autrement dans l'autre ordre, l'ordre de la langue de l'en-tête (français : JJ/MM ; anglais : MM/JJ) avec `pdfimport.date_order_assumed` ; si aucun ne convient, celui qui en lit le plus (égalité : la langue), `pdfimport.date_order_conflict`, et les dates qui n'existent pas dans cet ordre sont ignorées (`pdfimport.date_unreadable`). L'appelant peut imposer l'ordre. Années sur 2 chiffres comme R-143 ; dates en lettres (« 21 janv. 2019 », « Jan 21 '19 ») et ISO toujours sans ambiguïté.
+  - Exemple : en-tête anglais, « 03/04/26 » et « 25/03/26 » ⇒ JJ/MM, 3 avril 2026 ; « Mon 05/01/26 » ⇒ JJ/MM (le 5 janvier 2026 est un lundi, le 1er mai un vendredi).
+- **Source** : hypothèse (formats de date des options régionales observés sur le corpus PDF).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-pdfimport/tests/rules.rs` (`r273_date_order_is_decided_on_the_whole_document`) ; tests unitaires de `crates/plannercraft-pdfimport/src/plan.rs` (`weekday_settles_the_order_of_uk_dates`, `ambiguous_dates_follow_the_header_language_with_a_warning`).

@@ -12,6 +12,7 @@ pub mod apply;
 pub mod explain;
 pub mod export_pdf;
 pub mod import_csv;
+pub mod import_pdf;
 pub mod mcp;
 pub mod render;
 pub mod resources;

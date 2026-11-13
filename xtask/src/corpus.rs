@@ -1,5 +1,7 @@
 //! `cargo xtask corpus fetch` : télécharge les fichiers du corpus public
-//! (ADR-0004, ADR-0009) dans `tests/corpus/files/`, ignoré par git.
+//! (ADR-0004, ADR-0009) dans `tests/corpus/files/`, ignoré par git ;
+//! `cargo xtask corpus fetch-pdf` : ceux du corpus de l'import PDF
+//! (ADR-0032) dans `tests/corpus-pdf/files/`, même mécanisme.
 //!
 //! Le manifeste `tests/corpus/manifest.toml` est relu avec des types propres
 //! à cette tâche (`name`, `url`, `mirrors`, `size`, `sha256` ; les autres clés
@@ -59,24 +61,27 @@ enum Outcome {
 
 pub fn run(args: &[String]) -> ExitCode {
     match args.first().map(String::as_str) {
-        Some("fetch") if args.len() == 1 => fetch(),
+        Some("fetch") if args.len() == 1 => fetch(&corpus_dir("corpus")),
+        // Corpus de l'import PDF (ADR-0032) : même manifeste réduit (les
+        // clés propres au test de l'import sont ignorées ici), autre dossier.
+        Some("fetch-pdf") if args.len() == 1 => fetch(&corpus_dir("corpus-pdf")),
         _ => {
-            eprintln!("usage : cargo xtask corpus fetch");
+            eprintln!("usage : cargo xtask corpus fetch | fetch-pdf");
             ExitCode::FAILURE
         }
     }
 }
 
-/// Dossier `tests/corpus/` du dépôt.
-fn corpus_dir() -> PathBuf {
+/// Dossier `tests/<nom>/` du dépôt.
+fn corpus_dir(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("tests")
-        .join("corpus")
+        .join(name)
 }
 
-fn fetch() -> ExitCode {
-    let dir = corpus_dir();
+fn fetch(dir: &Path) -> ExitCode {
+    let dir = dir.to_path_buf();
     let manifest_path = dir.join("manifest.toml");
     let manifest = match std::fs::read_to_string(&manifest_path)
         .map_err(|e| e.to_string())

@@ -1,0 +1,448 @@
+# Corpus public de l'import PDF (ADR-0032, lot P1a).
+#
+# Plannings Gantt publics, pour la plupart imprimés en PDF depuis MS Project.
+# Les fichiers ne sont PAS commités (droits de redistribution non vérifiés) :
+# `cargo xtask corpus fetch-pdf` les télécharge dans tests/corpus-pdf/files/,
+# ignoré par git, et contrôle taille et SHA-256. Seul ce manifeste est
+# versionné. Clés lues par le téléchargement : name, url, mirrors, size,
+# sha256 ; par le test `crates/plannercraft-pdfimport/tests/corpus.rs` :
+# expect (`import` ou code de refus), tasks (tâches lues attendues) et
+# min_dates_equal (plancher des dates calculées égales aux dates lues, au
+# jour, règle R-271 par défaut). Mesure et URL commentées :
+# docs/plans/pdf-import.md.
+
+format = 1
+
+[[file]]
+name = "en-addison-tx-wo1.pdf"
+source = "Town of Addison (TX), aéroport, work order 1"
+url = "https://agendas.addisontx.gov/docs/2020/CM/20200512_6714/3525_ADS-Work%20Order%20No.%201-Project%20Schedule%20Summary%202019-09-25.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 58157
+sha256 = "6b898b4a3d02f3738861c605e7066fc5bf48155a3052b1bbcb3f7e2fc0cbdc86"
+expect = "import"
+tasks = 8
+min_dates_equal = 9
+
+[[file]]
+name = "en-buffalo-sewer-nfa.pdf"
+source = "Buffalo Sewer Authority, station d'épuration 2023-2031"
+url = "https://buffalosewer.org/app/uploads/2023/08/Attachment-A-NFA-Schedule.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 966373
+sha256 = "403f91ea80764756d723299a08dee5ae59e64d11d8bb137e62e83aea04c837a6"
+expect = "import"
+tasks = 317
+min_dates_equal = 624
+
+[[file]]
+name = "en-coquille-kahp.pdf"
+source = "Coquille Indian Tribe, logements CIHA"
+url = "https://www.coquilletribe.org/wp-content/uploads/2026/06/BOC-06-04-26-9-ED-Att.-3A-Partney-KAHP-Construction-Schedule-05-07-25.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 144800
+sha256 = "286bdb37f16780bdfe6e2334e95302ab1f74d75aeb740a8a1855bea4c41f1648"
+expect = "import"
+tasks = 79
+min_dates_equal = 158
+
+[[file]]
+name = "en-crissair-phased.pdf"
+source = "Crissair (entreprise), consolidation de site 2013"
+url = "https://www.crissair.com/documents/Crissair-Canyon-Phased-Milestone.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 379371
+sha256 = "0aaa2d729b6a2aa38059e37ee591e95b16821290accbecd2daa5b0d3aa53e9d5"
+expect = "import"
+tasks = 30
+min_dates_equal = 51
+
+[[file]]
+name = "en-csuohio-lab.pdf"
+source = "Cleveland State University, laboratoire LF-1327"
+url = "https://www.csuohio.edu/sites/default/files/SI%20Instrumentation%20Lab-Schedule_OCT.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 146603
+sha256 = "883e4a12c6a78910b479eebbff8c5ff1b7d98a0433d77c40dfd6a2956048652e"
+expect = "import"
+tasks = 31
+min_dates_equal = 55
+
+[[file]]
+name = "en-cumberland-pa-plan-schedule.pdf"
+source = "Cumberland County (PA), plan de planification (sans durées ni dates)"
+url = "https://cumberlandcountypa.gov/DocumentCenter/View/44861/Project-Schedule"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 116287
+sha256 = "035fbe23fbd8097c770c8600714a252e630289a05a5f0f1c1875128aac00d3f9"
+expect = "pdfimport.no_dates"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "en-geneva-oh-atb.pdf"
+source = "City of Geneva (Ohio), reconstruction de voirie"
+url = "https://genevaohio.gov/wp-content/uploads/2024/09/PID-111486-SCHEDULE-9-13.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 694814
+sha256 = "bd69214800326190f1ae1fd9ac978435abc097820972bcc72840a9df24f14d77"
+expect = "import"
+tasks = 127
+min_dates_equal = 52
+
+[[file]]
+name = "en-health-scope-annexure-b.pdf"
+source = "Centre de santé (Afrique du Sud), annexe B (sans dates ; hébergeur non identifié)"
+url = "https://a206977a.delivery.rocketcdn.me/wp-content/uploads/2026/05/Part-C3-Scope-of-Works-Annexure-B-Clients-Activities-1.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 407121
+sha256 = "9b386dea96b19bbe45f5727ac8d53408c1b0e9856fe336c85ffa53ac18035b2c"
+expect = "pdfimport.no_dates"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "en-herefordshire-plan.pdf"
+source = "Herefordshire Council, West Mercia Adoption Project"
+url = "https://councillors.herefordshire.gov.uk/documents/s50013890/Draft%20Project%20Plan%2015%207%2013.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 279945
+sha256 = "82e477f4a034db1aba1f46e8f35d77a2c0366325601377c774c5447ff9cef242"
+expect = "pdfimport.flat_hierarchy"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "en-icann-program-tool.pdf"
+source = "ICANN GNSO, outil de pilotage de programme"
+url = "https://gnso.icann.org/sites/default/files/file/field-file-attach/program-management-tool-21oct20-en.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 811543
+sha256 = "807248d0d3e7d111ee7e3554a1572a28c033915d8172770372ae0474f3131670"
+expect = "import"
+tasks = 320
+min_dates_equal = 613
+
+[[file]]
+name = "en-lsbrd-clubhouse.pdf"
+source = "La Selva Beach Recreation District (CA), clubhouse"
+url = "https://www.lsbrd.org/files/4f74adcfd/LSB+Clubhouse+Milestone+Bid+Schedule+4-1-23.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 200099
+sha256 = "e6ce0c0ace5e4e6c3261df93b51e94ef068e7c3d32561f762e7f7ba2a35a1d0d"
+expect = "import"
+tasks = 30
+min_dates_equal = 45
+
+[[file]]
+name = "en-psu-2007-appendix-a.pdf"
+source = "Penn State AE, mémoire étudiant 2007"
+url = "https://www.engr.psu.edu/ae/Thesis/portfolios/2007/DFF110/Appendix%20A%20Detailed%20Schedule.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 38586
+sha256 = "a471802a6aa725cd9ad6ddf8bdd8564d66a0c08b2089ceb57e6aba8c724f5184"
+expect = "pdfimport.inconsistent_hierarchy"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "en-psu-thesis-schedule.pdf"
+source = "Penn State AE, mémoire étudiant 2008"
+url = "https://www.engr.psu.edu/ae/thesis/portfolios/2008/cam459/TECH%20TWO/pdf%20files%20for%20posting/Mowery_Casey_Tech2%20Detailed%20Project%20Schedule.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 497469
+sha256 = "0f8db137f94ec040cf7fea90f60c1cb3ca8a7be30677e8a6aebbfa613a7d7346"
+expect = "import"
+tasks = 186
+min_dates_equal = 367
+
+[[file]]
+name = "en-salem-nh-schedule.pdf"
+source = "Town of Salem (NH), remplacement de pont"
+url = "https://salemnh.gov/DocumentCenter/View/267/Project-Schedule-Revised-01-22-2016-PDF"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 287744
+sha256 = "438c0ec94309e54cc96c2e7e865e67df37bffa103a8688afee33ddcd53b3e592"
+expect = "import"
+tasks = 123
+min_dates_equal = 224
+
+[[file]]
+name = "en-wellesley-hardy-sd.pdf"
+source = "Town of Wellesley (MA), école Hardy/Upham, phase SD"
+url = "https://wellesleyma.gov/DocumentCenter/View/25969/41219D1-Wellesley-Hardy-Project-Schedule-210707-SD-Phase"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 243182
+sha256 = "3816b8419da0ceb42dc5b4fa19f160b481f11d3e3809f87f338184247ba75e2c"
+expect = "import"
+tasks = 185
+min_dates_equal = 69
+
+[[file]]
+name = "en-wellesley-hardy-upham.pdf"
+source = "Town of Wellesley (MA), école Hardy/Upham, révision antérieure"
+url = "https://wellesleyma.gov/DocumentCenter/View/21955/SECTION-41110-Wellesley-Hardy-Upham-Project-Schedule"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 223793
+sha256 = "a3db963ffd9fa4ba90e3564be60ca423b71f8d6e40da605886797efab43e9d7e"
+expect = "import"
+tasks = 118
+min_dates_equal = 27
+
+[[file]]
+name = "en-westminster-wharncliffe-ac103.pdf"
+source = "Westminster City Council, programme de travaux AC103"
+url = "https://www.westminster.gov.uk/media/document/_7-06-2022-wharncliffe-gardens-repairs-and-decorations-project-ac103---provisional-programme-of-works-june-2022"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 748763
+sha256 = "97101981600f6d4d829a9c5063f290f7b6ea360fd7d04591119ac491f3ece7c8"
+expect = "import"
+tasks = 272
+min_dates_equal = 489
+
+[[file]]
+name = "en-westminster-wharncliffe-exit.pdf"
+source = "Westminster City Council, Wharncliffe Gardens"
+url = "https://www.westminster.gov.uk/media/document/wharncliffe-exit-programme-140923"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 497591
+sha256 = "a05a10bc4e057e3bed18eba5caf1fb3956eca2d200f36f8c9c7d753f0e3f58be"
+expect = "import"
+tasks = 109
+min_dates_equal = 140
+
+[[file]]
+name = "fr-beychac-dce.pdf"
+source = "Commune de Beychac-et-Caillau, DCE extension groupe et restaurant scolaire"
+url = "https://www.beychac-cailleau.fr/wp-content/uploads/2017/01/Planning-Previsionnel-DCE-V2.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 19118
+sha256 = "76e5179a740999e918755ab542c0098af8c588e04bcc11494d526fed60a2c291"
+expect = "pdfimport.no_dates"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "fr-cdesages-gros-oeuvre.pdf"
+source = "Planning enveloppe CIG Aulnoye, 2011"
+url = "https://www.cdesages.com/fichs/23622.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 189972
+sha256 = "7a551bdbbaf3b8d7bb463e37bbd612dc9a0c03650ab53add9fe1c23fe9a67360"
+expect = "pdfimport.no_dates"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "fr-cern-bat311.pdf"
+source = "CERN, bâtiment 311, planning d'exécution génie civil"
+url = "https://indico.cern.ch/event/536498/contributions/2194842/attachments/1285781/1912314/Planning_Execution_Travaux_genie_civil_CERN_Bat_311_ind_B.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 137513
+sha256 = "d9443b0642a24dd3dcedd4ae18875a635aef3bfa2842e797044afc8f31e12009"
+expect = "import"
+tasks = 75
+min_dates_equal = 11
+
+[[file]]
+name = "fr-dreal-paca-amenagement.pdf"
+source = "DREAL PACA, maîtrise d'œuvre mur chasse-mer 2022-2025"
+url = "https://www.paca.developpement-durable.gouv.fr/IMG/pdf/f09324p0120_planning.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 82331
+sha256 = "6e7aa3233df9d9f595dcf05cab5035fd290eff04cb1826b4842ed5bb9ad89639"
+expect = "import"
+tasks = 87
+min_dates_equal = 167
+
+[[file]]
+name = "fr-indre-master-schedule-t3s.pdf"
+source = "Préfecture de l'Indre, annexe 3, master schedule industriel"
+url = "https://www.indre.gouv.fr/contenu/telechargement/35342/309645/file/Annexe%203_Plannif%20Master%20schedule%20T3S%2020210319%20sans%20montant.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 470986
+sha256 = "c56b3155f1781d0825009e436d4c9685f270e3ffc9b26ffc53567067a6739a6b"
+expect = "pdfimport.no_dates"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "fr-itu-council-schedule.pdf"
+source = "UIT, construction du siège, planning intentionnel"
+url = "https://www.itu.int/en/council/2020/Documents/007/INF%20E_Schedule.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 129182
+sha256 = "4f00d6e2f3124248fb0027c3ce0756bf76b4ca39c681ed1a3ac84c004e32a417"
+expect = "import"
+tasks = 77
+min_dates_equal = 119
+
+[[file]]
+name = "fr-mios-ecole-ramonet.pdf"
+source = "Ville de Mios, extension de l'école de Ramonet"
+url = "https://www.villemios.fr/wp-content/uploads/2011/02/Calendrier-previsionnel.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 627630
+sha256 = "1e8a2a00d6afabff8a3f8819ca7d4b032376e6b57ed62a80aa0662c54d43c75e"
+expect = "import"
+tasks = 13
+min_dates_equal = 20
+
+[[file]]
+name = "fr-villequiers-mairie.pdf"
+source = "Archilio (architecte), restructuration de la mairie de Villequiers, 2015"
+url = "https://archilio.fr/wp-content/uploads/2018/03/planning-chantier-mairie-villequiers-5.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 47537
+sha256 = "9924fafdd4d65f7cff9bcea74f7c3bad87b360f36e9a31bd135022efa4a6dd66"
+expect = "import"
+tasks = 43
+min_dates_equal = 84
+
+[[file]]
+name = "mixed-en-coopercity-memo-schedule.pdf"
+source = "Cooper City (FL), mémo numérisé puis Gantt vectoriel en page 4"
+url = "https://mccmeetingspublic.blob.core.usgovcloudapi.net/coopercity-meet-2fcdc0818d7748d6ba2112c27ce83800/ITEM-Attachment-001-b0dbd45a4f344a1bb7b08c2b15c63f64.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 529692
+sha256 = "9fa9fa5fa9fe3c86afd0a50519404c5b4958eb7885fe01c601c2f49512a4bce3"
+expect = "import"
+tasks = 17
+min_dates_equal = 27
+
+[[file]]
+name = "mixed-en-tdhca-pebble-hills-rotated.pdf"
+source = "TDHCA (Texas), Gantt pivoté en page 3"
+url = "https://tdhca.legistar.com/View.ashx?GUID=AC4CBAF5-5659-493A-873A-11494F733D14&ID=14910338&M=F"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 205974
+sha256 = "736762549c46fd2a0bebf148f9da310f5ed2fc87e98dd1dc0f02a5602ea5bebf"
+expect = "import"
+tasks = 48
+min_dates_equal = 96
+
+[[file]]
+name = "mixed-en-warrington-wwl.pdf"
+source = "Warrington Borough Council, Western Link, Gantt en pages 6 à 9"
+url = "https://www.warrington.gov.uk/sites/default/files/2019-09/outline_business_case_-_appendix_n_-_delivery_programme.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 521488
+sha256 = "944d6a955c5f11199bdc953e2ee824ba64117b21ff756dd3738af25aa55cf930"
+expect = "import"
+tasks = 433
+min_dates_equal = 748
+
+[[file]]
+name = "other-en-p6-crossville-detailed.pdf"
+source = "City of Crossville (TN), export Primavera P6 (autre outil)"
+url = "https://crossvilletn.gov/wp-content/uploads/2024/10/Detailed-Schedule-October-72024.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 933402
+sha256 = "b8289ca27f78c653365526a6208253bec239c01bda46d646dcbf5e167e992367"
+expect = "pdfimport.no_table"
+tasks = 0
+min_dates_equal = 0
+
+[[file]]
+name = "other-en-p6-hse-pacific-village.pdf"
+source = "HSE Contractors, export Primavera P6 (autre outil)"
+url = "https://www.hsecontractors.com/wp-content/uploads/2023/11/Summary-Schedule-Pacific-Village-CA.pdf"
+mirrors = []
+license = "none"
+rights = "Document public téléchargeable sans compte ; droits de redistribution non établis. Jamais commité ni publié."
+date = "2026-11-13"
+size = 1450838
+sha256 = "0191bcafb7397c3d5460512195d5b5a70451dd6b50ae7407ae83cf4ab9de7ed5"
+expect = "pdfimport.no_table"
+tasks = 0
+min_dates_equal = 0

@@ -7,6 +7,7 @@ members = [
     "crates/plannercraft-mspdi",
     "crates/plannercraft-render",
     "crates/plannercraft-pdf",
+    "crates/plannercraft-pdfimport",
     "crates/plannercraft-automation",
     "crates/plannercraft-mcp",
     "crates/plannercraft-assistant",
@@ -32,6 +33,7 @@ plannercraft-core = { path = "crates/plannercraft-core", version = "1.0.0-rc.1" 
 plannercraft-mspdi = { path = "crates/plannercraft-mspdi", version = "1.0.0-rc.1" }
 plannercraft-render = { path = "crates/plannercraft-render", version = "1.0.0-rc.1" }
 plannercraft-pdf = { path = "crates/plannercraft-pdf", version = "1.0.0-rc.1" }
+plannercraft-pdfimport = { path = "crates/plannercraft-pdfimport", version = "1.0.0-rc.1" }
 plannercraft-automation = { path = "crates/plannercraft-automation", version = "1.0.0-rc.1" }
 plannercraft-mcp = { path = "crates/plannercraft-mcp", version = "1.0.0-rc.1" }
 plannercraft-assistant = { path = "crates/plannercraft-assistant", version = "1.0.0-rc.1" }
