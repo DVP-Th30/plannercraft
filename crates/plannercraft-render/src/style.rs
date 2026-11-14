@@ -989,6 +989,65 @@ impl StylePatch {
     pub fn is_empty(&self) -> bool {
         *self == Self::default()
     }
+
+    /// Part de la surcharge qui appartient au **document** et non au modèle
+    /// (lot F1, ADR-0035 D6, H-UI-226) : couleurs de phase (UID de
+    /// récapitulatives), tâches de la chronologie, mise en forme du texte des
+    /// tâches (UID), regroupement (champ personnalisé du projet) et mise en
+    /// page enregistrée (colonnes imprimées, en-tête et pied, cartouche).
+    /// Définition unique : un modèle, intégré ou personnel, ne les emporte
+    /// jamais ([`Self::template_part`]) et ne les écrase jamais
+    /// ([`Self::keep_document_part`]), quel que soit le chemin (commandes,
+    /// galerie, fenêtre « Mise en forme »).
+    #[must_use]
+    pub fn document_part(&self) -> Self {
+        Self {
+            phases: self.phases.clone(),
+            timeline: self.timeline.clone(),
+            task_text: self.task_text.clone(),
+            group_by: self.group_by,
+            page: self.page.clone(),
+            ..Self::default()
+        }
+    }
+
+    /// La surcharge sans sa part du document ([`Self::document_part`]) : ce
+    /// qu'un modèle personnel enregistre et ce qu'il apporte quand on
+    /// l'applique.
+    #[must_use]
+    pub fn template_part(&self) -> Self {
+        Self {
+            phases: None,
+            timeline: None,
+            task_text: None,
+            group_by: None,
+            page: None,
+            ..self.clone()
+        }
+    }
+
+    /// Reprend de `current` chaque section de la part du document que
+    /// `self` ne pose pas lui-même (application d'un modèle : ce qui
+    /// appartient au document reste tel quel ; une section posée
+    /// explicitement par l'appelant l'emporte).
+    pub fn keep_document_part(&mut self, current: &Self) {
+        let kept = current.document_part();
+        if self.phases.is_none() {
+            self.phases = kept.phases;
+        }
+        if self.timeline.is_none() {
+            self.timeline = kept.timeline;
+        }
+        if self.task_text.is_none() {
+            self.task_text = kept.task_text;
+        }
+        if self.group_by.is_none() {
+            self.group_by = kept.group_by;
+        }
+        if self.page.is_none() {
+            self.page = kept.page;
+        }
+    }
 }
 
 /// Style d'un document (H-R12) : `{"v":1,"base":"sobre","over":{…}}`.
@@ -1754,6 +1813,53 @@ pub fn task_text_look(st: &PlanStyle, v: Variant, t: &TaskText) -> TextLook {
 )]
 mod tests {
     use super::*;
+
+    /// H-UI-226 (lot F1) : part du document et part du modèle d'une
+    /// surcharge ; leur réunion rend la surcharge ; une section posée par
+    /// l'appelant l'emporte sur celle du document gardée.
+    #[test]
+    fn h_ui_226_document_and_template_parts() {
+        let page = template(TemplateId::Sobre).page;
+        let full = StylePatch {
+            density: Some(Density::Airy),
+            phases: Some(BTreeMap::from([(
+                5,
+                PhaseColor {
+                    fill: Rgb(1, 2, 3),
+                    children: true,
+                },
+            )])),
+            timeline: Some(TimelineSpec::bounded(vec![1, 2])),
+            task_text: Some(BTreeMap::from([(
+                1,
+                TaskText {
+                    bold: true,
+                    ..TaskText::default()
+                },
+            )])),
+            group_by: Some(GroupBy::Critical),
+            page: Some(page.clone()),
+            ..StylePatch::default()
+        };
+        let doc = full.document_part();
+        let tpl = full.template_part();
+        assert_eq!(tpl.density, Some(Density::Airy));
+        assert!(tpl.phases.is_none() && tpl.timeline.is_none() && tpl.task_text.is_none());
+        assert!(tpl.group_by.is_none() && tpl.page.is_none());
+        assert_eq!(doc.density, None);
+        assert_eq!(doc.group_by, Some(GroupBy::Critical));
+        let mut back = tpl.clone();
+        back.keep_document_part(&full);
+        assert_eq!(back, full);
+        // Section posée par l'appelant : gardée telle quelle.
+        let mut own = StylePatch {
+            group_by: Some(GroupBy::Milestone),
+            ..StylePatch::default()
+        };
+        own.keep_document_part(&full);
+        assert_eq!(own.group_by, Some(GroupBy::Milestone));
+        assert_eq!(own.page, Some(page));
+    }
 
     fn srgb_linear(c: u8) -> f64 {
         let c = f64::from(c) / 255.0;
