@@ -182,6 +182,9 @@ pub enum Action {
     Clipboard(ClipboardOp),
     /// Fichier → Importer CSV… : sélecteur de fichiers, puis aperçu.
     ImportCsv,
+    /// Fichier → Importer un PDF… : sélecteur de fichiers, puis aperçu
+    /// (lot P1b, H-UI-205).
+    ImportPdf,
     // --- J8 L13 : exports téléchargés (web) ou enregistrés (desktop).
     /// Fichier → Exporter → PDF, SVG ou CSV : octets produits par
     /// `plannercraft_automation`, remis au `FileService` (boîte « Enregistrer
@@ -603,6 +606,9 @@ pub enum DialogKind {
     /// Aperçu de l'import CSV (J8, lot L10, H-UI-40), ouvert à l'arrivée
     /// du fichier choisi.
     CsvImport,
+    /// Aperçu de l'import PDF (lot P1b, H-UI-205), ouvert à l'arrivée du
+    /// fichier choisi.
+    PdfImport,
     /// Galerie des modèles de mise en forme (J8, lot L15, H-UI-52).
     Gallery,
     /// « Mise en page » ; `print_mode` : ouverte en mode impression

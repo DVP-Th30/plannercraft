@@ -3982,6 +3982,7 @@ dependencies = [
  "plannercraft-automation",
  "plannercraft-core",
  "plannercraft-mspdi",
+ "plannercraft-pdfimport",
  "plannercraft-render",
  "plannercraft-tests",
  "pollster 1.0.1",

@@ -30,7 +30,10 @@ use std::time::Instant;
 
 use plannercraft_automation::text::Language;
 use plannercraft_core::Moment;
-use plannercraft_pdfimport::{ConvertOptions, ImportOptions, ImportedPlan, convert, import};
+use plannercraft_pdfimport::{
+    ConvertOptions, Converted, DeduceLimits, Deduction, ImportOptions, ImportedPlan, NonWorkingDays,
+    calendar, convert, deduce, import,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -66,6 +69,7 @@ fn measure(label: &str, bytes: &[u8]) -> Result<Measure, String> {
         now: "2026-11-13T08:00".parse::<Moment>().unwrap(),
         lang: Language::Fr,
         pin_read_starts: pin,
+        non_working: Vec::new(),
     };
     let strict = convert(&plan, &options(false)).map_err(|e| e.to_string())?;
     let ms = t0.elapsed().as_millis();
@@ -170,4 +174,130 @@ fn pdf_corpus() {
         );
     }
     assert!(failures.is_empty(), "{failures:#?}");
+}
+
+/// Conversion avec les jours chômés `non_working`.
+fn convert_with(plan: &ImportedPlan, non_working: Vec<NonWorkingDays>) -> Converted {
+    convert(
+        plan,
+        &ConvertOptions {
+            name: "corpus".to_owned(),
+            now: "2026-11-13T08:00".parse::<Moment>().unwrap(),
+            lang: Language::Fr,
+            pin_read_starts: false,
+            non_working,
+        },
+    )
+    .unwrap()
+}
+
+/// Périodes en clair, sans jour précis : mois du début (et de la fin s'il
+/// diffère) et jours ouvrés.
+fn periods_text(d: &Deduction) -> String {
+    const MONTHS: [&str; 12] = [
+        "janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+    ];
+    use chrono::Datelike as _;
+    let month = |day: plannercraft_core::Day| MONTHS[day.to_naive().month0() as usize];
+    d.periods
+        .iter()
+        .map(|p| {
+            let (from, to) = p.placement(p.default_option).unwrap();
+            let (a, b) = (month(from), month(to));
+            let m = if a == b { a.to_owned() } else { format!("{a}-{b}") };
+            let kind = if p.exact() { "" } else { " à placer" };
+            format!("{m} {} j{kind} ({} t.)", p.working_days, p.explained)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Ligne de mesure du calendrier (lot P1b) : dates égales dans quatre cas.
+fn calendar_row(label: &str, bytes: &[u8]) -> Result<String, String> {
+    let plan: ImportedPlan = import(bytes, &ImportOptions::default()).map_err(|e| e.code().to_owned())?;
+    let limits = DeduceLimits::default();
+    let standard = convert_with(&plan, Vec::new());
+    let holidays = calendar::french_holidays(&plan, Language::Fr);
+    let with_holidays = convert_with(&plan, holidays.clone());
+    let t0 = Instant::now();
+    let alone = deduce(&plan, standard.session.project(), &limits);
+    let both = deduce(&plan, with_holidays.session.project(), &limits);
+    let us = t0.elapsed().as_micros() / 2;
+    let periods_alone = convert_with(
+        &plan,
+        calendar::periods(&calendar::default_placements(&alone.periods), "Congés"),
+    );
+    let mut all = holidays;
+    all.extend(calendar::periods(
+        &calendar::default_placements(&both.periods),
+        "Congés",
+    ));
+    let periods_both = convert_with(&plan, all);
+    let pct = |c: &Converted| format!("{}/{}", c.dates_equal, c.dates_compared);
+    // Réglage par défaut de la fenêtre : fériés cochés si l'en-tête est
+    // français ; périodes proposées sur ce calendrier-là.
+    let french = calendar::suggests_french_holidays(&plan);
+    let shown = if french { &both } else { &alone };
+    Ok(format!(
+        "| {label} | {} | {} | {} | {} ({}) | {} ({}) | {} | {}/{}/{} | {}/{}/{}/{} | {us} |",
+        if french { "fr" } else { "en" },
+        pct(&standard),
+        pct(&with_holidays),
+        pct(&periods_alone),
+        alone.periods.len(),
+        pct(&periods_both),
+        both.periods.len(),
+        periods_text(shown),
+        shown.usable,
+        shown.proven,
+        shown.equations,
+        shown.explained,
+        shown.impossible,
+        shown.ambiguous,
+        shown.partial_days + shown.contradicted,
+    ))
+}
+
+const CALENDAR_HEADER: &str = "| Fichier | Langue | Standard | Fériés | Périodes seules (n) | Fériés + périodes (n) | Périodes proposées (réglage par défaut) | Exploitables/preuves/équations | Expliquées/impossibles/ambiguës/écartées | µs déduction |\n|---|---|---|---|---|---|---|---|---|---|\n";
+
+/// Mesure du calendrier (lot P1b, R-274 à R-277) : dates égales au jour
+/// avec le calendrier Standard, les fériés français, les périodes déduites
+/// seules, les deux. Sortie seulement (`--nocapture`), aucun plancher.
+#[test]
+fn pdf_corpus_calendar() {
+    let dir = repo().join("tests").join("corpus-pdf");
+    let manifest: Manifest =
+        toml::from_str(&std::fs::read_to_string(dir.join("manifest.toml")).unwrap()).unwrap();
+    let mut report = String::from("## Calendrier, corpus public\n\n");
+    report.push_str(CALENDAR_HEADER);
+    for e in manifest.file.iter().filter(|e| e.expect == "import") {
+        let Ok(bytes) = std::fs::read(dir.join("files").join(&e.name)) else {
+            continue;
+        };
+        if let Ok(row) = calendar_row(e.name.trim_end_matches(".pdf"), &bytes) {
+            let _ = writeln!(report, "{row}");
+        }
+    }
+    if let Ok(samples) = std::env::var("PLANNERCRAFT_PDF_SAMPLES") {
+        report.push_str("\n## Calendrier, plannings du propriétaire\n\n");
+        report.push_str(CALENDAR_HEADER);
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(&samples)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("pdf")))
+            .collect();
+        paths.sort();
+        for (k, p) in paths.iter().enumerate() {
+            let label = format!("R{}", k + 1);
+            match calendar_row(&label, &std::fs::read(p).unwrap()) {
+                Ok(row) => {
+                    let _ = writeln!(report, "{row}");
+                }
+                Err(code) => {
+                    let _ = writeln!(report, "| {label} | refus {code} |");
+                }
+            }
+        }
+    }
+    println!("{report}");
 }

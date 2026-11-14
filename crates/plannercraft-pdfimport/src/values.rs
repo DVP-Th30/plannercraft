@@ -33,8 +33,15 @@ fn base_unit(u: &str) -> Option<&'static str> {
 /// suffixe « éc » / « é » (« moiséc », « jé »), puis préfixe « e »
 /// (« edays », « emo »). Les mots « écoulé(e)(s) » / « elapsed » qui
 /// suivent l'unité marquent aussi l'écoulé (traités par l'appelant).
-fn unit_of(folded: &str) -> Option<(&'static str, bool)> {
+///
+/// « m » seul : mois dans un document français (« 3 m » lu sur un planning
+/// du propriétaire couvre 60 jours ouvrés ; le français note les minutes
+/// « mn » ou « min »), minutes ailleurs (« m » de MS Project en anglais).
+fn unit_of(folded: &str, lang: Language) -> Option<(&'static str, bool)> {
     let u = folded.trim_end_matches('.');
+    if lang == Language::Fr && u == "m" {
+        return Some(("mo", false));
+    }
     if let Some(b) = base_unit(u) {
         return Some((b, false));
     }
@@ -53,7 +60,7 @@ fn unit_of(folded: &str) -> Option<(&'static str, bool)> {
 /// Durée ou décalage ramené à l'écriture canonique de R-140 : nombre tel
 /// quel, unité canonique, « e » devant si écoulé, « ? » final si estimé.
 /// `signed` : un signe `+`/`-` est admis en tête (décalage).
-fn canonical_amount(text: &str, signed: bool) -> Option<String> {
+fn canonical_amount(text: &str, signed: bool, lang: Language) -> Option<String> {
     let folded = fold(text);
     let mut rest = folded.as_str().trim();
     let mut out = String::new();
@@ -89,7 +96,7 @@ fn canonical_amount(text: &str, signed: bool) -> Option<String> {
     let mut words = unit_text.split_whitespace();
     let unit = match words.next() {
         None => None,
-        Some(u) => Some(unit_of(u)?),
+        Some(u) => Some(unit_of(u, lang)?),
     };
     let mut elapsed = unit.is_some_and(|(_, e)| e);
     for extra in words {
@@ -136,7 +143,7 @@ fn other(ctx: &TextContext) -> TextContext {
 /// du contexte (jours).
 #[must_use]
 pub fn duration(text: &str, ctx: &TextContext) -> Option<Duration> {
-    let canonical = canonical_amount(text, false)?;
+    let canonical = canonical_amount(text, false, ctx.language)?;
     parse_duration(&canonical, ctx)
         .or_else(|_| parse_duration(&canonical, &other(ctx)))
         .ok()
@@ -145,7 +152,7 @@ pub fn duration(text: &str, ctx: &TextContext) -> Option<Duration> {
 /// Lit un décalage (« +2 jours », « -1 sem », « +50% »).
 #[must_use]
 pub fn lag(text: &str, ctx: &TextContext) -> Option<Lag> {
-    let canonical = canonical_amount(text, true)?;
+    let canonical = canonical_amount(text, true, ctx.language)?;
     parse_lag(&canonical, ctx)
         .or_else(|_| parse_lag(&canonical, &other(ctx)))
         .ok()
@@ -542,6 +549,11 @@ mod tests {
         assert_eq!(minutes("1,5 j", fr), Some((720, Day, Working, false)));
         assert_eq!(minutes("8 h", fr), Some((480, Hour, Working, false)));
         assert_eq!(minutes("30 min", fr), Some((30, Minute, Working, false)));
+        // « m » seul : mois en français (planning du propriétaire, lot P1b),
+        // minutes en anglais.
+        assert_eq!(minutes("3 m", fr), Some((3 * 9600, Month, Working, false)));
+        assert_eq!(minutes("3 m", en), Some((3, Minute, Working, false)));
+        assert_eq!(minutes("30 mn", fr), Some((30, Minute, Working, false)));
         assert_eq!(minutes("157 days", en), Some((157 * 480, Day, Working, false)));
         assert_eq!(minutes("1 day?", en), Some((480, Day, Working, true)));
         assert_eq!(minutes("1.5 wks", en), Some((3600, Week, Working, false)));

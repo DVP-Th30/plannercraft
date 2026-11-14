@@ -263,6 +263,16 @@ enum Pending {
     InstallCsv(Box<(LoadedDocument, DocOrigin, (String, usize))>),
 }
 
+/// Import auquel vont les octets d'un fichier choisi
+/// ([`FileService::pick_bytes`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PickPurpose {
+    /// Fichier → Importer CSV… (H-UI-40).
+    Csv,
+    /// Fichier → Importer un PDF… (lot P1b, H-UI-205).
+    Pdf,
+}
+
 /// Enregistrement en cours.
 #[derive(Debug)]
 struct SaveJob {
@@ -479,6 +489,9 @@ pub struct App {
     pub(crate) pick_tx: Sender<PickedFile>,
     /// Récepteur des fichiers choisis pour l'import CSV.
     pub(crate) pick_rx: Receiver<PickedFile>,
+    /// Import auquel vont les octets du prochain fichier choisi (CSV ou
+    /// PDF, lot P1b).
+    pub(crate) pick_purpose: PickPurpose,
 }
 
 impl App {
@@ -548,6 +561,7 @@ impl App {
             menu_paste_at: None,
             pick_tx,
             pick_rx,
+            pick_purpose: PickPurpose::Csv,
         }
     }
 
@@ -1008,6 +1022,17 @@ impl App {
         ctx: &egui::Context,
     ) {
         self.request(Pending::InstallCsv(Box::new((loaded, origin, remarks))), ctx);
+    }
+
+    /// Planning importé d'un PDF (lot P1b, H-UI-210) : installé après le
+    /// bandeau de confirmation si le document courant est modifié.
+    pub(crate) fn request_install_pdf(
+        &mut self,
+        loaded: LoadedDocument,
+        origin: DocOrigin,
+        ctx: &egui::Context,
+    ) {
+        self.request(Pending::Install(Box::new((loaded, origin))), ctx);
     }
 
     /// Réponse au bandeau de confirmation.
@@ -2394,6 +2419,7 @@ impl App {
             // J8, lot L10 : presse-papiers et import CSV.
             Action::Clipboard(op) => self.clipboard_op(op, ctx),
             Action::ImportCsv => self.start_csv_import(ctx),
+            Action::ImportPdf => self.start_pdf_import(ctx),
             Action::Export(kind) => self.start_export(kind, ctx),
             // J8, lot L12 : volet latéral.
             Action::SidePanel(op) => self.side_op(op),
@@ -2428,6 +2454,7 @@ impl App {
             }
             // L'aperçu s'ouvre à l'arrivée des octets du fichier choisi.
             Action::ShowDialog(DialogKind::CsvImport) => self.start_csv_import(ctx),
+            Action::ShowDialog(DialogKind::PdfImport) => self.start_pdf_import(ctx),
             // --- Ruban et chronologie (ADR-0017, contrat L0) : bras posés
             // une fois ; les fonctions appelées sont servies par leur lot.
             Action::Ribbon(op) => {
@@ -3005,6 +3032,11 @@ impl App {
                 strip_keys(ctx);
                 return;
             }
+            Some(DialogBody::PdfImport(_)) => {
+                self.show_pdf_import(ctx);
+                strip_keys(ctx);
+                return;
+            }
             _ => {}
         }
         if self.view.dialog.as_ref().is_some_and(|d| d.body.is_window()) {
@@ -3025,6 +3057,7 @@ impl App {
                 | DialogBody::Assign(_)
                 | DialogBody::PasteSpecial(_)
                 | DialogBody::CsvImport(_)
+                | DialogBody::PdfImport(_)
                 | DialogBody::Gallery(_)
                 | DialogBody::PageSetup(_)
                 | DialogBody::CustomFields(_)

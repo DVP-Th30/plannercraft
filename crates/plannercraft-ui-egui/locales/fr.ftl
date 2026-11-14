@@ -1910,3 +1910,130 @@ autosave-stopped = Sauvegarde automatique interrompue dans ce navigateur : { $d
 autosave-gap = une modification n'avait pas pu être sauvegardée
 web-file-denied = le navigateur n'a pas permis d'écrire dans « { $name } ». Le planning reste modifié ; « Enregistrer sous » choisit un autre fichier.
 web-file-missing = « { $name } » est introuvable (déplacé ou supprimé) ; « Enregistrer sous » choisit un autre fichier.
+
+## Lot P1b (ADR-0033) : import d'un planning PDF, calendrier (H-UI-205 à H-UI-212).
+menu-import-pdf = Importer un PDF…
+pdf-pick-title = Importer un planning PDF
+pdf-pick-filter = Fichiers PDF
+pdf-title = Importer un planning PDF
+pdf-local = Le fichier est lu sur cet appareil : rien n'est envoyé.
+pdf-web-risk = Version web : { $size } Mio et { $max } pages au plus. Un PDF abîmé peut arrêter le lecteur et la page : rechargez-la alors (la sauvegarde automatique du navigateur garde le planning ouvert, si elle est active).
+pdf-reading = Lecture du PDF en cours…
+pdf-computing = Calcul en cours…
+pdf-summary-tasks =
+    { $count ->
+        [one] { $count } tâche lue
+       *[other] { $count } tâches lues
+    }
+pdf-summary-levels =
+    { $count ->
+        [one] { $count } niveau
+       *[other] { $count } niveaux
+    }
+pdf-summary-links =
+    { $count ->
+        [one] { $count } lien
+       *[other] { $count } liens
+    }
+pdf-columns = Colonnes reconnues : { $names }
+pdf-warnings =
+    { $count ->
+        [one] { $count } avertissement :
+       *[other] { $count } avertissements :
+    }
+pdf-warning-task = N° { $id } : { $detail }
+pdf-warning-value = { $detail } (« { $value } »)
+pdf-warn-more =
+    { $count ->
+        [one] … et { $count } autre
+       *[other] … et { $count } autres
+    }
+pdf-warn-id-gap = N° absents du tableau (récapitulatives repliées ou filtre à l'impression)
+pdf-warn-id-conflict = N° en double avec un contenu différent : première ligne gardée
+pdf-warn-blank-row = ligne vide ignorée
+pdf-warn-name-truncated = nom coupé à l'impression (« … ») : à compléter
+pdf-warn-duration-unreadable = durée illisible : durée par défaut
+pdf-warn-duration-missing = durée absente : durée par défaut
+pdf-warn-date-unreadable = date illisible
+pdf-warn-date-order-assumed = ordre jour/mois déduit de la langue de l'en-tête (aucune date ne le tranche)
+pdf-warn-date-order-conflict = dates incompatibles entre elles : certaines sont ignorées
+pdf-warn-finish-before-start = fin lue avant le début lu
+pdf-warn-predecessor-unreadable = prédécesseur illisible, ignoré
+pdf-warn-predecessor-external = prédécesseur d'un autre projet, ignoré
+pdf-warn-predecessor-unknown = prédécesseur absent du tableau, ignoré
+pdf-warn-predecessor-self = tâche prédécesseur d'elle-même, ignoré
+pdf-warn-level-jump = retrait de plus d'un niveau : ramené au niveau suivant
+pdf-warn-stray-lines = lignes de texte du tableau rattachées à aucune tâche
+pdf-warn-truncated = bornes de lecture atteintes : contenu partiel
+pdf-warn-pages-skipped = pages au-delà de la borne non lues
+pdf-warn-link-refused = lien refusé par le moteur (boucle), ignoré
+pdf-warn-constraint-refused = contrainte refusée par le moteur
+pdf-warn-flattened = hiérarchie non lisible : toutes les tâches au niveau 1
+pdf-refused = PDF non importé : { $detail }
+pdf-convert-failed = Planning lu, mais le moteur n'a pas pu le construire : { $detail }
+pdf-hint-encrypted = Enregistrez depuis votre lecteur PDF une copie sans protection, puis importez-la.
+pdf-hint-scanned = Demandez à l'auteur le PDF exporté depuis son logiciel de planning (impression vers PDF), ou ressaisissez le planning.
+pdf-hint-no-table = L'import lit les vues Gantt imprimées depuis MS Project ou un logiciel semblable : un tableau avec « Nom de la tâche » et des dates.
+pdf-hint-no-dates = Réimprimez le planning avec les colonnes Début et Fin, puis importez-le.
+pdf-hint-hierarchy = Cochez « Importer sans hiérarchie » : toutes les tâches au niveau 1, à remettre en retrait ensuite.
+pdf-hint-damaged = Le fichier est peut-être abîmé : ouvrez-le dans un lecteur PDF, réimprimez-le en PDF, puis importez la copie.
+pdf-hint-too-large = Imprimez seulement les pages du planning dans un PDF plus petit, puis importez-le.
+pdf-date-order = Ordre des dates
+pdf-order-day-month = Jour/mois (31/12)
+pdf-order-month-day = Mois/jour (12/31)
+pdf-order-assumed = Aucune date ne tranche entre jour/mois et mois/jour : vérifiez quelques dates, ou imposez l'ordre.
+pdf-flatten = Importer sans hiérarchie (toutes les tâches au niveau 1)
+pdf-pin-starts = Contraindre les tâches liées à leur début lu
+pdf-pin-starts-hint = Pose « Début au plus tôt le » sur les tâches liées que le calcul placerait avant leur début lu (décalage ou contrainte non imprimés dans le PDF).
+pdf-calendar = Calendrier
+pdf-calendar-hint = Le PDF n'imprime pas son calendrier : des jours chômés inconnus font finir des tâches plus tôt que dans le PDF.
+pdf-holidays = Jours fériés français
+pdf-holidays-hint = Les 11 fêtes légales de métropole, de { $from } à { $to } ; ni Alsace-Moselle, ni outre-mer.
+pdf-holidays-scope = Les 11 fêtes légales de métropole ; ni Alsace-Moselle, ni outre-mer.
+pdf-periods = Périodes chômées déduites des écarts (à cocher) :
+pdf-periods-none = Aucune période proposée : les écarts restants ne s'expliquent pas clairement par des jours chômés.
+pdf-period-line =
+    Du { $from } au { $to } : { $count ->
+        [one] { $count } jour ouvré
+       *[other] { $count } jours ouvrés
+    }, { $n ->
+        [one] explique { $n } tâche
+       *[other] explique { $n } tâches
+    }
+pdf-period-place =
+    À placer : le PDF dit seulement { $count ->
+        [one] { $count } jour chômé
+       *[other] { $count } jours chômés
+    } entre le { $from } et le { $to }.
+pdf-period-earlier = Placer plus tôt
+pdf-period-later = Placer plus tard
+pdf-period-name = Congés (déduits de l'import PDF)
+pdf-unexplained =
+    { $count ->
+        [one] { $count } tâche garde un écart qu'aucun jour chômé n'explique (demi-journée, décalage) : laissé tel quel.
+       *[other] { $count } tâches gardent un écart qu'aucun jour chômé n'explique (demi-journées, décalages) : laissés tels quels.
+    }
+pdf-same = Dates identiques au PDF : { $n } sur { $count }
+pdf-only-gaps = Écarts seulement
+pdf-col-id = N°
+pdf-col-name = Nom
+pdf-col-duration = Durée
+pdf-col-start-read = Début lu
+pdf-col-finish-read = Fin lue
+pdf-col-finish-computed = Fin calculée
+pdf-col-gap = Écart
+pdf-gap-start = début { $value } j
+pdf-gap-finish = fin { $value } j
+pdf-no-rows = Aucune tâche avec un écart.
+error-pdfimport-too_large = PDF trop volumineux (64 Mio au plus ; 16 Mio dans la version web)
+error-pdfimport-encrypted = PDF protégé par un mot de passe ou des droits : non lisible
+error-pdfimport-invalid = fichier PDF illisible
+error-pdfimport-reader_failure = le lecteur PDF a échoué sur ce fichier
+error-pdfimport-no_text = aucun texte lisible dans ce PDF (dessin ou polices sans texte)
+error-pdfimport-scanned = PDF numérisé (image) : l'import lit seulement les PDF exportés depuis un logiciel de planning
+error-pdfimport-no_table = aucun tableau de planning reconnu (en-tête « Nom de la tâche » avec « Durée », « Début » ou « Fin »)
+error-pdfimport-no_dates = le tableau ne contient pas de dates de début ou de fin
+error-pdfimport-flat_hierarchy = liste sans retrait avec des titres en gras : la hiérarchie ne peut pas être lue sûrement
+error-pdfimport-inconsistent_hierarchy = les retraits des noms ne correspondent pas aux dates des récapitulatives : la hiérarchie ne peut pas être lue sûrement
+error-pdfimport-no_tasks = tableau reconnu, mais aucune tâche lue
+error-pdfimport-too_many_tasks = plus de tâches que la borne de l'import (20 000)

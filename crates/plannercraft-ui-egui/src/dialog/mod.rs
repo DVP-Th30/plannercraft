@@ -44,6 +44,7 @@ pub mod gallery;
 pub mod link;
 pub mod page_setup;
 pub mod paste;
+pub mod pdf_import;
 pub mod project_info;
 pub mod reschedule;
 pub mod shift;
@@ -118,6 +119,8 @@ pub enum DialogBody {
     PasteSpecial(Box<paste::PasteSpecialState>),
     /// Aperçu de l'import CSV (J8, lot L10, H-UI-40).
     CsvImport(Box<csv_import::CsvImportState>),
+    /// Aperçu de l'import PDF (lot P1b, H-UI-205).
+    PdfImport(Box<pdf_import::PdfImportState>),
     /// Galerie des modèles (J8, lot L15, H-UI-52).
     Gallery(Box<gallery::GalleryState>),
     /// « Mise en page » et mode impression (J8, lot L15, H-UI-68).
@@ -162,6 +165,7 @@ impl DialogBody {
             | Self::Assign(_)
             | Self::PasteSpecial(_)
             | Self::CsvImport(_)
+            | Self::PdfImport(_)
             | Self::Gallery(_)
             | Self::PageSetup(_) => None,
         }
@@ -260,6 +264,7 @@ impl App {
             | DialogKind::Link { .. }
             | DialogKind::PasteSpecial
             | DialogKind::CsvImport
+            | DialogKind::PdfImport
             | DialogKind::Gallery
             | DialogKind::PageSetup { .. } => return,
         };
@@ -471,6 +476,7 @@ impl App {
             | DialogBody::Assign(_)
             | DialogBody::PasteSpecial(_)
             | DialogBody::CsvImport(_)
+            | DialogBody::PdfImport(_)
             | DialogBody::Gallery(_)
             | DialogBody::PageSetup(_) => {}
         }
@@ -545,6 +551,7 @@ impl App {
             | DialogBody::Assign(_)
             | DialogBody::PasteSpecial(_)
             | DialogBody::CsvImport(_)
+            | DialogBody::PdfImport(_)
             | DialogBody::Gallery(_)
             | DialogBody::PageSetup(_) => {
                 return;
@@ -597,6 +604,7 @@ impl App {
                     | DialogBody::Assign(_)
                     | DialogBody::PasteSpecial(_)
                     | DialogBody::CsvImport(_)
+                    | DialogBody::PdfImport(_)
                     | DialogBody::Gallery(_)
                     | DialogBody::PageSetup(_) => {}
                 }

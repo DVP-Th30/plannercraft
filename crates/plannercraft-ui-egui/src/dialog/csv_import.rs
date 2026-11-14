@@ -173,8 +173,9 @@ pub fn modal_id() -> egui::Id {
     egui::Id::unique("plannercraft.csv-import")
 }
 
-/// Liste déroulante nommée `label` sur `choices`.
-fn combo<T: Copy + PartialEq>(
+/// Liste déroulante nommée `label` sur `choices` (aussi pour l'import
+/// PDF).
+pub(crate) fn combo<T: Copy + PartialEq>(
     ui: &mut egui::Ui,
     texts: &Texts,
     salt: &str,
@@ -402,6 +403,7 @@ impl App {
             filter: self.texts.get(TextId::CiPickFilter),
             extensions: vec!["csv".to_owned(), "txt".to_owned()],
         };
+        self.pick_purpose = crate::app::PickPurpose::Csv;
         let tx = self.pick_tx.clone();
         self.env.files.pick_bytes(ctx, request, tx);
     }
@@ -413,7 +415,12 @@ impl App {
             match event {
                 PickedFile::Cancelled => {}
                 PickedFile::Picked { name, result } => match result {
-                    Ok(bytes) => self.open_csv_import(name, bytes),
+                    // Le dernier sélecteur ouvert dit à quel import vont
+                    // les octets (CSV, ou PDF du lot P1b).
+                    Ok(bytes) => match self.pick_purpose {
+                        crate::app::PickPurpose::Csv => self.open_csv_import(name, bytes),
+                        crate::app::PickPurpose::Pdf => self.open_pdf_import(name, bytes),
+                    },
                     Err(error) => {
                         let text = match error {
                             PickError::Read(detail) => self.texts.get_args(
@@ -423,7 +430,12 @@ impl App {
                                     ("detail", Arg::Str(detail.into())),
                                 ],
                             ),
-                            PickError::TooLarge => self.texts.get(error_text_id(CsvError::TooLarge.code())),
+                            PickError::TooLarge => self.texts.get(match self.pick_purpose {
+                                crate::app::PickPurpose::Csv => error_text_id(CsvError::TooLarge.code()),
+                                crate::app::PickPurpose::Pdf => {
+                                    error_text_id(plannercraft_pdfimport::ImportError::TooLarge.code())
+                                }
+                            }),
                         };
                         self.push_titled(Severity::Error, Some(TextId::OpenErrorTitle), text);
                     }

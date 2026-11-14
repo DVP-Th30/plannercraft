@@ -1,6 +1,6 @@
 # Import d'un planning PDF (lots P1a à P3)
 
-Décision : ADR-0032. Règles de calcul : R-270 à R-273 (`docs/scheduling-rules.md`). Code : `crates/plannercraft-pdfimport`, CLI `plannercraft import-pdf`.
+Décisions : ADR-0032 (P1a), ADR-0033 (P1b). Règles de calcul : R-270 à R-277 (`docs/scheduling-rules.md`). Code : `crates/plannercraft-pdfimport`, CLI `plannercraft import-pdf`, fenêtre Fichier → Importer un PDF… (`crates/plannercraft-ui-egui/src/dialog/pdf_import.rs`, `docs/features/ui.md` § 1.53). Guide : `docs/user/pdf-import.md`.
 
 ## 1. Besoin
 
@@ -11,7 +11,7 @@ Un maître d'œuvre ou un OPC joint au dossier de consultation un planning Gantt
 | Lot | Contenu | État |
 |---|---|---|
 | **P1a** | Moteur d'import et sa mesure, sans interface : lecture du PDF, tableau, valeurs, refus typés, projet construit par les commandes du moteur, rapport, CLI, corpus public | livré (ce document) |
-| **P1b** | Interface : Fichier → Importer un PDF…, aperçu du tableau lu (lignes douteuses en évidence, avertissements), choix (ordre jour/mois, aplatir, `--pin-starts`), confirmation, ouverture comme document neuf | à faire |
+| **P1b** | Interface : Fichier → Importer un PDF…, aperçu du tableau lu, avertissements, réglages (ordre jour/mois, sans hiérarchie, tâches liées), calendrier (jours fériés français, périodes chômées déduites des écarts), ouverture comme document neuf | livré (§ 10) |
 | **P2** | Copie du style : couleurs des barres, format de page, colonnes lues dans le PDF → modèle personnel | à faire (données déjà extraites, § 6) |
 | **P3** | Aide par LLM pour les cas refusés en P1a (scan via OCR, fausse hiérarchie, tableau sans dates) : le LLM propose une structure, **jamais une date** (règle 3) ; validation par l'utilisateur | à faire |
 
@@ -23,7 +23,7 @@ Entrée : des octets (aucun système de fichiers ; compile en `wasm32-unknown-un
 2. **Mots et lignes** (`extract.rs`, `lines.rs`) : glyphes regroupés en mots (même ligne de base, écart < 0,25 corps dans un même appel de dessin, < 0,03 corps entre deux appels : deux cellules voisines se touchent parfois), lignes par ligne de base (un N° en petit corps et un nom en grand corps restent ensemble).
 3. **En-tête et colonnes** (`header.rs`) : première bande (1 ou 2 lignes) du haut de page qui porte un « Nom de la tâche » / « Task Name » et une durée ou une date (dictionnaire FR/EN replié). Bornes : traits verticaux du quadrillage qui partent de l'en-tête ; sinon le plus large vide de la projection horizontale des mots entre deux intitulés. Colonnes non reconnues entre deux traits gardées comme « autre ». Bas du tableau : fin du quadrillage.
 4. **Lignes de tâches** (`table.rs`) : une tâche commence à une ligne qui porte un N° (sinon un nom et une durée ou une date) ; les lignes suivantes proches (≤ 1,7 corps) complètent les cellules (noms repliés, prédécesseurs collés sans espace) ; légende « Projet : … » ou « Date : … » : fin du tableau de la page ; mots coupés aux traits de colonne au glyphe près. Retrait du nom mesuré depuis le bord de sa colonne ; symboles de plan (triangles) écartés.
-5. **Valeurs** (`values.rs`) : écriture ramenée à la forme canonique puis lue par les analyseurs de `plannercraft-automation` (R-140, R-142) : « 5j », « 22 jours », « 3 jrs », « 2 sm », « 1 sem. », « 14,2 moiséc », « 5 edays », « 3 jours écoulés », « 1 jour? », « 157 days », « 1.5 wks », « 2 mons » ; prédécesseurs « 3FD+6 jours;5 », « 13,26FS-11 days », « 12FD+50% » ; dates « Ven 03/04/15 », « Mon 1/21/19 », « lun. 21/01/2019 08:00 », « 1/21/19 5:00 PM », « 21 janv. 2019 », « 21-Jan-19 », « Jan 21 '19 », « 05.04.17 », ISO ; « NA », « tba » : pas de date.
+5. **Valeurs** (`values.rs`) : écriture ramenée à la forme canonique puis lue par les analyseurs de `plannercraft-automation` (R-140, R-142) : « 5j », « 22 jours », « 3 jrs », « 2 sm », « 1 sem. », « 14,2 moiséc », « 5 edays », « 3 jours écoulés », « 1 jour? », « 157 days », « 1.5 wks », « 2 mons », « 3 m » (mois dans un document français depuis P1b, minutes en anglais) ; prédécesseurs « 3FD+6 jours;5 », « 13,26FS-11 days », « 12FD+50% » ; dates « Ven 03/04/15 », « Mon 1/21/19 », « lun. 21/01/2019 08:00 », « 1/21/19 5:00 PM », « 21 janv. 2019 », « 21-Jan-19 », « Jan 21 '19 », « 05.04.17 », ISO ; « NA », « tba » : pas de date.
 6. **Planning lu** (`plan.rs`) : dédoublonnage par N° (tableau répété, rappel « (suite) » / « (continued) ») ; tri par N° ; lignes vides et N° 0 écartés ; cellules débordantes ramenées à leur valeur typée (texte en trop rendu au nom) ; niveaux : colonne WBS si ≥ 80 % de numéros hiérarchiques, sinon rang du retrait (à 2,5 pt près) ; récapitulative = suivante plus profonde ; ordre jour/mois sur tout le document (R-273) ; confiance par ligne (0 à 100, douteuse sous 70) ; avertissements à code stable (`pdfimport.*`, messages FR/EN).
 7. **Conversion** (`convert.rs`) : `Session::new_project` au plus petit début lu (R-270) ; un lot `task.add` (hiérarchie par `last_child_of`, durée lue sur les feuilles, jalon si durée nulle) ; un lot `link.add` (un par un s'il est refusé) ; contraintes SNET (R-271) ; nouvelle session sans historique ; comparaison au jour (R-272).
 8. **Rapport** (`report.rs`) : texte lisible et vue JSON stable (tâches, avertissements, colonnes, couleurs, conversion).
@@ -128,7 +128,7 @@ Temps : 125 ms au plus par fichier en release (PSU thesis, 4 pages, 186 tâches)
 
 ## 8. Limites connues
 
-- Calendrier, jours fériés, heures de début et de fin, contraintes autres que la date de début, nivellement : invisibles dans le PDF ; seulement révélés par les écarts.
+- Calendrier, jours fériés, heures de début et de fin, contraintes autres que la date de début, nivellement : invisibles dans le PDF ; seulement révélés par les écarts. Depuis P1b : fériés français proposés et périodes chômées déduites des écarts, à valider (§ 10).
 - Liens absents du tableau (plannings du propriétaire) : non relevés dans le graphique (§ 6).
 - Tableaux sans quadrillage : un nom qui touche la durée peut lui céder un chiffre (7 lignes sur 733 dans deux fichiers).
 - Glyphe à moitié coupé par la cellule : écarté (une date tronquée sur 776 lignes du propriétaire).
@@ -139,6 +139,89 @@ Temps : 125 ms au plus par fichier en release (PSU thesis, 4 pages, 186 tâches)
 
 ## 9. Recommandations
 
-- **P1b** : aperçu tableau (N° lu, niveau, nom, durée, début lu, fin lue, confiance) avec filtres « douteuses » et « écarts » ; réglages exposés : ordre jour/mois, aplatir, `--pin-starts` (par défaut à trancher, ADR-0032 D5) ; ouverture via `document::load_project(converted.session.project())` comme l'import CSV ; rapport dans le panneau des diagnostics. Avant P1b, proposer un « calendrier déduit » : jours chômés qui expliquent tous les écarts de fin (calcul du moteur, déterministe), à faire valider.
+- **P1b** (livré, § 10 ; ce qui suit est la recommandation d'origine) : aperçu tableau (N° lu, niveau, nom, durée, début lu, fin lue, confiance) avec filtres « douteuses » et « écarts » ; réglages exposés : ordre jour/mois, aplatir, `--pin-starts` (par défaut à trancher, ADR-0032 D5) ; ouverture via `document::load_project(converted.session.project())` comme l'import CSV ; rapport dans le panneau des diagnostics. Avant P1b, proposer un « calendrier déduit » : jours chômés qui expliquent tous les écarts de fin (calcul du moteur, déterministe), à faire valider.
 - **P2** : `SourceInfo` donne format, colonnes et couleurs ; associer chaque couleur à un rôle de barre (récapitulative = barre la plus haute alignée sur une ligne récapitulative, jalon = forme non rectangulaire) avant d'écrire un modèle.
 - **Liens dessinés** : lot dédié (géométrie des flèches, § 6), avant P3.
+
+## 10. Lot P1b : interface et calendrier (2026-11-14)
+
+### 10.1 Fenêtre d'import
+
+Fichier → Importer un PDF… (aussi dans la palette de commandes, aussi sans document ouvert) : sélecteur limité aux `.pdf`, octets lus localement (rien n'est envoyé, sur le web non plus), puis fenêtre d'aperçu (H-UI-205 à H-UI-212, `docs/features/ui.md` § 1.53) :
+
+- **résumé** : tâches lues, niveaux, liens, colonnes reconnues (intitulés lus), avertissements du moteur traduits (six au plus, puis « … et n autres ») ;
+- **réglages** montrés quand ils servent : ordre jour/mois (si aucune date ne le tranche), « importer sans hiérarchie » (après un refus pour hiérarchie plate ou incohérente, au lieu d'un refus sec), contrainte des tâches liées (`pin_starts`, si le PDF a des liens, décochée, avec une phrase qui dit ce qu'elle fait) ;
+- **calendrier** : case « Jours fériés français » (cochée si l'en-tête est français), périodes chômées déduites des écarts (décochées), compteur « Dates identiques au PDF : n sur m » ;
+- **tableau** des tâches lues, virtualisé : N°, nom en retrait par niveau, durée lue, début lu, fin lue, fin calculée, écart (en couleur), filtre « Écarts seulement » ;
+- **Importer** ouvre le projet comme un nouveau document non enregistré nommé d'après le fichier (confirmation si le document courant est modifié) ; **Annuler** (ou Échap) ne touche à rien ; un PDF refusé affiche le motif et, quand c'est utile, quoi faire.
+
+Calcul (lecture, conversion, déduction) dans un fil dédié sur le bureau, un seul à la fois ; sur le web, à l'image qui suit « Lecture du PDF en cours… ». Web : 16 Mio et 50 pages au plus (64 Mio et 500 pages sur le bureau) ; une panique du lecteur n'y est pas interceptable : la page s'arrête, la fenêtre le dit (ADR-0033 D3).
+
+### 10.2 Jours fériés français (R-274, R-275)
+
+Les onze fêtes légales de métropole (article L3133-1 du Code du travail), Pâques calculé en entiers (`plannercraft_core::calendar::holidays`), pour chaque année couverte par les dates lues et la suivante, posées comme exceptions « chômé » du calendrier du projet (`calendar.set_exception`) avant les tâches. Ni Alsace-Moselle (Vendredi saint, 26 décembre) ni outre-mer.
+
+### 10.3 Calendrier déduit des écarts (R-276, R-277)
+
+Algorithme retenu (entier, déterministe ; la piste du cahier, complétée sur les faits) :
+
+1. sur le calendrier `C` (Standard plus fériés cochés), chaque feuille à durée entière en jours, dates lues aux heures par défaut, donne `W` = jours ouvrés de `C` dans `[début lu, fin lue]` et `d` jours de durée : `W = d` prouve ces jours travaillés, `W > d` dit que `W − d` d'entre eux ont été chômés, `W < d` (ou une date lue un jour chômé de `C`) contredit `C` ;
+2. jours candidats : ouvrés, couverts par une équation, par aucune preuve ; une équation qui a moins de candidats que de jours à retirer est impossible (demi-journée, décalage) et n'est pas forcée ;
+3. les candidats forment des suites de jours ouvrés consécutifs ; dans chaque suite, toutes les périodes continues de 20 jours ouvrés au plus sont évaluées : aucune équation dépassée, le plus d'équations locales satisfaites exactement, majorité stricte des équations locales de la suite ;
+4. la plus courte des meilleures périodes, unique et contenue dans toutes les autres, est **déterminée** ; sinon les plus courtes sont des **placements** équivalents (« à placer » : le PDF dit combien de jours et dans quelle fenêtre, pas lesquels), proposés à partir de 2 jours ouvrés, placement par défaut par la plus longue fermeture avec les week-ends et fériés voisins, puis le plus de fériés, puis le milieu de la fenêtre ; l'utilisateur le déplace (◀ ▶) ;
+5. ensemble, les périodes ne dépassent aucune équation ; une période qui n'explique rien, ou d'un seul jour qui explique moins de deux tâches, n'est pas proposée.
+
+Bornes : 20 jours ouvrés par période, 7 400 jours d'étendue (plus deux semaines de marge de chaque côté), 20 000 000 d'évaluations (période × équation) ; au-delà, déduction partielle signalée (`bounded`). Temps mesuré (release, déduction seule) : 0,1 à 0,4 ms par planning du propriétaire, 2,1 ms au plus sur le corpus public.
+
+Constat qui a changé la piste : une période d'été est presque toujours enjambée par **une seule** tâche longue, sans tâche prouvée dans la fenêtre ; la mesure dit alors « 10 ou 15 jours chômés entre tel et tel jour », jamais lesquels. Sans les placements « à placer », aucune période n'était proposée sur cinq des six plannings du propriétaire.
+
+### 10.4 Mesure
+
+Dates calculées égales aux dates lues, au jour (débuts et fins, R-272), sans `--pin-starts`, placements par défaut des périodes, mesure du 2026-11-14 (`cargo test --release -p plannercraft-pdfimport --test corpus pdf_corpus_calendar -- --nocapture`, `PLANNERCRAFT_PDF_SAMPLES` pour les plannings du propriétaire). Quatre cas : calendrier Standard (P1a, après le correctif « 3 m » = 3 mois qui fait gagner 4 dates à R5), fériés seuls, périodes déduites seules (sur le Standard), fériés puis périodes déduites sur ce calendrier. « Périodes proposées » : réglage par défaut de la fenêtre (fériés cochés si l'en-tête est français), mois du placement par défaut, jours ouvrés, tâches expliquées.
+
+| Planning | Standard | Fériés | Périodes seules (n) | Fériés + périodes (n) | Périodes proposées (réglage par défaut) |
+|---|---|---|---|---|---|
+| R1 | 281/335 | 308/335 | 296/335 (6) | 322/335 (4) | déc. 4 j à placer (2 t.), août 10 j à placer (1 t.), déc. 5 j à placer (2 t.), août 10 j à placer (1 t.) |
+| R2 | 132/182 | 156/182 | 138/182 (2) | 165/182 (3) | déc. 4 j à placer (2 t.), août 10 j à placer (3 t.), août 10 j à placer (1 t.) |
+| R3 | 382/438 | 405/438 | 400/438 (1) | 425/438 (1) | déc. 4 j à placer (18 t.) |
+| R4 | 174/256 | 189/256 | 185/256 (3) | 204/256 (4) | mars 2 j (5 t.), avr. 2 j à placer (2 t.), juin 2 j (2 t.), juin 3 j (3 t.) |
+| R5 | 93/124 | 106/124 | 98/124 (3) | 112/124 (2) | août 15 j à placer (1 t.), déc. 4 j à placer (5 t.) |
+| R6 | 191/216 | 201/216 | 196/216 (5) | 213/216 (2) | août 15 j à placer (7 t.), déc. 5 j à placer (6 t.) |
+| **Total** | **1 253/1 551 (80,8 %)** | **1 365 (88,0 %)** | **1 313 (84,7 %)** | **1 441 (92,9 %)** | |
+
+Plausibilité (déduit, sans fichier source pour le vérifier) : fin d'année, 4 à 5 jours ouvrés placés du 27 ou 28 au 31 décembre (les 25 décembre et 1er janvier étant des fériés) ; été, 2 ou 3 semaines autour du 15 août ; R4 propose des jours isolés (mars, juin) et compte 51 équations pour 30 preuves : son calendrier d'origine n'est sans doute pas le Standard plus des congés (jours d'intempéries, autre semaine type), rien n'est proposé en masse. Restent 110 dates différentes : demi-journées ou décalages (19 équations impossibles), deuxième congé d'une même suite, tâches liées.
+
+Corpus public (22 PDF importés) :
+
+| Fichier | Langue | Standard | Fériés | Périodes seules (n) | Fériés + périodes (n) | Périodes proposées (réglage par défaut) |
+|---|---|---|---|---|---|---|
+| en-addison-tx-wo1 | en | 9/16 | 9/16 | 9/16 (0) | 9/16 (0) | |
+| en-buffalo-sewer-nfa | en | 624/634 | 421/634 | 624/634 (0) | 421/634 (0) | |
+| en-coquille-kahp | en | 158/158 | 6/158 | 158/158 (0) | 6/158 (0) | |
+| en-crissair-phased | en | 51/60 | 32/60 | 51/60 (0) | 32/60 (0) | |
+| en-csuohio-lab | en | 55/62 | 45/62 | 55/62 (0) | 45/62 (0) | |
+| en-geneva-oh-atb | en | 52/254 | 53/254 | 52/254 (4) | 53/254 (6) | juin 8 j (2 t.), avr. 2 j (2 t.), juil. 2 j (3 t.), sept. 2 j (2 t.) |
+| en-icann-program-tool | en | 613/640 | 292/640 | 613/640 (0) | 292/640 (0) | |
+| en-lsbrd-clubhouse | en | 45/60 | 18/60 | 45/60 (1) | 18/60 (1) | sept. 5 j à placer (1 t.) |
+| en-psu-thesis-schedule | en | 367/372 | 301/372 | 367/372 (0) | 301/372 (0) | |
+| en-salem-nh-schedule | en | 224/246 | 216/246 | 224/246 (0) | 216/246 (0) | |
+| en-wellesley-hardy-sd | en | 69/366 | 18/366 | 69/366 (0) | 18/366 (0) | |
+| en-wellesley-hardy-upham | en | 27/236 | 4/236 | 27/236 (0) | 4/236 (0) | |
+| en-westminster-wharncliffe-ac103 | en | 489/544 | 438/544 | 514/544 (5) | 439/544 (1) | janv. 7 j à placer (1 t.), avr. 2 j à placer (1 t.), juin 2 j à placer (12 t.), déc. 6 j à placer (4 t.), mai 3 j à placer (4 t.) |
+| en-westminster-wharncliffe-exit | en | 140/210 | 141/210 | 150/210 (3) | 141/210 (1) | mars 1 j (3 t.), avr. 1 j (9 t.), déc. 10 j (5 t.) |
+| fr-cern-bat311 | fr | 11/150 | 87/150 | 11/150 (1) | 87/150 (0) | |
+| fr-dreal-paca-amenagement | fr | 167/174 | 149/174 | 172/174 (3) | 153/174 (2) | nov. 5 j à placer (1 t.), oct. 2 j à placer (1 t.) |
+| fr-itu-council-schedule | fr | 119/154 | 120/154 | 116/154 (2) | 122/154 (5) | juil. 8 j à placer (1 t.), oct. 2 j (2 t.), juil. 9 j à placer (2 t.), sept. 2 j à placer (1 t.), déc. 4 j (2 t.) |
+| fr-mios-ecole-ramonet | fr | 20/26 | 19/26 | 21/26 (1) | 20/26 (1) | janv.-févr. 5 j à placer (1 t.) |
+| fr-villequiers-mairie | fr | 84/86 | 80/86 | 85/86 (1) | 81/86 (1) | déc. 8 j à placer (1 t.) |
+| mixed-en-coopercity-memo-schedule | en | 27/34 | 17/34 | 27/34 (0) | 17/34 (0) | |
+| mixed-en-tdhca-pebble-hills-rotated | en | 96/96 | 59/96 | 96/96 (0) | 59/96 (0) | |
+| mixed-en-warrington-wwl | en | 748/866 | 44/866 | 748/866 (0) | 44/866 (0) | |
+
+Totaux : en-tête français (5 fichiers, fériés proposés cochés), 401 → 455 → 405 → 463 sur 590 (68,0 → 77,1 → 68,6 → 78,5 %) ; en-tête anglais (17 fichiers, fériés proposés décochés), Standard 3 794 et périodes seules 3 829 sur 4 854 (78,2 → 78,9 %) ; les fériés français y sont faux (43,6 %), d'où la case décochée. Le CERN gagne 76 dates avec les fériés ; trois PDF français publics en perdent (planificateurs qui ne chômaient pas les fériés) : le compteur le montre, la case se décoche. Sur le planning anglais AC103, sans liste de fériés, la déduction retrouve Pâques 2022 et deux jours dans la semaine du jubilé de juin (placés un jour trop tard par défaut, ADR-0033 D6). Les deux corpus tirent dans le même sens pour les périodes ; pour les fériés, priorité aux fichiers du propriétaire (cochés d'office si l'en-tête est français).
+
+Taille du web (ADR-0033 D3) : `.wasm` gzip -9 +1,00 Mo (mesure locale avant `wasm-opt`), budget C-REL-05 de 4 Mio dépassé. **Arbitré le 2026-11-14** : mesure réelle sur le paquet web de la CI, 13 035 433 octets, 5 332 421 gzip -9 ; l'import PDF reste dans la version web (c'est l'entrée publique voulue par le propriétaire) et le budget passe à 6 Mio.
+
+### 10.5 Limites
+
+Voir ADR-0033 (limites). Pas d'Alsace-Moselle ni d'outre-mer ; une période par suite de jours candidats ; feuilles à durée entière en jours seulement ; aucune vérification dans un navigateur réel ni contre MS Project ; la liste des fériés ne sert pas encore à un planning neuf (aucune entrée d'interface hors de l'import).

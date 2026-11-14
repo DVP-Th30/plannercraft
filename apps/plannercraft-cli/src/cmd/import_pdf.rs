@@ -110,6 +110,7 @@ fn import_pdf(ctx: &Ctx, args: &ImportPdfArgs) -> Run {
             now: ctx.now,
             lang: ctx.lang,
             pin_read_starts: args.pin_starts,
+            non_working: Vec::new(),
         },
     )
     .map_err(|e| {

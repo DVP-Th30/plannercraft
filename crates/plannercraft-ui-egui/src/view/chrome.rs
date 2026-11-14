@@ -339,6 +339,8 @@ fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     // Fichier → Importer CSV… (H-UI-40) : sans document aussi (le résultat
     // est un nouveau document).
     menu_cmd(ui, fc, MenuCmd::ImportCsv);
+    // Lot P1b : Fichier → Importer un PDF… (H-UI-205), sans document aussi.
+    menu_cmd(ui, fc, MenuCmd::ImportPdf);
     // --- J8 L13 ---
     // Fichier → Exporter (PDF, SVG, CSV) : téléchargement sur le web,
     // boîte « Enregistrer sous » sur le desktop.
@@ -1192,6 +1194,8 @@ pub(crate) enum MenuCmd {
     SaveAs,
     /// Fichier → Importer CSV…
     ImportCsv,
+    /// Fichier → Importer un PDF… (lot P1b).
+    ImportPdf,
     /// Fichier → Exporter → SVG.
     ExportSvg,
     /// Fichier → Exporter → CSV.
@@ -1208,12 +1212,13 @@ pub(crate) enum MenuCmd {
 
 impl MenuCmd {
     /// Toutes les entrées, dans l'ordre des menus.
-    pub(crate) const ALL: [Self; 11] = [
+    pub(crate) const ALL: [Self; 12] = [
         Self::New,
         Self::OpenDemo,
         Self::Open,
         Self::SaveAs,
         Self::ImportCsv,
+        Self::ImportPdf,
         Self::ExportSvg,
         Self::ExportCsv,
         Self::Close,
@@ -1264,6 +1269,7 @@ impl MenuCmd {
                 Action::SaveAs,
             ),
             Self::ImportCsv => (TextId::MenuImportCsv, Enabled::YES, None, Action::ImportCsv),
+            Self::ImportPdf => (TextId::MenuImportPdf, Enabled::YES, None, Action::ImportPdf),
             Self::ExportSvg => (TextId::MenuExportSvg, doc, None, Action::Export(SaveKind::Svg)),
             Self::ExportCsv => (TextId::MenuExportCsv, doc, None, Action::Export(SaveKind::Csv)),
             Self::Close => (
