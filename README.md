@@ -19,6 +19,7 @@ Pré-alpha : rien d'utilisable. Le dépôt ne contient encore que le socle techn
 - [`docs/scorecard.md`](docs/scorecard.md) — parité mesurée avec MS Project
 - [`docs/user/ms-project-export.md`](docs/user/ms-project-export.md) — échanger avec MS Project (XML et CSV) / exchanging with MS Project
 - [`docs/user/assistant.md`](docs/user/assistant.md) — assistant IA : se connecter, ce qui est envoyé / AI assistant: signing in, what is sent
+- [`docs/user/pdf-import.md`](docs/user/pdf-import.md) — importer un planning reçu en PDF / importing a PDF schedule
 
 Nom choisi le 2026-11-03 (anciennement `planrs`, nom provisoire) : `docs/rename.md`.
 
