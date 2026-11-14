@@ -10,17 +10,23 @@
 //!   aucun prédécesseur n'est en avance) ;
 //! - à comparer : après calcul, chaque date calculée qui diffère au jour
 //!   de la date lue est listée avec l'écart (R-272).
+//!
+//! Lot P1b : des jours chômés choisis par l'utilisateur (jours fériés
+//! français, R-274 ; périodes déduites des écarts, R-276) sont posés comme
+//! exceptions du calendrier du projet (`calendar.set_exception`) avant les
+//! tâches (R-275).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use plannercraft_automation::command::{
-    ConstraintKindJson, DurationJson, LagJson, LinkSpec, LinkTypeJson, SetConstraint, TaskAdd,
+    CalendarException, CalendarRef, ConstraintKindJson, DurationJson, LagJson, LinkSpec, LinkTypeJson,
+    SetConstraint, TaskAdd,
 };
 use plannercraft_automation::text::{Language, TextContext};
 use plannercraft_automation::{
     AnchorSpec, ApplyMode, Batch, Command, DocOrigin, NewProject, Placement, Session, SessionLimits, TaskRef,
 };
-use plannercraft_core::{LinkType, Moment, TaskUid};
+use plannercraft_core::{Day, LinkType, Moment, TaskUid};
 use serde::Serialize;
 
 use crate::plan::{ImportedPlan, ImportedTask, Warning, WarningCode};
@@ -87,6 +93,20 @@ impl std::error::Error for ConvertError {}
 /// Passes de contraintes au plus (`pin_read_starts`).
 const MAX_CONSTRAINT_PASSES: usize = 50;
 
+/// Jours chômés à poser dans le calendrier du projet (R-275).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NonWorkingDays {
+    /// Premier jour.
+    pub from: Day,
+    /// Dernier jour (inclus).
+    pub to: Day,
+    /// Nom de l'exception (« Noël », « Congés déduits de l'import »…).
+    pub name: String,
+}
+
+/// Jours chômés posés au plus par une conversion (borne, règle 10).
+pub const MAX_NON_WORKING_DAYS: usize = 20_000;
+
 /// Options de la conversion.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConvertOptions {
@@ -101,6 +121,9 @@ pub struct ConvertOptions {
     /// leur début lu (contrainte invisible dans le PDF, décalage non
     /// imprimé) ; sinon seulement sur les feuilles sans prédécesseur.
     pub pin_read_starts: bool,
+    /// Jours chômés posés comme exceptions du calendrier du projet avant
+    /// les tâches (R-275) ; un jour cité deux fois garde le premier nom.
+    pub non_working: Vec<NonWorkingDays>,
 }
 
 /// Étiquette de lot de la tâche de rang `k`.
@@ -153,16 +176,24 @@ pub fn convert(plan: &ImportedPlan, options: &ConvertOptions) -> Result<Converte
     .map_err(|e| ConvertError::Refused(e.code.to_owned()))?;
     // Un lot porte toutes les tâches (les étiquettes `$tN` ne valent que
     // dans leur lot) : borne des opérations relevée à la borne de l'import.
+    let exceptions = exception_ops(&options.non_working);
     session.set_limits(SessionLimits {
         max_ops_per_batch: plan
             .tasks
             .len()
+            .max(exceptions.len())
             .saturating_add(1)
             .max(SessionLimits::default().max_ops_per_batch),
         ..SessionLimits::default()
     });
     let ctx = TextContext::for_project(session.project(), lang);
     let mut warnings = Vec::new();
+
+    // 0. R-275 : jours chômés du calendrier du projet, avant les tâches
+    // (les contraintes de R-271 dépendent du calendrier).
+    if !exceptions.is_empty() {
+        apply(&mut session, exceptions, lang).map_err(ConvertError::Refused)?;
+    }
 
     // 1. Tâches, hiérarchie et durées.
     let mut ops = Vec::with_capacity(plan.tasks.len());
@@ -352,6 +383,45 @@ pub fn convert(plan: &ImportedPlan, options: &ConvertOptions) -> Result<Converte
         dates_equal: equal,
         gaps,
     })
+}
+
+/// R-275 : une commande `calendar.set_exception` (jours chômés, calendrier
+/// du projet) par suite de jours consécutifs de même nom ; un jour cité deux
+/// fois garde le premier nom (les exceptions ne se chevauchent jamais,
+/// sinon le moteur refuserait le lot) ; [`MAX_NON_WORKING_DAYS`] jours au
+/// plus.
+#[must_use]
+pub fn exception_ops(periods: &[NonWorkingDays]) -> Vec<Command> {
+    let mut days: BTreeMap<Day, &str> = BTreeMap::new();
+    'periods: for p in periods {
+        let mut d = p.from;
+        while d <= p.to {
+            if days.len() >= MAX_NON_WORKING_DAYS {
+                break 'periods;
+            }
+            days.entry(d).or_insert(p.name.as_str());
+            let Ok(next) = d.checked_add_days(1) else { break };
+            d = next;
+        }
+    }
+    let mut runs: Vec<(Day, Day, &str)> = Vec::new();
+    for (d, name) in days {
+        match runs.last_mut() {
+            Some((_, to, n)) if *n == name && to.checked_add_days(1).ok() == Some(d) => *to = d,
+            _ => runs.push((d, d, name)),
+        }
+    }
+    runs.into_iter()
+        .map(|(from, to, name)| {
+            Command::CalendarSetException(CalendarException {
+                cal: CalendarRef::Project,
+                from,
+                to,
+                ranges: Vec::new(),
+                name: Some(name.to_owned()),
+            })
+        })
+        .collect()
 }
 
 /// `task.add` d'une tâche lue : nom, placement, durée lue (feuille

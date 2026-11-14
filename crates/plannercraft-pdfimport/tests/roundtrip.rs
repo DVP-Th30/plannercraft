@@ -114,6 +114,7 @@ fn plannercraft_export_reimports_with_same_engine_dates() {
             now: moment("2026-03-01T08:00"),
             lang: Language::Fr,
             pin_read_starts: false,
+            non_working: Vec::new(),
         },
     )
     .unwrap();
@@ -203,6 +204,7 @@ fn long_english_export_spans_pages_and_is_deterministic() {
             now: moment("2026-01-01T08:00"),
             lang: Language::En,
             pin_read_starts: false,
+            non_working: Vec::new(),
         },
     )
     .unwrap();

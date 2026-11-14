@@ -12,12 +12,15 @@
 //!   (R-020 à R-029) et [`CalendarSet`] ;
 //! - `combine` : intersection et union de calendriers compilés
 //!   ([`CompiledCalendar::intersect`], [`CompiledCalendar::union`], R-172) ;
+//! - [`holidays`] : jours fériés légaux français (R-274), liste
+//!   réutilisable ;
 //! - [`scale`] : échelle de temps ([`TimeScale`]) et placement d'une durée
 //!   ou d'un jalon (R-030, R-031), seul point d'entrée du CPM.
 
 pub mod builtin;
 mod combine;
 pub mod compiled;
+pub mod holidays;
 pub mod model;
 pub mod recurrence;
 pub mod resolve;

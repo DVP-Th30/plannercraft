@@ -22,11 +22,17 @@
 //!    **calculées** par le moteur et comparées aux dates lues (règle 3) ;
 //! 8. [`report`] : rapport lisible et JSON.
 //!
+//! Lot P1b : [`calendar`] (jours fériés français, R-274) et [`deduce`]
+//! (périodes chômées déduites des écarts, R-276, R-277), posés comme
+//! exceptions du calendrier du projet par [`convert`] (R-275).
+//!
 //! Aucune entrée/sortie : des octets en entrée. Compile en
 //! `wasm32-unknown-unknown`.
 #![forbid(unsafe_code)]
 
+pub mod calendar;
 pub mod convert;
+pub mod deduce;
 pub mod extract;
 pub mod header;
 pub mod lines;
@@ -35,7 +41,8 @@ pub mod report;
 pub mod table;
 pub mod values;
 
-pub use convert::{ConvertError, ConvertOptions, Converted, DateGap, convert};
+pub use convert::{ConvertError, ConvertOptions, Converted, DateGap, NonWorkingDays, convert};
+pub use deduce::{DeduceLimits, Deduction, ProposedPeriod, deduce};
 pub use plan::{ImportedPlan, ImportedTask, Warning, WarningCode};
 pub use values::NumericOrder;
 
@@ -317,6 +324,7 @@ mod dev_dump {
                             now,
                             lang,
                             pin_read_starts: std::env::var("PDFIMPORT_PIN").is_ok(),
+                            non_working: Vec::new(),
                         },
                     );
                     println!("##### {name} ({:?})", t0.elapsed());
