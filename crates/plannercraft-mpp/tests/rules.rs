@@ -6,6 +6,7 @@
     clippy::panic,
     clippy::indexing_slicing,
     clippy::arithmetic_side_effects,
+    clippy::many_single_char_names,
     reason = "tests : un échec doit paniquer"
 )]
 

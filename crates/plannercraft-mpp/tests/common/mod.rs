@@ -7,6 +7,11 @@
     clippy::indexing_slicing,
     clippy::arithmetic_side_effects,
     clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::similar_names,
+    clippy::struct_excessive_bools,
+    clippy::needless_pass_by_value,
+    clippy::too_many_lines,
     dead_code,
     reason = "outils de test"
 )]
@@ -315,7 +320,7 @@ pub fn week(days: [Vec<u8>; 7], exceptions: &[Vec<u8>]) -> Vec<u8> {
     b.extend_from_slice(&(exceptions.len() as u32).to_le_bytes());
     for e in exceptions {
         b.extend_from_slice(e);
-        while b.len() % 4 != 0 {
+        while !b.len().is_multiple_of(4) {
             b.push(0);
         }
     }

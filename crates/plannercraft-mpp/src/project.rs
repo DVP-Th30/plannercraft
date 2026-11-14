@@ -129,6 +129,46 @@ fn apply_props(project: &mut Project, props: &BTreeMap<u32, Vec<u8>>, sink: &mut
     }
 }
 
+/// Calendriers de base au projet ; calendrier du projet par son nom
+/// (`0x0240000E`), sinon le premier (R-287, R-288). Sans calendrier lu, les
+/// calendriers d'un projet neuf restent.
+fn install_calendars(
+    project: &mut Project,
+    base: Vec<Calendar>,
+    props: &BTreeMap<u32, Vec<u8>>,
+    sink: &mut Sink,
+) {
+    let calendar_name = props
+        .get(&project_prop::CALENDAR_NAME)
+        .map(|b| utf16_z(b, 255))
+        .unwrap_or_default();
+    if base.is_empty() {
+        sink.push(MppCode::ProjectCalendarFallback, None, Some(calendar_name));
+    } else {
+        let project_calendar = base
+            .iter()
+            .find(|c| c.name == calendar_name)
+            .or_else(|| {
+                sink.push(
+                    MppCode::ProjectCalendarFallback,
+                    None,
+                    Some(calendar_name.clone()),
+                );
+                base.first()
+            })
+            .map(Calendar::uid);
+        let mut arena = Arena::new();
+        for c in base {
+            // UID uniques (filtrés à la lecture) : l'ajout ne peut pas échouer.
+            let _ = arena.push(c);
+        }
+        project.calendars = arena;
+        if let Some(uid) = project_calendar {
+            project.calendar = uid;
+        }
+    }
+}
+
 /// Assemble le projet.
 ///
 /// # Errors
@@ -177,36 +217,7 @@ pub fn build(
     let cal_items = tables::fixed_items(&cal.fixed_meta, &cal.fixed_data, records);
     let cal_var = tables::var_values(&cal.var_meta, &cal.var_data, records);
     let calendars = calendar::read(&cal_items, &cal_var, found.layout, sink);
-    let calendar_name = props
-        .get(&project_prop::CALENDAR_NAME)
-        .map(|b| utf16_z(b, 255))
-        .unwrap_or_default();
-    if calendars.base.is_empty() {
-        sink.push(MppCode::ProjectCalendarFallback, None, Some(calendar_name));
-    } else {
-        let project_calendar = calendars
-            .base
-            .iter()
-            .find(|c| c.name == calendar_name)
-            .or_else(|| {
-                sink.push(
-                    MppCode::ProjectCalendarFallback,
-                    None,
-                    Some(calendar_name.clone()),
-                );
-                calendars.base.first()
-            })
-            .map(Calendar::uid);
-        let mut arena = Arena::new();
-        for c in calendars.base {
-            // UID uniques (filtrés à la lecture) : l'ajout ne peut pas échouer.
-            let _ = arena.push(c);
-        }
-        project.calendars = arena;
-        if let Some(uid) = project_calendar {
-            project.calendar = uid;
-        }
-    }
+    install_calendars(&mut project, calendars.base, &props, sink);
     let known_calendars: BTreeSet<u32> = project.calendars.iter().map(|c| c.uid().get()).collect();
 
     // Tâches et liens.

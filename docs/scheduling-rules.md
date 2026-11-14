@@ -113,6 +113,8 @@ Sources citées : pages Microsoft uniquement ; « Q » = Microsoft Q&A, communau
 | S93 | support.microsoft.com, « Split a view in Project desktop » | Relue le 2026-10-28 (lot L0) : « Split a view to see two different types of project information—two views—on your screen at the same time. » ; étapes : onglet View, groupe Split View, case Details, vue du bas choisie ; la sélection de la vue du haut remplit la vue du bas ; « To get rid of the split at any time, double-click the double line between the top and bottom views. » ; « The top view is almost always the active view, which controls what shows up in the other view. » ; **ne cite pas** le Formulaire tâche ni ses formes (Ressources et prédécesseurs…) : H-UI-112 en `hypothèse` sur le contenu du volet ; double-clic sur le séparateur : MS Project **retire** le volet, PlannerCraft rend la hauteur par défaut (écart, H-UI-111) |
 | S94 | support.microsoft.com, « Create a custom field in Project » | Relue le 2026-10-28 (lot L0) : Project desktop : « Right-click the field name, and choose Custom Fields. » ; « Choose Rename to permanently rename the field in this project. » ; « Select the type of field you are customizing from the Type list. » ; « If you want the custom field to be populated using a formula, choose Formula. » ; la page ne liste pas les types du desktop (Texte, Nombre, Date, Indicateur : S90, S91) (H-UI-118, R-263) |
 | S95 | support.microsoft.com, « Keyboard shortcuts in Excel » (onglet macOS et Windows ; aucune page Office pour Mac propre à Project) | Relue le 2026-10-28 (lot L0) : « Quit Excel. » Cmd+Q ; « Close window. » Cmd+W ou Ctrl+W ; « Hide Excel. » Cmd+H ; « Print workbook. » Cmd+P ou Ctrl+P ; « Close a workbook. » Ctrl+W (Windows), Ctrl+F4 ferme la fenêtre du classeur ; « Fill cells right. » Cmd+R ou Ctrl+R (section macOS seulement) ; **Cmd+M (réduire) absent** de la page : `hypothèse` (convention de macOS) (H-UI-108, H-UI-109, H-UI-120) |
+| S96 | learn.microsoft.com, « [MS-CFB]: Compound File Binary File Format » (spécification ouverte de Microsoft) | Lot M1 (2026-11-14) ; page de l'en-tête (« Compound File Header ») relue en ligne : « MUST be set to the value 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 », version 3 ⇒ secteurs de 512 octets, version 4 ⇒ 4 096, « Mini Sector Shift … MUST be set to 0x0006 », seuil du mini flux 4 096 octets, « DIFAT … first 109 FAT sector locations ». Structure appliquée : en-tête (signature `D0 CF 11 E0 A1 B1 1A E1`, version 3 ou 4, secteurs de 512 ou 4 096 octets, ordre `FFFE`), DIFAT, FAT (`ENDOFCHAIN` = `FFFFFFFE`, `MAXREGSECT` = `FFFFFFFA`), répertoire (entrées de 128 octets, arbre rouge-noir des frères, `NOSTREAM` = `FFFFFFFF`), mini FAT et mini flux sous le seuil de 4 096 octets ; secteur n à l'octet (n + 1) × taille. Conteneur des `.mpp` (R-281, `crates/plannercraft-mpp/src/cfb.rs`) |
+| S97 | Microsoft, « Rich Text Format (RTF) Specification » (version 1.9.1, publiée par Microsoft) | Lot M1 (2026-11-14) ; non relue en ligne pour ce lot : structure générale appliquée, vérifiée seulement par la mesure (notes égales au corrigé sur 2 223 tâches sur 2 224) : groupes `{}`, mots de contrôle et paramètre, destinations `\fonttbl`, `\colortbl`, `\stylesheet`, `\info`, `{\*…}` ignorables, `\par`, `\line`, `\tab`, `\'hh`, `\uN` suivi de `\ucN` caractères de repli. Notes des tâches d'un `.mpp` (R-289, `crates/plannercraft-mpp/src/rtf.rs`) |
 | Q1 | Microsoft Q&A (communautaire), « Quick switch from mons to emons » | emo = 30 jours calendaires |
 | Q2 | Microsoft Q&A (communautaire), « Microsoft Project task duration days not displaying » | Changer les heures par jour réinterprète l'affichage, pas les heures stockées |
 | Q3 | Microsoft Q&A (communautaire), « Project 2016 milestone tasks ignore non-working time » | Une durée nulle ne consomme pas de temps ouvré |
@@ -1990,3 +1992,84 @@ Quand le PDF n'a pas de colonne Prédécesseurs, les liens se relisent dans les 
 - **Source** : hypothèse (un recouvrement dessiné est un chevauchement voulu par l'auteur, qu'un décalage négatif garde en cas de retard du prédécesseur).
 - **Statut** : `hypothèse`.
 - **Tests** : `crates/plannercraft-pdfimport/tests/rules.rs` (`r280_overlap_becomes_a_negative_lag_on_the_driving_link`, `r280_link_into_a_summary_is_corrected_through_its_gate`, `r279_r280_delaying_the_predecessor_pushes_the_successor_once_slack_is_used`) ; mesure `crates/plannercraft-pdfimport/tests/corpus.rs` (`pdf_corpus_links_dates`).
+
+### Import .mpp (R-281 à R-291 ; ADR-0036, lot M1)
+
+Lecture des fichiers binaires de MS Project (`crates/plannercraft-mpp`). Le format n'a pas de spécification publique : chaque fait vient d'une observation consignée dans `docs/formats/mpp.md` (statut, fichier, décalage, octets, valeur du corrigé), mesurée contre un corrigé externe sur 164 fichiers MPP14 (`docs/plans/mpp-import.md`). Règle 3 : les dates calculées enregistrées par MS Project ne vont jamais dans le projet ; le moteur recalcule, puis les deux sont comparées. Ces règles décrivent la lecture ; leur statut `hypothèse` veut dire « non vérifié contre MS Project » (le corrigé est un autre lecteur).
+
+## R-281 — Import .mpp : conteneur et format
+- **Formulation** : le fichier est un fichier composé `[MS-CFB]` (S96), lu sans panique ni allocation au-delà de la taille du fichier : chaîne de secteurs bouclée, sortie du fichier, FAT ou DIFAT démesurées, flux plus court que sa taille annoncée ⇒ `mpp.corrupt`. Sans la signature ⇒ `mpp.not_compound`. Le format se lit au nom d'un dossier de la racine : `   114` ⇒ MPP14 (lu) ; `   112` ⇒ MPP12 (Project 2007), `   19` ou `   29` ⇒ MPP9 (2000 à 2003), `   1` ou `   2` ⇒ MPP8 (98) : refus `mpp.unsupported_version` qui nomme la version ; aucun ⇒ `mpp.not_project`. Taille au plus 256 Mio (`mpp.too_large`) ; CLI : code de sortie 4 pour tout refus.
+  - Exemple : un fichier enregistré au format Project 2007 ⇒ « format MPP12 (Project 2007) reconnu mais pas encore pris en charge ».
+- **Source** : S96 ; noms des dossiers : observés (`docs/formats/mpp.md` § 2).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r281_container_and_format_detection`) ; entrée hostile `crates/plannercraft-mpp/tests/robustness.rs`.
+
+## R-282 — Import .mpp : disposition selon la version d'enregistrement
+- **Formulation** : le premier numéro de version de la forme « NN,0,NNNN,NNNN » du flux `Props14` décide de la disposition des enregistrements : 14 ⇒ disposition Project 2010 ; 15 à 99 ⇒ disposition Project 2013 et suivants ; absent ⇒ refus `mpp.unknown_layout`. Les décalages de chaque disposition sont ceux de `docs/formats/mpp.md` § 7 à § 10.
+  - Exemple : « 16,0,10730,20102 » ⇒ UID de la tâche à l'octet 4 de son enregistrement, ID à l'octet 0.
+- **Source** : observé (`docs/formats/mpp.md` § 2).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r282_layout_follows_the_saving_version`).
+
+## R-283 — Import .mpp : horodatages
+- **Formulation** : un horodatage est un `u32` dont les 16 bits hauts sont le jour (1 = 1984-01-01) et les 16 bits bas l'heure en dixièmes de minute ; instant = (jour − 1) × 1 440 + dixièmes / 10 minutes, arrondi par R-001 ; `FFFFFFFF` = aucune date ; jour 0, heure au-delà de 24:00 ou instant hors du domaine du moteur ⇒ date ignorée (`mpp.date_invalid`).
+  - Exemple : `0x206C12C0` ⇒ jour 8 300, 4 800 dixièmes ⇒ 2006-09-21 08:00.
+- **Source** : observé (`docs/formats/mpp.md` § 6).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r283_timestamps`).
+
+## R-284 — Import .mpp : lignes, ordre, lignes vides, récapitulatives
+- **Formulation** : chaque élément de `TBkndTask/FixedMeta` désigne un enregistrement ; indicateur bit 1 ⇒ supprimé (ignoré) ; bit 2 ⇒ enregistrement court : UID ≥ `0xFFFF0000` ⇒ réservé (ignoré), sinon ligne vide (`is_null`) ; UID en double ⇒ le premier gagne (`mpp.duplicate_uid`). Les tâches sont rangées par ID enregistré (à égalité, ordre des enregistrements) ; l'UID 0 est la récapitulative du projet ; des ID non contigus sont renumérotés dans cet ordre (`mpp.id_renumbered`, information). Une tâche est récapitulative si la tâche non vide suivante est plus profonde (R-052) ; la durée d'une récapitulative automatique est une valeur calculée, mise à 0 dans le modèle.
+  - Exemple : enregistrements dans l'ordre UID 14 (ID 4), 13 (supprimé), 12 (court, ID 3), 11 (ID 2), 10 (ID 1) ⇒ tâches 10, 11, 12 (ligne vide), 14.
+- **Source** : observé (`docs/formats/mpp.md` § 4, § 11).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r284_rows_order_null_deleted_and_summaries`).
+
+## R-285 — Import .mpp : durées et formats
+- **Formulation** : durée = `i32` en dixièmes de minute, arrondi à la minute par R-001 ; format = codes MSPDI `DurationFormat` (unité, base ouvrée ou écoulée, estimée) ; format nul (21, 53) ⇒ unité par défaut du projet (propriété `0x02400015`), ouvrée ; code inconnu ou pourcentage ⇒ unité par défaut (`mpp.format_unknown`) ; durée hors bornes ⇒ 0 (`mpp.duration_invalid`).
+  - Exemple : 4 805 dixièmes, format 5 ⇒ 481 minutes affichées en heures ; 9 600, format 53 ⇒ 960 minutes, jours estimés.
+- **Source** : observé (`docs/formats/mpp.md` § 6) ; sens des codes : schéma MSPDI.
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r285_durations_and_formats`).
+
+## R-286 — Import .mpp : liens
+- **Formulation** : chaque enregistrement de `TBkndCons/FixedData` (20 octets) donne prédécesseur, successeur, type (codes MSPDI : 0 FF, 1 FD, 2 DF, 3 DD), décalage (`i32`, dixièmes de minute, R-001) et son format (codes MSPDI), posé sur le successeur dans l'ordre des enregistrements. Lien vers une tâche absente, supprimée ou vide, ou vers elle-même ⇒ ignoré (`mpp.link_ignored`) ; même paire en double ⇒ le premier gagne (`mpp.link_duplicate`) ; décalage en pourcentage ⇒ lien gardé, décalage nul (`mpp.lag_percent_unread`).
+  - Exemple : 2 → 3, type 3, 4 800 dixièmes, format 7 ⇒ DD + 1 j.
+- **Source** : observé (`docs/formats/mpp.md` § 9).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r286_links`).
+
+## R-287 — Import .mpp : calendriers
+- **Formulation** : seuls les calendriers de base sont repris (base lue nulle ou négative) ; les calendriers dérivés (de ressource) sont comptés, pas repris. Semaine : 7 jours de 60 octets, dimanche d'abord ; code 0 ⇒ plages lues (aucune ⇒ chômé ; au plus 5 ; plage invalide ou en chevauchement ⇒ ignorée, `mpp.calendar_range_invalid`) ; code 1 ⇒ jour du calendrier Standard ; calendrier sans semaine enregistrée ⇒ semaine Standard. Exceptions simples (période, jours chômés ou plages, nom) ⇒ exceptions « période » du calendrier ; une exception périodique ⇒ elle et les suivantes ne sont pas lues (`mpp.calendar_recurring_skipped`) ; exception invalide ou en chevauchement ⇒ ignorée (`mpp.calendar_exception_invalid`).
+  - Exemple : lundi « 08:00 + 4 h », mardi par défaut, « Noël » chômé le 25/12/2026 ⇒ lundi 08:00-12:00, mardi 08:00-12:00 et 13:00-17:00, exception « Noël ».
+- **Source** : observé (`docs/formats/mpp.md` § 10).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r287_calendars_week_exceptions_and_recurring`).
+
+## R-288 — Import .mpp : propriétés du projet
+- **Formulation** : début (`0x02400002`) et fin (`0x02400003`) du projet, titre (`0x02400008`), minutes par jour (`0x0240001D`), par semaine (`0x0240001E`), jours par mois (`0x0240138F`), heures de début et de fin par défaut (`0x0240001C`, `0x02400021`), unité de durée par défaut (`0x02400015`) ; planification à rebours depuis la fin seulement si `0x02400004` et `0x02400019` valent toutes deux 0 ; calendrier du projet = calendrier de base nommé par `0x0240000E`, sinon le premier (`mpp.project_calendar_fallback`) ; propriété absente ou hors bornes ⇒ défaut d'un projet neuf (`mpp.property_missing`).
+  - Exemple : début 2026-01-05 08:00, les deux clés à 1 ⇒ planifié depuis le début le 2026-01-05 08:00.
+- **Source** : observé (`docs/formats/mpp.md` § 5).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r288_project_properties`).
+
+## R-289 — Import .mpp : contraintes, échéance, notes, jalon, calendrier de tâche
+- **Formulation** : type de contrainte (codes MSPDI `ConstraintType`) et sa date ; type daté sans date ⇒ « Dès que possible » (`mpp.constraint_without_date`) ; échéance (horodatage, NA = aucune) ; notes RTF ramenées au texte (S97), 64 Kio au plus (`mpp.notes_truncated`) ; jalon = bit de l'élément de méta ; calendrier de tâche (−1 = aucun ; calendrier non repris ⇒ aucun, `mpp.task_calendar_unknown`) ; priorité, % achevé, type de tâche.
+  - Exemple : type 4, date 2026-01-12 08:00 ⇒ « Début au plus tôt le » 12/01/2026 08:00.
+- **Source** : observé (`docs/formats/mpp.md` § 3, § 7, § 8) ; S97.
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r289_constraints_deadline_notes_milestone`).
+
+## R-290 — Import .mpp : mode de planification et tâche active
+- **Formulation** : bit de l'élément de `Fixed2Meta` de même rang ⇒ tâche manuelle, avec les valeurs saisies de `Fixed2Data` (début à l'octet 50, fin à 54, durée à 58, dans l'unité de la durée de la tâche) ; sinon automatique, même si des dates saisies restent enregistrées. Autre bit ⇒ tâche active. `Fixed2Meta` absent ou d'un autre nombre d'éléments ⇒ tâches automatiques et actives, signalé une fois (`mpp.mode_not_read`).
+  - Exemple : tâche manuelle saisie du 07/01 08:00 au 09/01 17:00, 3 j ⇒ `Manual { début, fin, 1 440 min }`.
+- **Source** : observé (`docs/formats/mpp.md` § 8).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r290_manual_mode_and_active_flag`).
+
+## R-291 — Import .mpp : dates enregistrées et dates recalculées
+- **Formulation** : le début et la fin enregistrés de chaque tâche (calculés par MS Project) ne vont pas dans le projet (règle 3) ; après la lecture, le moteur calcule, et chaque tâche non vide planifiée est comparée **à la minute** (début et fin) ; le rapport donne les tâches comparées, identiques et différentes, les débuts et fins égaux, et les 200 premiers écarts (UID, ID, champ, date enregistrée, date calculée, écart signé en minutes). Rien n'est corrigé.
+  - Exemple : A puis B liées FD, B enregistrée le mercredi alors que le moteur la place le mardi ⇒ 2 tâches comparées, 1 identique, écart `start` −1 440 min.
+- **Source** : hypothèse.
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r291_saved_dates_compared_with_the_engine`) ; mesure `crates/plannercraft-mpp/tests/corpus.rs` (`mpp_corpus`).

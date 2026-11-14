@@ -123,6 +123,12 @@ fn measure_against_oracle() {
                 continue;
             }
         };
+        if let Ok(want) = std::env::var("MPP_MEASURE_LAYOUT")
+            && !want.is_empty()
+            && want != format!("{:?}", doc.source.layout)
+        {
+            continue;
+        }
         *read_ok.entry(doc.source.format.label()).or_default() += 1;
         let xml = oracle_dir.join(&rel).with_extension("xml");
         let Ok(xml) = std::fs::read(&xml) else {
@@ -150,6 +156,22 @@ fn measure_against_oracle() {
             0,
             &p.options.default_start_time,
             &op.options.default_start_time,
+        );
+        // Non repris : comptes annoncés par le rapport.
+        let ni = doc.source.not_imported;
+        tally.check(
+            "non repris : ressources",
+            file,
+            0,
+            &(ni.resources as usize),
+            &op.resources.len(),
+        );
+        tally.check(
+            "non repris : affectations",
+            file,
+            0,
+            &(ni.assignments as usize),
+            &op.assignments.len(),
         );
         // Tâches : ordre et nombre.
         let mine_uids: Vec<u32> = p.tasks.iter().map(|t| t.uid().get()).collect();
