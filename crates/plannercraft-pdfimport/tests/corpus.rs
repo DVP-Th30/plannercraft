@@ -234,31 +234,31 @@ fn calendar_row(label: &str, bytes: &[u8]) -> Result<String, String> {
     ));
     let periods_both = convert_with(&plan, all);
     let pct = |c: &Converted| format!("{}/{}", c.dates_equal, c.dates_compared);
+    // Réglage par défaut de la fenêtre : fériés cochés si l'en-tête est
+    // français ; périodes proposées sur ce calendrier-là.
+    let french = calendar::suggests_french_holidays(&plan);
+    let shown = if french { &both } else { &alone };
     Ok(format!(
         "| {label} | {} | {} | {} | {} ({}) | {} ({}) | {} | {}/{}/{} | {}/{}/{}/{} | {us} |",
-        if calendar::suggests_french_holidays(&plan) {
-            "fr"
-        } else {
-            "en"
-        },
+        if french { "fr" } else { "en" },
         pct(&standard),
         pct(&with_holidays),
         pct(&periods_alone),
         alone.periods.len(),
         pct(&periods_both),
         both.periods.len(),
-        periods_text(&both),
-        both.usable,
-        both.proven,
-        both.equations,
-        both.explained,
-        both.impossible,
-        both.ambiguous,
-        both.partial_days + both.contradicted,
+        periods_text(shown),
+        shown.usable,
+        shown.proven,
+        shown.equations,
+        shown.explained,
+        shown.impossible,
+        shown.ambiguous,
+        shown.partial_days + shown.contradicted,
     ))
 }
 
-const CALENDAR_HEADER: &str = "| Fichier | Langue | Standard | Fériés | Périodes seules (n) | Fériés + périodes (n) | Périodes (fériés cochés) | Exploitables/preuves/équations | Expliquées/impossibles/ambiguës/écartées | µs déduction |\n|---|---|---|---|---|---|---|---|---|---|\n";
+const CALENDAR_HEADER: &str = "| Fichier | Langue | Standard | Fériés | Périodes seules (n) | Fériés + périodes (n) | Périodes proposées (réglage par défaut) | Exploitables/preuves/équations | Expliquées/impossibles/ambiguës/écartées | µs déduction |\n|---|---|---|---|---|---|---|---|---|---|\n";
 
 /// Mesure du calendrier (lot P1b, R-274 à R-277) : dates égales au jour
 /// avec le calendrier Standard, les fériés français, les périodes déduites
