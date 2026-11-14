@@ -1132,7 +1132,7 @@ fw-today = Trait « aujourd'hui »
 fw-status-label = Étiquette de la date d'état
 fw-kind-count =
     { $count ->
-        [0] aucune dans ce planning
+        [0] pas dans ce planning
         [one] { $count } dans ce planning
        *[other] { $count } dans ce planning
     }

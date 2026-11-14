@@ -504,7 +504,7 @@ fn h_ui_197_role_count_none() {
     let all = bars_of(harness.state(), BarRole::Task) + bars_of(harness.state(), BarRole::Critical);
     harness.state_mut().dispatch(Action::SetHighlightCritical(false));
     harness.run();
-    assert_eq!(count_label(0), "aucune dans ce planning");
+    assert_eq!(count_label(0), "pas dans ce planning");
     assert!(card_texts(&harness, BarRole::Critical).contains(&count_label(0)));
     assert!(card_texts(&harness, BarRole::Task).contains(&count_label(all)));
     press(&mut harness, &fr(TextId::FpRoleCritical));

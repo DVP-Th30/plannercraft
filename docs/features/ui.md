@@ -789,7 +789,7 @@ Retour du propriétaire : dans « Mettre en forme les barres », choisir « Barr
 - **Code.** `view/format_panel.rs` (`is_row_role`, `role_count`, `FormatInput::rows`, `FormatInput::highlight_critical`), locales (`fp-role-count`).
 - **Tests.** `visible::h_ui_197_role_count_shown` (chaque type de ligne : texte égal au compte calculé dans le test par `row_role` sur les lignes affichées), `h_ui_197_role_count_none` (surbrillance du critique coupée ⇒ « Aucune barre de ce type dans ce planning. » sur les barres critiques, barres de tâches = tâches et critiques d'avant), `h_ui_197_role_count_hidden_for_overlays` (avancement, ligne de base, marge, échéance : aucune ligne de compte), `h_ui_197_role_count_group_headers` (regroupement par chemin critique : les barres des en-têtes de groupe sont comptées en récapitulatives). Captures régénérées : `format_panel_fr_light`, `format_panel_rows_fr_light` (une ligne de plus, le reste de la fenêtre décalé vers le bas).
 
-- **Note du 2026-11-14 (lot F1, H-UI-220) sur H-UI-197.** Le compte s'affiche sur chaque carte de type (« n dans ce planning », « aucune dans ce planning ») ; même règle de compte.
+- **Note du 2026-11-14 (lot F1, H-UI-220) sur H-UI-197.** Le compte s'affiche sur chaque carte de type (« n dans ce planning », « pas dans ce planning ») ; même règle de compte.
 
 ### 1.52 Version web : sauvegarde dans le navigateur et enregistrement direct (ADR-0031, lot W1, H-UI-198 à H-UI-204)
 
