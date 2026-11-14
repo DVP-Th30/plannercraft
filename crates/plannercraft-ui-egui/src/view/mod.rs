@@ -30,7 +30,7 @@ pub mod cards;
 pub mod chrome;
 pub mod details;
 pub mod diagnostics;
-pub mod format_panel;
+pub mod format_window;
 pub mod gantt;
 pub mod main_view;
 pub mod markdown;
@@ -181,8 +181,9 @@ pub struct ViewTransient {
     pub sort_dialog: Option<crate::dialog::sort::SortDialog>,
     /// Fenêtre « Filtre » ouverte (J8, lot L9, H-UI-30).
     pub filter_dialog: Option<crate::dialog::filter::FilterDialog>,
-    /// Volet de mise en forme des barres ouvert (J8, lot L15, H-UI-59).
-    pub format_panel: Option<format_panel::FormatPanelState>,
+    /// Fenêtre « Mise en forme » ouverte (lot F1, H-UI-216 ; remplace le
+    /// volet des barres de J8, H-UI-59).
+    pub format_window: Option<format_window::FormatWindowState>,
     /// Onglet du ruban ouvert en surimpression, ruban replié (ADR-0017,
     /// H-UI-72).
     pub ribbon_overlay: Option<crate::ribbon::RibbonTab>,

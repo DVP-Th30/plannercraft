@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "`style.reset_to_template` : « Revenir au modèle » (H-UI-61) ; retire\nles surcharges du document, ou celles d'un seul type de barre. Le modèle\nde base est gardé ; sans style, rien ne change.",
+  "description": "`style.reset_to_template` : « Revenir au modèle » (H-UI-61) ; retire\nles surcharges du document, ou celles d'un seul type de barre. Le modèle\nde base est gardé, et ce qui appartient au document aussi (couleurs de\nphase, chronologie, texte des tâches, regroupement, mise en page) ; sans\nstyle, rien ne change.",
   "properties": {
     "role": {
       "anyOf": [

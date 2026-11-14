@@ -1385,7 +1385,8 @@ fn context_menu(ui: &egui::Ui, fc: &mut FrameCtx<'_>, view: &ViewTransient, clic
     .open_memory(open)
     .show(|ui| {
         // Mise en forme directe (H-UI-59, J8 lot L15) : clic droit sur une
-        // barre ⇒ volet du type de barre.
+        // barre ⇒ fenêtre « Mise en forme », onglet Graphique, type de la
+        // barre (lot F1, H-UI-216).
         if let Some((role, uid)) = bar {
             if ui.button(texts.get(TextId::ContextFormatBars)).clicked() {
                 format_bar = Some((role, uid));
@@ -1402,7 +1403,8 @@ fn context_menu(ui: &egui::Ui, fc: &mut FrameCtx<'_>, view: &ViewTransient, clic
         }
     });
     if let Some((role, uid)) = format_bar {
-        fc.actions.push(Action::Format(crate::action::FormatOp::OpenBars {
+        fc.actions.push(Action::Format(crate::action::FormatOp::Open {
+            tab: crate::view::format_window::FormatTab::Chart,
             role,
             task: Some(uid),
         }));

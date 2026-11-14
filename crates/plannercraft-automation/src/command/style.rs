@@ -291,7 +291,9 @@ pub struct StyleSetBarRole {
 
 /// `style.reset_to_template` : « Revenir au modèle » (H-UI-61) ; retire
 /// les surcharges du document, ou celles d'un seul type de barre. Le modèle
-/// de base est gardé ; sans style, rien ne change.
+/// de base est gardé, et ce qui appartient au document aussi (couleurs de
+/// phase, chronologie, texte des tâches, regroupement, mise en page) ; sans
+/// style, rien ne change.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StyleResetToTemplate {
@@ -441,27 +443,14 @@ pub(super) fn apply(op: &StyleApply, ctx: &mut Ctx<'_>) -> Result<(), CommandErr
             return Err(param("template", "« template », « patch » ou « reset » attendu"));
         }
         (Some(t), patch) => {
-            // Ce qui appartient au projet et non au modèle (tâches de la
-            // chronologie, ADR-0017 D7 ; couleurs de phase, H-UI-65) est
-            // gardé s'il n'est pas dans `patch`, comme dans la galerie.
+            // Ce qui appartient au document et non au modèle (couleurs de
+            // phase, chronologie, texte des tâches, regroupement, mise en
+            // page : `StylePatch::document_part`, lot F1, H-UI-226) est
+            // gardé s'il n'est pas dans `patch` ; définition unique, la même
+            // pour la galerie et la fenêtre « Mise en forme ».
             let mut over = patch.unwrap_or_default();
             if let Some(current) = doc_style(ctx.project) {
-                if over.timeline.is_none() {
-                    over.timeline = current.over.timeline;
-                }
-                if over.phases.is_none() {
-                    over.phases = current.over.phases;
-                }
-                // Mise en forme du texte des tâches (finitions P2,
-                // H-UI-126) : propre au projet aussi.
-                if over.task_text.is_none() {
-                    over.task_text = current.over.task_text;
-                }
-                // Regroupement (finitions P3, H-UI-129) : une vue du
-                // document, gardée aussi.
-                if over.group_by.is_none() {
-                    over.group_by = current.over.group_by;
-                }
+                over.keep_document_part(&current.over);
             }
             DocStyle {
                 v: STYLE_VERSION,
@@ -565,16 +554,10 @@ pub(super) fn reset_to_template(op: &StyleResetToTemplate, ctx: &mut Ctx<'_>) ->
         return Ok(());
     };
     match op.role {
-        // La mise en forme du texte des tâches (finitions P2, H-UI-126)
-        // n'est pas une surcharge du modèle : gardée.
-        None => {
-            doc.over = StylePatch {
-                task_text: doc.over.task_text.take(),
-                // Regroupement (finitions P3) : pas une surcharge du modèle.
-                group_by: doc.over.group_by.take(),
-                ..StylePatch::default()
-            };
-        }
+        // Ce qui appartient au document (texte des tâches, regroupement,
+        // phases, chronologie, mise en page : `StylePatch::document_part`,
+        // lot F1, H-UI-226) n'est pas une surcharge du modèle : gardé.
+        None => doc.over = doc.over.document_part(),
         Some(role) => {
             let role = BarRole::from(role);
             doc.over.bars.remove(&role);
@@ -786,12 +769,10 @@ pub fn save_as_template(
         return Err(param("name", "nom de 1 à 64 caractères attendu"));
     }
     let mut style = current_or(project, default);
-    // Un modèle ne porte pas la mise en forme du texte des tâches : ses UID
-    // n'ont de sens que dans ce projet (finitions P2, H-UI-126).
-    style.over.task_text = None;
-    // Ni le regroupement (finitions P3, H-UI-129) : un champ personnalisé
-    // n'a de sens que dans ce projet.
-    style.over.group_by = None;
+    // Un modèle ne porte pas ce qui appartient au document (UID des phases,
+    // de la chronologie et du texte des tâches, champ du regroupement, mise
+    // en page) : `StylePatch::template_part` (lot F1, H-UI-226).
+    style.over = style.over.template_part();
     Ok(NamedStyleView {
         name: name.to_owned(),
         style,

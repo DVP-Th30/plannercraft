@@ -547,21 +547,27 @@ pub enum TextStyleOp {
     Clear,
 }
 
-/// Opération de mise en forme (J8 lot L15).
+/// Opération de mise en forme (J8 lot L15 ; fenêtre « Mise en forme »,
+/// lot F1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FormatOp {
-    /// Ouvre le volet de mise en forme des barres d'un type (H-UI-59) ;
-    /// `task` : tâche cliquée (couleur de phase d'une récapitulative,
-    /// H-UI-65).
-    OpenBars {
+    /// Ouvre la fenêtre « Mise en forme » (H-UI-216) sur l'onglet `tab`,
+    /// type de barre `role` ; `task` : tâche de la barre cliquée (couleur
+    /// de phase d'une récapitulative, H-UI-65). Déjà ouverte : onglet et
+    /// type changés.
+    Open {
+        /// Onglet.
+        tab: crate::view::format_window::FormatTab,
         /// Type de barre.
         role: plannercraft_render::style::BarRole,
         /// Tâche de la barre cliquée.
         task: Option<TaskUid>,
     },
-    /// Referme le volet.
-    CloseBars,
-    /// Change le type de barre du volet.
+    /// Referme la fenêtre (« Terminé », croix).
+    Close,
+    /// Change d'onglet.
+    SetTab(crate::view::format_window::FormatTab),
+    /// Change le type de barre réglé.
     SetRole(plannercraft_render::style::BarRole),
     /// « Enregistrer comme modèle personnel » : style du document sous ce
     /// nom (H-UI-52, H-UI-61).

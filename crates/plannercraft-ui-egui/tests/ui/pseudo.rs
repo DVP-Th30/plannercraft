@@ -385,6 +385,51 @@ fn pseudo_dialogs_no_truncation() {
     }
 }
 
+/// Lot F1 (H-UI-217) : fenêtre « Mise en forme » en pseudo-langue, à
+/// 1 280 × 720 : en-tête, onglets, réglages des deux onglets (sections
+/// dépliées), aperçu et pied ; aucun texte de l'interface coupé.
+#[test]
+fn pseudo_format_window_no_truncation() {
+    use plannercraft_render::style::BarRole;
+    use plannercraft_ui_egui::action::FormatOp;
+    use plannercraft_ui_egui::view::format_window::FormatTab;
+    let labels = pseudo_labels();
+    let mut harness = pseudo_harness(Vec::new());
+    harness.state_mut().dispatch(Action::Format(FormatOp::Open {
+        tab: FormatTab::Chart,
+        role: BarRole::SummaryCritical,
+        task: None,
+    }));
+    harness.run();
+    assert_not_cut(&harness, &labels, "Mise en forme, Graphique", 20);
+    // Sections repliées dépliées, puis contrôle à chaque hauteur de
+    // défilement.
+    for title in [TextId::FwScale, TextId::FwBackground] {
+        let name = pseudo(title);
+        harness.get_by_label(&name).scroll_to_me();
+        harness.run();
+        crate::click(&mut harness, &pseudo(title));
+        assert_not_cut(&harness, &labels, "Mise en forme, sections", 10);
+    }
+    for id in [TextId::FwStatusLabel, TextId::FpPhaseRemove] {
+        let name = pseudo(id);
+        if let Some(node) = harness.query_by_label(&name) {
+            node.scroll_to_me();
+        }
+        harness.run();
+        assert_not_cut(&harness, &labels, "Mise en forme, bas du Graphique", 6);
+    }
+    harness
+        .state_mut()
+        .dispatch(Action::Format(FormatOp::SetTab(FormatTab::Table)));
+    harness.run();
+    assert_not_cut(&harness, &labels, "Mise en forme, Tableau", 15);
+    let hint = pseudo(TextId::FwSelectedHint);
+    harness.get_by_label(&hint).scroll_to_me();
+    harness.run();
+    assert_not_cut(&harness, &labels, "Mise en forme, bas du Tableau", 6);
+}
+
 /// Lot P1b (H-UI-205 à H-UI-209) : fenêtre « Importer un PDF » en
 /// pseudo-langue, sur le PDF produit par le projet : aucun texte coupé
 /// (titres de colonnes du tableau compris).

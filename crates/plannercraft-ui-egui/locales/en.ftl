@@ -993,7 +993,7 @@ menu-toggle-active = Activate / inactivate
 menu-page-setup = Page Setup…
 menu-print-mode = Print mode
 menu-gallery = Layout templates…
-menu-format-bars = Format bars…
+menu-format-window = Formatting…
 menu-chart-only = Chart only
 menu-highlight-critical = Highlight the critical path
 menu-about = About { $product }
@@ -1052,12 +1052,10 @@ ps-save = Save with the project
 ps-close = Close
 ps-error = Page layout failed: { $detail }
 ps-column-name = Name
-fp-title = Format: { $role }
-fp-role = Bar type
-fp-role-task = Task bars
-fp-role-critical = Critical bars
-fp-role-summary = Summary bars
-fp-role-summary-critical = Critical summary bars
+fp-role-task = Tasks
+fp-role-critical = Critical tasks
+fp-role-summary = Summary tasks
+fp-role-summary-critical = Critical summary tasks
 fp-role-milestone = Milestones
 fp-role-milestone-critical = Critical milestones
 fp-role-progress = Progress
@@ -1066,26 +1064,15 @@ fp-role-inactive = Inactive tasks
 fp-role-manual = Manually scheduled tasks
 fp-role-slack = Slack
 fp-role-deadline = Deadline
-fp-role-count =
-    { $count ->
-        [0] No bar of this type in this schedule.
-        [one] { $count } bar of this type in this schedule.
-       *[other] { $count } bars of this type in this schedule.
-    }
 fp-color = Color
 fp-custom-color = Custom color
 fp-swatch = Color { $color }
 fp-phase-swatch = Phase color { $color }
-fp-thickness = Thickness (% of the row)
+fp-thickness = Thickness
 fp-ends = Ends
 fp-ends-square = Square
 fp-ends-rounded = Rounded
-fp-text-left = Text on the left
-fp-text-right = Text on the right
-fp-text-inside = Text inside
 fp-none = None
-fp-duration-after-name = Duration after the name
-fp-details = Details
 fp-contrast-low = Contrast too low { $bg ->
         [dark] on the dark background
         [print] in print
@@ -1094,10 +1081,89 @@ fp-contrast-low = Contrast too low { $bg ->
 fp-use-suggestion = Use { $color }
 fp-revert = Revert to template
 fp-save-template = Save as template…
-fp-close = Close
 fp-phase = Phase color of “{ $name }”
 fp-phase-children = Applied to subtasks
 fp-phase-remove = Remove the color
+fw-title = Formatting
+fw-from-template = Start from a template
+fw-all-templates = All templates…
+fw-template-applied = Template “{ $name }” applied.
+fw-tab-table = Table
+fw-tab-chart = Chart
+fw-preview-title = Your schedule, as it will be shown and printed
+fw-preview-setting = Setting: { $name }
+fw-preview-hint = Click a bar to open its settings in “Chart”. Click in the table to open “Table”.
+fw-preview-name = Schedule preview
+fw-preview-empty = No task to show
+fw-preview-more-columns =
+    { $count ->
+        [one] +1 column
+       *[other] +{ $count } columns
+    }
+fw-status = Every setting applies at once and is undone with { $undo }.
+fw-save = Save
+fw-save-cancel = Cancel
+fw-reverted = Settings of the “{ $name }” template restored.
+fw-done = Done
+fw-what = What do you want to change?
+fw-other-bars = Other bars
+fw-twins-task = Same color for critical tasks
+fw-twins-summary = Same color for critical summary tasks
+fw-twins-milestone = Same color for critical milestones
+fw-fill = Fill
+fw-fill-solid = Solid
+fw-fill-hatch = Hatched
+fw-fill-dots = Dotted
+fw-fill-outline = Outline
+fw-reset-role = Reset this type
+fw-reset-role-tip = Color, shape and texts of this bar type go back to the template's.
+fw-phase-hint = Tints the bar and also the phase row in the table.
+fw-bar-texts = Bar texts
+fw-text-left = Left
+fw-text-right = Right
+fw-text-inside = Inside the bar
+fw-scale = Timescale
+fw-relative-months = Relative months (M1, M2…)
+fw-week-numbers = Week numbers
+fw-background = Background and markers
+fw-non-working = Shade non-working days
+fw-major-lines = Major vertical lines
+fw-minor-lines = Minor vertical lines
+fw-today = “Today” line
+fw-status-label = Status date label
+fw-kind-count =
+    { $count ->
+        [0] none in this schedule
+       *[other] { $count } in this schedule
+    }
+fw-columns = Columns
+fw-column-chip = Select the { $name } column
+fw-remove-column = Remove the { $name } column
+fw-add-column = + Add
+fw-move-left = Move left
+fw-move-right = Move right
+fw-column-settings = Title, width, alignment…
+fw-columns-hint = Click a column to move it or set its title, width and alignment.
+fw-columns-app = These columns belong to the application: they apply to every schedule.
+fw-rows = Rows
+fw-row-height = Height
+fw-density-compact = Compact
+fw-density-normal = Normal
+fw-density-airy = Airy
+fw-row-fill = Row background
+fw-band-none = Plain
+fw-band-zebra = Striped
+fw-band-phase = By phase
+fw-selected-tasks = Selected tasks
+fw-selected-count =
+    { $count ->
+        [one] 1 task selected.
+       *[other] { $count } tasks selected.
+    }
+fw-selected-none = Select tasks in the table to format them.
+fw-selected-hint = Bold, italic, color and highlight are also in the Task tab of the ribbon.
+fw-text-color = Text color
+fw-highlight = Highlight
 field-name = Name
 field-name-duration = Name (duration)
 field-resources = Resources
@@ -1184,7 +1250,7 @@ ribbon-tip-gantt-chart = Shows the tasks and their bars over time.
 ribbon-tip-tracking-gantt = Compares the scheduled bars with the baseline and shows progress.
 ribbon-tip-resource-sheet = Lists the project resources.
 ribbon-tip-resource-usage = Shows the work assigned to each resource, period by period.
-ribbon-tip-format-bars = Changes the color, thickness and texts of the bars.
+ribbon-tip-format-window = Bar colors, columns and rows of the schedule, with a preview.
 ribbon-tip-view-menu = Chooses the main view.
 ribbon-tip-paste = Pastes the copied tasks before the selected row.
 ribbon-tip-cut = Copies the selected tasks and deletes them.

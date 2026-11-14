@@ -526,13 +526,14 @@ fn task_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     twin(ui, fc, RibbonCmd::AddToTimeline, None);
 }
 
-/// Menu Format (J8 lot L15) : galerie des modèles, mise en forme des
-/// barres, mois relatifs, mise en page ; colonnes (jumeau du ruban,
+/// Menu Format (J8 lot L15) : fenêtre « Mise en forme » (lot F1), galerie
+/// des modèles, mois relatifs, mise en page ; colonnes (jumeau du ruban,
 /// ADR-0017 ; aussi au clic droit sur un titre de colonne).
 fn format_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
+    // Onglet Graphique, type de la barre de la tâche active, sinon les
+    // barres de tâches.
+    twin(ui, fc, RibbonCmd::FormatWindow, None);
     twin(ui, fc, RibbonCmd::Gallery, None);
-    // Type de la barre de la tâche active, sinon les barres de tâches.
-    twin(ui, fc, RibbonCmd::FormatBars, None);
     // H-UI-67 : mois relatifs en option, quel que soit le modèle (relecture
     // finale de J8 ; seul « Planning travaux » les avait).
     twin(ui, fc, RibbonCmd::RelativeMonths, None);
@@ -609,8 +610,8 @@ fn text_color_entries(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, fill: bool) {
         .and_then(|t| if fill { t.fill } else { t.color });
     ui.horizontal_wrapped(|ui| {
         ui.set_max_width(6.0 * 24.0);
-        for rgb in crate::view::format_panel::SWATCHES {
-            if crate::view::format_panel::swatch(ui, texts, TextId::FpSwatch, rgb, current == Some(rgb)) {
+        for rgb in crate::view::format_window::SWATCHES {
+            if crate::view::format_window::swatch(ui, texts, TextId::FpSwatch, rgb, current == Some(rgb)) {
                 fc.actions.push(Action::TextStyle(op(Some(rgb))));
                 ui.close();
             }

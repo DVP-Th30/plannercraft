@@ -992,7 +992,7 @@ menu-toggle-active = Activer / désactiver
 menu-page-setup = Mise en page…
 menu-print-mode = Mode impression
 menu-gallery = Modèles de mise en forme…
-menu-format-bars = Mettre en forme les barres…
+menu-format-window = Mise en forme…
 menu-chart-only = Graphique seul
 menu-highlight-critical = Surbrillance du chemin critique
 menu-about = À propos de { $product }
@@ -1051,10 +1051,8 @@ ps-save = Enregistrer avec le projet
 ps-close = Fermer
 ps-error = Mise en page impossible : { $detail }
 ps-column-name = Nom
-fp-title = Mettre en forme : { $role }
-fp-role = Type de barre
-fp-role-task = Barres de tâches
-fp-role-critical = Barres critiques
+fp-role-task = Tâches
+fp-role-critical = Tâches critiques
 fp-role-summary = Récapitulatives
 fp-role-summary-critical = Récapitulatives critiques
 fp-role-milestone = Jalons
@@ -1065,26 +1063,15 @@ fp-role-inactive = Tâches inactives
 fp-role-manual = Tâches manuelles
 fp-role-slack = Marge
 fp-role-deadline = Échéance
-fp-role-count =
-    { $count ->
-        [0] Aucune barre de ce type dans ce planning.
-        [one] { $count } barre de ce type dans ce planning.
-       *[other] { $count } barres de ce type dans ce planning.
-    }
 fp-color = Couleur
 fp-custom-color = Couleur libre
 fp-swatch = Couleur { $color }
 fp-phase-swatch = Couleur de phase { $color }
-fp-thickness = Épaisseur (% de la ligne)
+fp-thickness = Épaisseur
 fp-ends = Extrémités
 fp-ends-square = Droites
 fp-ends-rounded = Arrondies
-fp-text-left = Texte à gauche
-fp-text-right = Texte à droite
-fp-text-inside = Texte dans la barre
 fp-none = Aucun
-fp-duration-after-name = Durée après le nom
-fp-details = Détails
 fp-contrast-low = Contraste insuffisant { $bg ->
         [dark] sur le fond sombre
         [print] à l'impression
@@ -1093,10 +1080,90 @@ fp-contrast-low = Contraste insuffisant { $bg ->
 fp-use-suggestion = Utiliser { $color }
 fp-revert = Revenir au modèle
 fp-save-template = Enregistrer comme modèle…
-fp-close = Fermer
 fp-phase = Couleur de phase de « { $name } »
 fp-phase-children = Reprise par les sous-tâches
 fp-phase-remove = Retirer la couleur
+fw-title = Mise en forme
+fw-from-template = Partir d'un modèle
+fw-all-templates = Tous les modèles…
+fw-template-applied = Modèle « { $name } » appliqué.
+fw-tab-table = Tableau
+fw-tab-chart = Graphique
+fw-preview-title = Votre planning, tel qu'il sera affiché et imprimé
+fw-preview-setting = Réglage : { $name }
+fw-preview-hint = Cliquer sur une barre ouvre ses réglages dans « Graphique ». Cliquer dans le tableau ouvre « Tableau ».
+fw-preview-name = Aperçu du planning
+fw-preview-empty = Aucune tâche à montrer
+fw-preview-more-columns =
+    { $count ->
+        [one] + 1 colonne
+       *[other] + { $count } colonnes
+    }
+fw-status = Chaque réglage s'applique tout de suite et s'annule avec { $undo }.
+fw-save = Enregistrer
+fw-save-cancel = Annuler
+fw-reverted = Réglages du modèle « { $name } » rétablis.
+fw-done = Terminé
+fw-what = Que voulez-vous changer ?
+fw-other-bars = Autres barres
+fw-twins-task = Même couleur pour les tâches critiques
+fw-twins-summary = Même couleur pour les récapitulatives critiques
+fw-twins-milestone = Même couleur pour les jalons critiques
+fw-fill = Remplissage
+fw-fill-solid = Plein
+fw-fill-hatch = Hachuré
+fw-fill-dots = Pointillé
+fw-fill-outline = Contour
+fw-reset-role = Rétablir ce type
+fw-reset-role-tip = Couleur, forme et textes de ce type de barre reviennent à ceux du modèle.
+fw-phase-hint = Teinte la barre et aussi la ligne de la phase dans le tableau.
+fw-bar-texts = Textes de la barre
+fw-text-left = À gauche
+fw-text-right = À droite
+fw-text-inside = Dans la barre
+fw-scale = Échelle de temps
+fw-relative-months = Mois relatifs (M1, M2…)
+fw-week-numbers = Numéros de semaine
+fw-background = Fond et repères
+fw-non-working = Griser les jours chômés
+fw-major-lines = Traits verticaux principaux
+fw-minor-lines = Traits verticaux secondaires
+fw-today = Trait « aujourd'hui »
+fw-status-label = Étiquette de la date d'état
+fw-kind-count =
+    { $count ->
+        [0] pas dans ce planning
+        [one] { $count } dans ce planning
+       *[other] { $count } dans ce planning
+    }
+fw-columns = Colonnes
+fw-column-chip = Choisir la colonne { $name }
+fw-remove-column = Retirer la colonne { $name }
+fw-add-column = + Ajouter
+fw-move-left = Déplacer vers la gauche
+fw-move-right = Déplacer vers la droite
+fw-column-settings = Titre, largeur, alignement…
+fw-columns-hint = Cliquer une colonne pour la déplacer ou régler son titre, sa largeur et son alignement.
+fw-columns-app = Ces colonnes sont celles de l'application : elles valent pour tous les plannings.
+fw-rows = Lignes
+fw-row-height = Hauteur
+fw-density-compact = Compacte
+fw-density-normal = Normale
+fw-density-airy = Aérée
+fw-row-fill = Fond des lignes
+fw-band-none = Uni
+fw-band-zebra = Zébré
+fw-band-phase = Par phase
+fw-selected-tasks = Tâches sélectionnées
+fw-selected-count =
+    { $count ->
+        [one] 1 tâche sélectionnée.
+       *[other] { $count } tâches sélectionnées.
+    }
+fw-selected-none = Sélectionnez des tâches dans le tableau pour les mettre en forme.
+fw-selected-hint = Gras, italique, couleur et surlignage sont aussi dans l'onglet Tâche du ruban.
+fw-text-color = Couleur du texte
+fw-highlight = Surlignage
 field-name = Nom
 field-name-duration = Nom (durée)
 field-resources = Ressources
@@ -1183,7 +1250,7 @@ ribbon-tip-gantt-chart = Affiche les tâches et leurs barres dans le temps.
 ribbon-tip-tracking-gantt = Compare les barres planifiées à la ligne de base et montre l'avancement.
 ribbon-tip-resource-sheet = Liste les ressources du projet.
 ribbon-tip-resource-usage = Montre le travail affecté à chaque ressource, période par période.
-ribbon-tip-format-bars = Change la couleur, l'épaisseur et les textes des barres.
+ribbon-tip-format-window = Couleurs des barres, colonnes et lignes du planning, avec un aperçu.
 ribbon-tip-view-menu = Choisit la vue principale.
 ribbon-tip-paste = Colle les tâches copiées avant la ligne sélectionnée.
 ribbon-tip-cut = Copie les tâches sélectionnées et les supprime.

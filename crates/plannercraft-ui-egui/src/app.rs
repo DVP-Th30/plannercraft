@@ -3513,8 +3513,8 @@ impl App {
             view::palette::show(&ctx, &mut fc, &mut self.palette);
         }
         self.show_confirmations(&ctx, &palette, &mut actions);
-        // Volet de mise en forme des barres (J8 lot L15, H-UI-59), non modal.
-        self.show_format_panel(&ctx, &mut actions);
+        // Fenêtre « Mise en forme » (lot F1, H-UI-216), non modale.
+        self.show_format_window(&ctx, &mut actions);
         // Échap restée libre après le dessin : réduit le volet (lot A5).
         self.escape_closes_assistant(&ctx, &mut actions);
         self.last_focus = ctx.memory(egui::Memory::focused);

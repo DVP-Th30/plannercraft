@@ -420,6 +420,60 @@ fn style_save_as_template_reads_only() {
     }
 }
 
+/// H-UI-226 (lot F1, ADR-0035) : une seule définition de ce qui appartient
+/// au document (phases, chronologie, texte des tâches, regroupement, mise en
+/// page) ; `style.apply { template }` la garde (mise en page comprise,
+/// perdue avant le lot), « Revenir au modèle » aussi (phases, chronologie et
+/// mise en page comprises, perdues avant le lot), et
+/// `style.save_as_template` ne l'emporte pas (phases, chronologie et mise en
+/// page comprises).
+#[test]
+fn h_ui_226_document_part_on_every_command_path() {
+    let mut s = session();
+    let mut page = serde_json::to_value(template(TemplateId::Sobre).page).unwrap();
+    page["title_block"] = json!(true);
+    call(
+        &mut s,
+        "style.apply",
+        json!({ "template": "sobre", "patch": {
+            "density": "airy",
+            "phases": { "1": { "fill": "#D55E00" } },
+            "timeline": { "tasks": [1] },
+            "page": page,
+        } }),
+    );
+    call(
+        &mut s,
+        "task.set_text_style",
+        json!({ "tasks": [1], "bold": true }),
+    );
+    call(&mut s, "style.set_group_by", json!({ "group_by": "milestone" }));
+    let full = style::doc_style(s.project()).unwrap().over;
+    let kept = full.document_part();
+    assert!(kept.phases.is_some() && kept.timeline.is_some() && kept.page.is_some());
+    assert!(kept.task_text.is_some() && kept.group_by.is_some());
+    // Modèle personnel : rien du document.
+    let named = call(&mut s, "style.save_as_template", json!({ "name": "Mien" }));
+    let over = &named["style"]["over"];
+    for key in ["phases", "timeline", "task_text", "group_by", "page"] {
+        assert!(over.get(key).is_none(), "{key} : {named}");
+    }
+    assert_eq!(over["density"], json!("airy"));
+    // Autre modèle appliqué : part du document gardée, le reste suit le modèle.
+    call(&mut s, "style.apply", json!({ "template": "presentation" }));
+    let doc = style::doc_style(s.project()).unwrap();
+    assert_eq!(doc.base, TemplateId::Presentation);
+    assert_eq!(doc.over, kept);
+    // « Revenir au modèle » : part du document gardée.
+    call(
+        &mut s,
+        "style.apply",
+        json!({ "patch": { "density": "compact" } }),
+    );
+    call(&mut s, "style.reset_to_template", json!({}));
+    assert_eq!(style::doc_style(s.project()).unwrap().over, kept);
+}
+
 /// `render.gantt` sans `style` dessine le style du document.
 #[test]
 fn render_gantt_uses_document_style() {
