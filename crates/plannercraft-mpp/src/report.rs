@@ -25,6 +25,12 @@ pub struct View<'a> {
     pub saved_by: &'a str,
     /// Titre du projet.
     pub title: &'a str,
+    /// Début du projet enregistré (`AAAA-MM-JJTHH:MM`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_start: Option<String>,
+    /// Fin du projet enregistrée.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_finish: Option<String>,
     /// Tâches (lignes vides comprises).
     pub tasks: usize,
     /// Lignes vides.
@@ -61,6 +67,8 @@ pub fn view<'a>(doc: &'a MppDocument, comparison: Option<&'a Comparison>) -> Vie
         layout: doc.source.layout,
         saved_by: &doc.source.saved_by,
         title: &p.info.title,
+        project_start: doc.recorded.project_start.map(|m| m.to_string()),
+        project_finish: doc.recorded.project_finish.map(|m| m.to_string()),
         tasks: p.tasks.len(),
         null_tasks: p.tasks.iter().filter(|t| t.is_null).count(),
         links: p.tasks.iter().map(|t| t.predecessors.len()).sum(),
