@@ -4,7 +4,8 @@
 //! 2 usage (arguments, commande indisponible) ; 3 fichier
 //! (lecture, écriture, MSPDI ou CSV inexploitable) ; 4 PDF refusé par
 //! l'import (numérisé, sans tableau, sans dates, hiérarchie illisible ;
-//! ADR-0032).
+//! ADR-0032) ou `.mpp` refusé par `import-mpp` (pas un `.mpp`, endommagé,
+//! version non prise en charge ; ADR-0036).
 
 /// Succès.
 pub const SUCCESS: u8 = 0;
@@ -17,6 +18,9 @@ pub const FILE: u8 = 3;
 /// PDF refusé par `import-pdf` (le fichier se lit, mais son contenu n'est
 /// pas un planning importable sûrement).
 pub const PDF_REFUSED: u8 = 4;
+/// Fichier refusé par un import (`import-pdf`, `import-mpp`) : même code
+/// que [`PDF_REFUSED`].
+pub const IMPORT_REFUSED: u8 = PDF_REFUSED;
 
 /// Code de sortie d'une erreur d'outil, d'après son code stable : `file.*`
 /// (lecture, écriture, taille, MSPDI inexploitable, fichier tenu par

@@ -2,7 +2,7 @@
 //!
 //! Il expose les mêmes opérations que le serveur MCP (`summary`, `tasks`,
 //! `resources`, `usage`, `apply`, `render`, `import-csv`, `mcp`,
-//! `explain`, `style`, `export-pdf`, `import-pdf`), toutes via le
+//! `explain`, `style`, `export-pdf`, `import-pdf`, `import-mpp`), toutes via le
 //! `Workspace` de `plannercraft-automation` : mêmes JSON que le MCP (ADR-0012 D1).
 //! Codes de sortie (C-MCP-08) dans [`exit`] ; « maintenant » et langue dans
 //! [`now`] (seule lecture de l'horloge). Détail : `docs/features/cli.md`.
@@ -72,6 +72,9 @@ enum Command {
     ExportPdf(cmd::export_pdf::ExportPdfArgs),
     /// Import d'un planning Gantt PDF (export MS Project) en MSPDI.
     ImportPdf(cmd::import_pdf::ImportPdfArgs),
+    /// Import d'un fichier MS Project binaire (.mpp, 2010 et suivants) en
+    /// MSPDI.
+    ImportMpp(cmd::import_mpp::ImportMppArgs),
 }
 
 fn main() -> ExitCode {
@@ -107,5 +110,6 @@ fn main() -> ExitCode {
         Command::Style(a) => cmd::style::run(&ctx, &a),
         Command::ExportPdf(a) => cmd::export_pdf::run(&ctx, &a),
         Command::ImportPdf(a) => cmd::import_pdf::run(&ctx, &a),
+        Command::ImportMpp(a) => cmd::import_mpp::run(&ctx, &a),
     }
 }
