@@ -741,6 +741,11 @@ impl UiState {
             if t.name.chars().count() > MAX_USER_TEMPLATE_NAME {
                 t.name = t.name.chars().take(MAX_USER_TEMPLATE_NAME).collect();
             }
+            // Lot F1 (H-UI-226) : un modèle enregistré avant le lot pouvait
+            // porter des couleurs de phase, un regroupement ou une mise en
+            // page (part du document) : retirés à la lecture, jamais
+            // appliqués.
+            t.style.over = t.style.over.template_part();
         }
         self.task_view.outline_level = self
             .task_view
@@ -1096,7 +1101,9 @@ impl UiState {
     /// # Errors
     ///
     /// [`UserTemplateError::BadName`], [`UserTemplateError::Full`].
-    pub fn save_user_template(&mut self, name: &str, style: DocStyle) -> Result<(), UserTemplateError> {
+    pub fn save_user_template(&mut self, name: &str, mut style: DocStyle) -> Result<(), UserTemplateError> {
+        // Jamais la part du document (lot F1, H-UI-226).
+        style.over = style.over.template_part();
         let name = name.trim();
         let n = name.chars().count();
         if n == 0 || n > MAX_USER_TEMPLATE_NAME {
@@ -1273,6 +1280,30 @@ mod tests {
 
     /// Champs J8 relus à l'identique ; bornes appliquées ; une entrée de
     /// modèle personnel illisible est écartée seule.
+    /// H-UI-226 (lot F1) : un modèle personnel enregistré avant le lot avec
+    /// une part du document (phases, regroupement, mise en page) se relit
+    /// sans erreur, cette part retirée ; un enregistrement ne la garde pas.
+    #[test]
+    fn h_ui_226_old_user_template_reads_without_document_part() {
+        let json = r##"{"user_templates":[{"name":"Ancien","style":{"v":1,"base":"sobre","over":{
+            "density":"airy","phases":{"5":{"fill":"#D55E00"}},"group_by":"critical",
+            "timeline":{"tasks":[1]}}}}]}"##;
+        let (read, warning) = UiState::from_json_lenient(json);
+        assert!(warning.is_none(), "{warning:?}");
+        let t = read.user_templates.first().expect("modèle relu");
+        assert_eq!(
+            t.style.over.density,
+            Some(plannercraft_render::style::Density::Airy)
+        );
+        assert!(t.style.over.phases.is_none() && t.style.over.group_by.is_none());
+        assert!(t.style.over.timeline.is_none());
+        let mut state = UiState::default();
+        let mut style = t.style.clone();
+        style.over.phases = Some(std::collections::BTreeMap::new());
+        state.save_user_template("Nouveau", style).expect("enregistré");
+        assert!(state.user_templates[0].style.over.phases.is_none());
+    }
+
     #[test]
     fn ui_state_v1_roundtrip() {
         let sobre = plannercraft_render::style::parse_doc_style(r#"{"base":"sobre","v":1}"#).unwrap();

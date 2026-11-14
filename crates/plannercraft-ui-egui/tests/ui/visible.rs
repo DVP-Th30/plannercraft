@@ -1,7 +1,7 @@
 //! Lot visible de J8 (L15) : menus Tâche et Projet dans la barre, boutons
 //! 0 à 100 %, bascules du mode et de l'activité (H-UI-35, H-UI-36), galerie
-//! des modèles (H-UI-52), volet de mise en forme directe (H-UI-59 à
-//! H-UI-61), retours des plannings DCE (H-UI-62 à H-UI-67), mode
+//! des modèles (H-UI-52), retours des plannings DCE (H-UI-62 à H-UI-67 ;
+//! fenêtre « Mise en forme » : `format_window.rs`, lot F1), mode
 //! impression et mise en page (H-UI-68). Modèle par défaut : Sobre (comme
 //! l'application), sauf mention.
 
@@ -21,8 +21,8 @@ use egui_kittest::kittest::Queryable as _;
 use plannercraft_automation::command::style::doc_style;
 use plannercraft_automation::helpers::PercentStep;
 use plannercraft_core::{Moment, TaskUid};
-use plannercraft_render::style::{BarField, BarRole, Rgb, TableColumn, TemplateId, Variant, template};
-use plannercraft_ui_egui::action::{DialogKind, FormatOp, TaskCmd};
+use plannercraft_render::style::{Rgb, TableColumn, TemplateId, Variant, template};
+use plannercraft_ui_egui::action::{DialogKind, TaskCmd};
 use plannercraft_ui_egui::dialog::DialogBody;
 use plannercraft_ui_egui::i18n::{Arg, Language, TextId, Texts};
 use plannercraft_ui_egui::io::{OpenEvent, SaveEvent, SaveKind, SaveRequest};
@@ -59,7 +59,7 @@ impl FileService for MemFiles {
 /// Application française claire, modèle par défaut Sobre (défaut de
 /// l'application depuis L15), projet « P » ouvert, service de fichiers en
 /// mémoire.
-fn sobre_p() -> (Harness<'static, App>, Saved) {
+pub(crate) fn sobre_p() -> (Harness<'static, App>, Saved) {
     let saved: Saved = Rc::new(RefCell::new(Vec::new()));
     let env = Env {
         files: Box::new(MemFiles(Rc::clone(&saved))),
@@ -79,11 +79,11 @@ fn sobre_p() -> (Harness<'static, App>, Saved) {
     (harness, saved)
 }
 
-fn uid(n: u32) -> TaskUid {
+pub(crate) fn uid(n: u32) -> TaskUid {
     TaskUid::new(n)
 }
 
-fn select(harness: &mut Harness<'static, App>, n: u32) {
+pub(crate) fn select(harness: &mut Harness<'static, App>, n: u32) {
     harness.state_mut().dispatch(Action::Select(Some(uid(n))));
     harness.run();
 }
@@ -106,11 +106,11 @@ fn percent(app: &App, n: u32) -> i64 {
         .get()
 }
 
-fn history(app: &App) -> usize {
+pub(crate) fn history(app: &App) -> usize {
     app.document.as_ref().unwrap().session.history().entries.len()
 }
 
-fn label(id: TextId, args: &[(&str, Arg<'_>)]) -> String {
+pub(crate) fn label(id: TextId, args: &[(&str, Arg<'_>)]) -> String {
     Texts::new(Language::Fr).get_args(id, args)
 }
 
@@ -119,7 +119,7 @@ fn pct_label(id: TextId, pct: i64) -> String {
 }
 
 /// Formes à plat de la dernière image.
-fn shapes(harness: &Harness<'static, App>) -> Vec<Shape> {
+pub(crate) fn shapes(harness: &Harness<'static, App>) -> Vec<Shape> {
     fn flat(shape: &Shape, out: &mut Vec<Shape>) {
         if let Shape::Vec(inner) = shape {
             for s in inner {
@@ -137,7 +137,7 @@ fn shapes(harness: &Harness<'static, App>) -> Vec<Shape> {
 }
 
 /// Textes dessinés (position, texte).
-fn texts(harness: &Harness<'static, App>) -> Vec<(Pos2, String)> {
+pub(crate) fn texts(harness: &Harness<'static, App>) -> Vec<(Pos2, String)> {
     shapes(harness)
         .into_iter()
         .filter_map(|s| match s {
@@ -148,7 +148,7 @@ fn texts(harness: &Harness<'static, App>) -> Vec<(Pos2, String)> {
 }
 
 /// Rectangle de la ligne de la tâche `n` dans la table (widget de ligne).
-fn row_rect(harness: &Harness<'static, App>, n: u32, name: &str) -> Rect {
+pub(crate) fn row_rect(harness: &Harness<'static, App>, n: u32, name: &str) -> Rect {
     let app = harness.state();
     let rows = app.rows().unwrap();
     let id = (0..rows.len())
@@ -166,7 +166,7 @@ fn row_rect(harness: &Harness<'static, App>, n: u32, name: &str) -> Rect {
 
 /// Centre écran de la barre de la tâche `n` (dates du moteur projetées par
 /// l'axe de l'interface).
-fn bar_center(harness: &Harness<'static, App>, n: u32, name: &str) -> Pos2 {
+pub(crate) fn bar_center(harness: &Harness<'static, App>, n: u32, name: &str) -> Pos2 {
     let app = harness.state();
     let rows = app.rows().unwrap();
     let (start, finish) = (0..rows.len())
@@ -178,7 +178,7 @@ fn bar_center(harness: &Harness<'static, App>, n: u32, name: &str) -> Pos2 {
 }
 
 /// Clic droit en `p`.
-fn right_click(harness: &mut Harness<'static, App>, p: Pos2) {
+pub(crate) fn right_click(harness: &mut Harness<'static, App>, p: Pos2) {
     harness.hover_at(p);
     harness.step();
     for pressed in [true, false] {
@@ -194,17 +194,17 @@ fn right_click(harness: &mut Harness<'static, App>, p: Pos2) {
 }
 
 /// Style du document ouvert (`None` : aucun style choisi).
-fn doc(app: &App) -> Option<plannercraft_render::style::DocStyle> {
+pub(crate) fn doc(app: &App) -> Option<plannercraft_render::style::DocStyle> {
     doc_style(app.document.as_ref().unwrap().project())
 }
 
 /// Style effectif du document ouvert.
-fn effective(app: &App) -> plannercraft_render::style::PlanStyle {
+pub(crate) fn effective(app: &App) -> plannercraft_render::style::PlanStyle {
     app.state
         .effective_style(app.document.as_ref().unwrap().project())
 }
 
-const fn rgb(c: Rgb) -> Color32 {
+pub(crate) const fn rgb(c: Rgb) -> Color32 {
     Color32::from_rgb(c.0, c.1, c.2)
 }
 
@@ -440,105 +440,8 @@ fn h_ui_52_user_template_saved() {
     assert!(harness.query_by_label(&saved).is_some());
 }
 
-/// H-UI-59 : clic droit sur la barre critique de « Murs » ⇒ entrée
-/// « Mettre en forme les barres de ce type » ⇒ volet « Barres critiques ».
-#[test]
-fn h_ui_59_right_click_bar_opens_role_panel() {
-    let (mut harness, _) = sobre_p();
-    let p = bar_center(&harness, 3, "Murs");
-    right_click(&mut harness, p);
-    click(&mut harness, &fr(TextId::ContextFormatBars));
-    let panel = harness.state().view().format_panel.clone().expect("volet ouvert");
-    assert_eq!(panel.role, BarRole::Critical);
-    assert_eq!(panel.task, Some(uid(3)));
-    let title = label(
-        TextId::FpTitle,
-        &[("role", Arg::Str(fr(TextId::FpRoleCritical).into()))],
-    );
-    assert!(
-        harness.query_by_label(&title).is_some(),
-        "titre « {title} » absent"
-    );
-}
-
-/// Ouvre le volet du type `role` (tâche `task`).
-fn open_panel(harness: &mut Harness<'static, App>, role: BarRole, task: Option<u32>) {
-    harness.state_mut().dispatch(Action::Format(FormatOp::OpenBars {
-        role,
-        task: task.map(uid),
-    }));
-    harness.run();
-}
-
-/// H-UI-60 : une couleur du nuancier sur les barres critiques ⇒ barres
-/// repeintes à l'image suivante, une entrée d'annulation ; Ctrl+Z ⇒
-/// couleur d'avant.
-#[test]
-fn h_ui_60_live_color_change_one_undo() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Critical, None);
-    let before = history(harness.state());
-    let old = effective(harness.state()).tokens(Variant::Light).bars[&BarRole::Critical].fill;
-    let green = Rgb(0x00, 0x9E, 0x73);
-    click(
-        &mut harness,
-        &label(TextId::FpSwatch, &[("color", Arg::Str(green.hex().into()))]),
-    );
-    harness.run();
-    assert_eq!(history(harness.state()), before + 1);
-    let st = effective(harness.state());
-    assert_eq!(st.tokens(Variant::Light).bars[&BarRole::Critical].fill, green);
-    // Repeint : une barre de cette couleur dans l'image.
-    let painted = shapes(&harness)
-        .iter()
-        .any(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(green)));
-    assert!(painted, "barre critique non repeinte");
-    harness.state_mut().dispatch(Action::Undo);
-    harness.run();
-    assert_eq!(
-        effective(harness.state()).tokens(Variant::Light).bars[&BarRole::Critical].fill,
-        old
-    );
-}
-
-/// H-UI-61 : jaune clair sur fond blanc ⇒ avertissement de contraste et
-/// couleur conforme proposée ; la proposition s'applique.
-#[test]
-fn h_ui_61_low_contrast_warned() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    let yellow = Rgb(0xF0, 0xE4, 0x42);
-    click(
-        &mut harness,
-        &label(TextId::FpSwatch, &[("color", Arg::Str(yellow.hex().into()))]),
-    );
-    harness.run();
-    let warned = texts(&harness)
-        .iter()
-        .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond clair"));
-    assert!(warned, "aucun avertissement de contraste sur le fond clair");
-    let suggestion =
-        plannercraft_automation::command::style::nearest_compliant(yellow, Rgb(0xFF, 0xFF, 0xFF), 3_000)
-            .unwrap();
-    click(
-        &mut harness,
-        &label(
-            TextId::FpUseSuggestion,
-            &[("color", Arg::Str(suggestion.hex().into()))],
-        ),
-    );
-    harness.run();
-    let st = effective(harness.state());
-    assert_eq!(st.tokens(Variant::Light).bars[&BarRole::Task].fill, suggestion);
-    assert!(
-        !texts(&harness)
-            .iter()
-            .any(|(_, t)| t.starts_with("Contraste insuffisant"))
-    );
-}
-
 /// Zone du Gantt à la dernière image (à droite de la table).
-fn gantt_zone(harness: &Harness<'static, App>) -> Rect {
+pub(crate) fn gantt_zone(harness: &Harness<'static, App>) -> Rect {
     let view = harness.state().view();
     Rect::from_min_size(
         pos2(view.last_gantt_left, 0.0),
@@ -591,28 +494,6 @@ fn h_ui_62_vertical_grid_only() {
         }
     }
     assert!(verticals > 0, "aucune verticale");
-}
-
-/// H-UI-63 : case « durée après le nom » (barres critiques : 2, 3, 6, 7
-/// dans P) ⇒ « Fondations (5 j) » sur la barre ; décochée ⇒
-/// « Fondations ».
-#[test]
-fn h_ui_63_duration_after_name_toggle() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Critical, None);
-    click(&mut harness, &fr(TextId::FpDurationAfterName));
-    harness.run();
-    let st = effective(harness.state());
-    assert_eq!(st.texts[&BarRole::Critical].right, Some(BarField::NameDuration));
-    let drawn = |h: &Harness<'static, App>, t: &str| texts(h).iter().any(|(_, x)| x == t);
-    assert!(drawn(&harness, "Fondations (5\u{a0}j)"), "{:?}", texts(&harness));
-    click(&mut harness, &fr(TextId::FpDurationAfterName));
-    harness.run();
-    assert_eq!(
-        effective(harness.state()).texts[&BarRole::Critical].right,
-        Some(BarField::Name)
-    );
-    assert!(drawn(&harness, "Fondations"));
 }
 
 /// H-UI-63 : jalon « Livraison » : date courte à gauche du losange, nom à
@@ -690,91 +571,6 @@ fn h_ui_64_chart_only_mode() {
     harness.state_mut().dispatch(Action::SetChartOnly(false));
     harness.run();
     assert!(has(&harness, &duration));
-}
-
-/// H-UI-65 : couleur de phase sur la récapitulative « Second œuvre » ⇒
-/// barre et sous-barres de la couleur, fond de sa ligne dans la table en
-/// teinte lisible ; une entrée d'annulation.
-#[test]
-fn h_ui_65_phase_color_row_and_bar() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Summary, Some(5));
-    let red = Rgb(0xC0, 0x00, 0x00);
-    let before = history(harness.state());
-    click(
-        &mut harness,
-        &label(TextId::FpPhaseSwatch, &[("color", Arg::Str(red.hex().into()))]),
-    );
-    harness.run();
-    assert_eq!(history(harness.state()), before + 1);
-    let st = effective(harness.state());
-    assert_eq!(st.phases.get(&5).map(|p| p.fill), Some(red));
-    assert_eq!(doc(harness.state()).map(|d| d.base), Some(TemplateId::Sobre));
-    let zone = gantt_zone(&harness);
-    let all = shapes(&harness);
-    let bars = all
-        .iter()
-        .filter(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(red) && r.rect.left() > zone.left()))
-        .count();
-    assert!(bars >= 2, "sous-barres de la couleur : {bars}");
-    // Fond de l'écran : Sobre adouci (lot U1).
-    let screen = plannercraft_ui_egui::theme::screen_style(st.clone()).0;
-    let tint = plannercraft_render::style::phase_row_tint(&screen, Variant::Light, red);
-    let row = row_rect(&harness, 5, "Second œuvre");
-    let filled = all
-        .iter()
-        .any(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(tint) && (r.rect.center().y - row.center().y).abs() < 2.0));
-    assert!(filled, "fond de ligne de phase absent");
-}
-
-/// H-UI-61 et H-UI-65, relecture finale de J8 : une couleur de phase
-/// trop pâle sur le fond (jaune sur blanc, 1,3:1) est signalée dans le
-/// volet, avec une couleur conforme sur les fonds des trois variantes ;
-/// `style.get` (`contrast_issues`) la signale aussi.
-#[test]
-fn h_ui_61_phase_color_contrast_warned() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Summary, Some(5));
-    let yellow = Rgb(0xF0, 0xE4, 0x42);
-    click(
-        &mut harness,
-        &label(TextId::FpPhaseSwatch, &[("color", Arg::Str(yellow.hex().into()))]),
-    );
-    harness.run();
-    let warned = |h: &Harness<'static, App>| {
-        texts(h)
-            .iter()
-            .any(|(_, t)| t.starts_with("Contraste insuffisant"))
-    };
-    assert!(warned(&harness), "aucun avertissement pour la phase");
-    let st = effective(harness.state());
-    let issues = plannercraft_automation::command::style::contrast_issues(&st);
-    assert!(
-        issues.iter().any(|i| i.phase == Some(5) && i.color == yellow),
-        "{issues:?}"
-    );
-    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| st.tokens(v).bg);
-    let worst = *bgs
-        .iter()
-        .min_by_key(|bg| plannercraft_render::style::contrast_ratio(yellow, **bg))
-        .unwrap();
-    let better = plannercraft_automation::command::style::nearest_compliant(yellow, worst, 3_000)
-        .filter(|b| {
-            bgs.iter()
-                .all(|bg| plannercraft_render::style::contrast_ratio(*b, *bg) >= 3_000)
-        })
-        .expect("couleur conforme sur les trois fonds");
-    click(
-        &mut harness,
-        &label(
-            TextId::FpUseSuggestion,
-            &[("color", Arg::Str(better.hex().into()))],
-        ),
-    );
-    harness.run();
-    let st = effective(harness.state());
-    assert_eq!(st.phases.get(&5).map(|p| p.fill), Some(better));
-    assert!(!warned(&harness));
 }
 
 /// H-UI-67 : « Planning travaux » ⇒ niveau des mois relatifs (« M1 ») en
@@ -1077,7 +873,7 @@ template_snapshots! {
 }
 
 /// Exemple ouvert (Sobre, clair, français).
-fn demo_capture() -> Harness<'static, App> {
+pub(crate) fn demo_capture() -> Harness<'static, App> {
     let mut harness = crate::common::harness(LanguagePref::Fr, ThemePref::Light);
     harness.run();
     harness.state_mut().open_demo();
@@ -1116,13 +912,6 @@ fn snapshot_print_mode_fr_light() {
 }
 
 #[test]
-fn snapshot_format_panel_fr_light() {
-    let mut harness = demo_capture();
-    open_panel(&mut harness, BarRole::Critical, None);
-    crate::common::snapshot(&mut harness, "format_panel_fr_light");
-}
-
-#[test]
 fn snapshot_ai_panel_fr_light() {
     use plannercraft_ui_egui::view::side_panel::{SideOp, SideTab};
     let mut harness = demo_capture();
@@ -1150,7 +939,7 @@ fn snapshot_search_bar_fr_light() {
 
 /// Glisser du pointeur de `from` à `to` par petits pas (une fenêtre egui
 /// suit le déplacement image par image une fois le glisser commencé).
-fn drag_window(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
+pub(crate) fn drag_window(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
     harness.hover_at(from);
     harness.step();
     harness.drag_at(from);
@@ -1163,443 +952,4 @@ fn drag_window(harness: &mut Harness<'static, App>, from: Pos2, to: Pos2) {
     harness.step();
     harness.drop_at(to);
     harness.run();
-}
-
-/// Fenêtre « Mettre en forme les barres » à la dernière image.
-fn format_window(harness: &Harness<'static, App>) -> Rect {
-    let id = plannercraft_ui_egui::view::format_panel::window_id();
-    harness
-        .ctx
-        .memory(|m| m.area_rect(id))
-        .expect("fenêtre du volet des barres")
-}
-
-/// H-UI-192 (lot R1c) : la fenêtre « Mettre en forme les barres » s'ouvre
-/// en haut à droite de la vue, à gauche du rail sans le recouvrir ; elle se
-/// déplace par sa barre de titre, reste dans l'écran, et garde sa position
-/// refermée puis rouverte.
-#[test]
-fn h_ui_192_format_window_moves() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    let win = format_window(&harness);
-    let rail = plannercraft_ui_egui::view::side_panel::rail_drawn(&harness.ctx).expect("rail");
-    assert!(win.right() <= rail.rect.left(), "{win:?} {rail:?}");
-    assert!(
-        win.right() > rail.rect.left() - 40.0,
-        "en haut à droite : {win:?}"
-    );
-    let title = label(
-        TextId::FpTitle,
-        &[("role", Arg::Str(fr(TextId::FpRoleTask).into()))],
-    );
-    assert!(harness.query_by_label(&title).is_some());
-    // Barre de titre (14 points sous le haut), à gauche du titre.
-    let grip = pos2(win.left() + 16.0, win.top() + 14.0);
-    drag_window(&mut harness, grip, grip + egui::vec2(-300.0, 120.0));
-    let moved = format_window(&harness);
-    // Le premier pas sert à démarrer le glisser (seuil d'egui) : au plus
-    // un pas (15 × 6 points) perdu.
-    let (dx, dy) = (moved.left() - win.left(), moved.top() - win.top());
-    assert!(
-        (-300.5..=-280.0).contains(&dx) && (110.0..=120.5).contains(&dy),
-        "{win:?} ⇒ {moved:?}"
-    );
-    // Tirée hors de l'écran : retenue dedans.
-    let grip = pos2(moved.left() + 16.0, moved.top() + 14.0);
-    drag_window(&mut harness, grip, pos2(-2_000.0, -2_000.0));
-    let screen = harness.ctx.content_rect();
-    let kept = format_window(&harness);
-    assert!(screen.contains_rect(kept), "{kept:?} hors de {screen:?}");
-    // Refermée puis rouverte : même place.
-    harness.state_mut().dispatch(Action::Format(FormatOp::CloseBars));
-    harness.run();
-    open_panel(&mut harness, BarRole::Critical, None);
-    let again = format_window(&harness);
-    assert!(
-        (again.left() - kept.left()).abs() < 1.0 && (again.top() - kept.top()).abs() < 1.0,
-        "{kept:?} ⇒ {again:?}"
-    );
-}
-
-/// Positions des pastilles du nuancier des barres (nom accessible
-/// « Couleur #RRGGBB » ⇒ centre).
-fn swatch_positions(harness: &Harness<'static, App>) -> std::collections::BTreeMap<String, Pos2> {
-    let prefix = label(TextId::FpSwatch, &[("color", Arg::Str("#".into()))]);
-    harness
-        .query_all_by(|n| n.label().is_some_and(|l| l.starts_with(&prefix)))
-        .map(|n| {
-            use egui_kittest::kittest::NodeT as _;
-            (n.accesskit_node().label().unwrap_or_default(), n.rect().center())
-        })
-        .collect()
-}
-
-/// H-UI-193 (lot R1c) : cliquer chaque pastille des deux premières
-/// rangées (modèle, puis palette) ne déplace aucune d'elles ; une couleur
-/// libre déjà utilisée apparaît en troisième rangée, sous les deux autres,
-/// marquée comme couleur courante.
-#[test]
-fn h_ui_193_swatches_stable() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    let before = swatch_positions(&harness);
-    assert!(before.len() >= 11, "{before:?}");
-    for name in before.keys() {
-        let node = harness
-            .query_all_by_label(name)
-            .next()
-            .unwrap_or_else(|| panic!("« {name} » absente"));
-        node.click();
-        harness.run();
-        harness.run();
-        let now = swatch_positions(&harness);
-        for (other, at) in &before {
-            assert_eq!(now.get(other), Some(at), "« {other} » déplacée après « {name} »");
-        }
-    }
-    // Couleur libre : troisième rangée.
-    let batch = plannercraft_automation::Batch::from_json_str(
-        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
-    )
-    .unwrap();
-    harness
-        .state_mut()
-        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
-        .unwrap();
-    harness.run();
-    harness.run();
-    let now = swatch_positions(&harness);
-    let free = label(TextId::FpSwatch, &[("color", Arg::Str("#123456".into()))]);
-    let at = now.get(&free).expect("couleur libre en troisième rangée");
-    let lowest = before.values().map(|p| p.y).fold(f32::MIN, f32::max);
-    assert!(at.y > lowest + 4.0, "{at:?} sous {lowest}");
-    for (other, p) in &before {
-        assert_eq!(now.get(other), Some(p), "« {other} » déplacée");
-    }
-}
-
-/// H-UI-195, H-UI-196 (lot R1c, I1 et I3 vus de l'interface) : une
-/// couleur choisie par le volet sur Sobre garde l'écran adouci (barres
-/// critiques à leur teinte adoucie), repeint les barres du rôle, vaut pour
-/// le clair, le sombre et l'impression, et dessine leur avancement dans
-/// une encre dérivée lisible.
-#[test]
-fn h_ui_195_panel_color_keeps_soft_screen() {
-    let (mut harness, _) = sobre_p();
-    let soft_critical = plannercraft_ui_egui::theme::soft_tokens(Variant::Light)
-        .unwrap()
-        .bars[&BarRole::Critical]
-        .fill;
-    let painted = |h: &Harness<'static, App>, c: Rgb| {
-        shapes(h)
-            .iter()
-            .any(|s| matches!(s, Shape::Rect(r) if r.fill == rgb(c)))
-    };
-    assert!(painted(&harness, soft_critical));
-    open_panel(&mut harness, BarRole::Task, None);
-    let orange = Rgb(0xE6, 0x9F, 0x00);
-    click(
-        &mut harness,
-        &label(TextId::FpSwatch, &[("color", Arg::Str(orange.hex().into()))]),
-    );
-    harness.run();
-    let st = effective(harness.state());
-    for v in [Variant::Light, Variant::Dark, Variant::Print] {
-        assert_eq!(st.tokens(v).bars[&BarRole::Task].fill, orange, "{v:?}");
-    }
-    assert!(
-        plannercraft_ui_egui::theme::screen_style(st).1,
-        "écran adouci gardé"
-    );
-    assert!(painted(&harness, orange), "tâches repeintes");
-    assert!(painted(&harness, soft_critical), "barres critiques inchangées");
-}
-
-/// Captures du lot R1c : volet des barres à trois rangées (couleur libre
-/// déjà utilisée) ; Gantt de suivi aux quatre couleurs du diagnostic
-/// (orange, noir, jaune, rouge), clair et sombre.
-#[test]
-fn snapshot_format_panel_rows_fr_light() {
-    let mut harness = demo_capture();
-    let batch = plannercraft_automation::Batch::from_json_str(
-        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456","base":"sobre"}]}"##,
-    )
-    .unwrap();
-    harness
-        .state_mut()
-        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
-        .unwrap();
-    harness.run();
-    open_panel(&mut harness, BarRole::Task, None);
-    crate::common::snapshot(&mut harness, "format_panel_rows_fr_light");
-}
-
-/// Planning de l'exemple en Gantt de suivi, tâches en cours d'avancement,
-/// couleurs du diagnostic du lot R1c posées par les commandes du volet.
-fn diag_colors(theme: ThemePref) -> Harness<'static, App> {
-    let mut harness = crate::common::harness(LanguagePref::Fr, theme);
-    harness.run();
-    harness.state_mut().open_demo();
-    harness.run();
-    harness.state_mut().dispatch(Action::SetGanttStyle(
-        plannercraft_ui_egui::state::GanttStyle::Tracking,
-    ));
-    let mut ops = Vec::new();
-    for (task, pct) in [
-        (2, 10_000),
-        (3, 6_000),
-        (5, 5_000),
-        (6, 5_000),
-        (10, 4_000),
-        (13, 3_000),
-        (14, 5_000),
-    ] {
-        ops.push(format!(
-            r#"{{"op":"progress.update","task":{task},"percent_complete":{{"value":{pct}}}}}"#
-        ));
-    }
-    for (role, color) in [
-        ("task", "#E69F00"),
-        ("critical", "#000000"),
-        ("summary", "#F0E442"),
-        ("milestone", "#C00000"),
-    ] {
-        ops.push(format!(
-            r#"{{"op":"style.set_bar_role","role":"{role}","color":"{color}","base":"sobre"}}"#
-        ));
-    }
-    let batch = plannercraft_automation::Batch::from_json_str(&format!(
-        r#"{{"format_version":1,"ops":[{}]}}"#,
-        ops.join(",")
-    ))
-    .unwrap();
-    harness
-        .state_mut()
-        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
-        .unwrap();
-    harness.run();
-    harness.run();
-    harness
-}
-
-#[test]
-fn snapshot_bar_colors_fr_light() {
-    let mut harness = diag_colors(ThemePref::Light);
-    crate::common::snapshot(&mut harness, "bar_colors_fr_light");
-}
-
-#[test]
-fn snapshot_bar_colors_fr_dark() {
-    let mut harness = diag_colors(ThemePref::Dark);
-    crate::common::snapshot(&mut harness, "bar_colors_fr_dark");
-}
-
-/// H-UI-194 (lot R1c, amende H-UI-61) : une couleur choisie est mesurée
-/// sur les fonds clair, sombre et impression ; bleu nuit `#123456`, lisible
-/// sur le blanc, est signalé (« sur le fond sombre », le fond en cause est
-/// nommé) et la proposition convient aux trois ; appliquée, plus
-/// d'avertissement. Couleur du modèle : fond
-/// affiché seul (aucun avertissement sur Sobre).
-#[test]
-fn h_ui_194_contrast_three_backgrounds() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    let warned = |h: &Harness<'static, App>| {
-        texts(h)
-            .iter()
-            .any(|(_, t)| t.starts_with("Contraste insuffisant"))
-    };
-    assert!(!warned(&harness), "couleur du modèle");
-    let navy = Rgb(0x12, 0x34, 0x56);
-    let batch = plannercraft_automation::Batch::from_json_str(
-        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
-    )
-    .unwrap();
-    harness
-        .state_mut()
-        .execute(&batch, plannercraft_ui_egui::EditOrigin::User)
-        .unwrap();
-    harness.run();
-    harness.run();
-    assert!(warned(&harness), "aucun avertissement sur le fond sombre");
-    // Le fond en cause est nommé : la couleur est lisible sur l'écran clair
-    // affiché, l'avertissement doit dire pourquoi il apparaît.
-    assert!(
-        texts(&harness)
-            .iter()
-            .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond sombre")),
-        "fond en cause non nommé"
-    );
-    let st = effective(harness.state());
-    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| st.tokens(v).bg);
-    assert!(plannercraft_render::style::contrast_ratio(navy, bgs[0]) >= 3_000);
-    let worst = *bgs
-        .iter()
-        .min_by_key(|bg| plannercraft_render::style::contrast_ratio(navy, **bg))
-        .unwrap();
-    let better = plannercraft_automation::command::style::nearest_compliant(navy, worst, 3_000)
-        .filter(|b| {
-            bgs.iter()
-                .all(|bg| plannercraft_render::style::contrast_ratio(*b, *bg) >= 3_000)
-        })
-        .expect("couleur conforme sur les trois fonds");
-    click(
-        &mut harness,
-        &label(
-            TextId::FpUseSuggestion,
-            &[("color", Arg::Str(better.hex().into()))],
-        ),
-    );
-    harness.run();
-    let st = effective(harness.state());
-    for v in [Variant::Light, Variant::Dark, Variant::Print] {
-        assert_eq!(st.tokens(v).bars[&BarRole::Task].fill, better, "{v:?}");
-    }
-    assert!(!warned(&harness));
-}
-
-/// Nombre de barres du type `role` que le Gantt dessine, compté ici ligne
-/// par ligne avec sa règle (`gantt::row_role`) et la surbrillance du
-/// critique de la vue ; un en-tête de groupe qui a une barre compte pour
-/// une récapitulative (H-UI-197).
-fn bars_of(app: &App, role: BarRole) -> usize {
-    use plannercraft_ui_egui::row_view::DisplayRow;
-    use plannercraft_ui_egui::view::gantt::row_role;
-    let rows = app.visible_rows().unwrap();
-    let critical = app.view().task_view.highlight_critical;
-    (0..rows.len())
-        .filter_map(|i| {
-            let d = DisplayRow::at(i);
-            rows.header_bar_row(d).or_else(|| rows.row(d).copied())
-        })
-        .filter(|row| row_role(row, critical) == Some(role))
-        .count()
-}
-
-/// Texte du compte des barres pour `count` barres (H-UI-197).
-fn count_label(count: usize) -> String {
-    label(
-        TextId::FpRoleCount,
-        &[("count", Arg::Count(i64::try_from(count).unwrap()))],
-    )
-}
-
-/// Textes dessinés qui disent un compte de barres (H-UI-197).
-fn count_lines(harness: &Harness<'static, App>) -> Vec<String> {
-    texts(harness)
-        .into_iter()
-        .map(|(_, t)| t)
-        .filter(|t| t.ends_with("de ce type dans ce planning."))
-        .collect()
-}
-
-/// H-UI-197 (lot R1d) : sous « Type de barre », le volet dit combien de
-/// barres du type choisi le planning affiché contient ; le compte est celui
-/// des lignes du Gantt (même règle, même surbrillance du critique).
-#[test]
-fn h_ui_197_role_count_shown() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    let n = bars_of(harness.state(), BarRole::Task);
-    assert_eq!(count_lines(&harness), vec![count_label(n)]);
-    // Chaque type de ligne : le texte suit le type choisi.
-    for role in [
-        BarRole::Critical,
-        BarRole::Summary,
-        BarRole::SummaryCritical,
-        BarRole::Milestone,
-        BarRole::MilestoneCritical,
-        BarRole::Inactive,
-        BarRole::Manual,
-    ] {
-        harness
-            .state_mut()
-            .dispatch(Action::Format(FormatOp::SetRole(role)));
-        harness.run();
-        let n = bars_of(harness.state(), role);
-        assert_eq!(count_lines(&harness), vec![count_label(n)], "{role:?}");
-    }
-}
-
-/// H-UI-197 : un type sans barre dans le planning ⇒ « Aucune barre de ce
-/// type dans ce planning. » (barres critiques, surbrillance du critique
-/// coupée : le Gantt les dessine alors en barres de tâches).
-#[test]
-fn h_ui_197_role_count_none() {
-    let (mut harness, _) = sobre_p();
-    open_panel(&mut harness, BarRole::Task, None);
-    assert!(
-        bars_of(harness.state(), BarRole::Critical) > 0,
-        "exemple sans tâche critique"
-    );
-    let all = bars_of(harness.state(), BarRole::Task) + bars_of(harness.state(), BarRole::Critical);
-    harness.state_mut().dispatch(Action::SetHighlightCritical(false));
-    harness.run();
-    harness
-        .state_mut()
-        .dispatch(Action::Format(FormatOp::SetRole(BarRole::Critical)));
-    harness.run();
-    assert_eq!(bars_of(harness.state(), BarRole::Critical), 0);
-    let none = "Aucune barre de ce type dans ce planning.".to_owned();
-    assert_eq!(count_label(0), none);
-    assert_eq!(count_lines(&harness), vec![none]);
-    // Les barres critiques sont comptées avec les barres de tâches.
-    harness
-        .state_mut()
-        .dispatch(Action::Format(FormatOp::SetRole(BarRole::Task)));
-    harness.run();
-    assert_eq!(bars_of(harness.state(), BarRole::Task), all);
-    assert_eq!(count_lines(&harness), vec![count_label(all)]);
-}
-
-/// H-UI-197 : avancement, ligne de base, marge, échéance ne sont pas des
-/// types de ligne ⇒ aucune ligne de compte.
-#[test]
-fn h_ui_197_role_count_hidden_for_overlays() {
-    let (mut harness, _) = sobre_p();
-    for role in [
-        BarRole::Progress,
-        BarRole::Baseline,
-        BarRole::Slack,
-        BarRole::Deadline,
-    ] {
-        open_panel(&mut harness, role, None);
-        let title = label(
-            TextId::FpTitle,
-            &[(
-                "role",
-                Arg::Str(fr(plannercraft_ui_egui::view::format_panel::role_label(role)).into()),
-            )],
-        );
-        assert!(
-            harness.query_by_label(&title).is_some(),
-            "volet {role:?} non ouvert"
-        );
-        assert!(count_lines(&harness).is_empty(), "{role:?}");
-    }
-}
-
-/// H-UI-197 : planning regroupé ⇒ les barres des en-têtes de groupe, que le
-/// Gantt dessine en récapitulatives (H-UI-129), sont comptées avec les
-/// récapitulatives.
-#[test]
-fn h_ui_197_role_count_group_headers() {
-    use plannercraft_render::style::GroupBy;
-    use plannercraft_ui_egui::group_view::GroupOp;
-    use plannercraft_ui_egui::row_view::DisplayRow;
-    let (mut harness, _) = sobre_p();
-    harness
-        .state_mut()
-        .dispatch(Action::Group(GroupOp::Set(Some(GroupBy::Critical))));
-    harness.run();
-    open_panel(&mut harness, BarRole::Summary, None);
-    let rows = harness.state().visible_rows().unwrap();
-    let headers = (0..rows.len())
-        .filter(|&i| rows.header_bar_row(DisplayRow::at(i)).is_some())
-        .count();
-    assert!(headers > 0, "regroupement sans barre d'en-tête");
-    let n = bars_of(harness.state(), BarRole::Summary);
-    assert!(n >= headers);
-    assert_eq!(count_lines(&harness), vec![count_label(n)]);
 }

@@ -67,6 +67,7 @@ mod edit;
 mod fields;
 mod files;
 mod filters;
+mod format_window;
 mod gestures;
 mod group;
 mod j8_e2e;

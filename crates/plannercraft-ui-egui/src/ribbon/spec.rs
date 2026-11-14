@@ -109,8 +109,9 @@ pub enum RibbonCmd {
     Copy,
     /// Collage spécial…
     PasteSpecial,
-    /// Mettre en forme les barres (type de la tâche active).
-    FormatBars,
+    /// Fenêtre « Mise en forme » (lot F1 ; onglet Graphique, type de la
+    /// tâche active).
+    FormatWindow,
     /// Galerie des modèles de mise en forme.
     Gallery,
     /// Marquer n % achevé (R-252).
@@ -313,7 +314,7 @@ impl RibbonCmd {
             Self::Cut => Action::Clipboard(ClipboardOp::Cut),
             Self::Copy => Action::Clipboard(ClipboardOp::Copy),
             Self::PasteSpecial => Action::Clipboard(ClipboardOp::PasteSpecial),
-            Self::FormatBars => format_bars_action(fc),
+            Self::FormatWindow => format_window_action(fc),
             Self::Gallery => Action::ShowDialog(DialogKind::Gallery),
             Self::MarkPercent(step) => Action::TaskCmd(TaskCmd::MarkPercent(step)),
             Self::Link => Action::Structure(StructureOp::Link),
@@ -564,7 +565,7 @@ impl RibbonCmd {
             Self::Cut => TextId::MenuCut,
             Self::Copy => TextId::MenuCopy,
             Self::PasteSpecial => TextId::MenuPasteSpecial,
-            Self::FormatBars => TextId::MenuFormatBars,
+            Self::FormatWindow => TextId::MenuFormatWindow,
             Self::Gallery => TextId::MenuGallery,
             Self::MarkPercent(_) => TextId::MenuMarkPercent,
             Self::Link => TextId::StructureLink,
@@ -698,7 +699,7 @@ impl RibbonCmd {
             | Self::SetBaseline
             | Self::UpdateProject
             | Self::CustomFields => &[TextId::MenuProject],
-            Self::FormatBars
+            Self::FormatWindow
             | Self::Gallery
             | Self::RelativeMonths
             | Self::ColumnsMenu
@@ -932,10 +933,11 @@ fn relative_months(fc: &FrameCtx<'_>) -> bool {
     fc.doc.is_some() && fc.task_view.style.style.scale.relative_months
 }
 
-/// « Mettre en forme les barres » : type de la barre de la tâche active,
-/// sinon les barres de tâches (même règle que le menu Format, que L2 fait
-/// passer par cette fonction).
-fn format_bars_action(fc: &FrameCtx<'_>) -> Action {
+/// « Mise en forme… » (lot F1, H-UI-216) : fenêtre « Mise en forme »,
+/// onglet Graphique, type de la barre de la tâche active, sinon les barres
+/// de tâches (même règle que le menu Format, que L2 fait passer par cette
+/// fonction).
+fn format_window_action(fc: &FrameCtx<'_>) -> Action {
     let role = fc
         .selection
         .and_then(|uid| {
@@ -947,7 +949,8 @@ fn format_bars_action(fc: &FrameCtx<'_>) -> Action {
             crate::view::gantt::row_role(row, fc.task_view.state.highlight_critical)
         })
         .unwrap_or(BarRole::Task);
-    Action::Format(FormatOp::OpenBars {
+    Action::Format(FormatOp::Open {
+        tab: crate::view::format_window::FormatTab::Chart,
         role,
         task: fc.selection,
     })
@@ -1069,12 +1072,12 @@ const RESOURCE_USAGE_LARGE: ItemSpec = plain(
     TextId::RibbonTipResourceUsage,
     RibbonCmd::ResourceUsage,
 );
-const FORMAT_BARS: ItemSpec = plain(
+const FORMAT_WINDOW: ItemSpec = plain(
     Large,
     Some(Icon::Paintbrush),
-    TextId::MenuFormatBars,
-    TextId::RibbonTipFormatBars,
-    RibbonCmd::FormatBars,
+    TextId::MenuFormatWindow,
+    TextId::RibbonTipFormatWindow,
+    RibbonCmd::FormatWindow,
 );
 
 /// Pourcentage de la rangée.
@@ -1193,7 +1196,7 @@ const TASK_GROUPS: &[GroupSpec] = &[
         label: TextId::RibbonGroupFormatting,
         icon: Icon::Paintbrush,
         items: &[
-            FORMAT_BARS,
+            FORMAT_WINDOW,
             plain(
                 Small,
                 Some(Icon::SwatchBook),
@@ -1722,7 +1725,7 @@ const FORMAT_GROUPS: &[GroupSpec] = &[
         label: TextId::RibbonGroupBarStyles,
         icon: Icon::Paintbrush,
         items: &[
-            FORMAT_BARS,
+            FORMAT_WINDOW,
             plain(
                 Check,
                 None,
@@ -1847,7 +1850,7 @@ const TASK_COMPACT: &[CompactGroup] = &[
     },
     CompactGroup {
         label: TextId::RibbonGroupFormatting,
-        shown: &[icon(RibbonCmd::FormatBars)],
+        shown: &[icon(RibbonCmd::FormatWindow)],
     },
     CompactGroup {
         label: TextId::RibbonGroupSchedule,
@@ -1976,7 +1979,7 @@ const FORMAT_COMPACT: &[CompactGroup] = &[
     },
     CompactGroup {
         label: TextId::RibbonGroupBarStyles,
-        shown: &[text(RibbonCmd::FormatBars), text(RibbonCmd::CriticalTasks)],
+        shown: &[text(RibbonCmd::FormatWindow), text(RibbonCmd::CriticalTasks)],
     },
     CompactGroup {
         label: TextId::RibbonGroupChartStyle,

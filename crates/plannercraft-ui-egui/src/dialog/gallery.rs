@@ -7,9 +7,11 @@
 //! (vignette des 12 premières lignes du projet ouvert, dessinée depuis la
 //! scène du rendu, même géométrie que l'écran, H-UI-42), le modèle actuel
 //! marqué, « Appliquer » (`style.apply { template, patch }`, une entrée
-//! d'annulation ; le patch garde les couleurs de phase et la mise en page
-//! enregistrées du document, relecture finale de J8, F5), « Définir par défaut » (modèle des documents sans
-//! style, H-UI-43) ; modèles personnels (préférences) applicables de même ;
+//! d'annulation ; la commande garde la part du document, couleurs de phase,
+//! chronologie, texte des tâches, regroupement et mise en page :
+//! `StylePatch::document_part`, lot F1, H-UI-226), « Définir par défaut »
+//! (modèle des documents sans style, H-UI-43) ; modèles personnels
+//! (préférences) applicables de même ([`template_batch`]) ;
 //! « Enregistrer comme modèle personnel » (nom, 64 caractères au plus,
 //! 32 modèles au plus). Écart au cahier : la vignette vient de la scène
 //! (`layout`) et non de l'écran stylé ; même géométrie et mêmes couleurs,
@@ -286,6 +288,36 @@ pub fn saved_message(texts: &Texts, result: Result<&str, crate::state::UserTempl
     }
 }
 
+/// Lot d'application d'un modèle (intégré : `over` absent ; personnel : ses
+/// surcharges) : `style.apply { template, patch }`, une entrée
+/// d'annulation. Seule la part du modèle de `over` est envoyée
+/// (`StylePatch::template_part`) ; la commande garde la part du document
+/// (`StylePatch::keep_document_part`) : couleurs de phase, chronologie,
+/// texte des tâches, regroupement, mise en page (lot F1, H-UI-226 ; avant :
+/// une liste différente par chemin). Partagé par la galerie, la fenêtre
+/// « Mise en forme » et `FormatOp::ApplyUserTemplate`.
+#[must_use]
+pub fn template_batch(
+    template: TemplateId,
+    over: Option<&plannercraft_render::style::StylePatch>,
+    lang: Language,
+) -> plannercraft_automation::Batch {
+    use plannercraft_automation::command::Command;
+    use plannercraft_automation::command::style::{StyleApply, TemplateJson};
+    let patch = over
+        .map(plannercraft_render::style::StylePatch::template_part)
+        .filter(|p| !p.is_empty())
+        .and_then(|p| serde_json::to_value(&p).ok());
+    super::batch_of(
+        vec![Command::StyleApply(StyleApply {
+            template: Some(TemplateJson::from(template)),
+            patch,
+            reset: false,
+        })],
+        lang,
+    )
+}
+
 impl crate::app::App {
     /// Ouvre la galerie (sans document : rien).
     pub(crate) fn open_gallery(&mut self) {
@@ -302,8 +334,7 @@ impl crate::app::App {
 
     /// Dessine la galerie et applique sa réponse.
     pub(crate) fn show_gallery(&mut self, ctx: &egui::Context) {
-        use plannercraft_automation::command::Command;
-        use plannercraft_automation::command::style::{StyleApply, TemplateJson, doc_style};
+        use plannercraft_automation::command::style::doc_style;
         let lang = self.text_language();
         let (
             Some(document),
@@ -323,66 +354,23 @@ impl crate::app::App {
             default: self.state.default_template,
             user: &self.state.user_templates,
         };
-        // Relecture finale de J8 (F5) : changer de modèle garde ce qui
-        // appartient au projet et non au modèle, couleurs de phase (H-UI-65)
-        // et mise en page enregistrée (colonnes d'impression, en-tête et
-        // pied, cartouche) ; le reste des surcharges suit le modèle.
-        // ADR-0017 (lot L6) : la liste des tâches de la chronologie
-        // (H-UI-79) appartient au projet aussi, gardée telle quelle.
-        let kept = input
-            .current
-            .as_ref()
-            .map(|d| plannercraft_render::style::StylePatch {
-                phases: d.over.phases.clone(),
-                page: d.over.page.clone(),
-                timeline: d.over.timeline.clone(),
-                // Finitions P2 (H-UI-126) : mise en forme du texte des
-                // tâches, propre au projet.
-                task_text: d.over.task_text.clone(),
-                ..plannercraft_render::style::StylePatch::default()
-            })
-            .unwrap_or_default();
         let outcome = show(ctx, &self.texts, state, &input);
-        let apply = |template: TemplateId, patch: Option<serde_json::Value>| {
-            super::batch_of(
-                vec![Command::StyleApply(StyleApply {
-                    template: Some(TemplateJson::from(template)),
-                    patch,
-                    reset: false,
-                })],
-                lang,
-            )
-        };
         match outcome {
             GalleryOutcome::Open => {}
             GalleryOutcome::Close => self.close_dialog(),
             GalleryOutcome::Apply(id) => {
-                let patch = (!kept.is_empty())
-                    .then(|| serde_json::to_value(&kept).ok())
-                    .flatten();
-                let batch = apply(id, patch);
+                let batch = template_batch(id, None, lang);
                 drop(self.execute(&batch, crate::app::EditOrigin::User));
             }
             GalleryOutcome::ApplyUser(i) => {
                 if let Some(t) = self.state.user_templates.get(i) {
-                    // Surcharges du modèle personnel par-dessus celles que
-                    // garde le projet (les siennes l'emportent).
-                    let mut over = plannercraft_automation::command::style::merge_patch(&kept, &t.style.over)
-                        .unwrap_or_else(|| t.style.over.clone());
-                    // Chronologie : UID du projet ouvert, jamais ceux du
-                    // projet d'où vient le modèle (ADR-0017, lot L6).
-                    over.timeline.clone_from(&kept.timeline);
-                    over.task_text.clone_from(&kept.task_text);
-                    let patch = (!over.is_empty())
-                        .then(|| serde_json::to_value(&over).ok())
-                        .flatten();
-                    let batch = apply(t.style.base, patch);
+                    let batch = template_batch(t.style.base, Some(&t.style.over), lang);
                     drop(self.execute(&batch, crate::app::EditOrigin::User));
                 }
             }
             GalleryOutcome::MakeDefault(id) => self.state.default_template = id,
             GalleryOutcome::Save(name) => {
-                let message = self.save_user_template_named(&name);
+                let (message, _) = self.save_user_template_named(&name);
                 if let Some(super::DialogState {
                     body: super::DialogBody::Gallery(state),
                     ..
@@ -396,11 +384,12 @@ impl crate::app::App {
 
     /// « Enregistrer comme modèle personnel » : style du document (sinon le
     /// modèle par défaut sans surcharge) sous `name` ; rend le texte du
-    /// retour (enregistré, nom invalide, liste pleine).
-    pub(crate) fn save_user_template_named(&mut self, name: &str) -> String {
+    /// retour (enregistré, nom invalide, liste pleine) et vrai s'il a été
+    /// enregistré.
+    pub(crate) fn save_user_template_named(&mut self, name: &str) -> (String, bool) {
         use plannercraft_render::style::STYLE_VERSION;
         let Some(document) = &self.document else {
-            return String::new();
+            return (String::new(), false);
         };
         let mut style =
             plannercraft_automation::command::style::doc_style(document.project()).unwrap_or(DocStyle {
@@ -408,13 +397,13 @@ impl crate::app::App {
                 base: self.state.default_template,
                 over: plannercraft_render::style::StylePatch::default(),
             });
-        // Un modèle ne porte pas la chronologie : ses UID n'ont de sens que
-        // dans ce projet (ADR-0017, lot L6).
-        style.over.timeline = None;
-        // Ni la mise en forme du texte des tâches (finitions P2).
-        style.over.task_text = None;
+        // Un modèle ne porte pas la part du document (chronologie, texte des
+        // tâches, phases, regroupement, mise en page) : retirée par
+        // `UiState::save_user_template` (lot F1, H-UI-226).
+        style.over = style.over.template_part();
         let trimmed = name.trim().to_owned();
         let result = self.state.save_user_template(name, style);
-        saved_message(&self.texts, result.map(|()| trimmed.as_str()))
+        let ok = result.is_ok();
+        (saved_message(&self.texts, result.map(|()| trimmed.as_str())), ok)
     }
 }

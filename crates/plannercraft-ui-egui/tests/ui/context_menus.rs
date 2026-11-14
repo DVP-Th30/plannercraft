@@ -331,7 +331,7 @@ fn digest(app: &App) -> String {
         doc.project(),
         app.selected(),
         app.view().dialog.as_ref().map(|d| d.kind),
-        app.view().format_panel.as_ref().map(|p| p.role),
+        app.view().format_window.as_ref().map(|p| (p.tab, p.role)),
         app.clipboard().map(|slot| slot.clip.tasks.len()),
         app.messages().iter().map(|m| m.text.clone()).collect::<Vec<_>>(),
         app.view().pending_scroll_y,
