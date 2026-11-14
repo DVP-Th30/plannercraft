@@ -144,7 +144,7 @@ pub(super) fn show(
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = gap;
                     let w = ((ui.available_width() - gap) / 2.0).max(60.0);
-                    let h = card_height(ui, texts, pair, w, CARD_H - 6.0);
+                    let h = card_height(ui, texts, pair, w, CARD_H);
                     for role in pair {
                         if card(ui, texts, input, *role, state.role == *role, vec2(w, h)) {
                             state.set_role(*role);
