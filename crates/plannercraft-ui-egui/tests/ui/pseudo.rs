@@ -385,6 +385,31 @@ fn pseudo_dialogs_no_truncation() {
     }
 }
 
+/// Lot P1b (H-UI-205 à H-UI-209) : fenêtre « Importer un PDF » en
+/// pseudo-langue, sur le PDF produit par le projet : aucun texte coupé
+/// (titres de colonnes du tableau compris).
+#[test]
+fn pseudo_pdf_import_no_truncation() {
+    let labels = pseudo_labels();
+    let pdf = PickedFile::Picked {
+        name: "planning.pdf".to_owned(),
+        result: Ok(crate::pdf_import::sample_pdf()),
+    };
+    let mut harness = pseudo_harness(vec![pdf]);
+    harness.state_mut().dispatch(Action::ImportPdf);
+    crate::pdf_import::settle(&mut harness);
+    assert!(
+        harness
+            .query_by_label(&pseudo(TextId::PdfColFinishComputed))
+            .is_some(),
+        "aperçu de l'import PDF non ouvert"
+    );
+    assert_not_cut(&harness, &labels, "Importer un PDF", 12);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    assert!(harness.state().view().dialog.is_none());
+}
+
 /// Application anglaise, aucun sélecteur.
 fn en_harness() -> Harness<'static, App> {
     let mut harness = harness_for(App::new(state(LanguagePref::En), Env::fixed(now())));

@@ -1907,3 +1907,130 @@ autosave-stopped = Autosave stopped in this browser: { $detail }. You can keep e
 autosave-gap = one change could not be saved
 web-file-denied = the browser did not allow writing to “{ $name }”. The plan is still modified; “Save As” picks another file.
 web-file-missing = “{ $name }” cannot be found (moved or deleted); “Save As” picks another file.
+
+## Lot P1b (ADR-0033) : import d'un planning PDF, calendrier (H-UI-205 à H-UI-212).
+menu-import-pdf = Import PDF…
+pdf-pick-title = Import a PDF schedule
+pdf-pick-filter = PDF files
+pdf-title = Import a PDF schedule
+pdf-local = The file is read on this device: nothing is sent.
+pdf-web-risk = Web version: { $size } MiB and { $max } pages at most. A damaged PDF can stop the reader and the page: reload it then (the browser autosave keeps the open schedule, when it is active).
+pdf-reading = Reading the PDF…
+pdf-computing = Computing…
+pdf-summary-tasks =
+    { $count ->
+        [one] { $count } task read
+       *[other] { $count } tasks read
+    }
+pdf-summary-levels =
+    { $count ->
+        [one] { $count } level
+       *[other] { $count } levels
+    }
+pdf-summary-links =
+    { $count ->
+        [one] { $count } link
+       *[other] { $count } links
+    }
+pdf-columns = Recognized columns: { $names }
+pdf-warnings =
+    { $count ->
+        [one] { $count } warning:
+       *[other] { $count } warnings:
+    }
+pdf-warning-task = ID { $id }: { $detail }
+pdf-warning-value = { $detail } ("{ $value }")
+pdf-warn-more =
+    { $count ->
+        [one] … and { $count } more
+       *[other] … and { $count } more
+    }
+pdf-warn-id-gap = IDs missing from the table (collapsed summaries or a print filter)
+pdf-warn-id-conflict = duplicate ID with different content: first row kept
+pdf-warn-blank-row = blank row ignored
+pdf-warn-name-truncated = name cut at print time ("…"): to be completed
+pdf-warn-duration-unreadable = unreadable duration: default duration used
+pdf-warn-duration-missing = missing duration: default duration used
+pdf-warn-date-unreadable = unreadable date
+pdf-warn-date-order-assumed = day/month order taken from the header language (no date settles it)
+pdf-warn-date-order-conflict = inconsistent dates: some are ignored
+pdf-warn-finish-before-start = finish read before start
+pdf-warn-predecessor-unreadable = unreadable predecessor, ignored
+pdf-warn-predecessor-external = predecessor from another project, ignored
+pdf-warn-predecessor-unknown = predecessor not in the table, ignored
+pdf-warn-predecessor-self = self predecessor, ignored
+pdf-warn-level-jump = indent of more than one level: reduced to the next level
+pdf-warn-stray-lines = table text lines attached to no task
+pdf-warn-truncated = read limits reached: partial content
+pdf-warn-pages-skipped = pages beyond the limit not read
+pdf-warn-link-refused = link refused by the engine (loop), ignored
+pdf-warn-constraint-refused = constraint refused by the engine
+pdf-warn-flattened = unreadable outline: all tasks at level 1
+pdf-refused = PDF not imported: { $detail }
+pdf-convert-failed = Schedule read, but the engine could not build it: { $detail }
+pdf-hint-encrypted = Save an unprotected copy from your PDF reader, then import it.
+pdf-hint-scanned = Ask the author for the PDF exported from their scheduling software (print to PDF), or re-enter the schedule.
+pdf-hint-no-table = Import reads Gantt views printed from MS Project or similar software: a table with "Task Name" and dates.
+pdf-hint-no-dates = Print the schedule again with the Start and Finish columns, then import it.
+pdf-hint-hierarchy = Tick "Import without outline": all tasks at level 1, to indent afterwards.
+pdf-hint-damaged = The file may be damaged: open it in a PDF reader, print it to PDF again, then import the copy.
+pdf-hint-too-large = Print only the schedule pages to a smaller PDF, then import it.
+pdf-date-order = Date order
+pdf-order-day-month = Day/month (31/12)
+pdf-order-month-day = Month/day (12/31)
+pdf-order-assumed = No date settles day/month against month/day: check a few dates, or set the order.
+pdf-flatten = Import without outline (all tasks at level 1)
+pdf-pin-starts = Pin linked tasks to their read start
+pdf-pin-starts-hint = Sets "Start No Earlier Than" on linked tasks that the schedule would place before their read start (lag or constraint not printed in the PDF).
+pdf-calendar = Calendar
+pdf-calendar-hint = The PDF does not print its calendar: unknown non-working days make tasks finish earlier than in the PDF.
+pdf-holidays = French public holidays
+pdf-holidays-hint = The 11 statutory holidays of mainland France, { $from } to { $to }; neither Alsace-Moselle nor overseas.
+pdf-holidays-scope = The 11 statutory holidays of mainland France; neither Alsace-Moselle nor overseas.
+pdf-periods = Non-working periods deduced from the gaps (tick to apply):
+pdf-periods-none = No period proposed: the remaining gaps are not clearly explained by non-working days.
+pdf-period-line =
+    { $from } to { $to }: { $count ->
+        [one] { $count } working day
+       *[other] { $count } working days
+    }, { $n ->
+        [one] explains { $n } task
+       *[other] explains { $n } tasks
+    }
+pdf-period-place =
+    To place: the PDF only says { $count ->
+        [one] { $count } non-working day
+       *[other] { $count } non-working days
+    } between { $from } and { $to }.
+pdf-period-earlier = Move earlier
+pdf-period-later = Move later
+pdf-period-name = Time off (deduced from the PDF import)
+pdf-unexplained =
+    { $count ->
+        [one] { $count } task keeps a gap that no non-working day explains (half day, lag): left as is.
+       *[other] { $count } tasks keep a gap that no non-working day explains (half days, lags): left as is.
+    }
+pdf-same = Dates identical to the PDF: { $n } of { $count }
+pdf-only-gaps = Gaps only
+pdf-col-id = ID
+pdf-col-name = Name
+pdf-col-duration = Duration
+pdf-col-start-read = Start read
+pdf-col-finish-read = Finish read
+pdf-col-finish-computed = Computed finish
+pdf-col-gap = Gap
+pdf-gap-start = start { $value } d
+pdf-gap-finish = finish { $value } d
+pdf-no-rows = No task with a gap.
+error-pdfimport-too_large = PDF too large (64 MiB at most; 16 MiB in the web version)
+error-pdfimport-encrypted = PDF protected by a password or permissions: not readable
+error-pdfimport-invalid = unreadable PDF file
+error-pdfimport-reader_failure = the PDF reader failed on this file
+error-pdfimport-no_text = no readable text in this PDF (drawing or fonts without text)
+error-pdfimport-scanned = scanned PDF (image): import only reads PDFs exported from scheduling software
+error-pdfimport-no_table = no schedule table found (a "Task Name" header with "Duration", "Start" or "Finish")
+error-pdfimport-no_dates = the table has no start or finish dates
+error-pdfimport-flat_hierarchy = flat list with bold titles: the outline cannot be read reliably
+error-pdfimport-inconsistent_hierarchy = name indents do not match the summary dates: the outline cannot be read reliably
+error-pdfimport-no_tasks = table found, but no task read
+error-pdfimport-too_many_tasks = more tasks than the import limit (20,000)

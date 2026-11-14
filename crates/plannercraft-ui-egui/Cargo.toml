@@ -18,6 +18,9 @@ plannercraft-render.workspace = true
 # Assistant IA (ADR-0024, lot A1) : client OpenRouter, outils en lecture,
 # connexion et clé, sans egui (règle 9).
 plannercraft-assistant.workspace = true
+# Import d'un planning PDF (lot P1b, ADR-0033) : lecteur et conversion, sans
+# egui (règle 9) ; aussi dans la version web (lecture locale).
+plannercraft-pdfimport.workspace = true
 egui.workspace = true
 # Markdown des réponses de l'assistant, derrière `view::markdown::render_markdown`.
 pulldown-cmark.workspace = true

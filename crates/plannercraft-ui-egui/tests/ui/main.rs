@@ -76,6 +76,7 @@ mod outline;
 mod palette;
 mod panes;
 mod paste_destination;
+mod pdf_import;
 mod polish;
 mod pseudo;
 mod quit;
