@@ -26,7 +26,7 @@ Tags `v*-test.*` ⇒ brouillon (non public) ; un tag d'essai `vX.Y.Z-test.N` ép
 | C-REL-02 | macOS : `lipo -archs` des deux binaires = « x86_64 arm64 » ; `codesign --verify --deep --strict` vert ; `hdiutil verify` vert | L1 |
 | C-REL-03 | `plannercraft --version` et `plannercraft-desktop --version` impriment `PlannerCraft <version>` sans fenêtre, sur les 3 OS | L1 |
 | C-REL-04 | Linux : plus haute version `GLIBC_` requise (`objdump -T`) ≤ 2.36 | L1 |
-| C-REL-05 | Web : `.wasm` compressé gzip -9 ≤ 4 Mio (3 Mio jusqu'au 2026-10-27, ADR-0016) | L1 (mesure), L13 (porte) |
+| C-REL-05 | Web : `.wasm` compressé gzip -9 ≤ 6 Mio (3 Mio jusqu'au 2026-10-27, ADR-0016 ; 4 Mio jusqu'au 2026-11-14, ADR-0033 D3 : lecteur PDF de l'import embarqué) | L1 (mesure), L13 (porte) |
 | C-REL-06 | Web : `chromium --headless` sur `dist` servi en HTTP ⇒ attribut `data-plannercraft-started="1"` dans le DOM (posé par Rust au démarrage) | L1, L13 |
 | C-REL-07 | `sha256sum -c SHA256SUMS` vert sur les artefacts téléchargés de la release | L1 |
 | C-REL-08 | `gh release view --json assets` liste exactement les cinq fichiers du § 1 ; `gh attestation verify` vert sur l'un d'eux | L1 |
@@ -49,7 +49,7 @@ Mesure de la release d'essai (2026-10-27, `v1.0.0-test.1`) : 9 897 306 octets, 3
 | `verify-macos` | `hdiutil verify`, `codesign --verify --deep --strict`, agrafe et Gatekeeper si Developer ID, `lipo -archs`, `--version` des deux binaires (tranche x86_64 aussi si Rosetta est présent) | C-REL-02, C-REL-03, C-REL-09 |
 | `verify-windows` | contenu du zip, `--version` des deux `.exe` (sortie redirigée) | C-REL-03 |
 | `verify-linux` | dans `debian:bookworm` : `objdump -T` (plus haute `GLIBC_` ≤ 2.36), `--version`, `desktop-file-validate` | C-REL-03, C-REL-04 |
-| `verify-web` | taille du `.wasm` gzip -9 publiée dans le résumé du run, **échec** au-delà de 4 Mio (porte depuis le lot L13, relevée de 3 à 4 Mio le 2026-10-27) ; `dist` servi en HTTP, Chromium headless, `data-plannercraft-started="1"` cherché dans le DOM | C-REL-05, C-REL-06 |
+| `verify-web` | taille du `.wasm` gzip -9 publiée dans le résumé du run, **échec** au-delà de 6 Mio (porte depuis le lot L13, relevée de 3 à 4 Mio le 2026-10-27, puis à 6 Mio le 2026-11-14) ; `dist` servi en HTTP, Chromium headless, `data-plannercraft-started="1"` cherché dans le DOM | C-REL-05, C-REL-06 |
 | `publish` | tag `v*` seulement : `SHA256SUMS`, `actions/attest-build-provenance`, `gh release create --verify-tag --notes-file` (`--draft` si `-test.`, `--prerelease` si `-`), puis contrôle de la release publiée : téléchargement, `sha256sum -c`, liste exacte des cinq fichiers, `gh attestation verify` | C-REL-07, C-REL-08 |
 
 Le contrôle après publication est fait dans le job `publish` et non dans un job séparé : un brouillon n'est visible que d'un jeton en écriture, et ce job est le seul à en avoir un. Secrets : `github.token`, et les cinq de la signature macOS, facultatifs, transmis au build (§ 6).

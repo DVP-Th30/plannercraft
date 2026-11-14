@@ -824,7 +824,6 @@ fn settings_block(ui: &mut egui::Ui, texts: &Texts, state: &mut PdfImportState) 
 fn calendar_block(ui: &mut egui::Ui, texts: &Texts, state: &mut PdfImportState) {
     let Some(p) = state.preview() else { return };
     let (holidays_on, years, deduction) = (p.holidays_on, p.holiday_years, p.deduction.clone());
-    let (equal, compared) = (p.dates_equal, p.dates_compared);
     ui.strong(texts.get(TextId::PdfCalendar));
     ui.label(texts.get(TextId::PdfCalendarHint));
     let mut on = state.settings.holidays.unwrap_or(holidays_on);
@@ -915,13 +914,6 @@ fn calendar_block(ui: &mut egui::Ui, texts: &Texts, state: &mut PdfImportState) 
     if left > 0 {
         ui.label(texts.get_args(TextId::PdfUnexplained, &[("count", Arg::Count(i64::from(left)))]));
     }
-    ui.strong(texts.get_args(
-        TextId::PdfSame,
-        &[
-            ("n", Arg::Count(i64::from(equal))),
-            ("count", Arg::Count(i64::from(compared))),
-        ],
-    ));
 }
 
 /// Largeurs minimales des colonnes du tableau (points).
@@ -1117,7 +1109,22 @@ pub fn show(ctx: &egui::Context, texts: &Texts, state: &mut PdfImportState) -> P
             });
         if shown.as_ref().is_some_and(|s| s.result.is_ok()) {
             ui.separator();
-            ui.checkbox(&mut state.only_gaps, texts.get(TextId::PdfOnlyGaps));
+            // Compteur hors de la zone défilante : il reste visible quand
+            // la liste des périodes dépasse (relecture du lot P1b).
+            let same = state.preview().map(|p| (p.dates_equal, p.dates_compared));
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut state.only_gaps, texts.get(TextId::PdfOnlyGaps));
+                if let Some((equal, compared)) = same {
+                    ui.separator();
+                    ui.strong(texts.get_args(
+                        TextId::PdfSame,
+                        &[
+                            ("n", Arg::Count(i64::from(equal))),
+                            ("count", Arg::Count(i64::from(compared))),
+                        ],
+                    ));
+                }
+            });
             table(ui, texts, state, table_height, widths);
         }
         ui.separator();

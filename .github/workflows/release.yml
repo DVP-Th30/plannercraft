@@ -233,7 +233,7 @@ jobs:
           wasm="$(ls dist/*.wasm)"
           raw="$(wc -c < "$wasm")"
           gz="$(gzip -9 -c "$wasm" | wc -c)"
-          budget=$((4 * 1024 * 1024))
+          budget=$((6 * 1024 * 1024))
           {
             echo "### Web : taille du .wasm (C-REL-05)"
             echo ""
@@ -243,9 +243,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "wasm : $raw octets, gzip -9 : $gz octets (budget $budget)"
           # Porte bloquante depuis le lot L13 (C-REL-05) ; 4 Mio depuis le
-          # 2026-10-27 (ADR-0016, budget du web : 3,52 Mo mesurés).
+          # 2026-10-27 (ADR-0016, budget du web : 3,52 Mo mesurés) ; 6 Mio
+          # depuis le 2026-11-14 (ADR-0033 D3 : la version web embarque le
+          # lecteur PDF de l'import, 5,33 Mo mesurés).
           if [ "$gz" -gt "$budget" ]; then
-            echo "::error::.wasm gzip -9 = $gz octets > 4 Mio (C-REL-05)"
+            echo "::error::.wasm gzip -9 = $gz octets > 6 Mio (C-REL-05)"
             exit 1
           fi
 

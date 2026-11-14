@@ -220,7 +220,7 @@ Corpus public (22 PDF importés) :
 
 Totaux : en-tête français (5 fichiers, fériés proposés cochés), 401 → 455 → 405 → 463 sur 590 (68,0 → 77,1 → 68,6 → 78,5 %) ; en-tête anglais (17 fichiers, fériés proposés décochés), Standard 3 794 et périodes seules 3 829 sur 4 854 (78,2 → 78,9 %) ; les fériés français y sont faux (43,6 %), d'où la case décochée. Le CERN gagne 76 dates avec les fériés ; trois PDF français publics en perdent (planificateurs qui ne chômaient pas les fériés) : le compteur le montre, la case se décoche. Sur le planning anglais AC103, sans liste de fériés, la déduction retrouve Pâques 2022 et deux jours dans la semaine du jubilé de juin (placés un jour trop tard par défaut, ADR-0033 D6). Les deux corpus tirent dans le même sens pour les périodes ; pour les fériés, priorité aux fichiers du propriétaire (cochés d'office si l'en-tête est français).
 
-Taille du web (ADR-0033 D3) : `.wasm` gzip -9 +1,00 Mo (mesure locale avant `wasm-opt`), budget C-REL-05 de 4 Mio probablement dépassé, à arbitrer.
+Taille du web (ADR-0033 D3) : `.wasm` gzip -9 +1,00 Mo (mesure locale avant `wasm-opt`), budget C-REL-05 de 4 Mio dépassé. **Arbitré le 2026-11-14** : mesure réelle sur le paquet web de la CI, 13 035 433 octets, 5 332 421 gzip -9 ; l'import PDF reste dans la version web (c'est l'entrée publique voulue par le propriétaire) et le budget passe à 6 Mio.
 
 ### 10.5 Limites
 
