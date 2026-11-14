@@ -225,18 +225,14 @@ impl<'a> Cfb<'a> {
         }
         let mut out = Vec::with_capacity(cap.min(self.data.len()));
         let mut next = start;
-        // Un secteur déjà visité : chaîne bouclée.
-        let mut visited = vec![false; self.fat.len()];
+        // Un secteur déjà visité : chaîne bouclée (ensemble borné par la
+        // longueur de la chaîne, elle-même bornée par la taille de l'entrée).
+        let mut visited = BTreeSet::new();
         while next != END_OF_CHAIN && out.len() < cap {
-            if next > MAX_REG_SECT {
+            if next > MAX_REG_SECT || !visited.insert(next) {
                 return Err(CfbError::BadChain);
             }
             let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
-            let seen = visited.get_mut(idx).ok_or(CfbError::BadChain)?;
-            if *seen {
-                return Err(CfbError::BadChain);
-            }
-            *seen = true;
             out.extend_from_slice(self.sector(next)?);
             next = *self.fat.get(idx).ok_or(CfbError::BadChain)?;
         }
@@ -255,14 +251,12 @@ impl<'a> Cfb<'a> {
         }
         let mut out = Vec::with_capacity(cap);
         let mut next = start;
-        let mut visited = vec![false; self.mini_fat.len()];
+        let mut visited = BTreeSet::new();
         while next != END_OF_CHAIN && out.len() < cap {
-            let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
-            let seen = visited.get_mut(idx).ok_or(CfbError::BadChain)?;
-            if *seen {
+            if !visited.insert(next) {
                 return Err(CfbError::BadChain);
             }
-            *seen = true;
+            let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
             let from = idx.checked_mul(64).ok_or(CfbError::BadChain)?;
             let to = from.checked_add(64).ok_or(CfbError::BadChain)?;
             out.extend_from_slice(self.mini_stream.get(from..to).ok_or(CfbError::BadChain)?);

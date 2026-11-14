@@ -195,3 +195,40 @@ fn mutated_corpus_files_never_panic() {
         assert_eq!(ok + err, 150);
     }
 }
+
+/// Valeurs variables : des milliers d'entrées qui désignent la même grande
+/// valeur ne la recopient pas (aucune amplification d'allocation).
+#[test]
+fn shared_variable_values_are_not_copied() {
+    let m = Mpp::new(Layout::Project2013);
+    let mut streams = vec![
+        ("/Props14".to_owned(), common::utf16("16,0,1,1")),
+        ("/   114/Props".to_owned(), common::props(&m.props)),
+    ];
+    let mut fixed = common::Fixed::new(47);
+    let mut rec = vec![0_u8; 202];
+    rec[4] = 1;
+    rec[0] = 1;
+    fixed.push(0, &[], rec);
+    let (fm, fd) = fixed.build();
+    let big = 1_usize << 20;
+    let mut data = (big as u32).to_le_bytes().to_vec();
+    data.resize(4 + big, 0x41);
+    let n = 200_000_u32;
+    let mut meta = vec![0_u8; 24];
+    meta[8..12].copy_from_slice(&n.to_le_bytes());
+    for k in 0..n {
+        meta.extend_from_slice(&1_u32.to_le_bytes());
+        meta.extend_from_slice(&0_u32.to_le_bytes());
+        meta.extend_from_slice(&(0x0B40_0000 + k).to_le_bytes());
+    }
+    streams.push(("/   114/TBkndTask/FixedMeta".to_owned(), fm));
+    streams.push(("/   114/TBkndTask/FixedData".to_owned(), fd));
+    streams.push(("/   114/TBkndTask/VarMeta".to_owned(), meta));
+    streams.push(("/   114/TBkndTask/Var2Data".to_owned(), data));
+    let bytes = common::container(&streams);
+    // 200 000 × 1 Mio recopiés feraient 200 Gio : la lecture doit rendre la
+    // main sans les allouer.
+    let doc = read(&bytes, &common::options()).unwrap();
+    assert_eq!(doc.project.tasks.len(), 1);
+}

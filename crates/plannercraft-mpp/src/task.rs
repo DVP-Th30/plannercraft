@@ -287,7 +287,7 @@ fn manual_mode(rec2: &[u8], task: &Task, uid: u32, sink: &mut Sink) -> Schedulin
 pub fn read(
     items: &[FixedItem<'_>],
     items2: &[FixedItem<'_>],
-    var: &VarValues,
+    var: &VarValues<'_>,
     lay: Layout,
     options: &ProjectOptions,
     calendars: &BTreeSet<u32>,

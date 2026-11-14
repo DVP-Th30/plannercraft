@@ -28,7 +28,7 @@ const EXCEPTIONS_AT: usize = 420;
 /// Partie fixe d'une exception (en-tête 12, jour 60, fin 20).
 const EXCEPTION_FIXED: usize = 92;
 /// Exceptions lues au plus par calendrier.
-const MAX_EXCEPTIONS: usize = 10_000;
+const MAX_EXCEPTIONS: usize = 5_000;
 
 /// Jours dans l'ordre des enregistrements.
 const DAYS: [Weekday; 7] = [
@@ -185,7 +185,7 @@ fn exceptions(blob: &[u8], uid: u32, cal: &mut Calendar, sink: &mut Sink) {
 /// Lit les calendriers de base ; les calendriers dérivés (de ressource)
 /// sont comptés, pas repris.
 #[must_use]
-pub fn read(items: &[FixedItem<'_>], var: &VarValues, lay: crate::Layout, sink: &mut Sink) -> Calendars {
+pub fn read(items: &[FixedItem<'_>], var: &VarValues<'_>, lay: crate::Layout, sink: &mut Sink) -> Calendars {
     let cl = layout::calendar(lay);
     let mut out = Calendars::default();
     let mut seen = BTreeSet::new();

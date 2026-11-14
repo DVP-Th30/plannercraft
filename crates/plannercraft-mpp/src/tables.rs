@@ -16,15 +16,17 @@ const FIXED_META_HEADER: usize = 16;
 /// En-tête de `Props`.
 const PROPS_HEADER: usize = 16;
 
-/// Valeurs variables d'une entité : UID → (champ → octets).
-pub type VarValues = BTreeMap<u32, BTreeMap<u32, Vec<u8>>>;
+/// Valeurs variables d'une entité : UID → (champ → octets). Les octets sont
+/// empruntés à `Var2Data` : plusieurs entrées qui désignent la même valeur
+/// ne la recopient pas (aucune amplification d'allocation, règle 10).
+pub type VarValues<'a> = BTreeMap<u32, BTreeMap<u32, &'a [u8]>>;
 
 /// Lit `VarMeta` et `Var2Data` : chaque entrée (UID, décalage, champ)
 /// désigne dans `Var2Data` une valeur préfixée de sa longueur (`u32`).
 /// Une entrée hors des octets est ignorée ; `max_entries` borne le nombre
 /// d'entrées lues.
 #[must_use]
-pub fn var_values(meta: &[u8], data: &[u8], max_entries: usize) -> VarValues {
+pub fn var_values<'a>(meta: &[u8], data: &'a [u8], max_entries: usize) -> VarValues<'a> {
     let mut out: VarValues = BTreeMap::new();
     let count = le_u32(meta, 8).and_then(|n| usize::try_from(n).ok()).unwrap_or(0);
     let room = meta.len().saturating_sub(VAR_META_HEADER) / VAR_META_ENTRY;
@@ -48,7 +50,7 @@ pub fn var_values(meta: &[u8], data: &[u8], max_entries: usize) -> VarValues {
         else {
             continue;
         };
-        out.entry(uid).or_default().insert(field, value.to_vec());
+        out.entry(uid).or_default().insert(field, value);
     }
     out
 }
