@@ -316,6 +316,104 @@ fn h_ui_61_reset_role() {
     );
 }
 
+/// Positions des pastilles du nuancier des barres (nom accessible
+/// « Couleur #RRGGBB » ⇒ centre).
+fn swatch_positions(harness: &Harness<'static, App>) -> std::collections::BTreeMap<String, egui::Pos2> {
+    let prefix = label(TextId::FpSwatch, &[("color", Arg::Str("#".into()))]);
+    harness
+        .query_all_by(|n| n.label().is_some_and(|l| l.starts_with(&prefix)))
+        .map(|n| (n.accesskit_node().label().unwrap_or_default(), n.rect().center()))
+        .collect()
+}
+
+/// H-UI-193 (lot R1c, gardée par le lot F1) : cliquer chaque pastille des
+/// deux premières rangées (modèle, puis palette) ne déplace aucune d'elles ;
+/// une couleur libre déjà utilisée apparaît en troisième rangée, sous les
+/// deux autres.
+#[test]
+fn h_ui_193_swatches_stable() {
+    let (mut harness, _) = sobre_p();
+    open_chart(&mut harness, BarRole::Task);
+    let before = swatch_positions(&harness);
+    assert!(before.len() >= 11, "{before:?}");
+    for name in before.keys() {
+        let node = harness
+            .query_all_by_label(name)
+            .next()
+            .unwrap_or_else(|| panic!("« {name} » absente"));
+        node.click();
+        harness.run();
+        harness.run();
+        let now = swatch_positions(&harness);
+        for (other, at) in &before {
+            assert_eq!(now.get(other), Some(at), "« {other} » déplacée après « {name} »");
+        }
+    }
+    exec(
+        &mut harness,
+        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
+    );
+    let now = swatch_positions(&harness);
+    let free = label(TextId::FpSwatch, &[("color", Arg::Str("#123456".into()))]);
+    let at = now.get(&free).expect("couleur libre en troisième rangée");
+    let lowest = before.values().map(|p| p.y).fold(f32::MIN, f32::max);
+    assert!(at.y > lowest + 4.0, "{at:?} sous {lowest}");
+    for (other, p) in &before {
+        assert_eq!(now.get(other), Some(p), "« {other} » déplacée");
+    }
+}
+
+/// H-UI-194 (lot R1c, gardée par le lot F1) : une couleur choisie est
+/// mesurée sur les fonds clair, sombre et impression ; bleu nuit `#123456`,
+/// lisible sur le blanc, est signalé « sur le fond sombre » et la
+/// proposition convient aux trois ; couleur du modèle : fond affiché seul.
+#[test]
+fn h_ui_194_contrast_three_backgrounds() {
+    let (mut harness, _) = sobre_p();
+    open_chart(&mut harness, BarRole::Task);
+    let warned = |h: &Harness<'static, App>| {
+        texts(h)
+            .iter()
+            .any(|(_, t)| t.starts_with("Contraste insuffisant"))
+    };
+    assert!(!warned(&harness), "couleur du modèle");
+    let navy = Rgb(0x12, 0x34, 0x56);
+    exec(
+        &mut harness,
+        r##"{"format_version":1,"ops":[{"op":"style.set_bar_role","role":"task","color":"#123456"}]}"##,
+    );
+    assert!(
+        texts(&harness)
+            .iter()
+            .any(|(_, t)| t.starts_with("Contraste insuffisant sur le fond sombre")),
+        "fond en cause non nommé"
+    );
+    let st = effective(harness.state());
+    let bgs = [Variant::Light, Variant::Dark, Variant::Print].map(|v| st.tokens(v).bg);
+    assert!(plannercraft_render::style::contrast_ratio(navy, bgs[0]) >= 3_000);
+    let worst = *bgs
+        .iter()
+        .min_by_key(|bg| plannercraft_render::style::contrast_ratio(navy, **bg))
+        .unwrap();
+    let better = plannercraft_automation::command::style::nearest_compliant(navy, worst, 3_000)
+        .filter(|b| {
+            bgs.iter()
+                .all(|bg| plannercraft_render::style::contrast_ratio(*b, *bg) >= 3_000)
+        })
+        .expect("couleur conforme sur les trois fonds");
+    press(
+        &mut harness,
+        &label(
+            TextId::FpUseSuggestion,
+            &[("color", Arg::Str(better.hex().into()))],
+        ),
+    );
+    for v in [Variant::Light, Variant::Dark, Variant::Print] {
+        assert_eq!(fill(&harness, BarRole::Task, v), better, "{v:?}");
+    }
+    assert!(!warned(&harness));
+}
+
 // --- Cartes et compte des barres (H-UI-220, H-UI-197) ------------------------
 
 /// Nombre de barres du type `role` que le Gantt dessine, compté ici ligne
