@@ -3849,6 +3849,7 @@ dependencies = [
 name = "plannercraft-cli"
 version = "1.0.0-rc.1"
 dependencies = [
+ "cfb",
  "chrono",
  "clap",
  "plannercraft-automation",

@@ -225,14 +225,19 @@ impl<'a> Cfb<'a> {
         }
         let mut out = Vec::with_capacity(cap.min(self.data.len()));
         let mut next = start;
-        let mut steps = 0_usize;
+        // Un secteur déjà visité : chaîne bouclée.
+        let mut visited = vec![false; self.fat.len()];
         while next != END_OF_CHAIN && out.len() < cap {
-            if next > MAX_REG_SECT || steps > self.fat.len() {
+            if next > MAX_REG_SECT {
                 return Err(CfbError::BadChain);
             }
-            steps = steps.saturating_add(1);
-            out.extend_from_slice(self.sector(next)?);
             let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
+            let seen = visited.get_mut(idx).ok_or(CfbError::BadChain)?;
+            if *seen {
+                return Err(CfbError::BadChain);
+            }
+            *seen = true;
+            out.extend_from_slice(self.sector(next)?);
             next = *self.fat.get(idx).ok_or(CfbError::BadChain)?;
         }
         if size.is_some() && out.len() < cap {
@@ -250,13 +255,14 @@ impl<'a> Cfb<'a> {
         }
         let mut out = Vec::with_capacity(cap);
         let mut next = start;
-        let mut steps = 0_usize;
+        let mut visited = vec![false; self.mini_fat.len()];
         while next != END_OF_CHAIN && out.len() < cap {
-            if steps > self.mini_fat.len() {
+            let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
+            let seen = visited.get_mut(idx).ok_or(CfbError::BadChain)?;
+            if *seen {
                 return Err(CfbError::BadChain);
             }
-            steps = steps.saturating_add(1);
-            let idx = usize::try_from(next).map_err(|_| CfbError::BadChain)?;
+            *seen = true;
             let from = idx.checked_mul(64).ok_or(CfbError::BadChain)?;
             let to = from.checked_add(64).ok_or(CfbError::BadChain)?;
             out.extend_from_slice(self.mini_stream.get(from..to).ok_or(CfbError::BadChain)?);

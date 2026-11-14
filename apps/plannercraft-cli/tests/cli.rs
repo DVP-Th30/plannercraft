@@ -7,6 +7,7 @@
     clippy::expect_used,
     clippy::panic,
     clippy::indexing_slicing,
+    clippy::cast_possible_truncation,
     reason = "tests"
 )]
 
@@ -1042,4 +1043,102 @@ fn cli_import_pdf_drawn_links_holidays_periods() {
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
     assert!(text.contains("Liens dessinés : "), "{text}");
     assert!(text.contains("Liens dessinés posés"), "{text}");
+}
+
+/// `.mpp` synthétique minimal (disposition Project 2013, ADR-0036,
+/// `docs/formats/mpp.md`) : une tâche « Gros œuvre » de 2 jours du lundi
+/// 5 janvier 2026, enregistrée finie le mardi 17:00 ; conteneur écrit par
+/// la crate `cfb`.
+fn synthetic_mpp() -> Vec<u8> {
+    use std::io::Write as _;
+    fn utf16(s: &str) -> Vec<u8> {
+        let mut v: Vec<u8> = s.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        v.extend_from_slice(&[0, 0]);
+        v
+    }
+    let stamp = |day: u32, tenths: u32| ((day << 16) | tenths).to_le_bytes();
+    // Jour 15 346 = 2026-01-05 ; 4 800 dixièmes = 08:00, 10 200 = 17:00.
+    let mut rec = vec![0_u8; 202];
+    rec[0..4].copy_from_slice(&1_u32.to_le_bytes());
+    rec[4..8].copy_from_slice(&1_u32.to_le_bytes());
+    rec[66..70].copy_from_slice(&u32::MAX.to_le_bytes());
+    rec[84..88].copy_from_slice(&9_600_u32.to_le_bytes());
+    rec[104..108].copy_from_slice(&stamp(15_346, 4_800));
+    rec[108..112].copy_from_slice(&stamp(15_347, 10_200));
+    rec[164..166].copy_from_slice(&7_u16.to_le_bytes());
+    rec[172..174].copy_from_slice(&1_u16.to_le_bytes());
+    rec[78..80].copy_from_slice(&500_u16.to_le_bytes());
+    rec[178..182].copy_from_slice(&u32::MAX.to_le_bytes());
+    rec[182..186].copy_from_slice(&u32::MAX.to_le_bytes());
+    let mut meta = vec![0_u8; 16];
+    meta[8..12].copy_from_slice(&1_u32.to_le_bytes());
+    meta.extend_from_slice(&[0_u8; 47]);
+    let name = utf16("Gros œuvre");
+    let mut var_meta = vec![0_u8; 24];
+    var_meta[8..12].copy_from_slice(&1_u32.to_le_bytes());
+    var_meta.extend_from_slice(&1_u32.to_le_bytes());
+    var_meta.extend_from_slice(&0_u32.to_le_bytes());
+    var_meta.extend_from_slice(&0x0B40_000E_u32.to_le_bytes());
+    let mut var_data = (name.len() as u32).to_le_bytes().to_vec();
+    var_data.extend_from_slice(&name);
+    let mut props = vec![0_u8; 16];
+    for (key, value) in [
+        (0x0240_0002_u32, stamp(15_346, 4_800).to_vec()),
+        (0x0240_0004, 1_u16.to_le_bytes().to_vec()),
+        (0x0240_0019, 1_u16.to_le_bytes().to_vec()),
+        (0x0240_0008, utf16("Synthèse")),
+    ] {
+        props.extend_from_slice(&(value.len() as u32).to_le_bytes());
+        props.extend_from_slice(&key.to_le_bytes());
+        props.extend_from_slice(&(value.len() as u32).to_le_bytes());
+        props.extend_from_slice(&value);
+    }
+    let mut comp = cfb::CompoundFile::create(std::io::Cursor::new(Vec::new())).unwrap();
+    comp.create_storage("/   114").unwrap();
+    comp.create_storage("/   114/TBkndTask").unwrap();
+    for (path, data) in [
+        ("/Props14", utf16("16,0,10730,20102")),
+        ("/   114/Props", props),
+        ("/   114/TBkndTask/FixedMeta", meta),
+        ("/   114/TBkndTask/FixedData", rec),
+        ("/   114/TBkndTask/VarMeta", var_meta),
+        ("/   114/TBkndTask/Var2Data", var_data),
+    ] {
+        comp.create_stream(path).unwrap().write_all(&data).unwrap();
+    }
+    comp.flush().unwrap();
+    comp.into_inner().into_inner()
+}
+
+/// `plannercraft import-mpp` (ADR-0036, lot M1) : un `.mpp` se relit en
+/// MSPDI (rapport texte et JSON, dates enregistrées comparées aux dates
+/// calculées) ; un fichier qui n'est pas un `.mpp` est refusé avec le code
+/// 4 ; un fichier absent donne le code 3.
+#[test]
+fn cli_import_mpp() {
+    let dir = TempDir::new("importmpp");
+    let mpp = dir.join("chantier.mpp");
+    std::fs::write(&mpp, synthetic_mpp()).unwrap();
+    let out = dir.join("chantier.xml");
+    let o = run(&["--now", NOW, "--lang", "fr", "import-mpp", s(&mpp), "-o", s(&out)]);
+    assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
+    let text = String::from_utf8_lossy(&o.stdout).into_owned();
+    assert!(text.contains("Fichier MPP14"), "{text}");
+    assert!(text.contains("1 tâches identiques sur 1"), "{text}");
+    let o = run(&["tasks", s(&out), "--json"]);
+    assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(String::from_utf8_lossy(&o.stdout).contains("Gros œuvre"));
+    let o = run(&["--now", NOW, "import-mpp", s(&mpp), "--dry-run", "--json"]);
+    assert_eq!(code(&o), 0);
+    let view = stdout_json(&o);
+    assert_eq!(view["tasks"], 1);
+    assert_eq!(view["comparison"]["tasks_identical"], 1);
+    // Pas un .mpp : refus, code 4, erreur structurée en JSON.
+    let bad = dir.join("faux.mpp");
+    std::fs::write(&bad, b"<Project/>").unwrap();
+    let o = run(&["--now", NOW, "import-mpp", s(&bad), "--dry-run", "--json"]);
+    assert_eq!(code(&o), 4);
+    assert_eq!(stdout_json(&o)["error"]["code"], "mpp.not_compound");
+    let o = run(&["import-mpp", s(&dir.join("absent.mpp")), "--dry-run"]);
+    assert_eq!(code(&o), 3);
 }
