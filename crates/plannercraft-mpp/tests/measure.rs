@@ -21,6 +21,8 @@
     clippy::cast_precision_loss,
     clippy::many_single_char_names,
     clippy::explicit_iter_loop,
+    clippy::similar_names,
+    clippy::map_unwrap_or,
     reason = "outil de mesure hors CI : les interdits de la règle 10 ne s'appliquent pas"
 )]
 
