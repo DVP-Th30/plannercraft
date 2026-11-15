@@ -9,7 +9,7 @@ Logiciel de planification de projet open source, équivalent de Microsoft Projec
 
 ## État
 
-Pré-alpha : rien d'utilisable. Le dépôt ne contient encore que le socle technique (workspace, CI, outillage).
+Bêta publique (`1.0.0-rc.2`) : l'application se télécharge pour macOS, Windows et Linux depuis [plannercraft.app](https://plannercraft.app) ou la page des [versions](https://github.com/DVP-Th30/plannercraft/releases), et s'essaie sans installation dans le navigateur. Installation : [`docs/user/install.md`](docs/user/install.md). La parité avec MS Project est mesurée, jamais supposée : voir [`docs/scorecard.md`](docs/scorecard.md).
 
 ## Documentation
 
