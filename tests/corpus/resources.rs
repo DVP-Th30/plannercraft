@@ -164,7 +164,7 @@ fn task_cases(doc: &MspdiDocument, schedule: &Schedule, out: &mut ResourceCompar
         }
         let assignments: Vec<_> = project.assignments.iter().filter(|a| a.task == uid).collect();
         let real = assignments.iter().filter(|a| a.resource.is_some()).count();
-        if task.work.minutes().get() == 0 && real == 0 {
+        if task.work.whole_minutes_round() == 0 && real == 0 {
             continue;
         }
         if matches!(task.mode, SchedulingMode::Manual { .. }) {
@@ -193,8 +193,8 @@ fn task_cases(doc: &MspdiDocument, schedule: &Schedule, out: &mut ResourceCompar
             case.divergences.push(ResourceDivergence {
                 field: ResourceField::TaskWork,
                 assignment: None,
-                recorded: format!("{} min", task.work.minutes().get()),
-                computed: format!("{} min", ts.work.minutes().get()),
+                recorded: format!("{} min", task.work.whole_minutes_round()),
+                computed: format!("{} min", ts.work.whole_minutes_round()),
             });
         }
         // Feuilles (R-173) et récapitulatives (R-179) : dates de chaque
@@ -263,9 +263,11 @@ fn resource_cases(doc: &MspdiDocument, schedule: &Schedule, out: &mut ResourceCo
                 case.divergences.push(ResourceDivergence {
                     field: ResourceField::ResourceWork,
                     assignment: None,
-                    recorded: format!("{} min", recorded.minutes().get()),
-                    computed: computed
-                        .map_or_else(|| "absent".to_owned(), |w| format!("{} min", w.minutes().get())),
+                    recorded: format!("{} min", recorded.whole_minutes_round()),
+                    computed: computed.map_or_else(
+                        || "absent".to_owned(),
+                        |w| format!("{} min", w.whole_minutes_round()),
+                    ),
                 });
             }
         }

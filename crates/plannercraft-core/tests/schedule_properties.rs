@@ -491,7 +491,10 @@ fn add_constraints(p: &mut Project, r: &mut Rng, draw: Draw, start: Moment, (lo,
     };
     let uids: Vec<TaskUid> = p.tasks.iter().map(Task::uid).collect();
     let date = |r: &mut Rng| {
-        let m = (start.minutes() + r.range(lo, hi)).clamp(Moment::MIN.minutes(), Moment::MAX.minutes());
+        let m = (start.whole_minutes().unwrap() + r.range(lo, hi)).clamp(
+            Moment::MIN.whole_minutes().unwrap(),
+            Moment::MAX.whole_minutes().unwrap(),
+        );
         Moment::from_minutes(m).unwrap()
     };
     for uid in uids {
@@ -1466,7 +1469,7 @@ fn p16b(p: &Project, seed: u64) {
     let t = longer.tasks.get_mut(uid).unwrap();
     let d = t.duration;
     t.duration = Duration::new(
-        Minutes::new(d.minutes().get() + r.range(1, 2_400)),
+        Minutes::new(d.minutes().whole_minutes().unwrap() + r.range(1, 2_400)),
         d.unit(),
         d.basis(),
         d.is_estimated(),
@@ -1524,7 +1527,7 @@ fn p23(seed: u64) {
     let (set, _) = CalendarSet::compile(&n);
     let cal = set.get(n.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().get();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
     let ScheduleAnchor::FromStart(s0) = n.anchor else {
         panic!("ancre")
     };
@@ -1551,7 +1554,9 @@ fn p23b(seed: u64) {
     let c: Moment = "2026-10-21T12:30".parse().unwrap();
     n.anchor = ScheduleAnchor::FromStart(s0);
     n.calendar = CalendarUid::new(1);
-    let mirror = |t: Moment| Moment::from_minutes(2 * c.minutes() - t.minutes()).unwrap();
+    let mirror = |t: Moment| {
+        Moment::from_minutes(2 * c.whole_minutes().unwrap() - t.whole_minutes().unwrap()).unwrap()
+    };
     p23_check(&n, mirror(s0), &mirror);
 }
 
@@ -1561,7 +1566,7 @@ fn p23_check(n: &Project, f0: Moment, mirror: &dyn Fn(Moment) -> Moment) {
     let (set, _) = CalendarSet::compile(n);
     let cal = set.get(n.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().get();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
     let ScheduleAnchor::FromStart(s0) = n.anchor else {
         panic!("ancre")
     };
@@ -1678,15 +1683,22 @@ struct Oracle {
 /// `ES ≥ ES_p + L − d`, `ES ≥ W(début)` ; retour symétrique.
 fn oracle(p: &Project, w_start: i64) -> Oracle {
     let n = p.tasks.len();
-    let d: Vec<i64> = p.tasks.iter().map(|t| t.duration.minutes().get()).collect();
+    let d: Vec<i64> = p
+        .tasks
+        .iter()
+        .map(|t| t.duration.minutes().whole_minutes().unwrap())
+        .collect();
     // Liens : (pred, succ, type, L).
     let mut links = Vec::new();
     for (si, t) in p.tasks.iter().enumerate() {
         for l in &t.predecessors {
             let pi = p.tasks.position(l.predecessor).unwrap();
             let lag = match l.lag.value {
-                LagValue::Time { minutes, .. } => minutes.get(),
-                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent).unwrap().get(),
+                LagValue::Time { minutes, .. } => minutes.whole_minutes().unwrap(),
+                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent)
+                    .unwrap()
+                    .whole_minutes()
+                    .unwrap(),
             };
             links.push((pi, si, l.kind, lag));
         }
@@ -1751,7 +1763,7 @@ fn p15(p: &Project) {
     let (set, _) = CalendarSet::compile(p);
     let cal = set.get(p.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().get();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
     let ScheduleAnchor::FromStart(start) = p.anchor else {
         panic!("ancre")
     };
@@ -1763,8 +1775,8 @@ fn p15(p: &Project) {
             w(ts.early.finish),
             w(ts.late.start),
             w(ts.late.finish),
-            ts.total_slack.get(),
-            ts.free_slack.get(),
+            ts.total_slack.whole_minutes().unwrap(),
+            ts.free_slack.whole_minutes().unwrap(),
         );
         let want = (o.es[i], o.ef[i], o.ls[i], o.lf[i], o.lf[i] - o.ef[i], o.free[i]);
         assert_eq!(got, want, "tâche {} (ES, EF, LS, LF, TF, FS)", t.uid());
@@ -1786,7 +1798,7 @@ fn p16(p: &Project, seed: u64) {
     let t = longer.tasks.get_mut(uid).unwrap();
     let d = t.duration;
     t.duration = Duration::new(
-        Minutes::new(d.minutes().get() + r.range(1, 2_400)),
+        Minutes::new(d.minutes().whole_minutes().unwrap() + r.range(1, 2_400)),
         d.unit(),
         d.basis(),
         d.is_estimated(),
@@ -1817,7 +1829,7 @@ fn anchor_of(
         return scale.forward_span(date, d).ok();
     }
     let f = scale.backward_span(date, Minutes::ZERO).ok()?.finish;
-    let start = scale.add(f, Minutes::new(-d.get())).ok()?;
+    let start = scale.add(f, Minutes::new(-d.whole_minutes().unwrap())).ok()?;
     Some(plannercraft_core::Span { start, finish: f })
 }
 
@@ -1846,7 +1858,7 @@ fn p20(p: &Project) {
             cals.place(p, t)
         };
         let Some(place) = place else { continue };
-        let w = |a: Moment, b: Moment| place.between(a, b).unwrap().get();
+        let w = |a: Moment, b: Moment| place.between(a, b).unwrap().whole_minutes().unwrap();
         if let Some(dl) = t.deadline {
             assert_eq!(
                 w(dl, ts.finish) > 0,
@@ -1921,7 +1933,11 @@ fn p20(p: &Project) {
 fn oracle_constrained(p: &Project, w_start: i64, w: &dyn Fn(Moment) -> i64) -> Oracle {
     let n = p.tasks.len();
     let honor = p.options.honor_constraints;
-    let d: Vec<i64> = p.tasks.iter().map(|t| t.duration.minutes().get()).collect();
+    let d: Vec<i64> = p
+        .tasks
+        .iter()
+        .map(|t| t.duration.minutes().whole_minutes().unwrap())
+        .collect();
     let rules: Vec<(Rule, bool, i64)> = p
         .tasks
         .iter()
@@ -1940,8 +1956,11 @@ fn oracle_constrained(p: &Project, w_start: i64, w: &dyn Fn(Moment) -> i64) -> O
         for l in &t.predecessors {
             let pi = p.tasks.position(l.predecessor).unwrap();
             let lag = match l.lag.value {
-                LagValue::Time { minutes, .. } => minutes.get(),
-                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent).unwrap().get(),
+                LagValue::Time { minutes, .. } => minutes.whole_minutes().unwrap(),
+                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent)
+                    .unwrap()
+                    .whole_minutes()
+                    .unwrap(),
             };
             links.push((pi, si, l.kind, lag));
         }
@@ -2049,7 +2068,7 @@ fn p21(p: &Project) {
     let (set, _) = CalendarSet::compile(p);
     let cal = set.get(p.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().get();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
     let ScheduleAnchor::FromStart(start) = p.anchor else {
         panic!("ancre")
     };
@@ -2061,8 +2080,8 @@ fn p21(p: &Project) {
             w(ts.early.finish),
             w(ts.late.start),
             w(ts.late.finish),
-            ts.total_slack.get(),
-            ts.free_slack.get(),
+            ts.total_slack.whole_minutes().unwrap(),
+            ts.free_slack.whole_minutes().unwrap(),
         );
         let want = (o.es[i], o.ef[i], o.ls[i], o.lf[i], o.lf[i] - o.ef[i], o.free[i]);
         assert_eq!(got, want, "tâche {} (ES, EF, LS, LF, TF, FS)", t.uid());
@@ -2380,7 +2399,7 @@ fn p34(oracle: &Project, seed: u64) {
         if s.role != TaskRole::Leaf || s.manual || t.duration.basis() != TimeBasis::Working || !r.chance(60) {
             continue;
         }
-        let d = t.duration.minutes().get();
+        let d = t.duration.minutes().whole_minutes().unwrap();
         let units = match r.range(0, 3) {
             0 => 10_000,
             1 if d % 2 == 0 => 5_000,
@@ -2788,7 +2807,7 @@ fn start_some(p: &mut Project, base: &Schedule, r: &mut Rng) -> Vec<TaskUid> {
             .checked_add(Minutes::new(r.range(-2_000, 2_000)))
             .unwrap();
         let t = p.tasks.get_mut(uid).unwrap();
-        let d = t.duration.minutes().get().max(0);
+        let d = t.duration.minutes().whole_minutes().unwrap().max(0);
         t.progress.actual_start = Some(start);
         t.progress.actual_duration = Minutes::new(r.range(0, d));
         if r.chance(20) {

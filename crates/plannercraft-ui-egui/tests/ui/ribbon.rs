@@ -1152,7 +1152,15 @@ fn press_cell(harness: &mut Harness<'static, App>, n: u32, column: Column, mode:
 
 /// Durée de `n`, en jours de 8 h.
 fn days(app: &App, n: u32) -> i64 {
-    project(app).tasks.get(uid(n)).unwrap().duration.minutes().get() / 480
+    project(app)
+        .tasks
+        .get(uid(n))
+        .unwrap()
+        .duration
+        .minutes()
+        .whole_minutes()
+        .unwrap()
+        / 480
 }
 
 /// Ouvre la liste `list` du groupe Édition puis choisit son entrée `entry`.

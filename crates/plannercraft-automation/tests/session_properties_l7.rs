@@ -264,8 +264,8 @@ fn p31_violation(s: &Session) -> Option<String> {
             continue;
         }
         let u = i128::from(model.units.get());
-        let w = i128::from(model.work.minutes().get());
-        let d = i128::from(a.duration.get());
+        let w = i128::from(model.work.whole_minutes().unwrap());
+        let d = i128::from(a.duration.whole_minutes().unwrap());
         // |W × 10 000 − d × U| ≤ max(1, U / 20 000) × 10 000.
         let gap = (w * 10_000 - d * u).abs();
         let tolerance = (u / 2).max(10_000);
@@ -286,14 +286,14 @@ fn p31_violation(s: &Session) -> Option<String> {
                     .and_then(|r| p.resources.get(r))
                     .is_some_and(|r| r.kind == ResourceKind::Work)
             })
-            .map(|a| a.work.minutes().get())
+            .map(|a| a.work.whole_minutes().unwrap())
             .sum();
         let has_parts = p.assignments.iter().any(|a| a.task == t.uid());
-        if has_parts && t.work.minutes().get() != sum {
+        if has_parts && t.work.whole_minutes().unwrap() != sum {
             return Some(format!(
                 "travail de la tâche {} : {} ≠ Σ {sum}",
                 t.uid(),
-                t.work.minutes().get()
+                t.work.whole_minutes().unwrap()
             ));
         }
     }

@@ -89,7 +89,9 @@ fn links(p: &Project, uid: TaskUid) -> BTreeSet<String> {
                     // Décalage nul : l'unité d'affichage n'a pas d'effet (le
                     // corrigé écrit l'unité par défaut du projet).
                     let lag = match l.lag.value {
-                        plannercraft_core::LagValue::Time { minutes, .. } if minutes.get() == 0 => {
+                        plannercraft_core::LagValue::Time { minutes, .. }
+                            if minutes.whole_minutes().unwrap() == 0 =>
+                        {
                             "0".to_owned()
                         }
                         _ => format!("{:?}", l.lag),
@@ -567,8 +569,8 @@ fn task_gaps(
         out.insert(
             t.uid(),
             (
-                sc.start.minutes() - rs.minutes(),
-                sc.finish.minutes() - rf.minutes(),
+                sc.start.whole_minutes().unwrap() - rs.whole_minutes().unwrap(),
+                sc.finish.whole_minutes().unwrap() - rf.whole_minutes().unwrap(),
             ),
         );
     }
@@ -725,7 +727,7 @@ fn diagnose_roots() {
                 assigned.len(),
                 ok(go.get(&u)),
                 ok(gb.get(&u)),
-                t.duration.minutes().get(),
+                t.duration.minutes().whole_minutes().unwrap(),
                 doc.recorded.tasks.get(&u).and_then(|r| r.start).map(|m| m.to_string()).unwrap_or_default(),
                 s.scheduled(u).map(|x| x.start.to_string()).unwrap_or_default(),
                 t.predecessors

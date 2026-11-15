@@ -62,7 +62,7 @@ fn r165_nonworking_day_shifts_finish() {
     assert_eq!(exceptions(&s), 1);
     let p = s.project();
     let e = &p.calendars.get(p.calendar).unwrap().exceptions()[0];
-    assert!(matches!(&e.setting, DaySetting::Working(h) if h.total().get() == 240));
+    assert!(matches!(&e.setting, DaySetting::Working(h) if h.total().whole_minutes().unwrap() == 240));
     assert_eq!(finish(&s), moment("2026-11-13T12:00"));
     // Plages invalides (inversées, chevauchantes) → `param.invalid`.
     for ranges in [

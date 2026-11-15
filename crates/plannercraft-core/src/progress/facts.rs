@@ -105,7 +105,7 @@ pub fn remaining_duration(task: &Task) -> Minutes {
         return Minutes::ZERO;
     }
     let d = task.duration.minutes().max(Minutes::ZERO);
-    Minutes::new(d.get().saturating_sub(f.actual_duration.get()).max(0))
+    Minutes::from_tenths(d.tenths().saturating_sub(f.actual_duration.tenths()).max(0))
 }
 
 /// R-211 : travail restant d'une affectation = W − travail réel, ≥ 0.
@@ -113,14 +113,9 @@ pub fn remaining_duration(task: &Task) -> Minutes {
 /// Exemple : W 960, travail réel 480 ⇒ 480.
 #[must_use]
 pub fn remaining_work(a: &Assignment) -> Work {
-    let rest = a
-        .work
-        .minutes()
-        .get()
-        .saturating_sub(a.actual_work.minutes().get())
-        .max(0);
+    let rest = a.work.milli().saturating_sub(a.actual_work.milli()).max(0);
     // Toujours valide : 0 ≤ reste ≤ W ≤ maximum du travail.
-    Work::new(Minutes::new(rest)).unwrap_or(Work::ZERO)
+    Work::from_milli(rest).unwrap_or(Work::ZERO)
 }
 
 /// R-200 : % achevé dérivé = `round_div(réel × 10 000, D)`, borné à
@@ -135,11 +130,12 @@ pub fn percent_of_duration(task: &Task) -> Percent {
     if f.state == ProgressState::Complete {
         return Percent::FULL;
     }
-    let d = task.duration.minutes().get();
+    // Rapport réel ÷ D : indépendant de l'unité (dixièmes).
+    let d = task.duration.minutes().tenths();
     if d <= 0 {
         return Percent::ZERO;
     }
-    let num = i128::from(f.actual_duration.get()).saturating_mul(10_000);
+    let num = i128::from(f.actual_duration.tenths()).saturating_mul(10_000);
     round_div(num, i128::from(d))
         .map(|v| v.clamp(0, Percent::FULL.get().saturating_sub(1)))
         .and_then(|v| Percent::new(v).ok())

@@ -616,7 +616,7 @@ impl Writer<'_> {
     fn duration(&self, m: Minutes) -> String {
         signed_minutes(m, self.p.options.default_duration_unit, &self.text)
             .text
-            .unwrap_or_else(|| format!("{} min", m.get()))
+            .unwrap_or_else(|| format!("{} min", m.whole_minutes_round()))
     }
 
     const fn constraint(&self, k: ConstraintKind) -> &'static str {

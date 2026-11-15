@@ -299,7 +299,7 @@ impl Calc<'_, '_> {
         };
         let violated = match cand {
             Candidate::Start(x) => x > f.start,
-            Candidate::Finish(x) => scale.between(f.finish, x)?.get() > 0,
+            Candidate::Finish(x) => scale.between(f.finish, x)? > Minutes::ZERO,
         };
         if violated {
             self.emit(Diagnostic::LinkManualNotHonored {
@@ -677,7 +677,7 @@ impl Calc<'_, '_> {
             let violated = match l.ty {
                 LinkType::FinishToStart | LinkType::StartToStart => x > run.resume,
                 LinkType::FinishToFinish | LinkType::StartToFinish => {
-                    scale.between(run.finish, x).is_ok_and(|m| m.get() > 0)
+                    scale.between(run.finish, x).is_ok_and(|m| m > Minutes::ZERO)
                 }
             };
             if violated {
@@ -720,7 +720,7 @@ impl Calc<'_, '_> {
             let violated = match l.ty {
                 LinkType::FinishToStart | LinkType::StartToStart => x > a.start,
                 LinkType::FinishToFinish | LinkType::StartToFinish => {
-                    scale.between(a.finish, x).is_ok_and(|m| m.get() > 0)
+                    scale.between(a.finish, x).is_ok_and(|m| m > Minutes::ZERO)
                 }
             };
             if violated {
@@ -772,7 +772,7 @@ impl Calc<'_, '_> {
                 let a = c.span()?;
                 let late = match side {
                     Side::Start => natural.start > a.start,
-                    Side::Finish => scale.between(a.finish, natural.finish)?.get() > 0,
+                    Side::Finish => scale.between(a.finish, natural.finish)? > Minutes::ZERO,
                 };
                 if late {
                     self.overrides(v, scale, a, c.kind, false)?;
@@ -795,7 +795,7 @@ impl Calc<'_, '_> {
             | ConstraintRule::Window(Side::Finish)
             | ConstraintRule::Clamped(Side::Finish) => {
                 let a = c.span()?;
-                if scale.between(natural.finish, a.finish)?.get() > 0 {
+                if scale.between(natural.finish, a.finish)? > Minutes::ZERO {
                     return Ok((a, pinned));
                 }
             }
@@ -860,7 +860,7 @@ impl Calc<'_, '_> {
                     let violated = match l.ty {
                         LinkType::FinishToStart | LinkType::StartToStart => x > a.start,
                         LinkType::FinishToFinish | LinkType::StartToFinish => {
-                            scale.between(a.finish, x)?.get() > 0
+                            scale.between(a.finish, x)? > Minutes::ZERO
                         }
                     };
                     violated.then_some(OverriddenBound::Predecessor {

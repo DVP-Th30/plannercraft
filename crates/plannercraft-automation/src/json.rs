@@ -120,7 +120,8 @@ impl DurationJson {
     #[must_use]
     pub fn from_duration(d: &Duration, ctx: &TextContext) -> Self {
         Self {
-            minutes: Some(d.minutes().get()),
+            // Lot B1 : minutes entières (R-001) ; la décimale arrive en B2.
+            minutes: Some(d.minutes().whole_minutes_round()),
             unit: Some(d.unit().into()),
             text: Some(format_duration(d, ctx)),
             elapsed: Some(d.basis() == TimeBasis::Elapsed),
@@ -144,7 +145,7 @@ impl DurationJson {
     pub fn to_duration(&self, ctx: &TextContext) -> Result<Duration, CommandError> {
         if let Some(text) = &self.text {
             let d = parse_duration(text, ctx).map_err(CommandError::text)?;
-            let consistent = agrees(self.minutes, d.minutes().get())
+            let consistent = agrees(self.minutes, d.minutes().whole_minutes_round())
                 && agrees(self.unit, d.unit().into())
                 && agrees(self.elapsed, d.basis() == TimeBasis::Elapsed)
                 && agrees(self.estimated, d.is_estimated());
@@ -171,7 +172,9 @@ impl LagJson {
     #[must_use]
     pub fn from_lag(l: &Lag, ctx: &TextContext) -> Self {
         let (minutes, percent, unit) = match l.value {
-            LagValue::Time { minutes, unit } => (Some(minutes.get()), None, Some(unit.into())),
+            LagValue::Time { minutes, unit } => {
+                (Some(minutes.whole_minutes_round()), None, Some(unit.into()))
+            }
             LagValue::Percent { percent } => (None, Some(percent.get()), None),
         };
         Self {
@@ -200,7 +203,7 @@ impl LagJson {
             let value_ok = match l.value {
                 LagValue::Time { minutes, unit } => {
                     self.percent.is_none()
-                        && agrees(self.minutes, minutes.get())
+                        && agrees(self.minutes, minutes.whole_minutes_round())
                         && agrees(self.unit, unit.into())
                 }
                 LagValue::Percent { percent } => {

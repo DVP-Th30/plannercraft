@@ -193,7 +193,7 @@ impl Diagnostic {
             } => vec![
                 ("calendar", cal(*calendar)),
                 ("from", DiagArg::Moment(*from)),
-                ("minutes", DiagArg::Int(minutes.get())),
+                ("minutes", DiagArg::Int(minutes.whole_minutes_round())),
             ],
             Self::LinkCycle { tasks } => {
                 vec![("tasks", DiagArg::Uids(tasks.iter().map(|t| t.get()).collect()))]

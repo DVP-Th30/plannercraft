@@ -291,7 +291,7 @@ fn preview(p: &ImportedPlan, input: &ComputeInput) -> Result<Preview, PreviewErr
         .zip(&converted.uids)
         .map(|(t, uid)| {
             let finish_computed = schedule.scheduled(*uid).map(|s| {
-                if s.finish.time_of_day().minutes() == 0 {
+                if s.finish.whole_minutes().is_some() && s.finish.time_of_day_floor().minutes() == 0 {
                     s.finish.day().checked_add_days(-1).unwrap_or(s.finish.day())
                 } else {
                     s.finish.day()

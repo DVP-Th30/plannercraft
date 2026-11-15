@@ -136,7 +136,7 @@ pub(crate) fn write(
                 name,
                 computed
                     .and_then(|v| v.work)
-                    .map(|w| format_iso_duration(w.minutes().get())),
+                    .map(|w| format_iso_duration(w.whole_minutes_round())),
             ),
             // R-226 : écart de travail (minutes × 1000).
             "WorkVariance" => em.opt_leaf(

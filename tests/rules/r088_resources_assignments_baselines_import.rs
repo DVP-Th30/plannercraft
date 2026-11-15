@@ -70,9 +70,9 @@ fn r088_assignments_are_read() {
     );
     // `Units` « 0.5 » → 5 000 ; travail ISO.
     assert_eq!(one.units, Units::new(5_000).unwrap());
-    assert_eq!(one.work.minutes(), Minutes::new(960));
-    assert_eq!(one.actual_work.minutes(), Minutes::new(240));
-    assert_eq!(one.remaining_work.minutes(), Minutes::new(720));
+    assert_eq!(one.work.duration_exact().unwrap(), Minutes::new(960));
+    assert_eq!(one.actual_work.duration_exact().unwrap(), Minutes::new(240));
+    assert_eq!(one.remaining_work.duration_exact().unwrap(), Minutes::new(720));
     // `Delay` 4 200 dixièmes → 420 min (O20).
     assert_eq!(one.delay, Minutes::new(420));
     assert_eq!(one.contour, WorkContour::Flat);
@@ -99,12 +99,18 @@ fn r088_assignments_are_read() {
 fn r088_task_work_and_baselines_are_read() {
     let doc = fixture();
     let t1 = doc.project.tasks.get(TaskUid::new(1)).unwrap();
-    assert_eq!(t1.work.minutes(), Minutes::new(960));
-    assert_eq!(t1.progress.actual_work.minutes(), Minutes::new(240));
-    assert_eq!(t1.progress.remaining_work.minutes(), Minutes::new(720));
+    assert_eq!(t1.work.duration_exact().unwrap(), Minutes::new(960));
+    assert_eq!(
+        t1.progress.actual_work.duration_exact().unwrap(),
+        Minutes::new(240)
+    );
+    assert_eq!(
+        t1.progress.remaining_work.duration_exact().unwrap(),
+        Minutes::new(720)
+    );
     // Travail négatif → 0, `mspdi.invalid_value`.
     let t2 = doc.project.tasks.get(TaskUid::new(2)).unwrap();
-    assert_eq!(t2.work.minutes(), Minutes::ZERO);
+    assert_eq!(t2.work.duration_exact().unwrap(), Minutes::ZERO);
     assert!(has(&doc, &ImportCode::InvalidValue, "Tasks/Task/Work"));
     // Lignes de base 0 et 3 ; la n° 11 est ignorée, la seconde n° 3 aussi.
     let numbers: Vec<u8> = t1.baselines.keys().map(|n| n.get()).collect();
@@ -131,7 +137,7 @@ fn r088_computed_values_are_dropped_and_counted() {
     assert_eq!(d("Cost"), Some(2));
     assert_eq!(d("Start"), None);
     let r1 = doc.recorded.resources[&plannercraft_core::ResourceUid::new(1)];
-    assert_eq!(r1.work.unwrap().minutes(), Minutes::new(12_000));
+    assert_eq!(r1.work.unwrap().duration_exact().unwrap(), Minutes::new(12_000));
     let a1 = doc.recorded.assignments[&plannercraft_core::AssignmentUid::new(1)];
     assert_eq!(a1.start, Some(moment("2026-10-19T15:00")));
     assert_eq!(d("BCWS"), Some(2));

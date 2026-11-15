@@ -754,7 +754,7 @@ async fn replay_tracking_j6_saved_mspdi_matches() {
     let by_uid = |uid: u32| tasks.iter().find(|t| t.uid().get() == uid).unwrap();
     let mac = plannercraft_core::progress::facts(by_uid(3));
     assert_eq!(mac.actual_start, Some("2026-11-03T08:00".parse().unwrap()));
-    assert_eq!(mac.actual_duration.get(), 2400);
+    assert_eq!(mac.actual_duration.whole_minutes().unwrap(), 2400);
     assert_eq!(
         plannercraft_core::progress::facts(by_uid(2)).state,
         plannercraft_core::progress::ProgressState::Complete

@@ -238,7 +238,7 @@ fn r198_recorded_assignment_dates() {
     let r = d.recorded.assignments[&AssignmentUid::new(7)];
     assert_eq!(r.start, Some(moment("2026-10-22T08:00")));
     assert_eq!(r.finish, Some(moment("2026-10-23T17:00")));
-    assert_eq!(r.work.unwrap().minutes(), Minutes::new(960));
+    assert_eq!(r.work.unwrap().duration_exact().unwrap(), Minutes::new(960));
     assert!(!d.source.dropped_computed.contains_key("Start"));
     assert!(!d.source.dropped_computed.contains_key("Finish"));
     let recorded = write(
@@ -262,7 +262,7 @@ fn r198_recorded_resource_overallocated() {
     );
     let r = d.recorded.resources[&ResourceUid::new(1)];
     assert_eq!(r.overallocated, Some(true));
-    assert_eq!(r.work.unwrap().minutes(), Minutes::new(4_800));
+    assert_eq!(r.work.unwrap().duration_exact().unwrap(), Minutes::new(4_800));
     assert_eq!(d.source.dropped_computed.get("PeakUnits"), Some(&1));
     assert!(!d.source.dropped_computed.contains_key("OverAllocated"));
     let recorded = write(

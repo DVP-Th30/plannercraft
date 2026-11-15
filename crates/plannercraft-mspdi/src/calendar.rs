@@ -480,7 +480,7 @@ fn time_period(owner: &Fields<'_>, sink: &mut Sink<'_>) -> Option<DayRange> {
 /// Dernier jour couvert : celui de `to`, ou la veille si `to` est à 00:00
 /// strictement après `from`.
 fn last_day(from: Moment, to: Moment) -> plannercraft_core::Day {
-    if to > from && to.time_of_day() == TimeOfDay::MIDNIGHT {
+    if to > from && to.whole_minutes().is_some() && to.time_of_day_floor() == TimeOfDay::MIDNIGHT {
         to.day().checked_add_days(-1).unwrap_or_else(|_| to.day())
     } else {
         to.day()

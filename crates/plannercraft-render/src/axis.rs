@@ -300,9 +300,16 @@ impl Axis {
         (self.px16, self.den)
     }
 
-    /// Abscisse d'un instant.
+    /// Abscisse d'un instant (au dixième de minute, ADR-0039 : même fraction
+    /// que [`Self::x16_minutes`] pour une minute entière).
     pub(crate) fn x16(&self, m: Moment) -> i64 {
-        self.x16_minutes(m.minutes())
+        let delta = i128::from(m.tenths()).saturating_sub(i128::from(self.origin).saturating_mul(10));
+        let px16 = i128::from(self.px16);
+        let den = i128::from(MINUTES_PER_DAY)
+            .saturating_mul(10)
+            .saturating_mul(i128::from(self.den.max(1)));
+        let x = round_div(delta.saturating_mul(px16), den).unwrap_or(0);
+        self.left16.saturating_add(x)
     }
 
     /// Abscisse du minuit d'un jour.

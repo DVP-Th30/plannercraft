@@ -411,7 +411,7 @@ mod tests {
     /// (minutes du jour, source).
     fn resolved(a: &Arena<CalendarUid, Calendar>, c: u32, d: &str) -> (i64, DaySource) {
         let r = resolve_day(a, uid(c), day(d)).unwrap();
-        (r.hours.total().get(), r.source)
+        (r.hours.total().whole_minutes().unwrap(), r.source)
     }
 
     #[test]

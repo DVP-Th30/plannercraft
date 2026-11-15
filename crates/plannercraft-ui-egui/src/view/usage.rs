@@ -174,7 +174,7 @@ pub fn work_text(work: Work, material: Option<&str>, f: &ConversionFactors, l: &
     if work == Work::ZERO {
         return out;
     }
-    match f.to_unit_value(work.minutes(), DurationUnit::Hour, TimeBasis::Working) {
+    match f.to_unit_value(work.duration_round(), DurationUnit::Hour, TimeBasis::Working) {
         Ok(value) => {
             text::write_decimal(&mut out, value, l.decimal_sep);
             match material {

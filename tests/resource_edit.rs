@@ -64,17 +64,20 @@ pub fn assignment(s: &Session, task: u32, resource: u32) -> &Assignment {
 #[must_use]
 pub fn units_work(s: &Session, task: u32, resource: u32) -> (i64, i64) {
     let a = assignment(s, task, resource);
-    (a.units.get(), a.work.minutes().get())
+    (a.units.get(), a.work.whole_minutes_round())
 }
 
 /// Durée enregistrée de la tâche `uid`, en minutes ouvrées.
 #[must_use]
 pub fn duration(s: &Session, uid: u32) -> i64 {
-    crate::task_edit::get(s, uid).duration.minutes().get()
+    crate::task_edit::get(s, uid)
+        .duration
+        .minutes()
+        .whole_minutes_floor()
 }
 
 /// Travail enregistré de la tâche `uid`, en minutes.
 #[must_use]
 pub fn work(s: &Session, uid: u32) -> i64 {
-    crate::task_edit::get(s, uid).work.minutes().get()
+    crate::task_edit::get(s, uid).work.whole_minutes_round()
 }

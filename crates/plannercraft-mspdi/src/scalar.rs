@@ -427,7 +427,8 @@ pub const fn percent_lag_from_link_lag(link_lag: i64) -> Option<i64> {
 /// plus de 50 000) ; repli sur l'affichage de `Moment` en cas d'échec.
 #[must_use]
 pub fn format_datetime(m: Moment) -> String {
-    civil(m.minutes()).map_or_else(
+    // Lot B1 : à la minute, secondes tronquées (les secondes arrivent en B2).
+    civil(m.minutes_floor()).map_or_else(
         || format!("{m}:00"),
         |(y, mo, d, h, mi)| format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:00"),
     )
@@ -717,7 +718,9 @@ mod tests {
         assert_eq!(tenths_to_minutes(-4_800), (Minutes::new(-480), false));
         assert_eq!(tenths_to_minutes(25), (Minutes::new(3), true));
         assert_eq!(tenths_to_minutes(-25), (Minutes::new(-3), true));
-        assert_eq!(tenths_to_minutes(i64::MIN).0.get(), -922_337_203_685_477_581);
+        // Borne de i64 (ADR-0039) : −922 337 203 685 477 581 minutes ne tiennent
+        // plus en dixièmes ; la valeur est saturée, sans panique.
+        assert_eq!(tenths_to_minutes(i64::MIN).0, Minutes::from_tenths(i64::MIN));
         assert_eq!(percent_lag_from_link_lag(500), Some(5_000));
         assert_eq!(percent_lag_from_link_lag(-250), Some(-2_500));
         assert_eq!(percent_lag_from_link_lag(i64::MAX), None);
@@ -775,7 +778,7 @@ mod tests {
         // Tout le domaine, un jour sur 7 et une minute variable : même texte
         // que l'affichage de `Moment` (chrono).
         let mut minutes = 0_i64;
-        while minutes <= Moment::MAX.minutes() {
+        while minutes <= Moment::MAX.whole_minutes().unwrap() {
             let at = Moment::from_minutes(minutes).unwrap();
             assert_eq!(format_datetime(at), format!("{at}:00"), "{minutes}");
             minutes += 7 * 1_440 + 37;

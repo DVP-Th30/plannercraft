@@ -167,7 +167,11 @@ fn usage_values_from_engine() {
         let view = plannercraft_automation::view::resource_usage(&doc.session, &params).unwrap();
         let row = &view.rows[0];
         assert_eq!(row.work.len(), 1, "une période par cellule");
-        assert_eq!(row.work[0].minutes, Some(cell.work.minutes().get()), "{cell:?}");
+        assert_eq!(
+            row.work[0].minutes,
+            Some(cell.work.whole_minutes().unwrap()),
+            "{cell:?}"
+        );
         assert_eq!(row.overallocated[0], cell.over, "{cell:?}");
         checked += 1;
     }
@@ -250,9 +254,9 @@ fn usage_expand_assignments() {
     for (start, (_, work, _)) in &total {
         let sum: i64 = assignments
             .iter()
-            .map(|key| cells_of(app, *key)[start].1.minutes().get())
+            .map(|key| cells_of(app, *key)[start].1.whole_minutes().unwrap())
             .sum();
-        assert_eq!(sum, work.minutes().get(), "période {start}");
+        assert_eq!(sum, work.whole_minutes().unwrap(), "période {start}");
     }
     assert!(
         app.view().usage.cache.key().unwrap().expanded == vec![ResourceUid::new(MASON)],

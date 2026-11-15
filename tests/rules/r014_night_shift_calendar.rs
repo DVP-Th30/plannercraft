@@ -32,11 +32,14 @@ fn r014_night_shift_week() {
         Weekday::Friday,
     ] {
         assert_eq!(ranges(week.get(d)), [(0, 3), (4, 8), (23, 24)], "{d:?}");
-        assert_eq!(week.get(d).total().get(), 480);
+        assert_eq!(week.get(d).total().whole_minutes().unwrap(), 480);
     }
     assert_eq!(ranges(week.get(Weekday::Saturday)), [(0, 3), (4, 8)]);
     // Semaine : 60 + 4 × 480 + 420 = 2 400.
-    let total: i64 = Weekday::ALL.iter().map(|d| week.get(*d).total().get()).sum();
+    let total: i64 = Weekday::ALL
+        .iter()
+        .map(|d| week.get(*d).total().whole_minutes().unwrap())
+        .sum();
     assert_eq!(total, 2_400);
 }
 

@@ -66,7 +66,7 @@ fn day_index(s: &str) -> i32 {
 }
 
 fn minutes_of(s: &str) -> i64 {
-    s.parse::<Moment>().unwrap().minutes()
+    s.parse::<Moment>().unwrap().whole_minutes().unwrap()
 }
 
 /// Réglage d'un jour : 0 à 5 plages, au pas de 1 ou de 15 minutes.
@@ -278,7 +278,7 @@ fn at(m: i64) -> Moment {
 }
 
 fn w(c: &CompiledCalendar, a: Moment, b: Moment) -> i64 {
-    c.working_between(a, b).unwrap().get()
+    c.working_between(a, b).unwrap().whole_minutes().unwrap()
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +318,7 @@ fn merged(setting: &DaySetting) -> Vec<(i64, i64)> {
 
 impl Oracle {
     fn new(s: &Scenario, center: Moment) -> Self {
-        let c = center.minutes() / 1_440;
+        let c = center.whole_minutes().unwrap() / 1_440;
         let first_day = (c - WINDOW).max(0);
         let end_day = (c + WINDOW + 1).min(DAY_COUNT);
         let days = (first_day..end_day)
@@ -613,7 +613,7 @@ mod independent {
 /// Résultat compilé dans les termes de l'oracle.
 fn as_naive(r: Result<Moment, CalendarError>) -> Naive {
     match r {
-        Ok(m) => Naive::At(m.minutes()),
+        Ok(m) => Naive::At(m.whole_minutes().unwrap()),
         Err(CalendarError::OutOfDomain {
             direction: Direction::After,
             ..
@@ -724,10 +724,10 @@ proptest! {
         let c = s.compile();
         if let Ok(u) = c.add_working(t, Minutes::new(d)) {
             if d > 0 && u > t {
-                prop_assert!(w(&c, t, at(u.minutes() - 1)) < d);
+                prop_assert!(w(&c, t, at(u.whole_minutes().unwrap() - 1)) < d);
             }
             if d < 0 && u < t {
-                prop_assert!(w(&c, at(u.minutes() + 1), t) < -d);
+                prop_assert!(w(&c, at(u.whole_minutes().unwrap() + 1), t) < -d);
             }
         }
     }
@@ -746,7 +746,7 @@ proptest! {
             prop_assert!(p <= t);
             prop_assert_eq!(c.previous_working_moment(p), Ok(p));
             prop_assert_eq!(w(&c, p, t), 0);
-            prop_assert_eq!(c.is_working(at(p.minutes() - 1)), Ok(true));
+            prop_assert_eq!(c.is_working(at(p.whole_minutes().unwrap() - 1)), Ok(true));
         }
         if !c.has_working_time() {
             let none = Err(CalendarError::NoWorkingTime { calendar: s.uid });
@@ -766,7 +766,7 @@ proptest! {
         d2 in delta(),
     ) {
         let c = s.compile();
-        let t2 = at((t1.minutes() + gap).min(MAX));
+        let t2 = at((t1.whole_minutes().unwrap() + gap).min(MAX));
         prop_assert!(w(&c, t1, t2) >= 0);
         if let (Ok(a), Ok(b)) = (c.add_working(t1, Minutes::new(d1)), c.add_working(t2, Minutes::new(d1))) {
             prop_assert!(a <= b);
@@ -788,7 +788,7 @@ proptest! {
     fn p5_dualities(s in scenario(), t in moment(), d in 1_i64..=50_000) {
         let c = s.compile();
         let d = Minutes::new(d);
-        let back = Minutes::new(-d.get());
+        let back = Minutes::new(-d.whole_minutes().unwrap());
         if let Ok(u) = c.add_working(t, d) {
             prop_assert_eq!(c.add_working(u, back), c.next_working_moment(t));
         }
@@ -805,7 +805,7 @@ proptest! {
         prop_assert_eq!(w(&c, a, b), -w(&c, b, a));
         let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
         let v = w(&c, lo, hi);
-        prop_assert!(v >= 0 && v <= hi.minutes() - lo.minutes());
+        prop_assert!(v >= 0 && v <= hi.whole_minutes().unwrap() - lo.whole_minutes().unwrap());
     }
 
     /// P7 : calendrier 24 heures.
@@ -813,12 +813,12 @@ proptest! {
     fn p7_24_hours_is_civil_time(t in moment(), d in delta()) {
         let a = Arena::try_from(vec![twenty_four_hours(CalendarUid::new(2), "24 heures".to_owned())]).unwrap();
         let c = CompiledCalendar::compile(&a, CalendarUid::new(2)).unwrap();
-        let civil = t.minutes() + d;
+        let civil = t.whole_minutes().unwrap() + d;
         match c.add_working(t, Minutes::new(d)) {
-            Ok(u) => prop_assert_eq!(u.minutes(), civil),
+            Ok(u) => prop_assert_eq!(u.whole_minutes().unwrap(), civil),
             Err(_) => prop_assert!(!(0..=MAX).contains(&civil)),
         }
-        prop_assert_eq!(w(&c, t, at(civil.clamp(0, MAX))), civil.clamp(0, MAX) - t.minutes());
+        prop_assert_eq!(w(&c, t, at(civil.clamp(0, MAX))), civil.clamp(0, MAX) - t.whole_minutes().unwrap());
     }
 
     /// P8 : forme compilée = oracle naïf fondé sur `resolve_day`.
@@ -846,9 +846,9 @@ proptest! {
             prop_assert_eq!(&got, ranges, "jour {}", day);
         }
         // W entre deux instants de la fenêtre.
-        let b = (t.minutes() + other).clamp(0, MAX);
+        let b = (t.whole_minutes().unwrap() + other).clamp(0, MAX);
         if o.contains(b) {
-            let (lo, hi) = (t.minutes().min(b), t.minutes().max(b));
+            let (lo, hi) = (t.whole_minutes().unwrap().min(b), t.whole_minutes().unwrap().max(b));
             prop_assert_eq!(w(&c, at(lo), at(hi)), o.between(lo, hi));
         }
         if !c.has_working_time() {
@@ -859,9 +859,9 @@ proptest! {
             );
             return Ok(());
         }
-        agree(as_naive(c.add_working(t, Minutes::new(d))), o.add(t.minutes(), d))?;
-        agree(as_naive(c.next_working_moment(t)), o.next(t.minutes()))?;
-        agree(as_naive(c.previous_working_moment(t)), o.previous(t.minutes()))?;
+        agree(as_naive(c.add_working(t, Minutes::new(d))), o.add(t.whole_minutes().unwrap(), d))?;
+        agree(as_naive(c.next_working_moment(t)), o.next(t.whole_minutes().unwrap()))?;
+        agree(as_naive(c.previous_working_moment(t)), o.previous(t.whole_minutes().unwrap()))?;
     }
 
     /// P9 : dérivé compilé = le même calendrier écrit en entier comme base.
@@ -913,20 +913,20 @@ proptest! {
     #[test]
     fn p10_spans(s in scenario(), t in moment(), b in moment(), d in 0_i64..=50_000) {
         let e = TimeScale::Elapsed;
-        prop_assert_eq!(e.between(t, b), Ok(Minutes::new(b.minutes() - t.minutes())));
+        prop_assert_eq!(e.between(t, b), Ok(Minutes::new(b.whole_minutes().unwrap() - t.whole_minutes().unwrap())));
         match e.forward_span(t, Minutes::new(d)) {
             Ok(span) => {
                 prop_assert_eq!(span.start, t);
-                prop_assert_eq!(span.finish.minutes(), t.minutes() + d);
+                prop_assert_eq!(span.finish.whole_minutes().unwrap(), t.whole_minutes().unwrap() + d);
             }
-            Err(_) => prop_assert!(t.minutes() + d > MAX),
+            Err(_) => prop_assert!(t.whole_minutes().unwrap() + d > MAX),
         }
         match e.backward_span(t, Minutes::new(d)) {
             Ok(span) => {
                 prop_assert_eq!(span.finish, t);
-                prop_assert_eq!(span.start.minutes(), t.minutes() - d);
+                prop_assert_eq!(span.start.whole_minutes().unwrap(), t.whole_minutes().unwrap() - d);
             }
-            Err(_) => prop_assert!(t.minutes() - d < 0),
+            Err(_) => prop_assert!(t.whole_minutes().unwrap() - d < 0),
         }
         let c = s.compile();
         let w_scale = TimeScale::Working(&c);

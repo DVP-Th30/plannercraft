@@ -131,9 +131,10 @@ pub(crate) struct Values {
     pub(crate) project_finish: Option<Moment>,
 }
 
-/// Dixièmes de minute d'une marge (minutes × 10) ; débordement : omise.
-fn tenths(m: Minutes) -> Option<i64> {
-    m.get().checked_mul(10)
+/// Dixièmes de minute d'une marge (valeur exacte).
+#[allow(clippy::unnecessary_wraps, reason = "forme gardée pour les appelants")]
+const fn tenths(m: Minutes) -> Option<i64> {
+    Some(m.tenths())
 }
 
 /// Échelles de marge (R-048, R-066, R-067, R-113) : calendrier de mesure
@@ -211,7 +212,7 @@ fn from_task_schedule(s: &TaskSchedule, scale: Option<TimeScale<'_>>, summary: b
         start_slack,
         finish_slack,
         critical: Some(s.critical),
-        duration: (summary && !s.manual).then_some(s.duration.get()),
+        duration: (summary && !s.manual).then_some(s.duration.whole_minutes_round()),
         work: summary.then_some(s.work),
         ..TaskValues::default()
     }
@@ -261,9 +262,8 @@ pub(crate) fn progress_values(
         p.actual_work = ps.actual_work;
         let rest = s
             .work
-            .minutes()
-            .get()
-            .saturating_sub(ps.actual_work.minutes().get())
+            .whole_minutes_round()
+            .saturating_sub(ps.actual_work.whole_minutes_round())
             .max(0);
         p.remaining_work = Work::new(Minutes::new(rest)).unwrap_or(Work::ZERO);
         p.resume = None;
@@ -378,9 +378,10 @@ pub(crate) fn from_schedule(project: &Project, schedule: &Schedule) -> Values {
     values
 }
 
-/// R-226 : écart × 1000 (minutes × 1000 du schéma) ; débordement : omis.
+/// R-226 : écart × 1000 (minutes × 1000 du schéma, soit dixièmes × 100) ;
+/// débordement : omis.
 fn thousand(m: Minutes) -> Option<i64> {
-    m.get().checked_mul(1_000)
+    m.tenths().checked_mul(100)
 }
 
 /// R-226 : écarts du moteur à la ligne de base 0 (R-224, R-225), au
@@ -579,7 +580,7 @@ fn recorded_values(r: &RecordedTask) -> TaskValues {
         start_slack: t(r.start_slack),
         finish_slack: t(r.finish_slack),
         critical: r.critical,
-        duration: r.duration.map(Minutes::get),
+        duration: r.duration.map(Minutes::whole_minutes_round),
         stop: r.stop,
         resume: r.resume,
         start_variance: r.start_variance,

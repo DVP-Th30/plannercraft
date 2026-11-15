@@ -217,7 +217,7 @@ fn rolled_line(
     let mut any = false;
     let mut start: Option<Moment> = None;
     let mut finish: Option<Moment> = None;
-    let mut work: Option<Minutes> = None;
+    let mut work: Option<i64> = None;
     for &child in children {
         let Some((child_task, _)) = lookup(project, schedule, child) else {
             continue;
@@ -229,9 +229,10 @@ fn rolled_line(
         start = [start, line.start].into_iter().flatten().min();
         finish = [finish, line.finish].into_iter().flatten().max();
         if let Some(w) = line.work {
-            let sum = work.unwrap_or(Minutes::ZERO).checked_add(w.minutes());
-            // Débordement (jamais attendu) : plafond du travail.
-            work = Some(sum.unwrap_or(Minutes::new(Work::MAX_MINUTES)));
+            // Somme exacte en millièmes ; débordement (jamais attendu) :
+            // plafond du travail.
+            let sum = work.unwrap_or(0).checked_add(w.milli());
+            work = Some(sum.map_or(Work::MAX_MILLI, |v| v.min(Work::MAX_MILLI)));
         }
     }
     if !any {
@@ -242,7 +243,7 @@ fn rolled_line(
         (Some(from), Some(to)) => {
             let m = measures.between(Some(task), TaskRole::Summary, from, to);
             Duration::new(
-                Minutes::new(m.get().max(0)),
+                Minutes::from_tenths(m.tenths().max(0)),
                 task.duration.unit(),
                 TimeBasis::Working,
                 task.duration.is_estimated(),
@@ -255,9 +256,7 @@ fn rolled_line(
         start,
         finish,
         duration,
-        work: work
-            .and_then(|m| Work::new(Minutes::new(m.get().min(Work::MAX_MINUTES))).ok())
-            .and_then(stored_work),
+        work: work.and_then(|m| Work::from_milli(m).ok()).and_then(stored_work),
         cost: previous.and_then(|b| b.cost),
         fixed_cost: previous.and_then(|b| b.fixed_cost),
     })

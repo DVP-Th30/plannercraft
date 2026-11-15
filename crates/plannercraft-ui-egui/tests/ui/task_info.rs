@@ -119,7 +119,7 @@ fn task_info_to_batch_order() {
     s.apply(&batch, ApplyMode::Commit).unwrap();
     let task = s.project().tasks.get(uid(9)).unwrap();
     assert_eq!(task.name, "Gros œuvre");
-    assert_eq!(task.duration.minutes().get(), 4 * 480);
+    assert_eq!(task.duration.minutes().whole_minutes().unwrap(), 4 * 480);
     assert_eq!(task.notes, "Béton C25");
     assert_eq!(task.constraint.kind(), ConstraintKind::StartNoEarlierThan);
     assert!(task.deadline.is_some());
@@ -443,7 +443,7 @@ fn task_info_ok_single_undo() {
         .get(uid(3))
         .unwrap();
     assert_eq!(task.name, "Plans définitifs");
-    assert_eq!(task.duration.minutes().get(), 12 * 480);
+    assert_eq!(task.duration.minutes().whole_minutes().unwrap(), 12 * 480);
     assert_eq!(task.notes, "Avec l'ingénieur structure");
     harness.state_mut().dispatch(Action::Undo);
     harness.run();
@@ -477,7 +477,7 @@ fn task_info_enter_validates() {
         .tasks
         .get(uid(3))
         .unwrap();
-    assert_eq!(task.duration.minutes().get(), 12 * 480);
+    assert_eq!(task.duration.minutes().whole_minutes().unwrap(), 12 * 480);
     // Notes : Entrée reste dans la zone multiligne.
     open_info(&mut harness, 3);
     click_label(&mut harness, &fr(TextId::TaskInfoTabNotes));

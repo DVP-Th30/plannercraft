@@ -768,7 +768,7 @@ fn field_text(ctx: &FieldCtx<'_>, task: &Task, row: &Row, column: Column) -> Str
                 .unwrap_or_default(),
             BaseField::Work => base
                 .and_then(|b| b.work)
-                .map(|w| format_work(w.minutes(), f, l))
+                .map(|w| format_work(w.duration_round(), f, l))
                 .unwrap_or_default(),
         };
     }
@@ -794,7 +794,7 @@ fn field_text(ctx: &FieldCtx<'_>, task: &Task, row: &Row, column: Column) -> Str
         Column::TaskType => fl.task_type(task.task_type).to_owned(),
         Column::EffortDriven => format_yes_no(task.effort_driven, l),
         // Travail du moteur (R-184) ; tâche exclue : travail saisi.
-        Column::Work => format_work(schedule.map_or(task.work, |s| s.work).minutes(), f, l),
+        Column::Work => format_work(schedule.map_or(task.work, |s| s.work).duration_round(), f, l),
         Column::EarlyStart => date(schedule.map(|s| s.early.start)),
         Column::EarlyFinish => date(schedule.map(|s| s.early.finish)),
         Column::LateStart => date(schedule.map(|s| s.late.start)),
@@ -830,7 +830,13 @@ fn field_text(ctx: &FieldCtx<'_>, task: &Task, row: &Row, column: Column) -> Str
             })
             .unwrap_or_default(),
         Column::ActualWork => schedule
-            .map(|_| format_work(progress.map_or(Work::ZERO, |p| p.actual_work).minutes(), f, l))
+            .map(|_| {
+                format_work(
+                    progress.map_or(Work::ZERO, |p| p.actual_work).duration_round(),
+                    f,
+                    l,
+                )
+            })
             .unwrap_or_default(),
         // Travail restant : somme des restes de ses affectations (R-211,
         // `progress::remaining_work`) ; récapitulative : vide (hypothèse,
@@ -839,10 +845,15 @@ fn field_text(ctx: &FieldCtx<'_>, task: &Task, row: &Row, column: Column) -> Str
             Some(_) if row.kind != RowKind::Summary => {
                 let rest = ctx.assignments.get(&uid).map_or(0_i64, |list| {
                     list.iter().fold(0_i64, |sum, a| {
-                        sum.saturating_add(plannercraft_core::progress::remaining_work(a).minutes().get())
+                        sum.saturating_add(plannercraft_core::progress::remaining_work(a).milli())
                     })
                 });
-                format_work(Minutes::new(rest), f, l)
+                // Somme exacte en millièmes, affichée au dixième (R-001).
+                format_work(
+                    Work::from_milli(rest).unwrap_or(Work::ZERO).duration_round(),
+                    f,
+                    l,
+                )
             }
             _ => String::new(),
         },

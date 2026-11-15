@@ -182,7 +182,7 @@ pub fn day_minutes(
         plannercraft_core::CalendarUid::new(uid),
         day(d),
     ) {
-        Ok(r) => r.hours.total().get(),
+        Ok(r) => r.hours.total().whole_minutes_floor(),
         Err(e) => panic!("résolution du {d} impossible : {e}"),
     }
 }

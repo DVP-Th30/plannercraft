@@ -34,7 +34,7 @@ pub fn options() -> ReadOptions {
 /// Horodatage : jour (1 = 1984-01-01) et heure en dixièmes de minute.
 pub fn stamp(s: &str) -> u32 {
     let m: Moment = s.parse().unwrap();
-    let minutes = m.minutes();
+    let minutes = m.whole_minutes().unwrap();
     let day = (minutes / 1_440 + 1) as u32;
     let tenths = ((minutes % 1_440) * 10) as u32;
     (day << 16) | tenths
@@ -340,7 +340,7 @@ pub fn exception_rec(
 ) -> Vec<u8> {
     let dn = |s: &str| {
         let m: Moment = format!("{s}T00:00").parse().unwrap();
-        (m.minutes() / 1_440 + 1) as u16
+        (m.whole_minutes().unwrap() / 1_440 + 1) as u16
     };
     let mut e = vec![0_u8; 12];
     put16(&mut e, 0, dn(first));

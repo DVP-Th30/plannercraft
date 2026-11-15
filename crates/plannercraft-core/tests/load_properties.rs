@@ -190,7 +190,7 @@ fn oracle(p: &Project, s: &Schedule) -> BTreeMap<ResourceUid, (BTreeSet<i64>, i6
         .map(|a| a.span.finish)
         .max()
         .unwrap_or(from);
-    let n = usize::try_from(from.minutes_until(end).get()).unwrap();
+    let n = usize::try_from(from.minutes_until(end).whole_minutes().unwrap()).unwrap();
     let mut maps: BTreeMap<EffectiveCalendar, Vec<bool>> = BTreeMap::new();
     let mut out = BTreeMap::new();
     for res in &p.resources {
@@ -199,8 +199,8 @@ fn oracle(p: &Project, s: &Schedule) -> BTreeMap<ResourceUid, (BTreeSet<i64>, i6
             let map = maps
                 .entry(a.calendar)
                 .or_insert_with(|| bitmap(p, &set, a.calendar, from, n));
-            let lo = from.minutes_until(a.span.start).get() as usize;
-            let hi = from.minutes_until(a.span.finish).get() as usize;
+            let lo = from.minutes_until(a.span.start).whole_minutes().unwrap() as usize;
+            let hi = from.minutes_until(a.span.finish).whole_minutes().unwrap() as usize;
             for m in lo..hi {
                 if map[m] {
                     load[m] += a.effective_units.get();
@@ -210,7 +210,7 @@ fn oracle(p: &Project, s: &Schedule) -> BTreeMap<ResourceUid, (BTreeSet<i64>, i6
         let cap = res.max_units.get();
         let over: BTreeSet<i64> = (0..n)
             .filter(|&m| load[m] > cap)
-            .map(|m| from.minutes() + m as i64)
+            .map(|m| from.whole_minutes().unwrap() + m as i64)
             .collect();
         out.insert(res.uid(), (over, load.iter().copied().max().unwrap_or(0)));
     }
@@ -222,7 +222,7 @@ fn covered(s: &Schedule, r: ResourceUid) -> BTreeSet<i64> {
     s.resources[&r]
         .overloads
         .iter()
-        .flat_map(|o| o.from.minutes()..o.to.minutes())
+        .flat_map(|o| o.from.whole_minutes().unwrap()..o.to.whole_minutes().unwrap())
         .collect()
 }
 

@@ -63,7 +63,9 @@ fn r248_add_derived_copy_base() {
         panic!("base attendue");
     };
     assert_eq!(week.get(Weekday::Saturday), &DaySetting::NonWorking);
-    assert!(matches!(week.get(Weekday::Monday), DaySetting::Working(h) if h.total().get() == 480));
+    assert!(
+        matches!(week.get(Weekday::Monday), DaySetting::Working(h) if h.total().whole_minutes().unwrap() == 480)
+    );
     // Les deux : refus ; copie d'un inconnu : `calendar.not_found`.
     let err = try_apply(
         &mut s,
@@ -207,14 +209,18 @@ fn r248_base_not_base() {
         panic!("base attendue");
     };
     assert_eq!(week.get(Weekday::Monday), &DaySetting::NonWorking);
-    assert!(matches!(week.get(Weekday::Sunday), DaySetting::Working(h) if h.total().get() == 1_440));
+    assert!(
+        matches!(week.get(Weekday::Sunday), DaySetting::Working(h) if h.total().whole_minutes().unwrap() == 1_440)
+    );
     // Un calendrier de base qui ne sert de base à aucun devient dérivé :
     // chacun de ses jours devient un réglage propre.
     apply(&mut s, json!([{ "op": "calendar.update", "uid": 4, "base": 1 }]));
     let CalendarKind::Derived { week, .. } = cal(&s, 4).kind() else {
         panic!("dérivé attendu");
     };
-    assert!(matches!(week.get(Weekday::Sunday), DayRule::Working(h) if h.total().get() == 1_440));
+    assert!(
+        matches!(week.get(Weekday::Sunday), DayRule::Working(h) if h.total().whole_minutes().unwrap() == 1_440)
+    );
 }
 
 #[test]

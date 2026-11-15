@@ -12,38 +12,44 @@ fn r007_elapsed_factors() {
     assert_eq!(
         f.to_minutes(Decimal::integer(2), DurationUnit::Day, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         2_880
     );
     assert_eq!(
         f.to_minutes(Decimal::integer(5), DurationUnit::Day, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         7_200
     );
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Month, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         43_200
     );
     // 1 esem = 7 × 1 440 = 10 080 ; 1 eh = 60 ; 1 em = 1.
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Week, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         10_080
     );
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Hour, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         60
     );
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Minute, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         1
     );
 }
@@ -56,13 +62,15 @@ fn r007_elapsed_ignores_options() {
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Day, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         1_440
     );
     assert_eq!(
         f.to_minutes(Decimal::integer(1), DurationUnit::Month, E)
             .unwrap()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         43_200
     );
 }

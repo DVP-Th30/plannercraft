@@ -399,7 +399,8 @@ fn h_ui_113_ok_one_undo() {
         .unwrap()
         .duration
         .minutes()
-        .get();
+        .whole_minutes()
+        .unwrap();
     assert_eq!(minutes, 4 * 480);
     assert!(linked(app, 11, 14));
     assert!(!details(app).dirty, "brouillon relu");
@@ -585,7 +586,7 @@ fn h_ui_113_resources_units_work() {
     assert_eq!(history_len(app), entries + 2);
     let project = app.document.as_ref().unwrap().project();
     let a = project.assignments.iter().find(|a| a.task == uid(11)).unwrap();
-    assert_eq!(a.work.minutes().get(), 16 * 60);
+    assert_eq!(a.work.whole_minutes().unwrap(), 16 * 60);
     // Retirer : affectation supprimée au OK.
     crate::click(&mut harness, &fr(TextId::TaskInfoRemoveRow));
     crate::click(&mut harness, &fr(TextId::DetailsOk));
@@ -644,7 +645,8 @@ fn h_ui_113_external_change_reloads() {
             .unwrap()
             .duration
             .minutes()
-            .get(),
+            .whole_minutes()
+            .unwrap(),
         6 * 480
     );
     assert!(!details(app).kept);

@@ -238,7 +238,7 @@ fn short_summary_duration(m: Minutes, f: &ConversionFactors, lang: Language) -> 
     let two_months = per_day
         .saturating_mul(i64::from(f.days_per_month()))
         .saturating_mul(2);
-    let unit = if m.get() > two_months {
+    let unit = if m.whole_minutes_floor() > two_months {
         DurationUnit::Month
     } else {
         DurationUnit::Day

@@ -135,7 +135,10 @@ fn r267_manual_moves_dates_keeps_duration() {
     };
     assert_eq!(start, Some(moment("2026-11-16T08:00")));
     assert_eq!(finish, Some(moment("2026-11-19T17:00")));
-    assert_eq!(duration.map(|d| d.minutes().get()), Some(4 * 480));
+    assert_eq!(
+        duration.map(|d| d.minutes().whole_minutes().unwrap()),
+        Some(4 * 480)
+    );
     // Aucune contrainte posée sur une tâche manuelle.
     assert_eq!(get(&s, 6).constraint, Constraint::AsSoonAsPossible);
     assert_eq!(

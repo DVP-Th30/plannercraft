@@ -217,7 +217,9 @@ fn cause(
                 .assignments
                 .get(&a.uid())
                 .and_then(|r| r.start)
-                .is_some_and(|s| s.minutes().saturating_sub(recorded_start.minutes()) > ROUNDING_MINUTES)
+                .is_some_and(|s| {
+                    s.minutes_floor().saturating_sub(recorded_start.minutes_floor()) > ROUNDING_MINUTES
+                })
     });
     if shifted {
         return Some(GapCause::StaggeredAssignments);
@@ -256,8 +258,9 @@ pub fn compare(project: &Project, schedule: &Schedule, recorded: &Recorded) -> C
             continue;
         };
         out.tasks_compared = out.tasks_compared.saturating_add(1);
-        let ds = s.start.minutes().saturating_sub(rs.minutes());
-        let df = s.finish.minutes().saturating_sub(rf.minutes());
+        // Lot B1 : écarts à la minute affichée (secondes tronquées).
+        let ds = s.start.minutes_floor().saturating_sub(rs.minutes_floor());
+        let df = s.finish.minutes_floor().saturating_sub(rf.minutes_floor());
         if ds == 0 {
             out.starts_equal = out.starts_equal.saturating_add(1);
         }

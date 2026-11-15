@@ -66,12 +66,20 @@ fn lag() -> impl Strategy<Value = Lag> {
 
 /// Instant de 2026-2027, ou près des bornes du domaine.
 fn moment() -> impl Strategy<Value = Moment> {
-    let start_2026 = "2026-01-01T00:00".parse::<Moment>().unwrap().minutes();
-    let end_2027 = "2028-01-01T00:00".parse::<Moment>().unwrap().minutes();
+    let start_2026 = "2026-01-01T00:00"
+        .parse::<Moment>()
+        .unwrap()
+        .whole_minutes()
+        .unwrap();
+    let end_2027 = "2028-01-01T00:00"
+        .parse::<Moment>()
+        .unwrap()
+        .whole_minutes()
+        .unwrap();
     prop_oneof![
         8 => start_2026..end_2027,
         1 => 0_i64..20_000,
-        1 => (Moment::MAX.minutes() - 20_000)..=Moment::MAX.minutes(),
+        1 => (Moment::MAX.whole_minutes().unwrap() - 20_000)..=Moment::MAX.whole_minutes().unwrap(),
     ]
     .prop_map(|m| Moment::from_minutes(m).unwrap())
 }

@@ -36,8 +36,8 @@ fn r256_header_recognized() {
     let got = names(&s);
     assert_eq!(got[5], ("Coffrage".to_owned(), 2));
     assert_eq!(got[6], ("Ferraillage".to_owned(), 2));
-    assert_eq!(get(&s, 8).duration.minutes().get(), 3 * 480);
-    assert_eq!(get(&s, 9).duration.minutes().get(), 2 * 480);
+    assert_eq!(get(&s, 8).duration.minutes().whole_minutes().unwrap(), 3 * 480);
+    assert_eq!(get(&s, 9).duration.minutes().whole_minutes().unwrap(), 2 * 480);
     // En anglais, avec niveaux et prédécesseurs internes (par ID du texte).
     let mut s = plan_p();
     let text = "Name\tDuration\tOutline Level\tPredecessors\nLot\t\t1\t\nA\t2d\t2\t\nB\t1d\t2\t2\n";

@@ -499,7 +499,7 @@ impl Calc<'_, '_> {
             let a = c.span()?;
             let early_side = match side {
                 Side::Start => natural.start < a.start,
-                Side::Finish => scale.between(natural.finish, a.finish)?.get() > 0,
+                Side::Finish => scale.between(natural.finish, a.finish)? > crate::duration::Minutes::ZERO,
             };
             if early_side {
                 self.late_overrides(v, scale, a, c.kind, false);
@@ -737,7 +737,11 @@ impl Calc<'_, '_> {
         let Some(node) = self.net.node(v) else { return };
         let (task, parent) = (node.uid, node.parent_rollup);
         let Ok(placer) = self.placer(v) else { return };
-        let exceeds = |cap: Moment| scale.between(cap, a.finish).is_ok_and(|m| m.get() > 0);
+        let exceeds = |cap: Moment| {
+            scale
+                .between(cap, a.finish)
+                .is_ok_and(|m| m > crate::duration::Minutes::ZERO)
+        };
         let mut violated: Vec<OverriddenBound> = Vec::new();
         if exceeds(self.finish) {
             violated.push(OverriddenBound::ProjectFinish);
@@ -783,9 +787,9 @@ impl Calc<'_, '_> {
             };
             let broken = match l.ty {
                 LinkType::FinishToStart | LinkType::StartToStart => x > tl.start,
-                LinkType::FinishToFinish | LinkType::StartToFinish => {
-                    target_scale.between(tl.finish, x).is_ok_and(|m| m.get() > 0)
-                }
+                LinkType::FinishToFinish | LinkType::StartToFinish => target_scale
+                    .between(tl.finish, x)
+                    .is_ok_and(|m| m > crate::duration::Minutes::ZERO),
             };
             if broken {
                 violated.push(OverriddenBound::Successor {
@@ -816,7 +820,11 @@ impl Calc<'_, '_> {
         let Ok(caps) = self.out_caps(v, false) else {
             return;
         };
-        let finish_late = |y: Moment| scale.between(y, f.finish).is_ok_and(|m| m.get() > 0);
+        let finish_late = |y: Moment| {
+            scale
+                .between(y, f.finish)
+                .is_ok_and(|m| m > crate::duration::Minutes::ZERO)
+        };
         let broken = caps
             .finishes
             .iter()

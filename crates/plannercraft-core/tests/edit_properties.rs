@@ -131,7 +131,7 @@ impl State {
 }
 
 fn total_work(parts: &[Part]) -> i64 {
-    parts.iter().map(|p| p.work.minutes().get()).sum()
+    parts.iter().map(|p| p.work.whole_minutes().unwrap()).sum()
 }
 
 /// P31 pour une affectation hors durée fixe : `d_a = W × 10 000 / U`
@@ -144,7 +144,7 @@ fn p31_holds(p: &Part) -> bool {
     if u == 0 {
         return true;
     }
-    let w = i128::from(p.work.minutes().get());
+    let w = i128::from(p.work.whole_minutes().unwrap());
     let Some(d) = round_div(w * 10_000, u) else {
         return false;
     };
@@ -188,8 +188,8 @@ proptest! {
             if neutral {
                 continue;
             }
-            prop_assert_eq!(s.side.work.minutes().get(), total_work(&s.parts));
-            prop_assert!((0..=Duration::MAX_MINUTES).contains(&s.side.duration.get()));
+            prop_assert_eq!(s.side.work.whole_minutes().unwrap(), total_work(&s.parts));
+            prop_assert!((0..=Duration::MAX_MINUTES).contains(&s.side.duration.whole_minutes().unwrap()));
             if s.side.task_type != TaskType::FixedDuration {
                 for p in &s.parts {
                     prop_assert!(p31_holds(p), "P31 : {:?} après {:?}", p, edit);
@@ -214,7 +214,7 @@ proptest! {
             .enumerate()
             .map(|(i, &(u, w))| Part { uid: AssignmentUid::new(u32::try_from(i).unwrap() + 1), units: units(u), work: work(w) })
             .collect();
-        let Some(total) = parts.iter().try_fold(0_i64, |a, p| a.checked_add(p.work.minutes().get())) else {
+        let Some(total) = parts.iter().try_fold(0_i64, |a, p| a.checked_add(p.work.whole_minutes().unwrap())) else {
             return Ok(());
         };
         let Ok(total_w) = Work::new(Minutes::new(total)) else { return Ok(()) };

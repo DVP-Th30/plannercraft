@@ -530,7 +530,14 @@ mod tests {
     }
 
     fn minutes(text: &str, lang: Language) -> Option<(i64, DurationUnit, TimeBasis, bool)> {
-        duration(text, &ctx(lang)).map(|d| (d.minutes().get(), d.unit(), d.basis(), d.is_estimated()))
+        duration(text, &ctx(lang)).map(|d| {
+            (
+                d.minutes().whole_minutes().unwrap(),
+                d.unit(),
+                d.basis(),
+                d.is_estimated(),
+            )
+        })
     }
 
     #[test]

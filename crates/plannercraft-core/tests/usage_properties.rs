@@ -133,7 +133,7 @@ fn granularity(r: &mut Rng) -> Granularity {
 }
 
 fn minutes(w: &[Work]) -> Vec<i64> {
-    w.iter().map(|w| w.minutes().get()).collect()
+    w.iter().map(|w| w.whole_minutes().unwrap()).collect()
 }
 
 /// Ressources demandées : toutes, dans un ordre mélangé, avec un doublon et
@@ -184,7 +184,7 @@ proptest! {
             for a in rows.rows.iter().filter(|a| a.resource == row.resource) {
                 prop_assert_eq!(a.work.len(), n);
                 for (x, w) in sum.iter_mut().zip(&a.work) {
-                    *x += w.minutes().get();
+                    *x += w.whole_minutes().unwrap();
                 }
             }
             prop_assert_eq!(&sum, &minutes(&row.work), "ressource {:?}", row.resource);
@@ -195,7 +195,7 @@ proptest! {
             if p.resources.get(a.resource).is_some_and(|x| x.kind == ResourceKind::Work) {
                 let t = totals.entry(a.task).or_insert_with(|| vec![0; n]);
                 for (x, w) in t.iter_mut().zip(&a.work) {
-                    *x += w.minutes().get();
+                    *x += w.whole_minutes().unwrap();
                 }
             }
         }
@@ -296,7 +296,7 @@ fn p46_generator_is_not_trivial() {
         if rows
             .rows
             .iter()
-            .any(|a| a.work.iter().any(|w| w.minutes().get() > 0))
+            .any(|a| a.work.iter().any(|w| w.whole_minutes().unwrap() > 0))
         {
             busy += 1;
         }

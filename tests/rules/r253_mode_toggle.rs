@@ -34,7 +34,10 @@ fn r253_auto_to_manual_freezes_dates() {
     };
     assert_eq!(start, Some(moment("2026-11-09T08:00")));
     assert_eq!(finish, Some(moment("2026-11-12T17:00")));
-    assert_eq!(duration.map(|d| d.minutes().get()), Some(4 * 480));
+    assert_eq!(
+        duration.map(|d| d.minutes().whole_minutes().unwrap()),
+        Some(4 * 480)
+    );
     // Mêmes dates après le recalcul ; aucune contrainte posée.
     assert_eq!(
         dates(&s, 6),

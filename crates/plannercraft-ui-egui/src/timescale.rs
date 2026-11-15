@@ -373,10 +373,18 @@ impl TimeAxis {
         if x.is_finite() { x } else { self.left }
     }
 
-    /// Abscisse écran d'un instant.
+    /// Abscisse écran d'un instant. Un instant à la minute entière passe par
+    /// le calcul en minutes (pixels inchangés, ADR-0039) ; une fraction de
+    /// minute ajoute ses dixièmes.
     #[must_use]
     pub fn x(&self, m: Moment) -> f32 {
-        self.x_minutes(m.minutes())
+        if let Some(minutes) = m.whole_minutes() {
+            self.x_minutes(minutes)
+        } else {
+            let delta = m.tenths().saturating_sub(self.origin_minutes.saturating_mul(10));
+            let x = self.left + i64_to_f32(delta) * (self.px_per_minute / 10.0);
+            if x.is_finite() { x } else { self.left }
+        }
     }
 
     /// Abscisse écran du minuit d'un jour.

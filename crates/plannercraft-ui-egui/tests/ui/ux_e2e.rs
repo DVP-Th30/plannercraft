@@ -134,7 +134,15 @@ fn max_scroll_y(app: &App) -> f32 {
 
 /// Durée de la tâche `n` en jours de 8 h.
 fn days(app: &App, n: u32) -> i64 {
-    project(app).tasks.get(uid(n)).unwrap().duration.minutes().get() / 480
+    project(app)
+        .tasks
+        .get(uid(n))
+        .unwrap()
+        .duration
+        .minutes()
+        .whole_minutes()
+        .unwrap()
+        / 480
 }
 
 /// Prédécesseurs (UID) de la tâche `n`.
@@ -349,7 +357,7 @@ fn summary(p: &Project) -> Vec<SummaryRow> {
                 t.uid().get(),
                 t.name.clone(),
                 level,
-                (!parent).then(|| t.duration.minutes().get()),
+                (!parent).then(|| t.duration.minutes().whole_minutes().unwrap()),
                 t.predecessors.iter().map(|l| l.predecessor.get()).collect(),
             )
         })
@@ -801,7 +809,7 @@ fn e2e_ux_demo() {
     click_at(harness, p, Modifiers::NONE);
     paste(harness, "3j");
     let app = harness.state();
-    assert_eq!(duration(app, ua).minutes().get(), 3 * 480);
+    assert_eq!(duration(app, ua).minutes().whole_minutes().unwrap(), 3 * 480);
     assert_eq!(history(app), (2, 0));
 
     // U16 : la seconde feuille, ligne entière par son ID, glissée au-dessus

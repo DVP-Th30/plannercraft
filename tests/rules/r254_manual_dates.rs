@@ -31,7 +31,11 @@ fn manual(s: &Session) -> (Option<Moment>, Option<Moment>, Option<i64>) {
             start,
             finish,
             duration,
-        } => (start, finish, duration.map(|d| d.minutes().get())),
+        } => (
+            start,
+            finish,
+            duration.map(|d| d.minutes().whole_minutes().unwrap()),
+        ),
         SchedulingMode::Auto => panic!("6 devrait être manuelle"),
     }
 }
@@ -94,7 +98,7 @@ fn r254_finish_before_start_refused() {
             Some(5 * 480)
         )
     );
-    assert_eq!(get(&s, 6).duration.minutes().get(), 5 * 480);
+    assert_eq!(get(&s, 6).duration.minutes().whole_minutes().unwrap(), 5 * 480);
     assert_eq!(get(&s, 6).constraint, Constraint::AsSoonAsPossible);
 }
 
@@ -113,7 +117,7 @@ fn r254_duration_moves_finish() {
             Some(2 * 480)
         )
     );
-    assert_eq!(get(&s, 6).duration.minutes().get(), 2 * 480);
+    assert_eq!(get(&s, 6).duration.minutes().whole_minutes().unwrap(), 2 * 480);
     assert_eq!(
         dates(&s, 6),
         (moment("2026-11-09T08:00"), moment("2026-11-10T17:00"))

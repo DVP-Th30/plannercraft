@@ -1058,7 +1058,7 @@ impl fmt::Display for Diagnostic {
             } => write!(
                 f,
                 "calendrier {calendar} : {} min à partir du {from} sortent du domaine des dates (1984-2149)",
-                minutes.get()
+                minutes.whole_minutes_round()
             ),
             Self::LinkCycle { tasks } => {
                 let tasks: Vec<String> = tasks.iter().map(ToString::to_string).collect();

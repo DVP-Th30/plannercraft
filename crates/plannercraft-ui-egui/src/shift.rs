@@ -34,7 +34,7 @@ pub fn step_amount(project: &Project, step: ShiftStep) -> DurationJson {
     let per = ctx
         .factors
         .minutes_per_unit(unit.into(), TimeBasis::Working)
-        .get();
+        .whole_minutes_floor();
     DurationJson {
         minutes: Some(count.saturating_mul(per)),
         unit: Some(unit),

@@ -78,10 +78,10 @@ fn r245_assignment_rows_sum_to_resource() {
         let mut sum = vec![0_i64; 5];
         for a in r.rows.iter().filter(|a| a.resource == row.resource) {
             for (s, w) in sum.iter_mut().zip(&a.work) {
-                *s += w.minutes().get();
+                *s += w.whole_minutes().unwrap();
             }
         }
-        let expected: Vec<i64> = row.work.iter().map(|w| w.minutes().get()).collect();
+        let expected: Vec<i64> = row.work.iter().map(|w| w.whole_minutes().unwrap()).collect();
         assert_eq!(sum, expected, "ressource {:?}", row.resource);
     }
     // Semaine du 19/10 : 16 h + 20 h = 36 h pour le Maçon.

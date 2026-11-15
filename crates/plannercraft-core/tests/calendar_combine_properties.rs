@@ -47,7 +47,7 @@ fn day_index(s: &str) -> i32 {
 }
 
 fn minutes_of(s: &str) -> i64 {
-    s.parse::<Moment>().unwrap().minutes()
+    s.parse::<Moment>().unwrap().whole_minutes().unwrap()
 }
 
 /// Réglage d'un jour : 0 à 5 plages, au pas de 1 ou de 15 minutes.
@@ -310,12 +310,12 @@ fn ranges_of(c: &CompiledCalendar, day: Day) -> Vec<(i64, i64)> {
 }
 
 fn w(c: &CompiledCalendar, a: Moment, b: Moment) -> i64 {
-    c.working_between(a, b).unwrap().get()
+    c.working_between(a, b).unwrap().whole_minutes().unwrap()
 }
 
 /// Fin (d > 0) ou début (d < 0) placé, réduit à ce que P35c compare.
 fn placed(r: Result<Moment, CalendarError>) -> Option<i64> {
-    r.ok().map(Moment::minutes)
+    r.ok().map(|m| m.whole_minutes().unwrap())
 }
 
 // ---------------------------------------------------------------------------
@@ -335,13 +335,13 @@ proptest! {
         prop_assert_eq!(u.uid(), sa.uid());
         // Inclusion-exclusion sur tout le domaine.
         prop_assert_eq!(
-            i.total_working().get() + u.total_working().get(),
-            a.total_working().get() + b.total_working().get()
+            i.total_working().whole_minutes().unwrap() + u.total_working().whole_minutes().unwrap(),
+            a.total_working().whole_minutes().unwrap() + b.total_working().whole_minutes().unwrap()
         );
         prop_assert!(i.total_working() <= a.total_working().min(b.total_working()));
         prop_assert!(u.total_working() >= a.total_working().max(b.total_working()));
         // Jour par jour sur la fenêtre, W cumulé depuis son premier jour.
-        let center = t.minutes() / 1_440;
+        let center = t.whole_minutes().unwrap() / 1_440;
         let first = (center - WINDOW).max(0);
         let end = (center + WINDOW + 1).min(DAY_COUNT);
         let origin = at(first * 1_440);
@@ -376,7 +376,7 @@ proptest! {
         let (aa, ua) = (a.intersect(&a).unwrap(), a.union(&a).unwrap());
         prop_assert_eq!(aa.total_working(), a.total_working());
         prop_assert_eq!(ua.total_working(), a.total_working());
-        let center = i32::try_from(t.minutes() / 1_440).unwrap();
+        let center = i32::try_from(t.whole_minutes().unwrap() / 1_440).unwrap();
         for d in (center - 30).max(0)..(center + 30).min(60_631) {
             let day = Day::new(d).unwrap();
             prop_assert_eq!(ab.day_ranges(day).unwrap(), ba.day_ranges(day).unwrap());
@@ -398,7 +398,7 @@ proptest! {
         offset in -60_i64..=60,
         d in 1_i64..=50_000,
     ) {
-        let holiday = Day::new(i32::try_from((t.minutes() / 1_440 + offset).clamp(0, DAY_COUNT - 1)).unwrap()).unwrap();
+        let holiday = Day::new(i32::try_from((t.whole_minutes().unwrap() / 1_440 + offset).clamp(0, DAY_COUNT - 1)).unwrap()).unwrap();
         let a = sa.compile(None);
         let (b, b2) = (sb.compile(None), sb.compile(Some(holiday)));
         // Le jour ajouté peut être déjà réclamé par une exception plus

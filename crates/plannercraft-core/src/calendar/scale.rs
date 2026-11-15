@@ -108,7 +108,7 @@ impl TimeScale<'_> {
             }
             Self::Working(c) => {
                 // `next_working_moment` puis `add_working`, fusionnés.
-                let (start, finish) = c.span_after(from, d.get())?;
+                let (start, finish) = c.span_after(from, d.tenths())?;
                 Ok(Span { start, finish })
             }
         }
@@ -147,6 +147,8 @@ impl TimeScale<'_> {
         if d == Minutes::ZERO {
             return Ok(previous);
         }
+        // Début de la dernière minute ouvrée (lot B1 : une minute, comme
+        // avant l'ADR-0039).
         previous
             .checked_add(Minutes::new(-1))
             .map_err(|_| CalendarError::OutOfDomain {
@@ -187,7 +189,7 @@ impl TimeScale<'_> {
             }
             Self::Working(c) => {
                 // `previous_working_moment` puis `add_working(−d)`, fusionnés.
-                let (start, finish) = c.span_before(to, d.get())?;
+                let (start, finish) = c.span_before(to, d.tenths())?;
                 Ok(Span { start, finish })
             }
         }

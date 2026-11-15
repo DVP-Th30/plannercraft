@@ -125,7 +125,8 @@ fn days(app: &App, n: u32) -> i64 {
         .unwrap()
         .duration
         .minutes()
-        .get()
+        .whole_minutes()
+        .unwrap()
         / 480
 }
 

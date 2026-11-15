@@ -135,7 +135,7 @@ fn guid(rng: &mut Rng) -> Option<Guid> {
 }
 
 fn moment_near(rng: &mut Rng, base: Moment) -> Moment {
-    Moment::from_minutes(base.minutes() + rng.int(-20 * 1440, 60 * 1440)).unwrap()
+    Moment::from_minutes(base.whole_minutes().unwrap() + rng.int(-20 * 1440, 60 * 1440)).unwrap()
 }
 
 fn duration(rng: &mut Rng, max: i64) -> Duration {
@@ -260,11 +260,12 @@ const TASK_EXTRAS: [(&str, &str); 9] = [
 pub fn project(seed: u64) -> Project {
     let mut rng = Rng::new(seed);
     let r = &mut rng;
-    let start =
-        Moment::from_minutes(m("2025-01-06T08:00").minutes() + r.int(0, 700) * 1_440 + r.int(0, 8) * 60)
-            .unwrap();
+    let start = Moment::from_minutes(
+        m("2025-01-06T08:00").whole_minutes().unwrap() + r.int(0, 700) * 1_440 + r.int(0, 8) * 60,
+    )
+    .unwrap();
     let anchor = if r.chance(25) {
-        ScheduleAnchor::FromFinish(Moment::from_minutes(start.minutes() + 30 * 1_440).unwrap())
+        ScheduleAnchor::FromFinish(Moment::from_minutes(start.whole_minutes().unwrap() + 30 * 1_440).unwrap())
     } else {
         ScheduleAnchor::FromStart(start)
     };

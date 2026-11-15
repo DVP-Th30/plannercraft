@@ -332,8 +332,8 @@ fn check_not_below_actual(
         return Err(CommandError::new(
             codes::PROGRESS_DURATION_BELOW_ACTUAL,
             CommandErrorKind::DurationBelowActual {
-                actual: actual.get(),
-                entered: d.minutes().get(),
+                actual: actual.whole_minutes_round(),
+                entered: d.minutes().whole_minutes_round(),
             },
         )
         .with_field(field)

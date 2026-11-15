@@ -279,7 +279,7 @@ struct Line {
 
 impl Line {
     fn x(self, t: Moment) -> i64 {
-        let dt = t.minutes().saturating_sub(self.start).clamp(0, self.span);
+        let dt = t.tenths().saturating_sub(self.start).clamp(0, self.span);
         let num = i128::from(dt).saturating_mul(i128::from(self.len));
         let off = num.checked_div(i128::from(self.span.max(1))).unwrap_or(0);
         let off = i64::try_from(off).unwrap_or(self.len).clamp(0, self.len);
@@ -287,7 +287,7 @@ impl Line {
     }
 
     fn contains(self, t: Moment) -> bool {
-        let dt = t.minutes().saturating_sub(self.start);
+        let dt = t.tenths().saturating_sub(self.start);
         (0..=self.span).contains(&dt)
     }
 }
@@ -364,11 +364,17 @@ pub fn layout(input: &TimelineInput, width16: i64) -> TimelineLayout {
     };
     let x0 = margin(&start_label).min(w);
     let x1 = w.saturating_sub(margin(&finish_label)).max(x0);
-    let start = input.start.minutes();
-    let span = input.finish.minutes().saturating_sub(start);
+    // Instants en dixièmes de minute (ADR-0039) : même fraction qu'en
+    // minutes pour des instants entiers.
+    let start = input.start.tenths();
+    let span = input.finish.tenths().saturating_sub(start);
     let line = Line {
         start,
-        span: if span <= 0 { MIN_SPAN_MINUTES } else { span },
+        span: if span <= 0 {
+            MIN_SPAN_MINUTES.saturating_mul(10)
+        } else {
+            span
+        },
         x0,
         len: x1.saturating_sub(x0),
     };

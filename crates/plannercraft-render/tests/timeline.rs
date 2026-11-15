@@ -467,7 +467,7 @@ fn item_strategy() -> impl Strategy<Value = TimelineItem> {
         "[a-zA-Zéœ…中 ]{0,40}",
     )
         .prop_map(|(u, id, day, len, ms, inactive, name)| {
-            let base = at("2026-01-01T00:00").minutes() + day * 1_440;
+            let base = at("2026-01-01T00:00").whole_minutes().unwrap() + day * 1_440;
             let start = Moment::from_minutes(base.max(0)).unwrap();
             let finish = Moment::from_minutes((base + len * 720).max(0)).unwrap();
             TimelineItem {
@@ -504,10 +504,10 @@ proptest! {
         labels in any::<bool>(),
     ) {
         let start = at("2026-01-01T08:00");
-        let finish = Moment::from_minutes(start.minutes() + span_days * 1_440).unwrap();
-        let status = Moment::from_minutes((start.minutes() + status_day * 1_440).max(0)).unwrap();
+        let finish = Moment::from_minutes(start.whole_minutes().unwrap() + span_days * 1_440).unwrap();
+        let status = Moment::from_minutes((start.whole_minutes().unwrap() + status_day * 1_440).max(0)).unwrap();
         let ticks = (1..=(span_days / 30).min(150))
-            .map(|k| (Moment::from_minutes(start.minutes() + k * 30 * 1_440).unwrap(), format!("m{k}")))
+            .map(|k| (Moment::from_minutes(start.whole_minutes().unwrap() + k * 30 * 1_440).unwrap(), format!("m{k}")))
             .collect();
         let input = TimelineInput {
             start,

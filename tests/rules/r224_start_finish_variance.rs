@@ -18,7 +18,10 @@ fn start_finish(p: &plannercraft_core::Project, s: &plannercraft_core::Schedule,
     let (cals, _) = CalendarSet::compile(p);
     let v = baseline::variance(p, s, &cals, number(0));
     let t = v.tasks.iter().find(|t| t.uid == uid).unwrap();
-    (t.variance.start.get(), t.variance.finish.get())
+    (
+        t.variance.start.whole_minutes().unwrap(),
+        t.variance.finish.whole_minutes().unwrap(),
+    )
 }
 
 #[test]
