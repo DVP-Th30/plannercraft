@@ -79,8 +79,16 @@ fn calendars() -> Arena<CalendarUid, Calendar> {
 
 /// Instants et durées pseudo-aléatoires sur 2026-2030.
 fn inputs() -> Vec<(Moment, Minutes, Moment)> {
-    let lo = "2026-01-01T00:00".parse::<Moment>().unwrap().minutes();
-    let hi = "2030-12-31T00:00".parse::<Moment>().unwrap().minutes();
+    let lo = "2026-01-01T00:00"
+        .parse::<Moment>()
+        .unwrap()
+        .whole_minutes()
+        .unwrap();
+    let hi = "2030-12-31T00:00"
+        .parse::<Moment>()
+        .unwrap()
+        .whole_minutes()
+        .unwrap();
     let mut rng = Lcg(42);
     (0..CALLS)
         .map(|_| {

@@ -159,7 +159,7 @@ proptest! {
     }
 
     #[test]
-    fn p29_dates_round_trip(m in 0_i64..=Moment::MAX.minutes(), lang in language()) {
+    fn p29_dates_round_trip(m in 0_i64..=Moment::MAX.whole_minutes().unwrap(), lang in language()) {
         let ctx = context(ConversionFactors::default(), lang);
         let m = Moment::from_minutes(m).unwrap();
         let text = format_date(m, &ctx);

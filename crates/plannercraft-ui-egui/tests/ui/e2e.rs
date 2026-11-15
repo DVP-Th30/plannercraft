@@ -282,7 +282,10 @@ fn e2e_daily_use() {
     let app = harness.state();
     quiet(app);
     assert!(app.view().edit.editing.is_none(), "Entrée valide");
-    assert_eq!(task(app, edited).duration.minutes().get(), 3 * 480);
+    assert_eq!(
+        task(app, edited).duration.minutes().whole_minutes().unwrap(),
+        3 * 480
+    );
     assert_eq!(history(app), (1, 0));
 
     // 2. Maj+Entrée : une ligne plus haut, aucune saisie (H-UI-13).

@@ -243,7 +243,7 @@ pub fn parse_date(s: &str, role: DateRole, ctx: &TextContext) -> Result<Moment, 
 #[must_use]
 pub fn format_date(m: Moment, ctx: &TextContext) -> String {
     let (dt, hour, minute) = if m == Moment::MAX {
-        let last = Moment::from_minutes(m.minutes().saturating_sub(1)).unwrap_or(m);
+        let last = Moment::from_minutes(m.minutes_floor().saturating_sub(1)).unwrap_or(m);
         (last.to_naive(), 24, 0)
     } else {
         let dt = m.to_naive();

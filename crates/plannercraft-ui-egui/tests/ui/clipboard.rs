@@ -224,7 +224,7 @@ fn h_ui_39_paste_external_names() {
         .tasks
         .iter()
         .filter(|t| t.name == "Coffrage" || t.name == "Ferraillage")
-        .map(|t| (t.name.clone(), t.duration.minutes().get()))
+        .map(|t| (t.name.clone(), t.duration.minutes().whole_minutes().unwrap()))
         .collect();
     assert_eq!(
         added,
@@ -244,7 +244,7 @@ fn h_ui_39_paste_external_names() {
         .tasks
         .iter()
         .filter(|t| t.name == "A2" || t.name == "B2")
-        .map(|t| (t.name.clone(), t.duration.minutes().get()))
+        .map(|t| (t.name.clone(), t.duration.minutes().whole_minutes().unwrap()))
         .collect();
     assert_eq!(renamed, [("A2".to_owned(), 4 * 480), ("B2".to_owned(), 480)]);
     assert_eq!(history_len(app), 3);
@@ -370,7 +370,15 @@ fn h_ui_39_clip_survives_open() {
     // Collage complet (empreinte reconnue) : la durée vient du tampon.
     let project = app.document.as_ref().unwrap().project();
     assert_eq!(
-        project.tasks.iter().next().unwrap().duration.minutes().get(),
+        project
+            .tasks
+            .iter()
+            .next()
+            .unwrap()
+            .duration
+            .minutes()
+            .whole_minutes()
+            .unwrap(),
         10 * 480
     );
 }

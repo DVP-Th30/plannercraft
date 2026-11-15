@@ -2,7 +2,8 @@
 //! 6.5, règles R-020 à R-029).
 //!
 //! Définition normative : pour un calendrier compilé, **W(t)** est le nombre
-//! de minutes ouvrées dans `[Moment::MIN, t)`. W est croissante au sens large,
+//! de dixièmes de minute ouvrés dans `[Moment::MIN, t)` (ADR-0039 : tous
+//! les entiers internes sont en dixièmes ; les plages restent en minutes). W est croissante au sens large,
 //! de pente 1 dans les plages et 0 ailleurs ; toutes les conversions en
 //! dérivent. Fusionner deux plages contiguës, y compris de part et d'autre de
 //! minuit, ne change pas W.
@@ -50,8 +51,15 @@ use crate::ids::CalendarUid;
 use crate::model::Project;
 use crate::time::{Day, Moment, TimeOfDay, Week, Weekday};
 
-/// Minutes par jour civil (R-005).
-const MINUTES_PER_DAY: i64 = 1_440;
+/// Dixièmes de minute par jour civil (R-005, ADR-0039).
+const TENTHS_PER_DAY: i64 = 14_400;
+/// Dixièmes de minute par minute.
+const TENTHS_PER_MINUTE: i64 = crate::duration::TENTHS_PER_MINUTE;
+
+/// Début d'une plage, en dixièmes de minute du jour.
+fn from_tenths(r: TimeRange) -> i64 {
+    i64::from(r.from().minutes()).saturating_mul(TENTHS_PER_MINUTE)
+}
 /// Nombre de jours du domaine (1984-01-01 à 2149-12-31).
 pub(super) const DAY_COUNT: i32 = 60_631;
 /// Jours par bloc de l'index des segments (2⁶).
@@ -132,35 +140,36 @@ impl DayPattern {
         for r in &ranges {
             cum.push(total);
             // Au plus 1 440 minutes par jour : jamais de débordement.
-            total = total.saturating_add(r.len().get());
+            total = total.saturating_add(r.len().tenths());
         }
         Self { ranges, cum, total }
     }
 
-    /// Minutes ouvrées du motif avant la minute `m` du jour (`0..=1440`).
+    /// Dixièmes ouvrés du motif avant le dixième `m` du jour
+    /// (`0..=14 400`).
     #[inline]
     fn within(&self, m: i64) -> Option<i64> {
-        let count = self.ranges.partition_point(|r| i64::from(r.from().minutes()) < m);
+        let count = self.ranges.partition_point(|r| from_tenths(*r) < m);
         let Some(j) = count.checked_sub(1) else {
             return Some(0);
         };
         let r = self.ranges.get(j)?;
         let before = *self.cum.get(j)?;
-        let into = m.checked_sub(i64::from(r.from().minutes()))?;
-        before.checked_add(into.min(r.len().get()))
+        let into = m.checked_sub(from_tenths(*r))?;
+        before.checked_add(into.min(r.len().tenths()))
     }
 
-    /// Minute du jour qui termine la `w`-ième minute ouvrée du motif
+    /// Dixième du jour qui termine le `w`-ième dixième ouvré du motif
     /// (`1 <= w <= total`).
     #[inline]
     fn locate(&self, w: i64) -> Option<i64> {
         let j = self.cum.partition_point(|c| *c < w).checked_sub(1)?;
         let r = self.ranges.get(j)?;
         let offset = w.checked_sub(*self.cum.get(j)?)?;
-        if offset < 1 || offset > r.len().get() {
+        if offset < 1 || offset > r.len().tenths() {
             return None;
         }
-        i64::from(r.from().minutes()).checked_add(offset)
+        from_tenths(*r).checked_add(offset)
     }
 }
 
@@ -727,7 +736,7 @@ impl CompiledCalendar {
     /// Minutes ouvrées sur tout le domaine : W(`Moment::MAX`).
     #[must_use]
     pub const fn total_working(&self) -> Minutes {
-        Minutes::new(self.total)
+        Minutes::from_tenths(self.total)
     }
 
     /// R-172 : intersection, ouvrée à l'instant t si et seulement si `self`
@@ -814,11 +823,11 @@ impl CompiledCalendar {
     /// W(t) et l'indice du segment de `t` (le dernier pour `Moment::MAX`),
     /// point de départ d'une recherche galopante ([`Self::reach_from`]).
     fn cumulative_at(&self, t: i64) -> Option<(i64, usize)> {
-        if t >= Moment::MAX.minutes() {
+        if t >= Moment::MAX.tenths() {
             return Some((self.total, self.segments.len().checked_sub(1)?));
         }
-        let day = i32::try_from(t.checked_div_euclid(MINUTES_PER_DAY)?).ok()?;
-        let minute = t.checked_rem_euclid(MINUTES_PER_DAY)?;
+        let day = i32::try_from(t.checked_div_euclid(TENTHS_PER_DAY)?).ok()?;
+        let minute = t.checked_rem_euclid(TENTHS_PER_DAY)?;
         let index = self.segment_index(day)?;
         let seg = self.segments.get(index)?;
         let dp = self.pattern_of_day(seg, day)?;
@@ -928,20 +937,20 @@ impl CompiledCalendar {
         if day >= i64::from(DAY_COUNT) {
             return None;
         }
-        day.checked_mul(MINUTES_PER_DAY)?
+        day.checked_mul(TENTHS_PER_DAY)?
             .checked_add(pattern.locate(within)?)
     }
 
     /// W(t) avec l'erreur d'invariant.
     fn w(&self, t: Moment) -> Result<i64, CalendarError> {
-        self.cumulative(t.minutes()).ok_or_else(|| self.inconsistent())
+        self.cumulative(t.tenths()).ok_or_else(|| self.inconsistent())
     }
 
     /// Instant `first_reach(v) + shift`.
     fn reach(&self, v: i64, shift: i64) -> Result<Moment, CalendarError> {
         self.first_reach(v)
             .and_then(|m| m.checked_add(shift))
-            .and_then(|m| Moment::from_minutes(m).ok())
+            .and_then(|m| Moment::from_tenths(m).ok())
             .ok_or_else(|| self.inconsistent())
     }
 
@@ -949,13 +958,13 @@ impl CompiledCalendar {
     /// trouvé.
     fn reach_from(&self, v: i64, shift: i64, hint: usize) -> Result<(Moment, usize), CalendarError> {
         self.first_reach_near(v, hint)
-            .and_then(|(m, i)| Some((Moment::from_minutes(m.checked_add(shift)?).ok()?, i)))
+            .and_then(|(m, i)| Some((Moment::from_tenths(m.checked_add(shift)?).ok()?, i)))
             .ok_or_else(|| self.inconsistent())
     }
 
     /// W(t) et le segment de `t`, avec l'erreur d'invariant.
     fn w_at(&self, t: Moment) -> Result<(i64, usize), CalendarError> {
-        self.cumulative_at(t.minutes()).ok_or_else(|| self.inconsistent())
+        self.cumulative_at(t.tenths()).ok_or_else(|| self.inconsistent())
     }
 
     /// R-030 (passe avant d'une durée `d > 0`, `TimeScale::forward_span`) :
@@ -1045,7 +1054,7 @@ impl CompiledCalendar {
         }
     }
 
-    /// Vrai si la minute `[t, t + 1)` est ouvrée.
+    /// Vrai si le dixième de minute `[t, t + 1)` est ouvré.
     ///
     /// # Errors
     ///
@@ -1054,7 +1063,7 @@ impl CompiledCalendar {
         if t >= Moment::MAX {
             return Ok(false);
         }
-        let next = Moment::from_minutes(t.minutes().saturating_add(1)).map_err(|_| self.inconsistent())?;
+        let next = Moment::from_tenths(t.tenths().saturating_add(1)).map_err(|_| self.inconsistent())?;
         Ok(self.w(next)? > self.w(t)?)
     }
 
@@ -1082,7 +1091,7 @@ impl CompiledCalendar {
             .w(b)?
             .checked_sub(self.w(a)?)
             .ok_or_else(|| self.inconsistent())?;
-        Ok(Minutes::new(diff))
+        Ok(Minutes::from_tenths(diff))
     }
 
     /// R-021 à R-023 : instant à `d` minutes ouvrées de `t`, avec v = W(t) :
@@ -1098,7 +1107,7 @@ impl CompiledCalendar {
     /// ouvrée (et `d ≠ 0`) ; [`CalendarError::OutOfDomain`] si la cible sort
     /// du domaine (`After` : v + d > total ; `Before` : v < |d|).
     pub fn add_working(&self, t: Moment, d: Minutes) -> Result<Moment, CalendarError> {
-        let d = d.get();
+        let d = d.tenths();
         if d == 0 {
             return Ok(t);
         }
@@ -1346,6 +1355,9 @@ mod tests {
         reason = "tests : les interdits de la règle 10 ne s'appliquent pas, un échec doit paniquer"
     )]
 
+    /// Dixièmes de minute par minute : unité des entiers internes.
+    const T: i64 = 10;
+
     use super::{CalendarSet, CompiledCalendar, Segment, SegmentRule, compile_diagnostic};
     use crate::arena::Arena;
     use crate::calendar::Direction;
@@ -1394,7 +1406,8 @@ mod tests {
         // Motifs : chômé (0), jour Standard (1) ; une semaine.
         assert_eq!(cc.day_patterns.len(), 2);
         assert_eq!(cc.week_patterns.len(), 1);
-        assert_eq!(cc.week_patterns[0].total, 2_400);
+        // Entiers internes en dixièmes de minute (ADR-0039) : × T.
+        assert_eq!(cc.week_patterns[0].total, 2_400 * T);
         let d1 = day("2026-11-11").index();
         let d2 = day("2026-12-24").index();
         // Semaine, férié, semaine, deux fériés, semaine.
@@ -1422,20 +1435,20 @@ mod tests {
                 first_day: d2,
                 rule: SegmentRule::Daily(0),
                 // Le mercredi 11/11 (480) n'a pas été travaillé.
-                cum_start: wp(d2) - 480,
+                cum_start: wp(d2) - 480 * T,
                 wp_start: 0,
             },
             Segment {
                 first_day: d2 + 2,
                 rule: SegmentRule::Weekly(0),
-                cum_start: wp(d2) - 480,
+                cum_start: wp(d2) - 480 * T,
                 wp_start: wp(d2 + 2),
             },
         ];
         assert_eq!(cc.segments, expected);
         // Total : la semaine répétée sur tout le domaine, moins les 3 jours
         // fériés ouvrés (mer 11/11, jeu 24/12 et ven 25/12).
-        assert_eq!(cc.total, wp(60_631) - 3 * 480);
+        assert_eq!(cc.total, wp(60_631) - 3 * 480 * T);
     }
 
     #[test]
@@ -1459,9 +1472,9 @@ mod tests {
         let SegmentRule::Daily(p) = s.rule else {
             panic!("segment Daily attendu");
         };
-        assert_eq!(cc.day_patterns[p as usize].total, 120);
+        assert_eq!(cc.day_patterns[p as usize].total, 120 * T);
         assert_eq!(cc.segments[2].first_day, day("2026-11-09").index());
-        assert_eq!(cc.segments[2].cum_start - s.cum_start, 7 * 120);
+        assert_eq!(cc.segments[2].cum_start - s.cum_start, 7 * 120 * T);
         // Semaine du 02/11 : 7 × 120 = 840.
         assert_eq!(
             cc.working_between(m("2026-11-02T00:00"), m("2026-11-09T00:00")),
@@ -1476,7 +1489,7 @@ mod tests {
     #[test]
     fn domain_bounds() {
         let cc = compile(twenty_four_hours(uid(2), "24 heures".to_owned()));
-        assert_eq!(cc.total, 87_308_640);
+        assert_eq!(cc.total, 87_308_640 * T);
         assert_eq!(cc.segments.len(), 1);
         assert_eq!(
             cc.working_between(Moment::MIN, Moment::MAX),
@@ -1696,7 +1709,7 @@ mod tests {
             );
         }
         // Conversions fusionnées = conversions séparées (mêmes erreurs).
-        let max = Moment::MAX.minutes();
+        let max = Moment::MAX.whole_minutes().unwrap();
         let mut moments: Vec<i64> = (0..20_000).map(|_| next(max + 1)).collect();
         moments.extend([0, 1, max - 1, max]);
         for t in moments {
@@ -1705,11 +1718,11 @@ mod tests {
             let after = cc
                 .next_working_moment(t)
                 .and_then(|s| Ok((s, cc.add_working(s, Minutes::new(d))?)));
-            assert_eq!(cc.span_after(t, d), after, "{t} {d}");
+            assert_eq!(cc.span_after(t, d * T), after, "{t} {d}");
             let before = cc
                 .previous_working_moment(t)
                 .and_then(|f| Ok((cc.add_working(f, Minutes::new(-d))?, f)));
-            assert_eq!(cc.span_before(t, d), before, "{t} {d}");
+            assert_eq!(cc.span_before(t, d * T), before, "{t} {d}");
             let probe = cc.probe(t).unwrap();
             assert_eq!(cc.next_of(probe), cc.next_working_moment(t), "{t}");
             assert_eq!(cc.previous_of(probe), cc.previous_working_moment(t), "{t}");
@@ -1852,7 +1865,7 @@ mod tests {
                     .wrapping_add(1_442_695_040_888_963_407);
                 i64::try_from((seed >> 33) % u64::try_from(hi).unwrap()).unwrap()
             };
-            let max = Moment::MAX.minutes();
+            let max = Moment::MAX.whole_minutes().unwrap();
             for _ in 0..5_000 {
                 let t = Moment::from_minutes(next(max + 1)).unwrap();
                 let d = Minutes::new(next(20_000) - 10_000);
@@ -1863,8 +1876,8 @@ mod tests {
                     "{u} {t}"
                 );
                 assert_eq!(
-                    over.span_after(t, d.get().abs() + 1),
-                    full.span_after(t, d.get().abs() + 1)
+                    over.span_after(t, d.whole_minutes().unwrap().abs() + 1),
+                    full.span_after(t, d.whole_minutes().unwrap().abs() + 1)
                 );
             }
         }

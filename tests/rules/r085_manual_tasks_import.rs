@@ -22,7 +22,11 @@ fn manual(
             start,
             finish,
             duration,
-        } => (start, finish, duration.map(|d| d.minutes().get())),
+        } => (
+            start,
+            finish,
+            duration.map(|d| d.minutes().whole_minutes().unwrap()),
+        ),
         SchedulingMode::Auto => panic!("tâche {uid} automatique"),
     }
 }

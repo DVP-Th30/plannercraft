@@ -121,7 +121,10 @@ mod tests {
     }
 
     fn total(c: &Calendar) -> i64 {
-        Weekday::ALL.iter().map(|d| week(c).get(*d).total().get()).sum()
+        Weekday::ALL
+            .iter()
+            .map(|d| week(c).get(*d).total().whole_minutes().unwrap())
+            .sum()
     }
 
     fn h(v: u16) -> u16 {

@@ -246,7 +246,8 @@ impl Emitter {
 
     /// Feuille date `AAAA-MM-JJThh:mm:00` (R-120), sans allocation.
     pub(crate) fn leaf_date(&mut self, name: &'static str, m: Moment) {
-        let Some((y, mo, d, h, mi)) = civil(m.minutes()) else {
+        // Lot B1 : à la minute, secondes tronquées.
+        let Some((y, mo, d, h, mi)) = civil(m.minutes_floor()) else {
             self.leaf(name, &crate::scalar::format_datetime(m));
             return;
         };

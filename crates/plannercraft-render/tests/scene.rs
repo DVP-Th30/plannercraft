@@ -764,7 +764,7 @@ proptest! {
         status in 0_i64..60,
     ) {
         let mut p = generated(&spec);
-        p.status_date = Some(Moment::from_minutes(at("2026-10-12T00:00").minutes() + status * 1_440).unwrap());
+        p.status_date = Some(Moment::from_minutes(at("2026-10-12T00:00").whole_minutes().unwrap() + status * 1_440).unwrap());
         let s = plannercraft_core::schedule(&p);
         let zoom = [Zoom::Day, Zoom::Week, Zoom::Month, Zoom::Quarter][usize::from(zoom)];
         let st = template(TemplateId::ALL[id]);

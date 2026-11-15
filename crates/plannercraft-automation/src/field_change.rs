@@ -143,7 +143,7 @@ pub(crate) struct Writer {
 impl Writer {
     fn work(&self, w: Work, p: &Project) -> FieldValue {
         FieldValue::Text(display_minutes_as(
-            w.minutes(),
+            w.duration_round(),
             DurationUnit::Hour,
             TimeBasis::Working,
             &p.options.factors,

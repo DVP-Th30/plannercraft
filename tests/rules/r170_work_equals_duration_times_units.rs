@@ -34,7 +34,7 @@ pub(crate) fn part(id: u32, u: i64, w: i64) -> Part {
 
 /// Tâche feuille de type `t`, durée `d`, travail = Σ des affectations.
 pub(crate) fn task(t: TaskType, effort_driven: bool, d: i64, parts: &[Part]) -> TaskSide {
-    let total = parts.iter().map(|p| p.work.minutes().get()).sum();
+    let total = parts.iter().map(|p| p.work.whole_minutes().unwrap()).sum();
     TaskSide {
         task_type: t,
         effort_driven,

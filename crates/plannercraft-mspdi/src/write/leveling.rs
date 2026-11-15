@@ -12,7 +12,7 @@ use crate::codes;
 /// Retard écrit : non nul et dans le domaine des durées (R-002), sinon
 /// rien (la relecture le refuserait).
 pub(crate) fn writable(delay: Option<LevelingDelay>) -> Option<LevelingDelay> {
-    delay.filter(|d| d.minutes.get() > 0 && d.minutes.get() <= Duration::MAX_MINUTES)
+    delay.filter(|d| d.minutes.tenths() > 0 && d.minutes.tenths() <= Duration::MAX_TENTHS)
 }
 
 /// Élément `name` (`LevelingDelay` ou `LevelingDelayFormat`) d'un retard.
@@ -21,7 +21,7 @@ pub(crate) fn write(em: &mut Emitter, name: &'static str, delay: Option<Leveling
         return;
     };
     let value = if name == "LevelingDelay" {
-        d.minutes.get().saturating_mul(10)
+        d.minutes.tenths()
     } else {
         codes::leveling_delay_format_code(d.unit, d.elapsed)
     };

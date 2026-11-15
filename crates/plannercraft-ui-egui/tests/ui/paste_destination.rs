@@ -157,7 +157,15 @@ fn task_count(app: &App) -> usize {
 fn days(app: &App, id: u32) -> i64 {
     let project = app.document.as_ref().unwrap().project();
     let position = usize::try_from(id - 1).unwrap();
-    project.tasks.at(position).unwrap().duration.minutes().get() / 480
+    project
+        .tasks
+        .at(position)
+        .unwrap()
+        .duration
+        .minutes()
+        .whole_minutes()
+        .unwrap()
+        / 480
 }
 
 /// Prédécesseurs (ID, type) de la tâche d'ID `id`.

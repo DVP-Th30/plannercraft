@@ -124,8 +124,8 @@ fn r200_equation_round_trip() {
         let dur = tk.duration.minutes();
         assert_eq!(read.actual_duration, out.progress.actual_duration, "{input:?}");
         assert_eq!(
-            out.progress.remaining_duration.get(),
-            dur.get() - read.actual_duration.get(),
+            out.progress.remaining_duration.whole_minutes().unwrap(),
+            dur.whole_minutes().unwrap() - read.actual_duration.whole_minutes().unwrap(),
             "{input:?}"
         );
         assert_eq!(

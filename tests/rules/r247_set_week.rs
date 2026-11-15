@@ -64,7 +64,9 @@ fn r247_saturday_ranges_example() {
         panic!("calendrier dérivé attendu");
     };
     assert_eq!(*base, CalendarUid::new(1));
-    assert!(matches!(week.get(Weekday::Saturday), DayRule::Working(h) if h.total().get() == 240));
+    assert!(
+        matches!(week.get(Weekday::Saturday), DayRule::Working(h) if h.total().whole_minutes().unwrap() == 240)
+    );
     // Jours non cités : hérités, inchangés.
     for d in [Weekday::Sunday, Weekday::Monday, Weekday::Friday] {
         assert_eq!(week.get(d), &DayRule::Inherit, "{d:?}");
@@ -89,7 +91,9 @@ fn r247_saturday_ranges_example() {
         panic!("calendrier de base attendu");
     };
     assert_eq!(week.get(Weekday::Friday), &DaySetting::NonWorking);
-    assert!(matches!(week.get(Weekday::Thursday), DaySetting::Working(h) if h.total().get() == 480));
+    assert!(
+        matches!(week.get(Weekday::Thursday), DaySetting::Working(h) if h.total().whole_minutes().unwrap() == 480)
+    );
 }
 
 #[test]

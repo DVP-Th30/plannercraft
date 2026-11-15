@@ -56,12 +56,13 @@ pub struct Variances {
 /// `a − b` en minutes, borné (jamais de débordement : les deux valeurs
 /// sont des durées ou des travaux du domaine).
 fn diff(a: Minutes, b: Minutes) -> Minutes {
-    Minutes::new(a.get().saturating_sub(b.get()))
+    Minutes::from_tenths(a.tenths().saturating_sub(b.tenths()))
 }
 
-/// Travail d'une ligne de base, 0 si absent (R-225, O43).
+/// Travail d'une ligne de base comme durée arrondie au dixième (R-001),
+/// 0 si absent (R-225, O43).
 fn base_work(w: Option<Work>) -> Minutes {
-    w.map_or(Minutes::ZERO, Work::minutes)
+    w.map_or(Minutes::ZERO, Work::duration_round)
 }
 
 /// R-224, R-225 : écarts d'une tâche planifiée.
@@ -81,13 +82,13 @@ fn task_variance(
             start: Minutes::ZERO,
             finish: Minutes::ZERO,
             duration: ts.duration,
-            work: ts.work.minutes(),
+            work: ts.work.duration_round(),
         },
         Some(b) => Variance {
             start: date(b.start, ts.start),
             finish: date(b.finish, ts.finish),
             duration: diff(ts.duration, b.duration.map_or(Minutes::ZERO, |d| d.minutes())),
-            work: diff(ts.work.minutes(), base_work(b.work)),
+            work: diff(ts.work.duration_round(), base_work(b.work)),
         },
     };
     TaskVariance {
@@ -135,7 +136,7 @@ pub fn variance(p: &Project, s: &Schedule, set: &CalendarSet, number: BaselineNu
             let work = s
                 .resources
                 .get(&r.uid())
-                .map_or(Minutes::ZERO, |l| l.work.minutes());
+                .map_or(Minutes::ZERO, |l| l.work.duration_round());
             let base = base_work(r.baselines.get(&number).and_then(|b| b.work));
             (r.uid(), diff(work, base))
         })
@@ -156,7 +157,7 @@ pub fn variance(p: &Project, s: &Schedule, set: &CalendarSet, number: BaselineNu
                     .and_then(|a| a.baselines.get(&number))
                     .and_then(|b| b.work),
             );
-            (*uid, diff(placed.work.minutes(), base))
+            (*uid, diff(placed.work.duration_round(), base))
         })
         .collect();
     Variances {

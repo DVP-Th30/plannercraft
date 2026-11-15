@@ -144,7 +144,7 @@ pub(crate) fn diff_schedules(
             continue;
         }
         let finish_delta_min = match finish {
-            (Some(f0), Some(f1)) => f0.minutes_until(f1).get(),
+            (Some(f0), Some(f1)) => f0.minutes_until(f1).whole_minutes_round(),
             _ => 0,
         };
         changed.push(TaskChange {
@@ -772,7 +772,7 @@ mod tests {
         assert_eq!(added.start.0, None);
         assert!(added.start.1.is_some());
         assert_eq!(v.finish_delta_text, "1j");
-        assert_eq!(v.finish_delta.map(plannercraft_core::Minutes::get), Some(480));
+        assert_eq!(v.finish_delta.map(|m| m.whole_minutes().unwrap()), Some(480));
         assert_eq!(v.more, 0);
         assert_eq!(added.critical, CriticalChange::Entered);
         assert!(v.critical_changed());
@@ -796,8 +796,8 @@ mod tests {
         assert_eq!(flip.change, RowChange::CriticalOnly);
         assert_eq!(flip.critical, CriticalChange::Left);
         assert_eq!(flip.start.0, flip.start.1);
-        assert_eq!(flip.total_slack.0.map(plannercraft_core::Minutes::get), Some(0));
-        assert_eq!(flip.total_slack.1.map(plannercraft_core::Minutes::get), Some(480));
+        assert_eq!(flip.total_slack.0.map(|m| m.whole_minutes().unwrap()), Some(0));
+        assert_eq!(flip.total_slack.1.map(|m| m.whole_minutes().unwrap()), Some(480));
     }
 
     /// Règle 10 de J8 : au plus 200 lignes, le reste compté dans `more`.

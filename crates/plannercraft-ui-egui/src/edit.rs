@@ -795,7 +795,7 @@ fn field_ops(
         Column::Work => {
             let text = work_text(buffer);
             let read = parse_duration(&text, ctx)?;
-            if same(&|t| t.work.minutes() == read.minutes()) {
+            if same(&|t| t.work.duration_exact() == Some(read.minutes())) {
                 return Ok(Vec::new());
             }
             op.work = Patch::Set(duration_text(&text));
@@ -1351,7 +1351,8 @@ mod tests {
                 .unwrap()
                 .duration
                 .minutes()
-                .get(),
+                .whole_minutes()
+                .unwrap(),
             3 * 480
         );
     }
@@ -1557,7 +1558,7 @@ mod tests {
         let s = session();
         let task = s.project().tasks.get(uid(3)).unwrap();
         let name = task.name.clone();
-        assert_eq!(task.duration.minutes().get(), 10 * 480);
+        assert_eq!(task.duration.minutes().whole_minutes().unwrap(), 10 * 480);
         for (column, text) in [
             (Column::Duration, "10 jours"),
             (Column::Duration, "10j"),

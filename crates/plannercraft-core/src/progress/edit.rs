@@ -273,7 +273,7 @@ fn out_of_bounds<E>(_: E) -> EditError {
 
 /// Durée bornée au domaine des durées de tâche (R-008).
 const fn bounded(m: Minutes) -> Result<Minutes, EditError> {
-    if m.is_negative() || m.get() > Duration::MAX_MINUTES {
+    if m.is_negative() || m.tenths() > Duration::MAX_TENTHS {
         Err(EditError::Overflow)
     } else {
         Ok(m)
@@ -402,7 +402,8 @@ impl Calc<'_, '_> {
         self.ensure_start(st);
         // Non achevée : réel < D (un arrondi à D donnerait 100 % sans fin
         // réelle, contraire à « 100 % ⇔ fin réelle », P39).
-        let below = Minutes::new(st.d.get().saturating_sub(1).max(0));
+        // Une minute sous D (lot B1, comme avant l'ADR-0039).
+        let below = Minutes::from_tenths(st.d.tenths().saturating_sub(Minutes::new(1).tenths()).max(0));
         st.act = share(st.d, p)?.min(below);
         st.finish = None;
         Ok(false)
@@ -437,11 +438,12 @@ fn derived_percent(st: &State) -> Percent {
     if st.finish.is_some() {
         return Percent::FULL;
     }
-    let d = st.d.get();
+    // Rapport réel ÷ D : indépendant de l'unité (dixièmes).
+    let d = st.d.tenths();
     if d <= 0 {
         return Percent::ZERO;
     }
-    let num = i128::from(st.act.get()).saturating_mul(10_000);
+    let num = i128::from(st.act.tenths()).saturating_mul(10_000);
     round_div(num, i128::from(d))
         .map(|v| v.clamp(0, Percent::FULL.get().saturating_sub(1)))
         .and_then(|v| Percent::new(v).ok())
@@ -450,7 +452,9 @@ fn derived_percent(st: &State) -> Percent {
 
 /// `percent_of(W, p)` sur du travail (R-211) : `0 ≤ résultat ≤ W`.
 fn work_share(w: Work, p: Percent) -> Result<Work, EditError> {
-    Work::new(share(w.minutes(), p)?).map_err(out_of_bounds)
+    // Lot B1 : part arrondie à la minute (R-010), travail arrondi au dixième
+    // avant (exact pour un travail en minutes entières).
+    Work::new(share(w.duration_round(), p)?).map_err(out_of_bounds)
 }
 
 /// R-211 : répartit `total` sur les affectations au prorata de leur
@@ -458,13 +462,15 @@ fn work_share(w: Work, p: Percent) -> Result<Work, EditError> {
 /// par plus grand reste, puis UID croissant (`parts` triées par UID) ; la
 /// somme vaut `total`.
 fn distribute(parts: &[Part], total: Work) -> Result<Vec<Work>, EditError> {
-    let x = i128::from(total.minutes().get());
+    // Lot B1 : répartition en minutes entières (R-001 sur le total et les
+    // poids), comme avant l'ADR-0039.
+    let x = i128::from(total.whole_minutes_round());
     let all_zero = parts.iter().all(|p| p.work == Work::ZERO);
     let weight = |p: &Part| {
         if all_zero {
             1_i128
         } else {
-            i128::from(p.work.minutes().get())
+            i128::from(p.work.whole_minutes_round())
         }
     };
     let sum = parts
@@ -501,16 +507,17 @@ fn distribute(parts: &[Part], total: Work) -> Result<Vec<Work>, EditError> {
         .map(|f| {
             i64::try_from(f)
                 .map_err(out_of_bounds)
-                .and_then(|m| Work::new(Minutes::new(m)).map_err(out_of_bounds))
+                .and_then(|m| Work::from_whole_minutes(m).map_err(out_of_bounds))
         })
         .collect()
 }
 
-/// Somme du travail (ou du travail réel) des affectations.
+/// Somme du travail (ou du travail réel) des affectations, en millièmes de
+/// minute.
 fn total(parts: &[Part], f: impl Fn(&Part) -> Work) -> Result<i64, EditError> {
     parts
         .iter()
-        .try_fold(0_i64, |acc, p| acc.checked_add(f(p).minutes().get()))
+        .try_fold(0_i64, |acc, p| acc.checked_add(f(p).milli()))
         .ok_or(EditError::Overflow)
 }
 
@@ -679,12 +686,13 @@ fn apply_work(
         // chaque affectation (R-209, AW_a / U_a) finit au plus tard à `Stop`
         // et son reste ne la chevauche plus.
         if e.duration_field().is_none() && st.finish.is_none() && planned_work > 0 {
-            let d = i128::from(st.d.get());
+            // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
+            let d = i128::from(st.d.whole_minutes_round());
             let act = d
                 .checked_mul(i128::from(done_work))
                 .and_then(|x| round_div(x, i128::from(planned_work)))
                 .ok_or(EditError::Overflow)?;
-            let below = st.d.get().saturating_sub(1).max(0);
+            let below = st.d.whole_minutes_round().saturating_sub(1).max(0);
             st.act = Minutes::new(act.clamp(0, below));
         }
         if done_work > 0 {
@@ -708,7 +716,7 @@ fn progress_of(
     out.remaining_duration = if st.finish.is_some() {
         Minutes::ZERO
     } else {
-        Minutes::new(st.d.get().saturating_sub(st.act.get()).max(0))
+        Minutes::from_tenths(st.d.tenths().saturating_sub(st.act.tenths()).max(0))
     };
     out.percent_complete = derived_percent(st);
     if let Some(p) = physical {
@@ -721,9 +729,9 @@ fn progress_of(
     if !parts.is_empty() {
         let planned_work = total(parts, |p| p.work)?;
         let done_work = total(parts, |p| p.actual_work)?;
-        out.actual_work = Work::new(Minutes::new(done_work)).map_err(out_of_bounds)?;
+        out.actual_work = Work::from_milli(done_work).map_err(out_of_bounds)?;
         out.remaining_work =
-            Work::new(Minutes::new(planned_work.saturating_sub(done_work).max(0))).map_err(out_of_bounds)?;
+            Work::from_milli(planned_work.saturating_sub(done_work).max(0)).map_err(out_of_bounds)?;
         out.percent_work_complete = if planned_work <= 0 {
             Percent::ZERO
         } else if done_work >= planned_work {
@@ -750,11 +758,11 @@ fn progress_of(
 pub fn remaining_work_entered(part: Part, remaining: Work) -> Result<Part, EditError> {
     let w = part
         .actual_work
-        .minutes()
-        .checked_add(remaining.minutes())
+        .milli()
+        .checked_add(remaining.milli())
         .ok_or(EditError::Overflow)?;
     Ok(Part {
-        work: Work::new(w).map_err(out_of_bounds)?,
+        work: Work::from_milli(w).map_err(out_of_bounds)?,
         ..part
     })
 }

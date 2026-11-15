@@ -276,7 +276,7 @@ fn fill_fixed(
             .and_then(|c| codes::leveling_delay_format(i64::from(c)))
             .unwrap_or((DurationUnit::Day, true));
         task.leveling_delay = time::minutes_from_tenths(i64::from(tenths))
-            .filter(|m| m.get() > 0)
+            .filter(|m| *m > Minutes::ZERO)
             .and_then(|m| plannercraft_core::LevelingDelay::new(m, unit, elapsed));
     }
     actuals(task, f, tl);
@@ -304,7 +304,7 @@ fn actuals(task: &mut Task, f: &mut Fields<'_, '_>, tl: &TaskLayout) {
         && let Some(t) = f.i32(off, "actual_duration")
     {
         task.progress.actual_duration = time::minutes_from_tenths(i64::from(t))
-            .filter(|m| m.get() >= 0)
+            .filter(|m| !m.is_negative())
             .unwrap_or(Minutes::ZERO);
     }
 }

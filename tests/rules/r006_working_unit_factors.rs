@@ -6,7 +6,7 @@ use plannercraft_core::{ConversionFactors, Decimal, DurationUnit, Minutes, TimeB
 const W: TimeBasis = TimeBasis::Working;
 
 fn minutes(f: &ConversionFactors, value: Decimal, unit: DurationUnit) -> i64 {
-    f.to_minutes(value, unit, W).unwrap().get()
+    f.to_minutes(value, unit, W).unwrap().whole_minutes().unwrap()
 }
 
 #[test]

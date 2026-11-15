@@ -357,7 +357,7 @@ pub(crate) fn leveling_delay(
         }
     }
     let (minutes, rounded) = tenths_to_minutes(tenths);
-    if minutes.is_negative() || minutes.get() > Duration::MAX_MINUTES {
+    if minutes.is_negative() || minutes.tenths() > Duration::MAX_TENTHS {
         f.invalid("LevelingDelay", at, &tenths.to_string(), sink);
         return None;
     }
@@ -379,7 +379,7 @@ pub(crate) fn leveling_delay(
 /// `None`.
 pub(crate) fn delay_value(tenths: i64, format: Option<i64>, default_elapsed: bool) -> Option<LevelingDelay> {
     let (minutes, _) = tenths_to_minutes(tenths);
-    if minutes.get() == 0 {
+    if minutes == Minutes::ZERO {
         return None;
     }
     let (unit, elapsed) = format

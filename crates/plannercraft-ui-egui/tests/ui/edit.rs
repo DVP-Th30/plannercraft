@@ -284,7 +284,7 @@ fn ui_edit_start_sets_snet() {
     click_cell(&mut harness, index, Column::Start);
     let uid = TaskUid::new(2);
     let start = schedule_of(harness.state(), uid).start;
-    let wanted = Moment::from_minutes(start.minutes() + 28 * 24 * 60).unwrap();
+    let wanted = Moment::from_minutes(start.whole_minutes().unwrap() + 28 * 24 * 60).unwrap();
     let date = wanted.to_naive().date();
     type_text(&mut harness, &date.format("%d/%m/%Y").to_string());
     press(&mut harness, Key::Enter);
@@ -594,14 +594,14 @@ proptest! {
             // Dates de 1984 à 2083 : l'affichage (année sur deux chiffres) se
             // relit au même jour ; au-delà, l'écriture complète.
             let origin: Moment = "1984-01-01T00:00".parse().unwrap();
-            let m = Moment::from_minutes(origin.minutes() + day * 1_440 + minute_of_day).unwrap();
+            let m = Moment::from_minutes(origin.whole_minutes().unwrap() + day * 1_440 + minute_of_day).unwrap();
             for role in [DateRole::Start, DateRole::Finish] {
                 let display = format_date(m, &l);
                 let text = date_edit_text(m, &display, role, &ctx);
                 prop_assert_eq!(&text, &display);
                 prop_assert_eq!(parse_date(&text, role, &ctx).unwrap().day(), m.day());
             }
-            let late = Moment::from_minutes(m.minutes() + 100 * 365 * 1_440).unwrap_or(Moment::MAX);
+            let late = Moment::from_minutes(m.whole_minutes().unwrap() + 100 * 365 * 1_440).unwrap_or(Moment::MAX);
             let text = date_edit_text(late, &format_date(late, &l), DateRole::Start, &ctx);
             prop_assert_eq!(parse_date(&text, DateRole::Start, &ctx).unwrap().day(), late.day());
 

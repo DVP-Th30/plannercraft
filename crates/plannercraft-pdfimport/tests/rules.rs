@@ -555,7 +555,7 @@ fn lag_minutes(c: &plannercraft_pdfimport::Converted, pred: usize, succ: usize) 
     let task = c.session.project().tasks.get(c.uids[succ])?;
     let link = task.predecessors.iter().find(|l| l.predecessor == c.uids[pred])?;
     match link.lag.value {
-        LagValue::Time { minutes, .. } => Some(minutes.get()),
+        LagValue::Time { minutes, .. } => Some(minutes.whole_minutes().unwrap()),
         LagValue::Percent { .. } => None,
     }
 }

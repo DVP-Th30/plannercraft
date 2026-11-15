@@ -345,7 +345,7 @@ fn finish(
     let total = sum(raw.iter().map(|r| r.work))?;
     Ok(Rebalanced {
         duration: Minutes::new(duration),
-        work: Work::new(Minutes::new(total)).map_err(|_| EditError::Overflow)?,
+        work: Work::from_whole_minutes(total).map_err(|_| EditError::Overflow)?,
         parts,
         recalculated,
     })
@@ -358,7 +358,7 @@ fn to_parts(raw: &[Raw]) -> Result<Vec<Part>, EditError> {
             Ok(Part {
                 uid: r.uid,
                 units: Units::new(r.units).map_err(|_| EditError::Overflow)?,
-                work: Work::new(Minutes::new(r.work)).map_err(|_| EditError::Overflow)?,
+                work: Work::from_whole_minutes(r.work).map_err(|_| EditError::Overflow)?,
             })
         })
         .collect()
@@ -398,16 +398,18 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
         .map(|p| Raw {
             uid: p.uid,
             units: p.units.get(),
-            work: p.work.minutes().get(),
+            // Lot B1 : R-170 en minutes entières (R-001), comme avant
+            // l'ADR-0039.
+            work: p.work.whole_minutes_round(),
         })
         .collect();
     raw.sort_by_key(|r| r.uid);
     let kind = task.task_type;
     let effort = effective_effort_driven(kind, task.effort_driven);
-    let d0 = task.duration.get();
+    let d0 = task.duration.whole_minutes_round();
     match *edit {
         Edit::Duration(d) => {
-            let d = d.get();
+            let d = d.whole_minutes_round();
             if !(0..=Duration::MAX_MINUTES).contains(&d) {
                 return Err(EditError::Overflow);
             }
@@ -430,7 +432,7 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
                 return finish(kind, &raw, TaskDuration::Held(d0), Recalculated::Nothing);
             }
             let weights = weights(&raw, |r| r.work, |r| r.units)?;
-            spread(&mut raw, w.minutes().get(), &weights, false)?;
+            spread(&mut raw, w.whole_minutes_round(), &weights, false)?;
             rebalance_after_work(kind, &mut raw, d0)
         }
         Edit::Units { uid, units } => {
@@ -455,7 +457,7 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
             let Some(r) = raw.get_mut(i) else {
                 return Err(EditError::UnknownAssignment(uid));
             };
-            r.work = work.minutes().get();
+            r.work = work.whole_minutes_round();
             rebalance_after_work(kind, &mut raw, d0)
         }
         Edit::Add { uid, units } => {

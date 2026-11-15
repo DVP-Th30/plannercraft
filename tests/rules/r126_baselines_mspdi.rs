@@ -26,7 +26,7 @@ fn r126_task_baseline() {
         (d.minutes(), d.unit(), d.basis(), d.is_estimated()),
         (Minutes::new(2_400), DurationUnit::Day, TimeBasis::Working, false)
     );
-    assert_eq!(b.work.unwrap().minutes(), Minutes::new(2_400));
+    assert_eq!(b.work.unwrap().duration_exact().unwrap(), Minutes::new(2_400));
     // `Cost` en centièmes (O18).
     assert_eq!(b.cost, Some(Money::new(83_175).unwrap()));
     assert_eq!(b.fixed_cost, Some(Money::new(1_250).unwrap()));
@@ -41,7 +41,7 @@ fn r126_resource_and_assignment_baselines() {
     let doc = r088::fixture();
     let r = doc.project.resources.get(ResourceUid::new(1)).unwrap();
     let b = r.baselines[&zero()];
-    assert_eq!(b.work.unwrap().minutes(), Minutes::new(12_000));
+    assert_eq!(b.work.unwrap().duration_exact().unwrap(), Minutes::new(12_000));
     assert_eq!(b.cost, Some(Money::new(83_175).unwrap()));
     let a = doc.project.assignments.get(AssignmentUid::new(1)).unwrap();
     let b = a.baselines[&zero()];
@@ -49,7 +49,7 @@ fn r126_resource_and_assignment_baselines() {
         (b.start, b.finish),
         (Some(moment("2026-10-19T08:00")), Some(moment("2026-10-20T17:00")))
     );
-    assert_eq!(b.work.unwrap().minutes(), Minutes::new(960));
+    assert_eq!(b.work.unwrap().duration_exact().unwrap(), Minutes::new(960));
     assert_eq!(b.cost, Some(Money::new(6_654).unwrap()));
 }
 

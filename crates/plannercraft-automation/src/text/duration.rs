@@ -212,8 +212,9 @@ fn exact_value(
     if factors.to_minutes(two, unit, basis).ok()? == minutes {
         return Some(two);
     }
-    let factor = factors.minutes_per_unit(unit, basis).get();
-    let scaled = i128::from(minutes.get()).checked_mul(100_000)?;
+    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
+    let factor = factors.minutes_per_unit(unit, basis).whole_minutes_floor();
+    let scaled = i128::from(minutes.whole_minutes_round()).checked_mul(100_000)?;
     let five = Decimal::new(round_div(scaled, i128::from(factor))?, 5).ok()?;
     Some(five.normalized())
 }
@@ -226,7 +227,7 @@ fn value_and_unit(ctx: &TextContext, minutes: Minutes, unit: DurationUnit, basis
         s = format_decimal(v, ctx.decimal);
         s.push_str(&abbreviation(unit, basis, ctx.language));
     } else {
-        s = minutes.get().to_string();
+        s = minutes.whole_minutes_round().to_string();
         s.push_str(&abbreviation(DurationUnit::Minute, basis, ctx.language));
     }
     s

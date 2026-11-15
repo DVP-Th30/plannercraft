@@ -99,7 +99,7 @@ pub(crate) fn actuals_stale(a: &Assignment) -> bool {
         };
         nanos = sum;
     }
-    plannercraft_core::round_div(nanos, ISO_NANOS_PER_MINUTE) != Some(a.actual_work.minutes().get())
+    plannercraft_core::round_div(nanos, ISO_NANOS_PER_MINUTE) != Some(a.actual_work.whole_minutes_round())
 }
 
 /// R-199 : les lignes de type 1 de `a` sont-elles à jeter ? Vrai s'il y en
@@ -121,7 +121,9 @@ pub(crate) fn stale(a: &Assignment, placed: Option<&AssignmentSchedule>) -> bool
         return true;
     };
     reference(&rows).is_none_or(|(start, finish, work)| {
-        start != placed.span.start || finish != placed.span.finish || work != placed.work.minutes().get()
+        start != placed.span.start
+            || finish != placed.span.finish
+            || work != placed.work.whole_minutes_round()
     })
 }
 

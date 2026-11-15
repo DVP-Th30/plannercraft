@@ -50,7 +50,7 @@ fn r055_intermediate_summaries_not_weighted() {
         .level("C", 2)
         .with_task("C", |t| t.progress.percent_complete = Percent::FULL)
         .run();
-    assert_eq!(run.at("S2").duration.get(), 2_400);
+    assert_eq!(run.at("S2").duration.whole_minutes().unwrap(), 2_400);
     assert_eq!(run.at("S2").percent_complete, pct(3_333));
     assert_eq!(run.at("S1").percent_complete, pct(4_286));
 }

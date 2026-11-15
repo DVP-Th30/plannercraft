@@ -79,7 +79,10 @@ fn amount(by: &DurationJson, ctx: &Ctx<'_>) -> Result<(i64, bool), CommandError>
     };
     let lag = ctx.lag(&lag, "by")?;
     match lag.value {
-        LagValue::Time { minutes, .. } => Ok((minutes.get(), lag.basis == TimeBasis::Elapsed)),
+        // Lot B1 : minutes entières (R-001).
+        LagValue::Time { minutes, .. } => {
+            Ok((minutes.whole_minutes_round(), lag.basis == TimeBasis::Elapsed))
+        }
         LagValue::Percent { .. } => Err(invalid(
             "by",
             "durée attendue (« 1j », « -1sem ») ; un pourcentage n'a pas de sens ici",

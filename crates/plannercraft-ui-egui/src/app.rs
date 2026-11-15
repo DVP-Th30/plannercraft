@@ -1669,7 +1669,7 @@ impl App {
             TextId::AssistantContext,
             &[("json", Arg::Str(ui_state.to_string().into()))],
         );
-        let minutes = (self.env.now)().time_of_day().minutes();
+        let minutes = (self.env.now)().time_of_day_floor().minutes();
         crate::assistant::AssistantEnv {
             lang: self.text_language(),
             context: self.document.is_some().then_some(context),

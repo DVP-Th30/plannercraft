@@ -335,7 +335,7 @@ fn h_ui_117_editable_fields_one_undo() {
     // Travail : nombre sans unité ⇒ heures.
     step(&mut harness, 2, Column::Work, "16");
     let work = project(harness.state()).tasks.get(uid(2)).unwrap().work;
-    assert_eq!(work.minutes().get(), 16 * 60);
+    assert_eq!(work.whole_minutes().unwrap(), 16 * 60);
     // Actif : « non » ⇒ tâche inactive (barrée), relue « Non ».
     step(&mut harness, 7, Column::Active, "non");
     assert!(!project(harness.state()).tasks.get(uid(7)).unwrap().active);

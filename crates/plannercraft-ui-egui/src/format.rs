@@ -653,7 +653,11 @@ mod tests {
                 &f,
                 &fr()
             ),
-            "19215358410114116,26 jours"
+            // Lot B1 (ADR-0039) : `i64::MAX` minutes n'existe plus en
+            // dixièmes, `Minutes::new` sature à `i64::MAX` dixièmes, soit
+            // dix fois moins de jours (l'ancien attendu était
+            // « 19215358410114116,26 jours »).
+            "1921535841011411,63 jours"
         );
         assert_eq!(
             format_minutes_as(

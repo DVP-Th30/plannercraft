@@ -261,7 +261,12 @@ fn summary(p: &Project) -> Vec<SummaryRow> {
         .map(|(i, t)| {
             let level = t.outline_level.get();
             let parent = levels.get(i + 1).is_some_and(|next| *next > level);
-            let own = (!parent).then(|| (t.duration.minutes().get(), t.progress.percent_complete.get()));
+            let own = (!parent).then(|| {
+                (
+                    t.duration.minutes().whole_minutes().unwrap(),
+                    t.progress.percent_complete.get(),
+                )
+            });
             (
                 t.name.clone(),
                 level,
@@ -476,7 +481,7 @@ fn e2e_daily_j8() {
     assert_eq!(start, Some("2026-11-16T08:00".parse::<Moment>().unwrap()));
     // Exemple de R-254 : 4 j sur le calendrier Standard ⇒ jeu 19/11 17:00.
     assert_eq!(finish, Some("2026-11-19T17:00".parse::<Moment>().unwrap()));
-    assert_eq!(six.duration.minutes().get(), 4 * 480);
+    assert_eq!(six.duration.minutes().whole_minutes().unwrap(), 4 * 480);
     assert_eq!(history(app), (6, 0));
 
     // 9. Inactiver 2 puis le réactiver (R-255) : deux lots.

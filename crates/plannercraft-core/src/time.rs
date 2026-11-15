@@ -11,7 +11,7 @@ use std::str::FromStr;
 use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use serde::{Deserialize, Serialize};
 
-use crate::duration::Minutes;
+use crate::duration::{Minutes, TENTHS_PER_MINUTE};
 use crate::error::TimeError;
 
 /// Minutes par jour civil (R-005).
@@ -22,6 +22,10 @@ const DAY_COUNT: i32 = 60_631;
 const LAST_DAY: i32 = 60_630;
 /// Dernier instant du domaine : 60 631 × 1 440.
 const MAX_MINUTES: i64 = 87_308_640;
+/// Dixièmes de minute par jour civil.
+const TENTHS_PER_DAY: i64 = MINUTES_PER_DAY * TENTHS_PER_MINUTE;
+/// Dernier instant du domaine, en dixièmes de minute.
+const MAX_TENTHS: i64 = MAX_MINUTES * TENTHS_PER_MINUTE;
 
 /// 1984-01-01, origine du temps (un dimanche).
 const EPOCH: NaiveDate = match NaiveDate::from_ymd_opt(1984, 1, 1) {
@@ -29,9 +33,13 @@ const EPOCH: NaiveDate = match NaiveDate::from_ymd_opt(1984, 1, 1) {
     None => NaiveDate::MIN,
 };
 
-/// Instant à la minute, heure locale du projet, sans fuseau ni heure d'été.
+/// Instant au dixième de minute (ADR-0039), heure locale du projet, sans
+/// fuseau ni heure d'été.
 ///
-/// Minutes depuis 1984-01-01T00:00. Sérialisé en `"2026-10-19T08:00"` ; la
+/// Dixièmes de minute depuis 1984-01-01T00:00. Les constructeurs en minutes
+/// gardent leur sens ([`Moment::from_minutes`]) ; tout accès qui rend des
+/// minutes dit sa règle ([`Moment::whole_minutes`], [`Moment::minutes_floor`]).
+/// Sérialisé en `"2026-10-19T08:00"` (lot B1 : à la minute, tronqué) ; la
 /// lecture tolère un `":00"` final (secondes nulles), rien d'autre.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
@@ -41,7 +49,7 @@ impl Moment {
     /// 1984-01-01T00:00.
     pub const MIN: Self = Self(0);
     /// 2150-01-01T00:00, c'est-à-dire le 2149-12-31 à 24:00 (inclus).
-    pub const MAX: Self = Self(MAX_MINUTES);
+    pub const MAX: Self = Self(MAX_TENTHS);
 
     /// Instant depuis un nombre de minutes depuis 1984-01-01T00:00.
     ///
@@ -52,7 +60,20 @@ impl Moment {
         if m < 0 || m > MAX_MINUTES {
             return Err(TimeError::OutOfDomain);
         }
-        Ok(Self(m))
+        Ok(Self(m.saturating_mul(TENTHS_PER_MINUTE)))
+    }
+
+    /// Instant depuis un nombre de dixièmes de minute depuis
+    /// 1984-01-01T00:00.
+    ///
+    /// # Errors
+    ///
+    /// [`TimeError::OutOfDomain`] hors de `0..=873_086_400`.
+    pub const fn from_tenths(t: i64) -> Result<Self, TimeError> {
+        if t < 0 || t > MAX_TENTHS {
+            return Err(TimeError::OutOfDomain);
+        }
+        Ok(Self(t))
     }
 
     /// Instant d'un jour à une heure ; 24:00 donne le lendemain 00:00.
@@ -108,30 +129,50 @@ impl Moment {
         let midnight = NaiveDateTime::new(EPOCH, NaiveTime::MIN);
         // Toujours défini sur le domaine (vérifié exhaustivement par les
         // tests) ; l'origine sert de repli plutôt qu'une panique.
-        chrono::TimeDelta::try_minutes(self.0)
+        // Six secondes par dixième de minute.
+        chrono::TimeDelta::try_seconds(self.0.saturating_mul(6))
             .and_then(|d| midnight.checked_add_signed(d))
             .unwrap_or(midnight)
     }
 
-    /// Minutes depuis 1984-01-01T00:00.
+    /// Dixièmes de minute depuis 1984-01-01T00:00 (valeur exacte).
     #[must_use]
-    pub const fn minutes(self) -> i64 {
+    pub const fn tenths(self) -> i64 {
         self.0
+    }
+
+    /// Minutes depuis 1984-01-01T00:00 si l'instant tombe sur une minute
+    /// entière, sinon `None`.
+    #[must_use]
+    pub const fn whole_minutes(self) -> Option<i64> {
+        if self.0 % TENTHS_PER_MINUTE == 0 {
+            Some(self.0 / TENTHS_PER_MINUTE)
+        } else {
+            None
+        }
+    }
+
+    /// Minutes depuis 1984-01-01T00:00, secondes tronquées (l'instant est
+    /// positif : plancher).
+    #[must_use]
+    pub const fn minutes_floor(self) -> i64 {
+        self.0 / TENTHS_PER_MINUTE
     }
 
     /// Jour de l'instant. [`Moment::MAX`] appartient au 2149-12-31 (à 24:00).
     #[must_use]
     pub fn day(self) -> Day {
-        let index = self.0.checked_div(MINUTES_PER_DAY).unwrap_or(0);
+        let index = self.0.checked_div(TENTHS_PER_DAY).unwrap_or(0);
         let index = i32::try_from(index).unwrap_or(LAST_DAY).min(LAST_DAY);
         Day(index)
     }
 
-    /// Heure de l'instant dans son jour ; 24:00 pour [`Moment::MAX`].
+    /// Heure de l'instant dans son jour, secondes tronquées ; 24:00 pour
+    /// [`Moment::MAX`].
     #[must_use]
-    pub fn time_of_day(self) -> TimeOfDay {
-        let start = i64::from(self.day().0).checked_mul(MINUTES_PER_DAY).unwrap_or(0);
-        let within = self.0.checked_sub(start).unwrap_or(0);
+    pub fn time_of_day_floor(self) -> TimeOfDay {
+        let start = i64::from(self.day().0).checked_mul(TENTHS_PER_DAY).unwrap_or(0);
+        let within = self.0.checked_sub(start).unwrap_or(0) / TENTHS_PER_MINUTE;
         TimeOfDay(u16::try_from(within).unwrap_or(0))
     }
 
@@ -148,15 +189,15 @@ impl Moment {
     /// [`TimeError::OutOfDomain`] si le résultat sort du domaine,
     /// [`TimeError::Overflow`] si le calcul déborde.
     pub fn checked_add(self, d: Minutes) -> Result<Self, TimeError> {
-        let m = self.0.checked_add(d.get()).ok_or(TimeError::Overflow)?;
-        Self::from_minutes(m)
+        let t = self.0.checked_add(d.tenths()).ok_or(TimeError::Overflow)?;
+        Self::from_tenths(t)
     }
 
     /// Minutes civiles de `self` à `later` (négatif si `later` est avant).
     /// Ne déborde pas : deux instants du domaine sont à moins de 2^27 minutes.
     #[must_use]
     pub fn minutes_until(self, later: Self) -> Minutes {
-        Minutes::new(later.0.saturating_sub(self.0))
+        Minutes::from_tenths(later.0.saturating_sub(self.0))
     }
 }
 
@@ -728,15 +769,15 @@ mod tests {
             assert_eq!(Day::from_naive(expected).unwrap(), day);
             assert_eq!(day.weekday(), chrono_weekday(expected.weekday()));
             let midnight = Moment::at(day, TimeOfDay::MIDNIGHT).unwrap();
-            assert_eq!(midnight.minutes(), i64::from(i) * 1440);
+            assert_eq!(midnight.whole_minutes().unwrap(), i64::from(i) * 1440);
             assert_eq!(midnight.to_naive(), NaiveDateTime::new(expected, NaiveTime::MIN));
             assert_eq!(Moment::from_naive(midnight.to_naive()).unwrap(), midnight);
             assert_eq!(midnight.day(), day);
-            assert_eq!(midnight.time_of_day(), TimeOfDay::MIDNIGHT);
+            assert_eq!(midnight.time_of_day_floor(), TimeOfDay::MIDNIGHT);
             assert_eq!(midnight.weekday(), day.weekday());
-            let last_minute = Moment::from_minutes(midnight.minutes() + 1439).unwrap();
+            let last_minute = Moment::from_minutes(midnight.whole_minutes().unwrap() + 1439).unwrap();
             assert_eq!(last_minute.day(), day);
-            assert_eq!(last_minute.time_of_day().minutes(), 1439);
+            assert_eq!(last_minute.time_of_day_floor().minutes(), 1439);
             assert_eq!(day.to_string().parse::<Day>().unwrap(), day);
             expected = expected.succ_opt().unwrap();
         }
@@ -747,9 +788,9 @@ mod tests {
 
     #[test]
     fn moment_bounds() {
-        assert_eq!(Moment::MAX.minutes(), 87_308_640);
+        assert_eq!(Moment::MAX.whole_minutes().unwrap(), 87_308_640);
         assert_eq!(Moment::MAX.day(), Day::MAX);
-        assert_eq!(Moment::MAX.time_of_day(), TimeOfDay::END_OF_DAY);
+        assert_eq!(Moment::MAX.time_of_day_floor(), TimeOfDay::END_OF_DAY);
         assert_eq!(Moment::MAX.to_string(), "2150-01-01T00:00");
         assert_eq!(Moment::at(Day::MAX, TimeOfDay::END_OF_DAY).unwrap(), Moment::MAX);
         assert_eq!(Moment::from_minutes(-1), Err(TimeError::OutOfDomain));
@@ -781,7 +822,7 @@ mod tests {
     #[test]
     fn moment_text_format() {
         let m: Moment = "2026-10-19T08:00".parse().unwrap();
-        assert_eq!(m.minutes(), 22_510_560);
+        assert_eq!(m.whole_minutes().unwrap(), 22_510_560);
         assert_eq!(m.to_string(), "2026-10-19T08:00");
         assert_eq!("2026-10-19T08:00:00".parse::<Moment>().unwrap(), m);
         for bad in [

@@ -89,7 +89,11 @@ fn r246_quarter_boundaries() {
     assert!(all.periods.len() <= MAX_PERIODS);
     assert_eq!(all.periods[663].start, moment("2149-10-01T00:00"));
     assert_eq!(
-        all.rows[0].work.iter().map(|w| w.minutes().get()).sum::<i64>(),
+        all.rows[0]
+            .work
+            .iter()
+            .map(|w| w.whole_minutes().unwrap())
+            .sum::<i64>(),
         1_920
     );
     let limit = UsageError::Limit {

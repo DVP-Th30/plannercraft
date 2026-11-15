@@ -227,9 +227,11 @@ fn assignment_duration(
     {
         return Ok(task.duration.minutes());
     }
-    i128::from(work.minutes().get())
+    // Lot B1 : d_a en minutes entières (R-001), comme avant l'ADR-0039 :
+    // W (millièmes) × 10 000 ÷ (U × 1 000).
+    i128::from(work.milli())
         .checked_mul(10_000)
-        .and_then(|num| round_div(num, i128::from(units.get())))
+        .and_then(|num| round_div(num, i128::from(units.get()).checked_mul(1_000)?))
         .filter(|m| (0..=Duration::MAX_MINUTES).contains(m))
         .map(Minutes::new)
         .ok_or(OUT_OF_DOMAIN)
@@ -255,8 +257,9 @@ fn progress_durations(
     if task.task_type == TaskType::FixedDuration || units == Units::ZERO || contour != WorkContour::Flat {
         return Some(Ok((f.actual_duration, crate::progress::remaining_duration(task))));
     }
-    let w = work.minutes().get().max(0);
-    let aw = actual_work.minutes().get().clamp(0, w);
+    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
+    let w = work.whole_minutes_round().max(0);
+    let aw = actual_work.whole_minutes_round().clamp(0, w);
     let d = |m: i64| {
         i128::from(m)
             .checked_mul(10_000)
@@ -1273,7 +1276,7 @@ impl<'n, 'a> Calc<'n, 'a> {
                     let measured = net
                         .scale(scale)
                         .and_then(|s| s.between(planned.start, planned.finish).ok())
-                        .filter(|m| m.get() > 0);
+                        .filter(|m| *m > Minutes::ZERO);
                     if let Some(m) = measured {
                         effective_units = rate(res.work, m).unwrap_or(res.units);
                     }
@@ -1371,8 +1374,9 @@ impl<'n, 'a> Calc<'n, 'a> {
 /// Débit d'une affectation : `round_div(W × 10 000, m)` (R-183, R-186) ;
 /// `None` hors du domaine des unités.
 fn rate(work: Work, m: Minutes) -> Option<Units> {
-    let num = i128::from(work.minutes().get()).checked_mul(10_000)?;
-    let u = round_div(num, i128::from(m.get()))?;
+    // W en millièmes, m en dixièmes : W × 10 000 ÷ (m × 100).
+    let num = i128::from(work.milli()).checked_mul(10_000)?;
+    let u = round_div(num, i128::from(m.tenths()).checked_mul(100)?)?;
     Units::new(u).ok()
 }
 

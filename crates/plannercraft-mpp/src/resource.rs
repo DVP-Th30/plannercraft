@@ -205,14 +205,14 @@ fn values(
         && let Some(t) = le_i32(rec, off)
     {
         a.delay = time::minutes_from_tenths(i64::from(t))
-            .filter(|m| m.get() >= 0)
+            .filter(|m| !m.is_negative())
             .unwrap_or(Minutes::ZERO);
     }
     if let Some(off) = al.leveling_delay
         && let Some(t) = le_i32(rec, off).filter(|t| *t > 0)
     {
         a.leveling_delay = time::minutes_from_tenths(i64::from(t))
-            .filter(|m| m.get() > 0)
+            .filter(|m| *m > Minutes::ZERO)
             .and_then(|m| {
                 plannercraft_core::LevelingDelay::new(m, plannercraft_core::DurationUnit::Day, false)
             });

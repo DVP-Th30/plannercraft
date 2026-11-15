@@ -327,9 +327,12 @@ fn view_task_dates_from_engine() {
         assert_eq!(t["critical"].as_bool().unwrap(), s.is_some_and(|s| s.critical));
         assert_eq!(
             t["total_slack"]["minutes"].as_i64(),
-            s.map(|s| s.total_slack.get())
+            s.map(|s| s.total_slack.whole_minutes().unwrap())
         );
-        assert_eq!(t["free_slack"]["minutes"].as_i64(), s.map(|s| s.free_slack.get()));
+        assert_eq!(
+            t["free_slack"]["minutes"].as_i64(),
+            s.map(|s| s.free_slack.whole_minutes().unwrap())
+        );
         // `task.get` donne la même vue que la liste.
         let one = ws.call("task.get", json!({ "uid": uid.get() })).unwrap();
         assert_eq!(&one, t);

@@ -11,9 +11,12 @@ fn r005_dst_day_lasts_1440_minutes() {
     let a = moment("2026-03-29T00:00");
     let b = moment("2026-03-30T00:00");
     assert_eq!(a.minutes_until(b), Minutes::new(1_440));
-    assert_eq!(b.minutes() - a.minutes(), 1_440);
+    assert_eq!(b.whole_minutes().unwrap() - a.whole_minutes().unwrap(), 1_440);
     // 02:30 existe le jour du changement d'heure (heure inexistante en France).
-    assert_eq!(moment("2026-03-29T02:30").minutes() - a.minutes(), 150);
+    assert_eq!(
+        moment("2026-03-29T02:30").whole_minutes().unwrap() - a.whole_minutes().unwrap(),
+        150
+    );
 }
 
 #[test]

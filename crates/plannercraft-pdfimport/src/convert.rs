@@ -480,7 +480,10 @@ pub fn convert(plan: &ImportedPlan, options: &ConvertOptions) -> Result<Converte
             };
             compared = compared.saturating_add(1);
             // Une fin calculée à minuit (00:00) appartient au jour d'avant.
-            let computed_day = if field == "finish" && computed.time_of_day().minutes() == 0 {
+            let computed_day = if field == "finish"
+                && computed.whole_minutes().is_some()
+                && computed.time_of_day_floor().minutes() == 0
+            {
                 computed.day().checked_add_days(-1).unwrap_or(computed.day())
             } else {
                 computed.day()
@@ -636,7 +639,8 @@ fn drawn_passes(
                         .get(calendar_uid)
                         .ok()
                         .and_then(|c| c.working_between(read, s.start).ok())
-                        .map_or(0, plannercraft_core::Minutes::get);
+                        // Minutes entières (plancher) : des jours entiers en découlent.
+                        .map_or(0, plannercraft_core::Minutes::whole_minutes_floor);
                     if keys.is_empty() || late <= 0 || per_day <= 0 {
                         given_up.insert(k);
                         continue;

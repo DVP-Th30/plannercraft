@@ -726,7 +726,7 @@ fn r295_assignments_units_work_delay_contour() {
         assert_eq!(a(10).task, TaskUid::new(1));
         assert_eq!(a(10).resource, Some(ResourceUid::new(1)));
         assert_eq!(a(10).units.get(), 5_000);
-        assert_eq!(a(10).work.minutes(), Minutes::new(480));
+        assert_eq!(a(10).work.duration_exact().unwrap(), Minutes::new(480));
         // Retard : lu en Project 2013 seulement.
         let delay = match layout {
             Layout::Project2010 => 0,

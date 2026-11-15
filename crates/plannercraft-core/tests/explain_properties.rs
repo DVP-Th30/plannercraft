@@ -72,7 +72,7 @@ fn start() -> Moment {
 }
 
 fn at(minutes_after_start: i64) -> Moment {
-    Moment::from_minutes(start().minutes() + minutes_after_start).unwrap()
+    Moment::from_minutes(start().whole_minutes().unwrap() + minutes_after_start).unwrap()
 }
 
 fn generate(seed: u64) -> Project {

@@ -584,7 +584,7 @@ pub fn assigned_progress_network(seed: u64) -> Project {
             continue;
         };
         let Some(&k) = pct.get(&a.task) else { continue };
-        let aw = a.work.minutes().get() * k / 10_000;
+        let aw = a.work.whole_minutes_round() * k / 10_000;
         a.actual_work = Work::new(Minutes::new(aw)).unwrap_or(Work::ZERO);
     }
     p
@@ -623,7 +623,8 @@ fn with_progress(mut p: Project, seed: u64) -> Project {
             let pct = 1_000 * r.range(1, 9);
             t.progress.percent_complete =
                 plannercraft_core::Percent::new(pct).unwrap_or(plannercraft_core::Percent::ZERO);
-            t.progress.actual_duration = Minutes::new(t.duration.minutes().get() * pct / 10_000);
+            t.progress.actual_duration =
+                Minutes::new(t.duration.minutes().whole_minutes_floor() * pct / 10_000);
         }
     }
     p

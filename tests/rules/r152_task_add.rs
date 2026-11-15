@@ -33,7 +33,7 @@ fn r152_add_defaults_estimated_1d() {
     assert_eq!(o.created, [TaskUid::new(1)]);
     assert_eq!(o.labels.get("$a"), Some(&TaskUid::new(1)));
     let t = get(&s, 1);
-    assert_eq!(t.duration.minutes().get(), 480);
+    assert_eq!(t.duration.minutes().whole_minutes().unwrap(), 480);
     assert_eq!(t.duration.unit(), DurationUnit::Day);
     assert!(t.duration.is_estimated());
     assert!(!t.milestone);
@@ -48,7 +48,7 @@ fn r152_add_defaults_estimated_1d() {
         ]),
     );
     assert!(!get(&s, 2).duration.is_estimated());
-    assert_eq!(get(&s, 2).duration.minutes().get(), 2400);
+    assert_eq!(get(&s, 2).duration.minutes().whole_minutes().unwrap(), 2400);
     assert!(get(&s, 3).duration.is_estimated());
     // Ajout en fin : aucun ID d'avant ne change, pas de renumérotation.
     let o = apply(&mut s, json!([{ "op": "task.add", "name": "D" }]));

@@ -1257,7 +1257,8 @@ mod tests {
             .unwrap()
             .duration
             .minutes()
-            .get()
+            .whole_minutes()
+            .unwrap()
             / 480
     }
 
@@ -1463,7 +1464,7 @@ mod tests {
             .tasks
             .iter()
             .skip(7)
-            .map(|t| t.duration.minutes().get() / 480)
+            .map(|t| t.duration.minutes().whole_minutes().unwrap() / 480)
             .collect();
         assert_eq!(last, [1, 3]);
         // Sur la ligne vide : la tâche se crée par sa première cellule.

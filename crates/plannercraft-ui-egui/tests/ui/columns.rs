@@ -294,7 +294,7 @@ fn column_baseline_and_variance() {
             .map(|m| format_slack(m, &project.options.factors, &labels))
             .unwrap_or_default();
         assert_eq!(rows.text(i, Column::FinishVariance), text);
-        if expected.is_some_and(|m| m.get() != 0) {
+        if expected.is_some_and(|m| m.whole_minutes().unwrap() != 0) {
             varied += 1;
         }
         if finish.is_some() {

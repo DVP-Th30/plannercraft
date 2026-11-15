@@ -211,7 +211,7 @@ fn r140_refusals() {
 fn r140_lags_are_signed() {
     // Décalage : signe admis ; « +2j » = 960 ; « -1j » = −480 ; « - 1,5 h » = −90.
     let time = |s: &str| match parse_lag(s, &ctx()).unwrap().value {
-        LagValue::Time { minutes, unit } => (minutes.get(), unit),
+        LagValue::Time { minutes, unit } => (minutes.whole_minutes().unwrap(), unit),
         LagValue::Percent { .. } => panic!("{s} : pourcentage inattendu"),
     };
     assert_eq!(time("+2j"), (960, DurationUnit::Day));

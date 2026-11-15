@@ -213,7 +213,7 @@ pub fn write_display_lag(out: &mut String, lag: &Lag, f: &ConversionFactors, l: 
 /// Vrai si le décalage est nul (temps ou pourcentage).
 const fn lag_is_zero(lag: &Lag) -> bool {
     match lag.value {
-        LagValue::Time { minutes, .. } => minutes.get() == 0,
+        LagValue::Time { minutes, .. } => minutes.tenths() == 0,
         LagValue::Percent { percent } => percent.get() == 0,
     }
 }

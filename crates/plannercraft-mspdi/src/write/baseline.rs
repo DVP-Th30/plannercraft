@@ -13,7 +13,7 @@ use crate::schema::Parent;
 
 /// Travail ISO.
 fn work(w: Option<Work>) -> Option<String> {
-    w.map(|w| format_iso_duration(w.minutes().get()))
+    w.map(|w| format_iso_duration(w.whole_minutes_round()))
 }
 
 /// Coût en centièmes (entier, O18).
@@ -40,7 +40,11 @@ pub(crate) fn task(
                 "Number" => em.leaf(name, &n.get().to_string()),
                 "Start" => em.opt_leaf(name, b.start.map(format_datetime)),
                 "Finish" => em.opt_leaf(name, b.finish.map(format_datetime)),
-                "Duration" => em.opt_leaf(name, b.duration.map(|d| format_iso_duration(d.minutes().get()))),
+                "Duration" => em.opt_leaf(
+                    name,
+                    b.duration
+                        .map(|d| format_iso_duration(d.minutes().whole_minutes_round())),
+                ),
                 "DurationFormat" => em.opt_leaf(
                     name,
                     b.duration.map(|d| {

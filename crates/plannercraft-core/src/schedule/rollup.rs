@@ -195,8 +195,8 @@ impl Calc<'_, '_> {
             let Some(slot) = self.project.tasks.position(a.task).and_then(|p| out.get_mut(p)) else {
                 continue;
             };
-            slot.0 = slot.0.saturating_add(i128::from(a.work.minutes().get()));
-            slot.1 = slot.1.saturating_add(i128::from(a.actual_work.minutes().get()));
+            slot.0 = slot.0.saturating_add(i128::from(a.work.milli()));
+            slot.1 = slot.1.saturating_add(i128::from(a.actual_work.milli()));
         }
         out
     }
@@ -571,9 +571,10 @@ impl Calc<'_, '_> {
         // D de la tâche (R-200), et non la durée utilisée d'une manuelle ni
         // la plus longue part d'une feuille affectée (O40 : A7, Σ D = 9 840
         // sur les durées des tâches).
-        let d = i128::from(task.duration.minutes().get().max(0));
+        // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
+        let d = i128::from(task.duration.minutes().whole_minutes_round().max(0));
         let state = progress::facts(task).state;
-        let entered = i128::from(task.progress.actual_duration.get().max(0));
+        let entered = i128::from(task.progress.actual_duration.whole_minutes_round().max(0));
         let pct = match state {
             ProgressState::Complete => 10_000,
             _ => i128::from(task.progress.percent_complete.get()),
@@ -805,7 +806,8 @@ fn summary_progress(ts: &TaskSchedule, agg: &Agg, manual: Option<Minutes>) -> Op
         return None;
     }
     let dm = manual.unwrap_or(ts.duration).max(Minutes::ZERO);
-    let d = i128::from(dm.get());
+    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
+    let d = i128::from(dm.whole_minutes_round());
     let by_percent = || {
         d.checked_mul(i128::from(ts.percent_complete.get()))
             .and_then(|x| round_div(x, 10_000))
@@ -828,7 +830,7 @@ fn summary_progress(ts: &TaskSchedule, agg: &Agg, manual: Option<Minutes>) -> Op
         stop,
         resume: stop,
         actual_duration: Minutes::new(actual),
-        remaining_duration: Minutes::new(dm.get().saturating_sub(actual).max(0)),
+        remaining_duration: Minutes::new(dm.whole_minutes_round().saturating_sub(actual).max(0)),
         percent_complete: ts.percent_complete,
         percent_work_complete: ratio(agg.actual_work, agg.work),
         actual_work: work_of(agg.actual_work),
@@ -837,9 +839,9 @@ fn summary_progress(ts: &TaskSchedule, agg: &Agg, manual: Option<Minutes>) -> Op
 
 /// Travail en minutes `i128` (somme saturée) en [`Work`], borné au domaine
 /// (règle 10 : jamais de panique, un travail hors domaine est ramené à 0).
-fn work_of(minutes: i128) -> Work {
-    i64::try_from(minutes.max(0))
+fn work_of(milli: i128) -> Work {
+    i64::try_from(milli.max(0))
         .ok()
-        .and_then(|m| Work::new(Minutes::new(m)).ok())
+        .and_then(|m| Work::from_milli(m).ok())
         .unwrap_or(Work::ZERO)
 }

@@ -85,7 +85,10 @@ fn duration_json_text_minutes_agree() {
     // Exemple du cahier : {"text":"5d"} en anglais = 2 400 min en jours.
     let en = ctx(Language::En);
     let d = dur(None, None, Some("5d")).to_duration(&en).unwrap();
-    assert_eq!((d.minutes().get(), d.unit()), (2_400, DurationUnit::Day));
+    assert_eq!(
+        (d.minutes().whole_minutes().unwrap(), d.unit()),
+        (2_400, DurationUnit::Day)
+    );
     assert!(!d.is_estimated() && d.basis() == TimeBasis::Working);
     // Le français se lit aussi dans un lot anglais (R-140).
     assert_eq!(dur(None, None, Some("5j")).to_duration(&en).unwrap(), d);
@@ -103,7 +106,10 @@ fn duration_json_text_minutes_agree() {
     let w = dur(Some(2_400), Some(DurationUnitJson::Week), None)
         .to_duration(&en)
         .unwrap();
-    assert_eq!((w.minutes().get(), w.unit()), (2_400, DurationUnit::Week));
+    assert_eq!(
+        (w.minutes().whole_minutes().unwrap(), w.unit()),
+        (2_400, DurationUnit::Week)
+    );
     // Drapeaux : écoulée, estimée.
     let e = DurationJson {
         elapsed: Some(true),

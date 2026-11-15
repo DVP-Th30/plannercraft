@@ -486,12 +486,12 @@ fn compare_fields(kind: CaseKind, r: &RecordedTask, ts: &TaskSchedule) -> (Vec<F
     for (field, rec, comp) in slacks {
         if let Some(rec) = rec {
             compared.push(field);
-            let comp_tenths = comp.get().checked_mul(10);
+            let comp_tenths = Some(comp.tenths());
             if comp_tenths != Some(rec.0) {
                 divergences.push(Divergence {
                     field,
                     recorded: tenths_text(rec),
-                    computed: format!("{} min", comp.get()),
+                    computed: format!("{} min", comp.whole_minutes_floor()),
                     delta_minutes: comp_tenths.and_then(|c| c.checked_sub(rec.0)).map(|d| d / 10),
                 });
             }
@@ -515,9 +515,12 @@ fn compare_fields(kind: CaseKind, r: &RecordedTask, ts: &TaskSchedule) -> (Vec<F
         if rec != ts.duration {
             divergences.push(Divergence {
                 field: Field::Duration,
-                recorded: format!("{} min", rec.get()),
-                computed: format!("{} min", ts.duration.get()),
-                delta_minutes: ts.duration.get().checked_sub(rec.get()),
+                recorded: format!("{} min", rec.whole_minutes_floor()),
+                computed: format!("{} min", ts.duration.whole_minutes_floor()),
+                delta_minutes: ts
+                    .duration
+                    .whole_minutes_floor()
+                    .checked_sub(rec.whole_minutes_floor()),
             });
         }
     }
@@ -529,7 +532,7 @@ fn moment_divergence(field: Field, rec: Moment, comp: Moment) -> Divergence {
         field,
         recorded: rec.to_string(),
         computed: comp.to_string(),
-        delta_minutes: comp.minutes().checked_sub(rec.minutes()),
+        delta_minutes: comp.minutes_floor().checked_sub(rec.minutes_floor()),
     }
 }
 

@@ -101,7 +101,7 @@ fn r190_s43_two_more_resources() {
         64 * HOUR,
         Recalculated::Duration,
     );
-    assert!(four.parts.iter().all(|p| p.work.minutes().get() == 960));
+    assert!(four.parts.iter().all(|p| p.work.whole_minutes().unwrap() == 960));
 }
 
 #[test]

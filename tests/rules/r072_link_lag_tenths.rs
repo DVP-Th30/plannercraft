@@ -42,7 +42,9 @@ fn lags(
         .predecessors
         .iter()
         .filter_map(|l| match l.lag.value {
-            plannercraft_core::LagValue::Time { minutes, unit } => Some((l.lag.basis, minutes.get(), unit)),
+            plannercraft_core::LagValue::Time { minutes, unit } => {
+                Some((l.lag.basis, minutes.whole_minutes().unwrap(), unit))
+            }
             plannercraft_core::LagValue::Percent { .. } => None,
         })
         .collect();

@@ -251,14 +251,14 @@ pub(super) fn balance_of(
         })
         .collect();
     parts.sort_by_key(|p| p.uid);
+    // Somme exacte en millièmes de minute.
     let mut total: i64 = 0;
     for p in &parts {
         total = total
-            .checked_add(p.work.minutes().get())
+            .checked_add(p.work.milli())
             .ok_or_else(|| invalid("work", "travail total hors des bornes"))?;
     }
-    let work =
-        Work::new(Minutes::new(total)).map_err(|_| invalid("work", "travail total hors des bornes"))?;
+    let work = Work::from_milli(total).map_err(|_| invalid("work", "travail total hors des bornes"))?;
     Ok(Balance {
         task,
         side: TaskSide {
@@ -324,7 +324,8 @@ fn summary_duration(ctx: &Ctx<'_>, task: TaskUid, stored: Minutes) -> Minutes {
 /// Travail par défaut d'une affectation de récapitulative : durée calculée
 /// × unités (R-170, R-179, R-196 ; hypothèse).
 fn summary_work(duration: Minutes, units: Units) -> Result<Work, CommandError> {
-    let minutes = i128::from(duration.get())
+    // Lot B1 : en minutes entières (R-001).
+    let minutes = i128::from(duration.whole_minutes_round())
         .checked_mul(i128::from(units.get()))
         .and_then(|n| round_div(n, UNIT_SCALE))
         .ok_or_else(|| invalid("units", "travail hors des bornes"))?;

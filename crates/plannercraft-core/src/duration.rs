@@ -11,28 +11,77 @@ use crate::error::DurationError;
 use crate::fixed::{Decimal, round_div};
 use crate::quantity::SignedPercent;
 
-/// Quantité de minutes, signée (durée, écart, décalage) ; entier JSON.
+/// Dixièmes de minute par minute (ADR-0039).
+pub const TENTHS_PER_MINUTE: i64 = 10;
+
+/// Quantité de temps signée (durée, écart, décalage, marge), **en dixièmes
+/// de minute** depuis l'ADR-0039 (comme MS Project).
+///
+/// Le nom `Minutes` est une dette assumée (ADR-0039) : les constructeurs
+/// prennent des minutes ([`Minutes::new`] : 480 = 480 minutes) pour que les
+/// tests restent lisibles, la valeur exacte se lit en dixièmes
+/// ([`Minutes::tenths`]), et tout accès qui rend des minutes entières dit sa
+/// règle dans son nom ([`Minutes::whole_minutes`], exact ou `None` ;
+/// [`Minutes::whole_minutes_floor`] ; [`Minutes::whole_minutes_round`]).
+/// En JSON : un entier de minutes (lot B1 ; la décimale arrive en B2).
 ///
 /// Pas d'opérateurs `+`/`-` : ils devraient paniquer ou saturer sans le dire
 /// (règle 10). Les opérations passent par `checked_*`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Minutes(i64);
 
 impl Minutes {
     /// Zéro minute.
     pub const ZERO: Self = Self(0);
 
-    /// Quantité de minutes.
+    /// Quantité de `v` minutes entières (stockée en dixièmes ; saturée aux
+    /// bornes de `i64`, très au-delà de tout domaine de durée).
     #[must_use]
     pub const fn new(v: i64) -> Self {
-        Self(v)
+        Self(v.saturating_mul(TENTHS_PER_MINUTE))
     }
 
-    /// Valeur en minutes.
+    /// Quantité de `t` dixièmes de minute.
     #[must_use]
-    pub const fn get(self) -> i64 {
+    pub const fn from_tenths(t: i64) -> Self {
+        Self(t)
+    }
+
+    /// Valeur exacte en dixièmes de minute.
+    #[must_use]
+    pub const fn tenths(self) -> i64 {
         self.0
+    }
+
+    /// Minutes entières si la valeur en est une, sinon `None`.
+    #[must_use]
+    pub const fn whole_minutes(self) -> Option<i64> {
+        if self.0 % TENTHS_PER_MINUTE == 0 {
+            Some(self.0 / TENTHS_PER_MINUTE)
+        } else {
+            None
+        }
+    }
+
+    /// Minutes entières, partie fractionnaire tronquée vers −∞ (plancher).
+    #[must_use]
+    pub const fn whole_minutes_floor(self) -> i64 {
+        self.0.div_euclid(TENTHS_PER_MINUTE)
+    }
+
+    /// Minutes entières arrondies au plus proche, la moitié loin de zéro
+    /// (R-001).
+    #[must_use]
+    pub fn whole_minutes_round(self) -> i64 {
+        round_div(i128::from(self.0), i128::from(TENTHS_PER_MINUTE))
+            .unwrap_or_else(|| self.whole_minutes_floor())
+    }
+
+    /// Valeur arrondie à la minute entière (R-001), en `Minutes`. Sert aux
+    /// calculs qui arrondissaient à la minute avant l'ADR-0039 (lot B1).
+    #[must_use]
+    pub fn round_to_minute(self) -> Self {
+        Self::new(self.whole_minutes_round())
     }
 
     /// Somme, `None` en cas de débordement.
@@ -57,6 +106,25 @@ impl Minutes {
     #[must_use]
     pub const fn is_negative(self) -> bool {
         self.0 < 0
+    }
+}
+
+impl Serialize for Minutes {
+    /// Entier de minutes (lot B1 : les valeurs sont toujours entières ; une
+    /// fraction, qui ne devrait pas survenir, est arrondie par R-001 — le lot
+    /// B2 écrit la décimale).
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_i64(self.whole_minutes().unwrap_or_else(|| self.whole_minutes_round()))
+    }
+}
+
+impl<'de> Deserialize<'de> for Minutes {
+    /// Entier de minutes.
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = i64::deserialize(d)?;
+        v.checked_mul(TENTHS_PER_MINUTE)
+            .map(Self)
+            .ok_or_else(|| serde::de::Error::custom("minutes hors des bornes"))
     }
 }
 
@@ -194,7 +262,7 @@ impl ConversionFactors {
                 DurationUnit::Month => ELAPSED_MONTH,
             },
         };
-        Minutes(m)
+        Minutes::new(m)
     }
 
     /// Saisie décimale → minutes, arrondie par R-001. Un négatif est admis
@@ -209,11 +277,14 @@ impl ConversionFactors {
         unit: DurationUnit,
         basis: TimeBasis,
     ) -> Result<Minutes, DurationError> {
-        let factor = self.minutes_per_unit(unit, basis).get();
+        // Lot B1 : arrondi à la minute (R-001), comme avant l'ADR-0039.
+        let factor = self.minutes_per_unit(unit, basis).whole_minutes_floor();
         value
             .scale_to_integer(factor)
-            .map(Minutes)
-            .map_err(|_| DurationError::Overflow)
+            .ok()
+            .and_then(|m| m.checked_mul(TENTHS_PER_MINUTE))
+            .map(Minutes::from_tenths)
+            .ok_or(DurationError::Overflow)
     }
 
     /// Minutes → valeur dans l'unité, à 2 décimales (R-001, R-009), en
@@ -229,7 +300,8 @@ impl ConversionFactors {
         unit: DurationUnit,
         basis: TimeBasis,
     ) -> Result<Decimal, DurationError> {
-        let factor = self.minutes_per_unit(unit, basis).get();
+        // Dixièmes × 100 ÷ (dixièmes par unité) : centièmes d'unité.
+        let factor = self.minutes_per_unit(unit, basis).tenths();
         let num = i128::from(m.0).checked_mul(100).ok_or(DurationError::Overflow)?;
         let hundredths = round_div(num, i128::from(factor)).ok_or(DurationError::Overflow)?;
         Decimal::new(hundredths, 2)
@@ -281,6 +353,10 @@ impl TryFrom<DurationRepr> for Duration {
 impl Duration {
     /// Durée maximale : l'étendue du domaine des dates (87 308 640 min).
     pub const MAX_MINUTES: i64 = 87_308_640;
+    /// Durée maximale en dixièmes de minute.
+    pub const MAX_TENTHS: i64 = Self::MAX_MINUTES * TENTHS_PER_MINUTE;
+    /// Durée maximale.
+    pub const MAX: Minutes = Minutes::from_tenths(Self::MAX_TENTHS);
 
     /// Durée de tâche (R-008).
     ///
@@ -297,7 +373,7 @@ impl Duration {
         if minutes.0 < 0 {
             return Err(DurationError::Negative);
         }
-        if minutes.0 > Self::MAX_MINUTES {
+        if minutes.0 > Self::MAX_TENTHS {
             return Err(DurationError::OutOfRange);
         }
         Ok(Self {
@@ -350,50 +426,130 @@ impl Duration {
     }
 }
 
-/// Travail : minutes >= 0, au plus 1 666 666 666 h = 99 999 999 960 min
-/// (S11). Distinct de [`Duration`] ; entier JSON.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "i64", into = "i64")]
-pub struct Work(Minutes);
+/// Millièmes de minute par minute (travail, ADR-0039).
+pub const MILLI_PER_MINUTE: i64 = 1_000;
+/// Millièmes de minute par dixième de minute.
+const MILLI_PER_TENTH: i64 = 100;
 
-impl TryFrom<i64> for Work {
-    type Error = DurationError;
-    fn try_from(v: i64) -> Result<Self, Self::Error> {
-        Self::new(Minutes(v))
+/// Travail : >= 0, au plus 1 666 666 666 h = 99 999 999 960 min (S11),
+/// **en millièmes de minute** depuis l'ADR-0039 (l'échelle des `.mpp`).
+/// Distinct de [`Duration`] ; entier JSON de minutes (lot B1).
+///
+/// Toute conversion vers une durée dit sa règle dans son nom
+/// ([`Work::duration_exact`], [`Work::duration_round`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Work(i64);
+
+impl Serialize for Work {
+    /// Entier de minutes (lot B1 ; une fraction, qui ne devrait pas
+    /// survenir, est arrondie par R-001 — le lot B2 écrit les décimales).
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_i64(self.whole_minutes().unwrap_or_else(|| self.whole_minutes_round()))
     }
 }
 
-impl From<Work> for i64 {
-    fn from(w: Work) -> Self {
-        w.0.0
+impl<'de> Deserialize<'de> for Work {
+    /// Entier de minutes, validé (R-008).
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = i64::deserialize(d)?;
+        Self::from_whole_minutes(v).map_err(serde::de::Error::custom)
     }
 }
 
 impl Work {
     /// Aucun travail.
-    pub const ZERO: Self = Self(Minutes::ZERO);
+    pub const ZERO: Self = Self(0);
     /// Travail maximal en minutes (S11).
     pub const MAX_MINUTES: i64 = 99_999_999_960;
+    /// Travail maximal en millièmes de minute.
+    pub const MAX_MILLI: i64 = Self::MAX_MINUTES * MILLI_PER_MINUTE;
 
-    /// Travail en minutes (R-008).
+    /// Travail égal à une durée (exact : un dixième vaut 100 millièmes,
+    /// R-008).
     ///
     /// # Errors
     ///
     /// [`DurationError::Negative`] ou [`DurationError::OutOfRange`].
     pub const fn new(m: Minutes) -> Result<Self, DurationError> {
-        if m.0 < 0 {
-            return Err(DurationError::Negative);
+        match m.0.checked_mul(MILLI_PER_TENTH) {
+            Some(v) => Self::from_milli(v),
+            None => Err(DurationError::OutOfRange),
         }
-        if m.0 > Self::MAX_MINUTES {
-            return Err(DurationError::OutOfRange);
-        }
-        Ok(Self(m))
     }
 
-    /// Minutes de travail.
+    /// Travail de `v` minutes entières.
+    ///
+    /// # Errors
+    ///
+    /// [`DurationError::Negative`] ou [`DurationError::OutOfRange`].
+    pub const fn from_whole_minutes(v: i64) -> Result<Self, DurationError> {
+        match v.checked_mul(MILLI_PER_MINUTE) {
+            Some(m) => Self::from_milli(m),
+            None => Err(DurationError::OutOfRange),
+        }
+    }
+
+    /// Travail de `v` millièmes de minute.
+    ///
+    /// # Errors
+    ///
+    /// [`DurationError::Negative`] ou [`DurationError::OutOfRange`].
+    pub const fn from_milli(v: i64) -> Result<Self, DurationError> {
+        if v < 0 {
+            return Err(DurationError::Negative);
+        }
+        if v > Self::MAX_MILLI {
+            return Err(DurationError::OutOfRange);
+        }
+        Ok(Self(v))
+    }
+
+    /// Valeur exacte en millièmes de minute.
     #[must_use]
-    pub const fn minutes(self) -> Minutes {
+    pub const fn milli(self) -> i64 {
         self.0
+    }
+
+    /// Le travail comme durée, s'il tombe sur un dixième de minute, sinon
+    /// `None`.
+    #[must_use]
+    pub const fn duration_exact(self) -> Option<Minutes> {
+        if self.0 % MILLI_PER_TENTH == 0 {
+            Some(Minutes::from_tenths(self.0 / MILLI_PER_TENTH))
+        } else {
+            None
+        }
+    }
+
+    /// Le travail comme durée, arrondi au dixième de minute (R-001).
+    #[must_use]
+    pub fn duration_round(self) -> Minutes {
+        Minutes::from_tenths(
+            round_div(i128::from(self.0), i128::from(MILLI_PER_TENTH)).unwrap_or(self.0 / MILLI_PER_TENTH),
+        )
+    }
+
+    /// Minutes entières si le travail en est un nombre entier, sinon `None`.
+    #[must_use]
+    pub const fn whole_minutes(self) -> Option<i64> {
+        if self.0 % MILLI_PER_MINUTE == 0 {
+            Some(self.0 / MILLI_PER_MINUTE)
+        } else {
+            None
+        }
+    }
+
+    /// Minutes entières arrondies au plus proche, moitié loin de zéro
+    /// (R-001).
+    #[must_use]
+    pub fn whole_minutes_round(self) -> i64 {
+        round_div(i128::from(self.0), i128::from(MILLI_PER_MINUTE)).unwrap_or(self.0 / MILLI_PER_MINUTE)
+    }
+
+    /// Somme, `None` en cas de débordement ou hors des bornes.
+    #[must_use]
+    pub fn checked_add(self, o: Self) -> Option<Self> {
+        self.0.checked_add(o.0).and_then(|v| Self::from_milli(v).ok())
     }
 }
 
@@ -458,7 +614,7 @@ impl Lag {
     /// [`DurationError::OutOfRange`] si |minutes| > [`Duration::MAX_MINUTES`].
     pub const fn new(basis: TimeBasis, value: LagValue) -> Result<Self, DurationError> {
         if let LagValue::Time { minutes, .. } = value
-            && (minutes.0 > Duration::MAX_MINUTES || minutes.0 < -Duration::MAX_MINUTES)
+            && (minutes.0 > Duration::MAX_TENTHS || minutes.0 < -Duration::MAX_TENTHS)
         {
             return Err(DurationError::OutOfRange);
         }
@@ -472,7 +628,8 @@ impl Default for Lag {
     }
 }
 
-/// R-010 : minutes = `round_div(durée du prédécesseur × pct, 10 000)`.
+/// R-010 : minutes = `round_div(durée du prédécesseur × pct, 10 000)`,
+/// arrondi à la minute (lot B1, comme avant l'ADR-0039).
 ///
 /// # Errors
 ///
@@ -481,7 +638,11 @@ pub fn percent_of(duration: Minutes, pct: SignedPercent) -> Result<Minutes, Dura
     let num = i128::from(duration.0)
         .checked_mul(i128::from(pct.get()))
         .ok_or(DurationError::Overflow)?;
-    round_div(num, 10_000).map(Minutes).ok_or(DurationError::Overflow)
+    // Dixièmes × pct ÷ (10 000 × 10) : minutes arrondies par R-001.
+    round_div(num, 100_000)
+        .and_then(|m| m.checked_mul(TENTHS_PER_MINUTE))
+        .map(Minutes)
+        .ok_or(DurationError::Overflow)
 }
 
 #[cfg(test)]
@@ -532,16 +693,51 @@ mod tests {
     #[test]
     fn factors_per_unit() {
         let f = ConversionFactors::new(450, 2_250, 21).unwrap();
-        assert_eq!(f.minutes_per_unit(DurationUnit::Minute, W).get(), 1);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Hour, W).get(), 60);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Day, W).get(), 450);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Week, W).get(), 2_250);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Month, W).get(), 9_450);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Day, E).get(), 1_440);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Week, E).get(), 10_080);
-        assert_eq!(f.minutes_per_unit(DurationUnit::Month, E).get(), 43_200);
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Minute, W)
+                .whole_minutes()
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Hour, W).whole_minutes().unwrap(),
+            60
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Day, W).whole_minutes().unwrap(),
+            450
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Week, W).whole_minutes().unwrap(),
+            2_250
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Month, W)
+                .whole_minutes()
+                .unwrap(),
+            9_450
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Day, E).whole_minutes().unwrap(),
+            1_440
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Week, E).whole_minutes().unwrap(),
+            10_080
+        );
+        assert_eq!(
+            f.minutes_per_unit(DurationUnit::Month, E)
+                .whole_minutes()
+                .unwrap(),
+            43_200
+        );
         let max = ConversionFactors::new(1_440, 10_080, 31).unwrap();
-        assert_eq!(max.minutes_per_unit(DurationUnit::Month, W).get(), 44_640);
+        assert_eq!(
+            max.minutes_per_unit(DurationUnit::Month, W)
+                .whole_minutes()
+                .unwrap(),
+            44_640
+        );
     }
 
     #[test]
@@ -591,7 +787,7 @@ mod tests {
         let d = Duration::new(Minutes::new(87_308_640), DurationUnit::Week, E, true).unwrap();
         assert_eq!(
             (
-                d.minutes().get(),
+                d.minutes().whole_minutes().unwrap(),
                 d.unit(),
                 d.basis(),
                 d.is_estimated(),
@@ -611,7 +807,10 @@ mod tests {
             Err(DurationError::OutOfRange)
         );
         assert_eq!(
-            Work::new(Minutes::new(99_999_999_960)).unwrap().minutes().get(),
+            Work::new(Minutes::new(99_999_999_960))
+                .unwrap()
+                .whole_minutes()
+                .unwrap(),
             99_999_999_960
         );
         assert_eq!(

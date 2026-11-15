@@ -641,13 +641,14 @@ pub fn signed_minutes(minutes: Minutes, unit: DurationUnit, ctx: &TextContext) -
     let parsed = abs.and_then(|a| Duration::new(a, unit, TimeBasis::Working, false).ok());
     let Some(d) = parsed else {
         return DurationJson {
-            minutes: Some(minutes.get()),
+            // Lot B1 : minutes entières (R-001).
+            minutes: Some(minutes.whole_minutes_round()),
             unit: Some(unit.into()),
             ..DurationJson::default()
         };
     };
     let mut out = DurationJson::from_duration(&d, ctx);
-    out.minutes = Some(minutes.get());
+    out.minutes = Some(minutes.whole_minutes_round());
     out.elapsed = None;
     out.estimated = None;
     if negative {
@@ -686,9 +687,10 @@ pub fn quantity_out(u: Units, ctx: &TextContext) -> UnitsJson {
 /// reste 100 % (R-196). Saturée au plafond des unités.
 #[must_use]
 pub fn material_quantity(w: Work) -> Units {
-    let q = i128::from(w.minutes().get())
+    // Travail en millièmes de minute : W × 10 000 ÷ (60 × 1 000).
+    let q = i128::from(w.milli())
         .checked_mul(10_000)
-        .and_then(|n| round_div(n, 60))
+        .and_then(|n| round_div(n, 60_000))
         .unwrap_or(i64::MAX)
         .clamp(Units::MIN, Units::MAX);
     Units::new(q).unwrap_or(Units::ZERO)
@@ -697,7 +699,8 @@ pub fn material_quantity(w: Work) -> Units {
 /// Travail de sortie, en heures (J5).
 #[must_use]
 pub fn work_out(w: Work, ctx: &TextContext) -> DurationJson {
-    signed_minutes(w.minutes(), DurationUnit::Hour, ctx)
+    // Travail arrondi au dixième de minute (R-001) pour l'affichage.
+    signed_minutes(w.duration_round(), DurationUnit::Hour, ctx)
 }
 
 /// Type de ressource en JSON.
@@ -955,13 +958,10 @@ impl<'a> ViewCtx<'a> {
         let unit = task.duration.unit();
         let leaf = ts.role != TaskRole::Summary;
         let actual_work = task.progress.actual_work;
-        let remaining_work = Minutes::new(
-            ts.work
-                .minutes()
-                .get()
-                .saturating_sub(actual_work.minutes().get())
-                .max(0),
-        );
+        let remaining_work =
+            plannercraft_core::Work::from_milli(ts.work.milli().saturating_sub(actual_work.milli()).max(0))
+                .unwrap_or(plannercraft_core::Work::ZERO)
+                .duration_round();
         Some(ProgressDetailOut {
             state: g.state,
             percent_complete: percent_out(g.percent_complete, &self.text),
@@ -1225,7 +1225,7 @@ fn constraint_out(task: &Task) -> Option<ConstraintOut> {
 /// Décalage d'un lien, sauf s'il est nul.
 fn lag_out(l: &plannercraft_core::Lag, ctx: &TextContext) -> Option<LagJson> {
     let zero = match l.value {
-        LagValue::Time { minutes, .. } => minutes.get() == 0,
+        LagValue::Time { minutes, .. } => minutes.tenths() == 0,
         LagValue::Percent { percent } => percent.get() == 0,
     };
     (!zero).then(|| LagJson::from_lag(l, ctx))

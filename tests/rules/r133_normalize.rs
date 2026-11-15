@@ -89,7 +89,7 @@ fn r133_summary_duration_strings_period_and_extras() {
     let norm = normalize(&proj, &options);
     let t = |uid: u32| norm.tasks.get(TaskUid::new(uid)).unwrap();
     // Récapitulative automatique : durée calculée, minutes à 0 (R-071).
-    assert_eq!(t(1).duration.minutes().get(), 0);
+    assert_eq!(t(1).duration.minutes().whole_minutes().unwrap(), 0);
     assert_eq!(t(1).notes, "a\u{FFFD}b");
     assert_eq!(t(2).name.chars().count(), 512);
     // Origine étrangère retirée ; ancre sur `Duration` (M?, absent selon le

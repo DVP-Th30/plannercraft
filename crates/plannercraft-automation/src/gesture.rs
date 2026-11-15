@@ -259,7 +259,8 @@ pub fn bar_resize(
     let cal = measure(s, set, task)?;
     let minutes = resized(cal.scale(task), t.start, target)?;
     let duration = DurationJson {
-        minutes: Some(minutes.get()),
+        // Lot B1 : minutes entières (R-001).
+        minutes: Some(minutes.whole_minutes_round()),
         unit: Some(task.duration.unit().into()),
         text: None,
         elapsed: Some(task.duration.basis() == TimeBasis::Elapsed),
@@ -285,11 +286,12 @@ fn dragged_percent(
     let work = scale
         .between(t.start, point)
         .map_err(|_| GestureError::Overflow)?;
-    let d = i128::from(t.duration.get());
+    // Rapport travail ÷ D : indépendant de l'unité (dixièmes).
+    let d = i128::from(t.duration.tenths());
     if d <= 0 {
         return Ok(Percent::ZERO);
     }
-    let whole = i128::from(work.get())
+    let whole = i128::from(work.tenths())
         .saturating_mul(100)
         .checked_div(d)
         .unwrap_or(0);
@@ -304,7 +306,7 @@ fn progress_leaf(s: &Session, uid: TaskUid) -> Result<(&Task, &TaskSchedule), Ge
     if t.role == TaskRole::Summary {
         return Err(GestureError::NotDraggable(uid, NotDraggable::Summary));
     }
-    if task.milestone || t.duration.get() <= 0 {
+    if task.milestone || t.duration <= Minutes::ZERO {
         return Err(GestureError::NotDraggable(uid, NotDraggable::Milestone));
     }
     Ok((task, t))
@@ -320,7 +322,8 @@ pub(crate) fn stored_percent(task: &Task, p: Percent) -> Percent {
     if p == Percent::ZERO {
         return p;
     }
-    let d = task.duration.minutes().get();
+    // Lot B1 : en minutes entières (R-001).
+    let d = task.duration.minutes().whole_minutes_round();
     if d <= 0 || p == Percent::FULL {
         return Percent::FULL;
     }

@@ -360,8 +360,8 @@ fn tracking_lost(t: &Task, summary: bool) -> bool {
         || p.physical_percent_complete.get() > 0
         || p.actual_start.is_some()
         || p.actual_finish.is_some()
-        || p.actual_duration.get() > 0
-        || p.actual_work.minutes().get() > 0;
+        || p.actual_duration > plannercraft_core::Minutes::ZERO
+        || p.actual_work != plannercraft_core::Work::ZERO;
     (progress && !summary)
         || !t.baselines.is_empty()
         || t.calendar.is_some()
@@ -458,7 +458,8 @@ fn capture_positions(
             let task = *index.get(&a.task)?;
             let r = project.resources.get(a.resource?)?;
             let units = match r.kind {
-                ResourceKind::Material { .. } => material_quantity(a.work.minutes().get()),
+                // Lot B1 : quantité tirée du travail en minutes entières (R-001).
+                ResourceKind::Material { .. } => material_quantity(a.work.whole_minutes_round()),
                 ResourceKind::Work | ResourceKind::Cost => a.units,
             };
             Some(ClipAssignment {
@@ -641,7 +642,8 @@ const fn task_update(r: TaskRef) -> TaskUpdate {
 /// l'identique).
 fn duration_json(d: &Duration) -> DurationJson {
     DurationJson {
-        minutes: Some(d.minutes().get()),
+        // Lot B1 : minutes entières (R-001) ; la décimale arrive en B2.
+        minutes: Some(d.minutes().whole_minutes_round()),
         unit: Some(d.unit().into()),
         text: None,
         elapsed: Some(d.basis() == TimeBasis::Elapsed),
@@ -652,7 +654,7 @@ fn duration_json(d: &Duration) -> DurationJson {
 /// Décalage en JSON, sans texte.
 fn lag_json(l: &Lag) -> LagJson {
     let (minutes, percent, unit) = match l.value {
-        LagValue::Time { minutes, unit } => (Some(minutes.get()), None, Some(unit.into())),
+        LagValue::Time { minutes, unit } => (Some(minutes.whole_minutes_round()), None, Some(unit.into())),
         LagValue::Percent { percent } => (None, Some(percent.get()), None),
     };
     LagJson {

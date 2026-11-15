@@ -291,7 +291,7 @@ fn working_time_to_batch_order() {
     let moved = cal.exceptions().iter().find(|e| e.name == "Armistice").unwrap();
     assert_eq!(moved.period.first().to_string(), "2026-11-12");
     assert_eq!(moved.period.last().to_string(), "2026-11-12");
-    assert_eq!(moved.setting.total().get(), 240);
+    assert_eq!(moved.setting.total().whole_minutes().unwrap(), 240);
     // Plages illisibles : refus sur le champ, aucun lot.
     let mut state = WorkingTimeState::open(&s, (1, 1), TextLanguage::Fr, None);
     let draft = state.draft_mut().unwrap();

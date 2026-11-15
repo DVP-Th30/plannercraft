@@ -46,8 +46,8 @@ fn r127_percentages_are_whole_and_work_is_iso() {
     let back = reread(&out.xml).project;
     let t = back.tasks.get(TaskUid::new(1)).unwrap();
     assert_eq!(t.progress.percent_complete, Percent::new(3_300).unwrap());
-    assert_eq!(t.progress.actual_work.minutes(), Minutes::new(90));
-    assert_eq!(t.work.minutes(), Minutes::new(960));
+    assert_eq!(t.progress.actual_work.duration_exact().unwrap(), Minutes::new(90));
+    assert_eq!(t.work.duration_exact().unwrap(), Minutes::new(960));
 }
 
 #[test]

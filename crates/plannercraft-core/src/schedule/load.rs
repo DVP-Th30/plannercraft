@@ -155,12 +155,13 @@ fn work_resource(project: &Project, resource: Option<ResourceUid>) -> bool {
         .is_some_and(|r| r.kind == ResourceKind::Work)
 }
 
-/// Travail borné au domaine de [`Work`] (somme saturée, règle 10).
+/// Travail en millièmes de minute borné au domaine de [`Work`] (somme
+/// saturée, règle 10).
 fn clamp_work(v: i128) -> Work {
-    let m = v.clamp(0, i128::from(Work::MAX_MINUTES));
+    let m = v.clamp(0, i128::from(Work::MAX_MILLI));
     i64::try_from(m)
         .ok()
-        .and_then(|m| Work::new(Minutes::new(m)).ok())
+        .and_then(|m| Work::from_milli(m).ok())
         .unwrap_or(Work::ZERO)
 }
 
@@ -174,10 +175,11 @@ fn clamp_units(v: i128) -> Units {
 }
 
 /// Débit `round_div(W × 10 000, m)` (R-186) ; `None` pour `m` nul ou hors
-/// domaine.
+/// domaine. W en millièmes, m en dixièmes : W × 10 000 ÷ (m × 100).
 fn rate(work: Work, m: Minutes) -> Option<Units> {
-    let num = i128::from(work.minutes().get()).checked_mul(10_000)?;
-    Units::new(round_div(num, i128::from(m.get()))?).ok()
+    let num = i128::from(work.milli()).checked_mul(10_000)?;
+    let den = i128::from(m.tenths()).checked_mul(100)?;
+    Units::new(round_div(num, den)?).ok()
 }
 
 /// Passe de sortie : travail des tâches et des ressources (R-184, R-185),
@@ -232,7 +234,7 @@ fn effective_rates(project: &Project, scales: &Scales<'_>, out: &mut Schedule) {
         let measured = scales
             .get(a.calendar)
             .and_then(|s| s.between(a.span.start, a.span.finish).ok())
-            .filter(|m| m.get() > 0);
+            .filter(|m| *m > Minutes::ZERO);
         if let Some(u) = measured.and_then(|m| rate(a.work, m)) {
             a.effective_units = u;
         }
@@ -254,7 +256,7 @@ fn model_work(project: &Project, net: &Network<'_>) -> (Vec<i128>, BTreeMap<Reso
     let mut items: Vec<(crate::ids::TaskUid, ResourceUid, i128)> = project
         .assignments
         .iter()
-        .filter_map(|a| Some((a.task, a.resource?, i128::from(a.work.minutes().get()))))
+        .filter_map(|a| Some((a.task, a.resource?, i128::from(a.work.milli()))))
         .collect();
     items.sort_unstable_by_key(|e| e.0);
     let mut pos = positions.into_iter().peekable();
@@ -544,7 +546,7 @@ fn elementary(
         }
         // Sans énumération : la charge vaut `sum` sur toute minute ouvrée.
         if (sum > acc.peak || (sum > cap && !acc.overallocated))
-            && scale.between(lo, hi).is_ok_and(|m| m.get() > 0)
+            && scale.between(lo, hi).is_ok_and(|m| m > Minutes::ZERO)
         {
             acc.peak = acc.peak.max(sum);
             if sum > cap && !acc.overallocated {

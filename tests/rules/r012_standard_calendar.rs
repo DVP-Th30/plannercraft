@@ -18,12 +18,15 @@ fn r012_standard_week() {
         Weekday::Thursday,
         Weekday::Friday,
     ] {
-        assert_eq!(week.get(d).total().get(), 480, "{d:?}");
+        assert_eq!(week.get(d).total().whole_minutes().unwrap(), 480, "{d:?}");
     }
     assert_eq!(*week.get(Weekday::Saturday), DaySetting::NonWorking);
     assert_eq!(*week.get(Weekday::Sunday), DaySetting::NonWorking);
     // Semaine : 5 × 480 = 2 400.
-    let total: i64 = Weekday::ALL.iter().map(|d| week.get(*d).total().get()).sum();
+    let total: i64 = Weekday::ALL
+        .iter()
+        .map(|d| week.get(*d).total().whole_minutes().unwrap())
+        .sum();
     assert_eq!(total, 2_400);
 }
 

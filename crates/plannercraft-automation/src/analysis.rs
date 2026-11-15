@@ -398,9 +398,9 @@ pub fn baseline_variance(session: &Session, params: &VarianceParams) -> Result<V
         keys.push((key, pos, task, v));
     }
     keys.sort_by(|a, b| {
-        b.0.get()
+        b.0.tenths()
             .unsigned_abs()
-            .cmp(&a.0.get().unsigned_abs())
+            .cmp(&a.0.tenths().unsigned_abs())
             .then(a.1.cmp(&b.1))
     });
     let total = keys.len();

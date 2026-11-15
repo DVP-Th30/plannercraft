@@ -11,9 +11,12 @@ fn r013_24_hours_week() {
     };
     // Chaque jour : 1 440 ; semaine : 7 × 1 440 = 10 080.
     for d in Weekday::ALL {
-        assert_eq!(week.get(d).total().get(), 1_440, "{d:?}");
+        assert_eq!(week.get(d).total().whole_minutes().unwrap(), 1_440, "{d:?}");
     }
-    let total: i64 = Weekday::ALL.iter().map(|d| week.get(*d).total().get()).sum();
+    let total: i64 = Weekday::ALL
+        .iter()
+        .map(|d| week.get(*d).total().whole_minutes().unwrap())
+        .sum();
     assert_eq!(total, 10_080);
 }
 

@@ -245,7 +245,7 @@ fn task(t: &mut Task, summary: bool, options: &WriteOptions) {
 /// dans le modèle : il quitte les `Extras` dans les deux cas.
 fn leveling(delay: &mut Option<LevelingDelay>, extras: &mut Extras, default_elapsed: bool) {
     *delay = delay.and_then(|d| {
-        let tenths = d.minutes.get().checked_mul(10)?;
+        let tenths = d.minutes.tenths();
         delay_value(
             tenths,
             Some(crate::codes::leveling_delay_format_code(d.unit, d.elapsed)),

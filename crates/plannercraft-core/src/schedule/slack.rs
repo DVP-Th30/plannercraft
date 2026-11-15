@@ -472,7 +472,7 @@ impl Calc<'_, '_> {
                 continue;
             };
             let after = |a: crate::time::Moment, b: crate::time::Moment| {
-                scale.between(a, b).is_ok_and(|m| m.get() > 0)
+                scale.between(a, b).is_ok_and(|m| m > Minutes::ZERO)
             };
             // R-102 : échéance dépassée, jugée sur la fin planifiée, en temps
             // ouvré de l'échelle.

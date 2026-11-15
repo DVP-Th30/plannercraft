@@ -112,7 +112,7 @@ impl DayHours {
     /// Minutes ouvrées du jour (au plus 1 440).
     #[must_use]
     pub fn total(&self) -> Minutes {
-        Minutes::new(self.0.iter().map(|r| r.len().get()).sum())
+        Minutes::from_tenths(self.0.iter().map(|r| r.len().tenths()).sum())
     }
 }
 

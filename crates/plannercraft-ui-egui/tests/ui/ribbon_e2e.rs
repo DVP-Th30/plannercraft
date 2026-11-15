@@ -176,7 +176,12 @@ fn summary(p: &Project) -> Vec<SummaryRow> {
         .map(|(i, t)| {
             let level = t.outline_level.get();
             let parent = levels.get(i + 1).is_some_and(|next| *next > level);
-            let own = (!parent).then(|| (t.duration.minutes().get(), t.progress.percent_complete.get()));
+            let own = (!parent).then(|| {
+                (
+                    t.duration.minutes().whole_minutes().unwrap(),
+                    t.progress.percent_complete.get(),
+                )
+            });
             (
                 t.name.clone(),
                 level,

@@ -66,7 +66,7 @@ fn r157_zero_duration_milestone() {
         json!([{ "op": "task.update", "uid": 1, "milestone": true }]),
     );
     assert!(get(&s, 1).milestone);
-    assert_eq!(get(&s, 1).duration.minutes().get(), 960);
+    assert_eq!(get(&s, 1).duration.minutes().whole_minutes().unwrap(), 960);
     // `milestone:false` explicite l'emporte sur la durée nulle.
     apply(
         &mut s,

@@ -251,15 +251,20 @@ fn readable_leaves(plan: &ImportedPlan, project: &Project, out: &mut Deduction) 
         if duration.basis() != TimeBasis::Working || start.day() > finish.day() {
             continue;
         }
-        let minutes = duration.minutes().get();
-        let whole = minutes.checked_rem(per_day) == Some(0);
-        let on_defaults = start.time_of_day() == options.default_start_time
-            && finish.time_of_day() == options.default_finish_time;
+        // Jours entiers seulement : une fraction de minute n'en est pas un.
+        let minutes = duration.minutes().whole_minutes();
+        let whole = minutes.is_some_and(|m| m.checked_rem(per_day) == Some(0));
+        let on_defaults = start.whole_minutes().is_some()
+            && finish.whole_minutes().is_some()
+            && start.time_of_day_floor() == options.default_start_time
+            && finish.time_of_day_floor() == options.default_finish_time;
         if !whole || !on_defaults {
             out.partial_days = out.partial_days.saturating_add(1);
             continue;
         }
-        let days = minutes.checked_div(per_day).and_then(|d| usize::try_from(d).ok());
+        let days = minutes
+            .and_then(|m| m.checked_div(per_day))
+            .and_then(|d| usize::try_from(d).ok());
         if let Some(days) = days {
             raw.push((start.day(), finish.day(), days));
         }

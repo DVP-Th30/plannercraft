@@ -421,12 +421,14 @@ fn spread_with(
     mut add: impl FnMut(usize, i128),
 ) {
     let periods = bounds.len().saturating_sub(1);
-    let w = i128::from(a.work.minutes().get());
+    // Lot B1 : travail réparti en minutes entières (R-001) ; les durées en
+    // dixièmes n'entrent que par leur rapport.
+    let w = i128::from(a.work.whole_minutes_round());
     if w == 0 {
         return;
     }
     let Span { start, finish } = a.span;
-    let total = scale.between(start, finish).map_or(0, |m| i128::from(m.get()));
+    let total = scale.between(start, finish).map_or(0, |m| i128::from(m.tenths()));
     // Première période dont la fin dépasse le début du span.
     let first = bounds.partition_point(|&b| b <= start).saturating_sub(1);
     if total <= 0 {
@@ -439,7 +441,7 @@ fn spread_with(
     // Travail cumulé à l'instant `t` (borné au span).
     let cumul = |t: Moment| -> i128 {
         let t = t.clamp(start, finish);
-        let m = scale.between(start, t).map_or(0, |m| i128::from(m.get()));
+        let m = scale.between(start, t).map_or(0, |m| i128::from(m.tenths()));
         w.checked_mul(m)
             .and_then(|num| round_div(num, total))
             .map_or(0, i128::from)
@@ -474,11 +476,11 @@ fn mark(bounds: &[Moment], (from, to): (Moment, Moment), flags: &mut [bool]) {
     }
 }
 
-/// Travail borné au domaine de [`Work`].
+/// Travail en minutes entières (lot B1) borné au domaine de [`Work`].
 fn clamp_work(v: i128) -> Work {
     let m = v.clamp(0, i128::from(Work::MAX_MINUTES));
     i64::try_from(m)
         .ok()
-        .and_then(|m| Work::new(crate::duration::Minutes::new(m)).ok())
+        .and_then(|m| Work::from_whole_minutes(m).ok())
         .unwrap_or(Work::ZERO)
 }

@@ -306,7 +306,7 @@ fn r161_progress_drops_actual_timephased() {
     let a = s.project().assignments.get(AssignmentUid::new(1)).unwrap();
     let kept: Vec<&str> = a.extras.0.iter().map(|e| e.payload.as_str()).collect();
     assert_eq!(kept, [row(1).as_str(), row(4).as_str()]);
-    assert_eq!(a.actual_work.minutes(), Minutes::new(480));
+    assert_eq!(a.actual_work.duration_exact().unwrap(), Minutes::new(480));
     let o = apply(&mut s, update);
     assert!(
         !o.side_effects
