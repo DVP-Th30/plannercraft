@@ -60,6 +60,20 @@ const GUARDED_LINTS: &[&str] = &[
     "all",
 ];
 
+/// Seules levées admises hors des tests : (fichier, lint). Chacune est une
+/// frontière, justifiée dans `docs/decisions.md`, jamais un calcul.
+/// - `plannercraft-core/src/number.rs`, `disallowed_types` (ADR-0039 D5) :
+///   un nombre JSON décimal passe par le `f64` de serde, formé et relu en
+///   texte, jamais calculé (aucune `float_arithmetic`, qui reste refusée).
+const BOUNDARY_EXEMPTIONS: &[(&str, &str)] = &[("plannercraft-core/src/number.rs", "disallowed_types")];
+
+/// Vrai si `lint` est levée dans `file` par une frontière admise.
+fn exempted(file: &Path, lint: &str) -> bool {
+    BOUNDARY_EXEMPTIONS
+        .iter()
+        .any(|(suffix, allowed)| *allowed == lint && file.ends_with(suffix))
+}
+
 /// Macros qui paniquent quand leur condition est fausse.
 const ASSERT_MACROS: &[&str] = &[
     "assert",
@@ -361,7 +375,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             return;
         };
         for lint in clippy_lints(list.tokens.clone()) {
-            if GUARDED_LINTS.contains(&lint.as_str()) {
+            if GUARDED_LINTS.contains(&lint.as_str()) && !exempted(self.file, &lint) {
                 let line = attr.pound_token.span.start().line;
                 self.report(
                     line,
@@ -506,6 +520,29 @@ mod tests {
             .iter()
             .map(|finding| finding.line)
             .collect()
+    }
+
+    #[test]
+    fn boundary_exemption_is_narrow() {
+        let source = "#![allow(clippy::disallowed_types, reason = \"frontière\")]\n";
+        let at = |file: &str| {
+            scan_source(source, Path::new(file), Path::new("src"))
+                .unwrap()
+                .findings
+                .len()
+        };
+        assert_eq!(at("crates/plannercraft-core/src/number.rs"), 0);
+        assert_eq!(at("crates/plannercraft-core/src/duration.rs"), 1);
+        let other = "#![allow(clippy::float_arithmetic, reason = \"non\")]\n";
+        let found = scan_source(
+            other,
+            Path::new("crates/plannercraft-core/src/number.rs"),
+            Path::new("src"),
+        )
+        .unwrap()
+        .findings
+        .len();
+        assert_eq!(found, 1);
     }
 
     #[test]
