@@ -837,3 +837,65 @@ fn r298_comparison_classes_and_causes() {
     // Plus de plafond : tous les écarts sont listés (un par date).
     assert_eq!(cmp.gaps.len(), 8);
 }
+
+#[test]
+fn r299_kept_dates_pin_real_gap_leaves_until_none_is_left() {
+    use plannercraft_mpp::kept_dates;
+    let mut m = Mpp::new(Layout::Project2013);
+    // S récapitulative de A et B, enregistrée mer – jeu (comme ses
+    // sous-tâches) ; le moteur la place lun – mar.
+    let mut s = T::new(1, 1, "S");
+    s.duration = 9_600;
+    s.start = stamp("2026-01-07T08:00");
+    s.finish = stamp("2026-01-08T17:00");
+    // A sans lien, enregistrée le mercredi : début inexpliqué.
+    let mut a = T::new(2, 2, "A");
+    a.level = 2;
+    a.start = stamp("2026-01-07T08:00");
+    a.finish = stamp("2026-01-07T17:00");
+    // B FS de A, enregistrée le jeudi : héritée de A.
+    let mut b = T::new(3, 3, "B");
+    b.level = 2;
+    b.start = stamp("2026-01-08T08:00");
+    b.finish = stamp("2026-01-08T17:00");
+    // C : une minute d'écart, arrondi, jamais gardée.
+    let mut c = T::new(4, 4, "C");
+    c.start = stamp("2026-01-05T08:01");
+    c.finish = stamp("2026-01-05T17:01");
+    // D FS de A, enregistrée le mardi : identique avant, poussée au jeudi
+    // quand A garde son mercredi, gardée à la seconde passe.
+    let mut d = T::new(5, 5, "D");
+    d.start = stamp("2026-01-06T08:00");
+    d.finish = stamp("2026-01-06T17:00");
+    m.tasks.extend([s, a, b, c, d]);
+    m.links = vec![(2, 3, 1, 0, 7), (2, 5, 1, 0, 7)];
+    let doc = read(&m.bytes(), &common::options()).unwrap();
+    let before = compare(&doc.project, &schedule(&doc.project), &doc.recorded);
+    assert_eq!(
+        (before.tasks_identical, before.tasks_rounding, before.tasks_off),
+        (1, 1, 3)
+    );
+    let kept = kept_dates(&doc.project, &doc.recorded);
+    let uids: Vec<u32> = kept.iter().map(|k| k.uid.get()).collect();
+    assert_eq!(uids, [2, 3, 5]);
+    assert_eq!(kept[0].start, "2026-01-07T08:00".parse().unwrap());
+    assert_eq!(kept[0].finish, "2026-01-07T17:00".parse().unwrap());
+    assert_eq!(kept[2].start, "2026-01-06T08:00".parse().unwrap());
+    // Posées en planification manuelle : plus aucun écart réel ;
+    // l'arrondi de C reste, la récapitulative suit ses sous-tâches.
+    let mut project = doc.project.clone();
+    for k in &kept {
+        project.tasks.get_mut(k.uid).unwrap().mode = SchedulingMode::Manual {
+            start: Some(k.start),
+            finish: Some(k.finish),
+            duration: None,
+        };
+    }
+    let after = compare(&project, &schedule(&project), &doc.recorded);
+    assert_eq!(
+        (after.tasks_identical, after.tasks_rounding, after.tasks_off),
+        (4, 1, 0)
+    );
+    // Rien à garder : liste vide.
+    assert_eq!(kept_dates(&project, &doc.recorded).len(), 0);
+}

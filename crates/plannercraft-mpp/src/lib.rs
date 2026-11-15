@@ -26,6 +26,7 @@ pub mod cfb;
 pub mod compare;
 pub mod detect;
 pub mod diag;
+pub mod keep;
 pub mod layout;
 pub mod project;
 pub mod report;
@@ -43,6 +44,7 @@ use serde::Serialize;
 pub use compare::{Comparison, DateGap, compare};
 pub use detect::{FileFormat, Layout};
 pub use diag::{MppCode, MppDiagnostic};
+pub use keep::{KeptDates, kept_dates};
 
 /// Bornes de la lecture (entrée hostile, règle 10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
