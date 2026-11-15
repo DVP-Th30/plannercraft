@@ -202,9 +202,10 @@ pub fn window_id() -> egui::Id {
     egui::Id::unique("plannercraft.mpp-differences")
 }
 
-/// Largeurs minimales des colonnes (points). N°, Nom et « Fin calculée »
+/// Largeurs minimales des colonnes (points) ; les quatre dates tiennent
+/// avec l'heure (« jeu 07/08/25 08:00 »). N°, Nom et « Fin calculée »
 /// : mots de la table de l'import PDF.
-const COLUMN_WIDTHS: [f32; 7] = [40.0, 200.0, 112.0, 112.0, 112.0, 112.0, 300.0];
+const COLUMN_WIDTHS: [f32; 7] = [40.0, 200.0, 140.0, 140.0, 140.0, 140.0, 300.0];
 
 /// En-têtes des colonnes.
 const HEADERS: [TextId; 7] = [
