@@ -1,10 +1,10 @@
-//! Contrats JSON au dixième de minute (ADR-0039 D5, lots B2-B3).
+//! Contrats JSON au dixième de minute (ADR-0039 D5, lots B2 à B4).
 //!
 //! En sortie, une valeur qui n'est pas une minute entière s'écrit sans
 //! perte (minutes décimales, secondes d'un instant) ; une valeur entière
-//! reste un entier JSON. En saisie, les commandes refusent encore une
-//! fraction de minute (le calcul ne la prend en charge qu'au lot B4), et
-//! le disent, au lieu de l'arrondir plus loin en silence.
+//! reste un entier JSON. En saisie (lot B4), une durée au dixième, un
+//! travail au millième et une date à secondes multiples de 6 entrent dans
+//! le modèle tels quels ; hors de l'échelle, refus.
 
 #![allow(
     clippy::unwrap_used,
@@ -116,81 +116,69 @@ fn refused(ws: &mut Workspace, tool: &str, params: Value) -> (String, Option<Str
 }
 
 #[test]
-fn entries_refuse_a_fraction_of_minute_until_b4() {
+fn entries_take_tenths_and_thousandths() {
     let mut ws = two_tasks();
-    let before = serde_json::to_vec(ws.session().unwrap().project()).unwrap();
-    let invalid = codes::PARAM_INVALID.to_owned();
-    let (code, _) = refused(
-        &mut ws,
+    // Durée au dixième : prise telle quelle (avant B4 : refusée).
+    ws.call(
         "task.update",
         json!({ "uid": 1, "duration": { "minutes": 112.5, "unit": "minute" } }),
-    );
-    assert_eq!(code, invalid);
-    let (code, _) = refused(
-        &mut ws,
+    )
+    .unwrap();
+    let a = ws.call("task.get", json!({ "uid": 1 })).unwrap();
+    assert_eq!(a["duration"]["minutes"], json!(112.5));
+    assert_eq!(a["duration"]["text"], json!("112,5m"));
+    // Décalage au dixième.
+    ws.call(
         "link.update",
         json!({ "pred": 1, "succ": 2, "lag": { "minutes": 0.5, "unit": "minute" } }),
-    );
-    assert_eq!(code, invalid);
-    // Hors de l'échelle : refusé dès la lecture du nombre.
+    )
+    .unwrap();
+    let b = ws.call("task.get", json!({ "uid": 2 })).unwrap();
+    assert_eq!(b["predecessors"][0]["lag"]["minutes"], json!(0.5));
+    // Date à secondes multiples de 6.
+    ws.call(
+        "task.set_constraint",
+        json!({ "uid": 2, "kind": "snet", "date": "2026-11-04T08:00:06" }),
+    )
+    .unwrap();
+    let b = ws.call("task.get", json!({ "uid": 2 })).unwrap();
+    assert_eq!(b["start"], json!("2026-11-04T08:00:06"));
+    // Travail au millième.
+    ws.call("resource.add", json!({ "name": "R" })).unwrap();
+    ws.call(
+        "assignment.add",
+        json!({ "task": 2, "resource": 1, "work": { "minutes": 960.125 } }),
+    )
+    .unwrap();
+    let b = ws.call("task.get", json!({ "uid": 2 })).unwrap();
+    assert_eq!(b["work"]["minutes"], json!(960.125));
+    // Hors de l'échelle : refus, rien ne change.
+    let before = serde_json::to_vec(ws.session().unwrap().project()).unwrap();
+    let invalid = codes::PARAM_INVALID.to_owned();
     let (code, _) = refused(
         &mut ws,
         "task.update",
         json!({ "uid": 1, "duration": { "minutes": 112.15 } }),
     );
     assert_eq!(code, invalid);
-    for (tool, params, field) in [
-        (
-            "task.update",
-            json!({ "uid": 1, "start": "2026-11-02T08:00:30" }),
-            "start",
-        ),
-        (
-            "task.set_constraint",
-            json!({ "uid": 2, "kind": "snet", "date": "2026-11-04T08:00:06" }),
-            "date",
-        ),
-        (
-            "task.set_deadline",
-            json!({ "uid": 2, "deadline": "2026-11-09T17:00:30" }),
-            "deadline",
-        ),
-        (
-            "project.set_status_date",
-            json!({ "date": "2026-11-03T12:00:30" }),
-            "date",
-        ),
-        (
-            "project.set_anchor",
-            json!({ "start": "2026-11-02T08:00:30" }),
-            "start",
-        ),
-        (
-            "progress.update",
-            json!({ "task": 1, "actual_start": "2026-11-02T08:00:30" }),
-            "actual_start",
-        ),
-    ] {
-        let (code, f) = refused(&mut ws, tool, params);
-        assert_eq!(
-            (code.as_str(), f.as_deref()),
-            (invalid.as_str(), Some(field)),
-            "{tool}"
-        );
-    }
-    // Un instant hors de l'échelle (7 s) est refusé dès la lecture.
+    // Le millième n'est admis que pour un travail.
+    let (code, _) = refused(
+        &mut ws,
+        "task.update",
+        json!({ "uid": 1, "duration": { "minutes": 112.125 } }),
+    );
+    assert_eq!(code, invalid);
     let (code, _) = refused(
         &mut ws,
         "task.update",
         json!({ "uid": 1, "start": "2026-11-02T08:00:07" }),
     );
     assert_eq!(code, invalid);
-    // Rien n'a changé.
     assert_eq!(
         serde_json::to_vec(ws.session().unwrap().project()).unwrap(),
         before
     );
-    // Un décimal entier reste une minute entière : accepté.
+    // Un décimal entier reste une minute entière.
     ws.call(
         "task.update",
         json!({ "uid": 1, "duration": { "minutes": 1440.0, "unit": "day" } }),
@@ -198,13 +186,4 @@ fn entries_refuse_a_fraction_of_minute_until_b4() {
     .unwrap();
     let a = ws.call("task.get", json!({ "uid": 1 })).unwrap();
     assert_eq!(a["duration"]["minutes"], json!(1440));
-    // `project.new` aussi.
-    let mut fresh = Workspace::new(now(), Language::Fr);
-    let e = fresh
-        .call(
-            "project.new",
-            json!({ "name": "P", "start": "2026-11-02T08:00:30" }),
-        )
-        .unwrap_err();
-    assert_eq!(e.code, codes::PARAM_INVALID);
 }

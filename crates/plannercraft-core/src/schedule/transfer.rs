@@ -157,12 +157,13 @@ mod tests {
         // g(jeu 08:00) = add(jeu 08:00, −480) = mer 08:00 > y en brut.
         let cap = m("2026-10-20T22:40");
         assert_eq!(backward(w, cap, lead, false), Ok(m("2026-10-22T08:00")));
-        // En brut : y ramené à mar 16:59 → mer 16:59, et g(mer 16:59) =
-        // mar 16:59 ≤ y ; une minute plus tard, g dépasserait y.
+        // En brut : y ramené au dernier dixième ouvré, mar 16:59:54 → mer
+        // 16:59:54 (ADR-0039 ; avant : 16:59), et g(mer 16:59:54) = mar
+        // 16:59:54 ≤ y ; un dixième plus tard, g dépasserait y.
         let h = backward(w, cap, lead, true).unwrap();
-        assert_eq!(h, m("2026-10-21T16:59"));
+        assert_eq!(h, m("2026-10-21T16:59:54"));
         assert!(forward(w, h, lead).unwrap() <= cap);
-        let after = h.checked_add(Minutes::new(1)).unwrap();
+        let after = h.checked_add(Minutes::from_tenths(1)).unwrap();
         assert!(forward(w, after, lead).unwrap() > cap);
         // y au début d'une minute ouvrée, ou décalage positif : inchangé.
         let start = m("2026-10-21T08:00");

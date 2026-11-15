@@ -293,7 +293,8 @@ fn r215_timephased_actuals_kept_or_dropped() {
 #[test]
 fn r215_a7_written_by_engine() {
     // A7 (O37 à O40) écrit avec le moteur : UID 2 `Stop` sam 13:00 ; UID 0
-    // durée réelle 773 min (relue 772 : PT12H52M42S tronqué, R-004) ;
+    // durée réelle 772,7 min, écrite PT12H52M42S comme MS Project
+    // (ADR-0039 ; avant : 773 min, PT12H53M0S) ;
     // aucune répartition jetée ; relu = `normalize(schedule_image)`.
     let Ok(bytes) = std::fs::read(tests_path("corpus/files/projinteg.xml")) else {
         return;
@@ -308,7 +309,10 @@ fn r215_a7_written_by_engine() {
         "{t2}"
     );
     let t0 = entity(&xml, "Task", 0);
-    assert!(t0.contains("<ActualDuration>PT12H53M0S</ActualDuration>"), "{t0}");
+    assert!(
+        t0.contains("<ActualDuration>PT12H52M42S</ActualDuration>"),
+        "{t0}"
+    );
     assert!(t0.contains("<PercentComplete>10</PercentComplete>"), "{t0}");
     assert!(
         out.diagnostics

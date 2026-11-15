@@ -94,10 +94,16 @@ fn r283_timestamps() {
     assert_eq!(decode(NA), Stamp::Na);
     assert_eq!(decode(0x0000_12C0), Stamp::Invalid);
     assert_eq!(decode(0x0001_3841), Stamp::Invalid);
-    // Secondes tronquées (R-004) : 4 805 et 4 809 dixièmes ⇒ 08:00.
-    for raw in [0x206C_12C5, 0x206C_12C9] {
-        assert_eq!(decode(raw), Stamp::At("2006-09-21T08:00".parse().unwrap()));
-    }
+    // Au dixième, exact (ADR-0039 ; avant : secondes tronquées, 08:00) :
+    // 4 805 dixièmes ⇒ 08:00:30, 4 809 ⇒ 08:00:54.
+    assert_eq!(
+        decode(0x206C_12C5),
+        Stamp::At("2006-09-21T08:00:30".parse().unwrap())
+    );
+    assert_eq!(
+        decode(0x206C_12C9),
+        Stamp::At("2006-09-21T08:00:54".parse().unwrap())
+    );
     assert_eq!(stamp("2026-01-05T17:00") >> 16, 15_346);
 }
 
@@ -167,10 +173,10 @@ fn r285_durations_and_formats() {
         (d(1).minutes(), d(1).unit(), d(1).basis()),
         (Minutes::new(480), DurationUnit::Day, TimeBasis::Working)
     );
-    // 480,5 min → 481 (R-001).
+    // 480,5 min lus exactement (ADR-0039 ; avant : 481, R-001).
     assert_eq!(
         (d(2).minutes(), d(2).unit()),
-        (Minutes::new(481), DurationUnit::Hour)
+        (Minutes::from_tenths(4_805), DurationUnit::Hour)
     );
     assert_eq!(d(3).basis(), TimeBasis::Elapsed);
     // Format nul estimé (53) : unité par défaut du projet, estimée.
@@ -562,7 +568,7 @@ fn r291_saved_dates_compared_with_the_engine() {
     );
     assert_eq!(c.gaps.len(), 2);
     assert_eq!(c.gaps[0].field, "start");
-    assert_eq!(c.gaps[0].minutes, -1_440);
+    assert_eq!(c.gaps[0].minutes, Minutes::new(-1_440));
     // Les dates enregistrées ne vont jamais dans le projet (règle 3).
     let b = doc.project.tasks.get(TaskUid::new(2)).unwrap();
     assert_eq!(b.constraint.kind(), ConstraintKind::AsSoonAsPossible);
@@ -807,7 +813,9 @@ fn r298_comparison_classes_and_causes() {
     let mut c = T::new(3, 3, "C");
     c.start = stamp("2026-01-12T08:00");
     c.finish = stamp("2026-01-12T17:00");
-    // 4 : FS de A, enregistrée un jour plus tard, à la fraction de minute.
+    // 4 : FS de A, enregistrée un jour plus tard, à la fraction de minute :
+    // écart réel sans cause (ADR-0039 : la fraction n'en est plus une ;
+    // avant, `mpp.gap.sub_minute`).
     let mut d = T::new(4, 4, "D");
     d.start = stamp("2026-01-07T08:00") + 5;
     d.finish = stamp("2026-01-07T17:00");
@@ -832,7 +840,7 @@ fn r298_comparison_classes_and_causes() {
     assert_eq!(of(1).class, GapClass::Rounding);
     assert_eq!(of(2).cause, Some(GapCause::UnexplainedStart));
     assert_eq!(of(3).cause, Some(GapCause::ContouredAssignment));
-    assert_eq!(of(4).cause, Some(GapCause::SubMinute));
+    assert_eq!(of(4).cause, None);
     assert_eq!(cmp.causes.get("mpp.gap.unexplained_start"), Some(&1));
     // Plus de plafond : tous les écarts sont listés (un par date).
     assert_eq!(cmp.gaps.len(), 8);

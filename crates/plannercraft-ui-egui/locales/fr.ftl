@@ -2174,4 +2174,3 @@ mpp-col-cause = Cause
 mpp-cause-contoured = répartition du travail modifiée à la main
 mpp-cause-staggered = nivellement (affectations décalées)
 mpp-cause-unexplained-start = début placé à la main, sans lien ni contrainte
-mpp-cause-sub-minute = fractions de minute

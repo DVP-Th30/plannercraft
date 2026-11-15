@@ -88,9 +88,10 @@ fn r200_facts_percent_without_actual_duration() {
     assert_eq!(remaining_duration(&t), Minutes::new(960));
     assert_eq!(percent_of_duration(&t), Percent::new(3_333).unwrap());
 
-    // 33 % (3 300) : réel = 1 440 × 0,33 = 475,2 → 475 (exemple de R-204).
+    // 33 % (3 300) : réel = 1 440 × 0,33 = 475,2, au dixième (R-010 au
+    // dixième, ADR-0039 ; avant : 475) (exemple de R-204).
     t.progress.percent_complete = Percent::new(3_300).unwrap();
-    assert_eq!(facts(&t).actual_duration, Minutes::new(475));
+    assert_eq!(facts(&t).actual_duration, Minutes::from_tenths(4_752));
 
     // La durée réelle saisie l'emporte sur le % (vérité = réel, ADR-0014
     // D4) : 960 saisies et 10 % stocké ⇒ réel 960, % dérivé 6 667.

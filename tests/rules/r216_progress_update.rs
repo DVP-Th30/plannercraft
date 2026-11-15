@@ -213,14 +213,18 @@ fn r216_assignments_follow_progress() {
     );
 
     // Reste saisi 2 j ⇒ D = 480 + 960 = 1 440 ; unités fixes : W 1 440,
-    // travail réel 480 (le travail suit la durée, R-189 « durée »).
+    // travail réel W × 33,33 % = 479,952 min au millième (R-211, ADR-0039 ;
+    // avant : 480 à la minute ; le travail suit la durée, R-189 « durée »).
     apply(
         &mut s,
         json!([{ "op": "progress.update", "task": 1, "remaining_duration": { "text": "2j" } }]),
     );
     assert_eq!(duration(&s, 1), 1_440);
     let a = assignment(&s, 1, 1);
-    assert_eq!((a.work, a.actual_work), (work(1_440), work(480)));
+    assert_eq!(
+        (a.work, a.actual_work),
+        (work(1_440), Work::from_milli(479_952).unwrap())
+    );
     assert_eq!(get(&s, 1).progress.percent_complete, Percent::new(3_333).unwrap());
 
     // Travail réel au-delà du travail (R-211 : W = AW) sur une tâche à

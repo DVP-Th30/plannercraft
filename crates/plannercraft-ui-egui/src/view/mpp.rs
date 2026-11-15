@@ -170,7 +170,6 @@ pub const fn cause_text(cause: GapCause) -> TextId {
         GapCause::ContouredAssignment => TextId::MppCauseContoured,
         GapCause::StaggeredAssignments => TextId::MppCauseStaggered,
         GapCause::UnexplainedStart => TextId::MppCauseUnexplainedStart,
-        GapCause::SubMinute => TextId::MppCauseSubMinute,
     }
 }
 

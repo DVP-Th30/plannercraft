@@ -280,15 +280,7 @@ fn fill_fixed(
             .and_then(|m| plannercraft_core::LevelingDelay::new(m, unit, elapsed));
     }
     actuals(task, f, tl);
-    let fraction = |off: usize| {
-        le_u32(f.rec, off)
-            .is_some_and(|raw| raw != time::NA && (raw & 0xFFFF).checked_rem(10).is_some_and(|r| r != 0))
-    };
-    RecordedTask {
-        start,
-        finish,
-        sub_minute: fraction(tl.start) || fraction(tl.finish),
-    }
+    RecordedTask { start, finish }
 }
 
 /// Réels enregistrés (R-289) : début, fin, durée réelle.

@@ -1914,7 +1914,6 @@ text_ids! {
     MppCauseContoured => "mpp-cause-contoured",
     MppCauseStaggered => "mpp-cause-staggered",
     MppCauseUnexplainedStart => "mpp-cause-unexplained-start",
-    MppCauseSubMinute => "mpp-cause-sub-minute",
 }
 
 /// Clé fluent du refus de code `code` : `error-<code>`, points changés en

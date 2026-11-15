@@ -2167,4 +2167,3 @@ mpp-col-cause = Cause
 mpp-cause-contoured = work distribution edited by hand
 mpp-cause-staggered = leveling (assignments shifted)
 mpp-cause-unexplained-start = start placed by hand, without link or constraint
-mpp-cause-sub-minute = fractions of a minute

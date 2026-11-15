@@ -196,7 +196,6 @@ fn comparison_text(s: &mut String, c: &Comparison, fr: bool) {
             crate::compare::GapCause::ContouredAssignment,
             crate::compare::GapCause::StaggeredAssignments,
             crate::compare::GapCause::UnexplainedStart,
-            crate::compare::GapCause::SubMinute,
         ]
         .into_iter()
         .find(|g| g.code() == *code)
@@ -215,7 +214,7 @@ fn comparison_text(s: &mut String, c: &Comparison, fr: bool) {
     {
         let _ = writeln!(
             s,
-            "  {} {} {} : {} {}, {} {} ({:+} min)",
+            "  {} {} {} : {} {}, {} {} ({}{} min)",
             t("ID", "ID"),
             g.id,
             g.field,
@@ -223,7 +222,8 @@ fn comparison_text(s: &mut String, c: &Comparison, fr: bool) {
             g.recorded,
             t("calculée", "computed"),
             g.computed,
-            g.minutes
+            if g.minutes.is_negative() { "" } else { "+" },
+            plannercraft_core::number::to_text(g.minutes.tenths(), 1)
         );
     }
 }

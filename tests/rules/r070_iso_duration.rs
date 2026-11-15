@@ -1,9 +1,10 @@
-//! R-070 — Durée ISO 8601 → minutes (import MSPDI).
+//! R-070 — Durée ISO 8601 → dixièmes de minute (import MSPDI, ADR-0039).
 
-use plannercraft_mspdi::scalar::{IsoDuration, IsoDurationError, parse_iso_duration};
+use plannercraft_mspdi::scalar::{IsoDurationError, parse_iso_duration};
 
+/// Minutes entières d'une durée qui en est une.
 fn minutes(s: &str) -> i64 {
-    parse_iso_duration(s).unwrap().minutes
+    parse_iso_duration(s).unwrap().minutes().whole_minutes().unwrap()
 }
 
 #[test]
@@ -24,23 +25,17 @@ fn r070_decimals_in_last_component() {
 }
 
 #[test]
-fn r070_seconds_rounded_by_r001() {
-    // 30 s = 0,5 min → 1 (moitié loin de zéro), arrondi signalé.
-    assert_eq!(
-        parse_iso_duration("PT0H0M30S"),
-        Ok(IsoDuration {
-            minutes: 1,
-            rounded: true
-        })
-    );
-    // 29 s → 0, arrondi signalé.
-    assert_eq!(
-        parse_iso_duration("PT0H0M29S"),
-        Ok(IsoDuration {
-            minutes: 0,
-            rounded: true
-        })
-    );
+fn r070_seconds_to_the_tenth() {
+    // ADR-0039 : au dixième de minute (6 s). 30 s = 5 dixièmes exacts (avant :
+    // 1 min, arrondi signalé) ; 29 s → 5 dixièmes, arrondi signalé (avant :
+    // 0 min) ; un travail se lit au millième (0,06 s).
+    let d = parse_iso_duration("PT0H0M30S").unwrap();
+    assert_eq!((d.tenths, d.tenth_rounded), (5, false));
+    let d = parse_iso_duration("PT0H0M29S").unwrap();
+    assert_eq!((d.tenths, d.tenth_rounded), (5, true));
+    assert_eq!((d.milli, d.milli_rounded), (483, true));
+    let d = parse_iso_duration("PT1H52M30S").unwrap();
+    assert_eq!((d.tenths, d.tenth_rounded), (1_125, false));
 }
 
 #[test]

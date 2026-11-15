@@ -15,7 +15,7 @@ use std::borrow::Cow;
 
 use plannercraft_core::resource::Granularity;
 use plannercraft_core::{
-    ConstraintKind, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, LinkType, Minutes, Moment,
+    ConstraintKind, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, LinkType, Minutes,
     SignedPercent, TaskType, TimeBasis, TimeOfDay, Units, Work,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -27,7 +27,7 @@ use crate::text::{TextContext, TextError, format_duration, format_lag, parse_dur
 
 /// Schéma JSON d'un instant (`plannercraft_core::Moment`) : ISO local sans
 /// fuseau (`"2026-11-02T08:00"`), `":SS"` quand l'instant tombe entre deux
-/// minutes (ADR-0039 D5 ; en saisie, encore refusé).
+/// minutes (ADR-0039 D5 : secondes multiples de 6).
 pub struct MomentSchema;
 
 impl JsonSchema for MomentSchema {
@@ -39,7 +39,7 @@ impl JsonSchema for MomentSchema {
         json_schema!({
             "type": "string",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
-            "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière."
+            "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6)."
         })
     }
 }
@@ -164,33 +164,10 @@ impl JsonSchema for MinutesNumber {
     }
 }
 
-/// Lots B2-B3 (ADR-0039) : les contrats savent porter une fraction de
-/// minute, le calcul ne la prend en charge qu'au lot B4 (il arrondit
-/// encore à la minute le travail, l'avancement et les cumuls qui en
-/// dérivent). Une valeur saisie au dixième est donc refusée, et dite,
-/// plutôt qu'arrondie en silence plus loin.
-pub(crate) fn whole_minute_entry(m: Minutes) -> Result<Minutes, CommandError> {
-    if m.whole_minutes().is_some() {
-        Ok(m)
-    } else {
-        Err(sub_minute())
-    }
-}
-
-/// Comme [`whole_minute_entry`], pour un instant (secondes non nulles).
-pub(crate) fn whole_minute_moment(m: Moment) -> Result<Moment, CommandError> {
-    if m.whole_minutes().is_some() {
-        Ok(m)
-    } else {
-        Err(sub_minute())
-    }
-}
-
-/// Erreur `param.invalid` d'une fraction de minute (lots B2-B3).
-fn sub_minute() -> CommandError {
-    invalid(
-        "fraction de minute : les durées, décalages, travaux et dates sont encore saisis à la minute entière",
-    )
+/// Erreur `param.invalid` d'une durée qui ne tombe pas sur un dixième de
+/// minute (le millième n'est admis que pour un travail, ADR-0039 D5).
+fn off_tenth() -> CommandError {
+    invalid("durée au dixième de minute attendue (le millième est réservé au travail)")
 }
 
 /// Erreur `param.invalid` avec son explication.
@@ -268,7 +245,7 @@ impl DurationJson {
         let Some(minutes) = self.minutes else {
             return Err(invalid("« minutes » ou « text » attendu"));
         };
-        let minutes = whole_minute_entry(minutes.to_minutes().ok_or_else(sub_minute)?)?;
+        let minutes = minutes.to_minutes().ok_or_else(off_tenth)?;
         let unit = self.unit.map_or(ctx.default_duration_unit, DurationUnit::from);
         Duration::new(
             minutes,
@@ -277,6 +254,30 @@ impl DurationJson {
             self.estimated.unwrap_or(false),
         )
         .map_err(|e| from_duration_error(&e))
+    }
+}
+
+impl DurationJson {
+    /// Travail du modèle (ADR-0039 D5) : `minutes` seul est lu au millième
+    /// de minute ; sinon comme [`DurationJson::to_duration`] (texte lu au
+    /// dixième, R-140), qui doit concorder avec `minutes` s'il est donné.
+    /// Le travail est en temps ouvré : `elapsed` vrai est refusé par
+    /// l'appelant.
+    ///
+    /// # Errors
+    ///
+    /// Comme [`DurationJson::to_duration`] ; `param.invalid` pour un travail
+    /// négatif ou hors des bornes (S11).
+    pub fn to_work(&self, ctx: &TextContext) -> Result<(Work, TimeBasis), CommandError> {
+        if self.text.is_none()
+            && let Some(m) = self.minutes
+        {
+            let work = Work::from_milli(m.milli()).map_err(|e| from_duration_error(&e))?;
+            return Ok((work, basis_of(self.elapsed.unwrap_or(false))));
+        }
+        let d = self.to_duration(ctx)?;
+        let work = Work::new(d.minutes()).map_err(|e| from_duration_error(&e))?;
+        Ok((work, d.basis()))
     }
 }
 
@@ -335,7 +336,7 @@ impl LagJson {
             (Some(_), Some(_)) => return Err(invalid("« minutes » et « percent » exclusifs")),
             (None, None) => return Err(invalid("« minutes », « percent » ou « text » attendu")),
             (Some(m), None) => LagValue::Time {
-                minutes: whole_minute_entry(m.to_minutes().ok_or_else(sub_minute)?)?,
+                minutes: m.to_minutes().ok_or_else(off_tenth)?,
                 unit: self.unit.map_or(ctx.default_duration_unit, DurationUnit::from),
             },
             (None, Some(p)) => {
@@ -355,10 +356,8 @@ impl LagJson {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DurationJson {
-    /// Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou
-    /// décimal quand la valeur ne l'est pas (au dixième de minute, au
-    /// millième pour un travail) ; en saisie, minutes entières (une fraction
-    /// est refusée).
+    /// Minutes (ouvrées, ou écoulées si `elapsed`) : entier, ou décimal au
+    /// dixième de minute (au millième pour un travail).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub minutes: Option<MinutesNumber>,
     /// Unité d'affichage.
@@ -380,9 +379,7 @@ pub struct DurationJson {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LagJson {
-    /// Minutes (signées). En sortie, entier, ou décimal au dixième de minute
-    /// quand la valeur ne l'est pas ; en saisie, minutes entières (une
-    /// fraction est refusée).
+    /// Minutes (signées) : entier, ou décimal au dixième de minute.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub minutes: Option<MinutesNumber>,
     /// Pourcentage en 1/100 de % (5 000 = 50 %).

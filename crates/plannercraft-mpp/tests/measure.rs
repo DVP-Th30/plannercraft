@@ -440,7 +440,6 @@ fn measure_against_oracle() {
                 plannercraft_mpp::RecordedTask {
                     start: r.start,
                     finish: r.finish,
-                    sub_minute: false,
                 },
             );
         }
@@ -622,7 +621,6 @@ fn diagnose_roots() {
                 plannercraft_mpp::RecordedTask {
                     start: r.start,
                     finish: r.finish,
-                    sub_minute: false,
                 },
             );
         }

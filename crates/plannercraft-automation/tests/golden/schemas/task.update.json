@@ -34,7 +34,7 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
+          "description": "Minutes (ouvrées, ou écoulées si `elapsed`) : entier, ou décimal au\ndixième de minute (au millième pour un travail).",
           "type": [
             "number",
             "null"
@@ -219,7 +219,7 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
+          "description": "Minutes (ouvrées, ou écoulées si `elapsed`) : entier, ou décimal au\ndixième de minute (au millième pour un travail).",
           "type": [
             "number",
             "null"

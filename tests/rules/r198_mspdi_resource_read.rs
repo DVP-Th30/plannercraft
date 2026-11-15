@@ -75,8 +75,8 @@ fn r198_assignment_leveling_delay_working() {
 #[test]
 fn r198_leveling_delay_format_fallbacks_and_rounding() {
     // Format absent : jours écoulés pour une tâche, ouvrés pour une
-    // affectation (hypothèse, formats du corpus) ; 4 805 dixièmes → 481 min
-    // (R-001), `mspdi.rounded`.
+    // affectation (hypothèse, formats du corpus) ; 4 805 dixièmes → 480,5
+    // min exactes, sans arrondi (ADR-0039 ; avant : 481, `mspdi.rounded`).
     let d = doc(
         "<LevelingDelay>4805</LevelingDelay>",
         "",
@@ -91,9 +91,9 @@ fn r198_leveling_delay_format_fallbacks_and_rounding() {
         .unwrap();
     assert_eq!(
         (t.minutes, t.unit, t.elapsed),
-        (Minutes::new(481), DurationUnit::Day, true)
+        (Minutes::from_tenths(4_805), DurationUnit::Day, true)
     );
-    assert!(has(&d, &ImportCode::Rounded, "Tasks/Task/LevelingDelay"));
+    assert!(!has(&d, &ImportCode::Rounded, "Tasks/Task/LevelingDelay"));
     let a = d
         .project
         .assignments

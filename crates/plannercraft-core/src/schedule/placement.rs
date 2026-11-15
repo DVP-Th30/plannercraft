@@ -207,7 +207,8 @@ fn usable(set: &CalendarSet, uid: CalendarUid) -> bool {
     set.get(uid).is_ok_and(CompiledCalendar::has_working_time)
 }
 
-/// R-170 (moteur) : `d_a = round_div(W × 10 000, U)` pour les unités fixes
+/// R-170 (moteur) : `d_a = W × 10 000 ÷ U` **tronqué** au dixième de minute
+/// (ADR-0039 D4, hypothèse) pour les unités fixes
 /// et le travail fixe ; durée de la tâche pour une feuille à durée fixe et
 /// pour des unités nulles (R-181) ; hors du domaine des durées : échec
 /// (R-069). Une récapitulative (`summary`) n'a pas de durée tenue : son
@@ -227,20 +228,27 @@ fn assignment_duration(
     {
         return Ok(task.duration.minutes());
     }
-    // Lot B1 : d_a en minutes entières (R-001), comme avant l'ADR-0039 :
-    // W (millièmes) × 10 000 ÷ (U × 1 000).
-    i128::from(work.milli())
+    duration_of_work(i128::from(work.milli()), units)
+}
+
+/// Durée tirée d'un travail en millièmes : `W × 10 000 ÷ U` tronqué au
+/// dixième de minute (R-170, R-209, ADR-0039 D4) ; hors du domaine des
+/// durées : échec (R-069).
+fn duration_of_work(milli: i128, units: Units) -> Result<Minutes, &'static str> {
+    // Millièmes × 10 000 ÷ (U × 100) : dixièmes, tronqués (U > 0).
+    milli
         .checked_mul(10_000)
-        .and_then(|num| round_div(num, i128::from(units.get()).checked_mul(1_000)?))
-        .filter(|m| (0..=Duration::MAX_MINUTES).contains(m))
-        .map(Minutes::new)
+        .and_then(|num| num.checked_div(i128::from(units.get()).checked_mul(100)?))
+        .and_then(|t| i64::try_from(t).ok())
+        .filter(|t| (0..=Duration::MAX_TENTHS).contains(t))
+        .map(Minutes::from_tenths)
         .ok_or(OUT_OF_DOMAIN)
 }
 
 /// R-209 (tâche en cours) : durées de la partie réelle et du reste d'une
 /// affectation de travail `W`, travail réel `AW` (borné à `[0, W]`),
-/// unités `U` : `d_act = round_div(AW × 10 000, U)`, `d_rem =
-/// round_div((W − AW) × 10 000, U)` ; unités nulles (R-181) et durée fixe
+/// unités `U` : `d_act = AW × 10 000 ÷ U`, `d_rem = (W − AW) × 10 000 ÷ U`,
+/// tronqués au dixième (ADR-0039 D4) ; unités nulles (R-181) et durée fixe
 /// (R-170) : durée réelle et reste de la tâche. `None` si la tâche n'est pas
 /// en cours ; hors du domaine des durées : échec (R-069).
 fn progress_durations(
@@ -257,17 +265,10 @@ fn progress_durations(
     if task.task_type == TaskType::FixedDuration || units == Units::ZERO || contour != WorkContour::Flat {
         return Some(Ok((f.actual_duration, crate::progress::remaining_duration(task))));
     }
-    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
-    let w = work.whole_minutes_round().max(0);
-    let aw = actual_work.whole_minutes_round().clamp(0, w);
-    let d = |m: i64| {
-        i128::from(m)
-            .checked_mul(10_000)
-            .and_then(|num| round_div(num, i128::from(units.get())))
-            .filter(|m| (0..=Duration::MAX_MINUTES).contains(m))
-            .map(Minutes::new)
-            .ok_or(OUT_OF_DOMAIN)
-    };
+    // Travail en millièmes de minute (ADR-0039).
+    let w = work.milli().max(0);
+    let aw = actual_work.milli().clamp(0, w);
+    let d = |m: i64| duration_of_work(i128::from(m), units);
     Some(d(aw).and_then(|act| Ok((act, d(w.saturating_sub(aw))?))))
 }
 

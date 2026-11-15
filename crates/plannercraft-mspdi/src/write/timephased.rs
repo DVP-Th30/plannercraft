@@ -23,7 +23,7 @@ use quick_xml::Reader;
 use quick_xml::events::Event;
 
 use crate::extras::{ExtraKey, ORIGIN};
-use crate::scalar::{ISO_NANOS_PER_MINUTE, iso_duration_nanos, parse_datetime, parse_int};
+use crate::scalar::{ISO_NANOS_PER_MILLI, iso_duration_nanos, parse_datetime, parse_int};
 
 /// Nom de l'élément.
 const TIMEPHASED: &str = "TimephasedData";
@@ -99,7 +99,7 @@ pub(crate) fn actuals_stale(a: &Assignment) -> bool {
         };
         nanos = sum;
     }
-    plannercraft_core::round_div(nanos, ISO_NANOS_PER_MINUTE) != Some(a.actual_work.whole_minutes_round())
+    plannercraft_core::round_div(nanos, ISO_NANOS_PER_MILLI) != Some(a.actual_work.milli())
 }
 
 /// R-199 : les lignes de type 1 de `a` sont-elles à jeter ? Vrai s'il y en
@@ -121,14 +121,12 @@ pub(crate) fn stale(a: &Assignment, placed: Option<&AssignmentSchedule>) -> bool
         return true;
     };
     reference(&rows).is_none_or(|(start, finish, work)| {
-        start != placed.span.start
-            || finish != placed.span.finish
-            || work != placed.work.whole_minutes_round()
+        start != placed.span.start || finish != placed.span.finish || work != placed.work.milli()
     })
 }
 
-/// Placement enregistré : premier début, dernière fin et travail (minutes,
-/// R-001) des lignes de type 1 de `rows` (les autres sont ignorées) ;
+/// Placement enregistré : premier début, dernière fin et travail
+/// (millièmes de minute, R-001, ADR-0039) des lignes de type 1 de `rows` (les autres sont ignorées) ;
 /// `None` sans ligne de type 1 ou si l'une est incomplète ou illisible.
 fn reference(rows: &[&str]) -> Option<(Moment, Moment, i64)> {
     let mut bounds: Option<(Moment, Moment)> = None;
@@ -149,8 +147,8 @@ fn reference(rows: &[&str]) -> Option<(Moment, Moment, i64)> {
         });
     }
     let (start, finish) = bounds?;
-    let minutes = plannercraft_core::round_div(nanos, ISO_NANOS_PER_MINUTE)?;
-    Some((start, finish, minutes))
+    let milli = plannercraft_core::round_div(nanos, ISO_NANOS_PER_MILLI)?;
+    Some((start, finish, milli))
 }
 
 /// Enfants directs lus d'une ligne.
@@ -220,12 +218,13 @@ mod tests {
             "<TimephasedData><Type>2</Type><Start>2026-10-01T08:00:00</Start>\
              <Finish>2026-10-30T08:00:00</Finish><Value>PT1H0M0S</Value></TimephasedData>",
         ];
-        // 30 s + 8 h 0 min 29,97 s = 8 h 0 min 59,97 s → 481 min (R-001) ;
+        // 30 s + 8 h 0 min 29,97 s = 8 h 0 min 59,97 s = 480,9995 min →
+        // 481 000 millièmes (R-001 au millième, ADR-0039 ; avant : 481 min) ;
         // la ligne de type 2 ne compte pas.
         let (s, f, w) = reference(&rows).unwrap();
         assert_eq!(s, "2026-10-19T08:00".parse().unwrap());
         assert_eq!(f, "2026-10-20T17:00".parse().unwrap());
-        assert_eq!(w, 481);
+        assert_eq!(w, 481_000);
         assert_eq!(reference(&rows[2..]), None);
         assert_eq!(
             reference(&["<TimephasedData><Type>1</Type></TimephasedData>"]),

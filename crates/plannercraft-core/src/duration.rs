@@ -660,8 +660,8 @@ impl Default for Lag {
     }
 }
 
-/// R-010 : minutes = `round_div(durée du prédécesseur × pct, 10 000)`,
-/// arrondi à la minute (lot B1, comme avant l'ADR-0039).
+/// R-010 : décalage = `durée du prédécesseur × pct ÷ 10 000`, arrondi au
+/// dixième de minute (R-001, ADR-0039) : 33 % de 480 min = 158,4 min.
 ///
 /// # Errors
 ///
@@ -670,11 +670,8 @@ pub fn percent_of(duration: Minutes, pct: SignedPercent) -> Result<Minutes, Dura
     let num = i128::from(duration.0)
         .checked_mul(i128::from(pct.get()))
         .ok_or(DurationError::Overflow)?;
-    // Dixièmes × pct ÷ (10 000 × 10) : minutes arrondies par R-001.
-    round_div(num, 100_000)
-        .and_then(|m| m.checked_mul(TENTHS_PER_MINUTE))
-        .map(Minutes)
-        .ok_or(DurationError::Overflow)
+    // Dixièmes × pct ÷ 10 000 : dixièmes arrondis par R-001.
+    round_div(num, 10_000).map(Minutes).ok_or(DurationError::Overflow)
 }
 
 /// `v ÷ den` arrondi au plus proche, la moitié loin de zéro (R-001), comme

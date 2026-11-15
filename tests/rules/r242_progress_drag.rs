@@ -49,8 +49,9 @@ fn r242_progress_floor_percent() {
     assert_eq!(drag(&mut s, -3), 0);
     let mut s = with_tasks(&[("T", "3j")]);
     assert_eq!(drag(&mut s, 1), 3_300);
-    // R-201 : réel = 33 % de 1 440 = 475 min, % dérivé 3 299.
-    assert_eq!(get(&s, 1).progress.percent_complete.get(), 3_299);
+    // R-201 : réel = 33 % de 1 440 = 475,2 min au dixième, % dérivé 3 300
+    // (ADR-0039 ; avant : 475 min à la minute, % dérivé 3 299).
+    assert_eq!(get(&s, 1).progress.percent_complete.get(), 3_300);
 }
 
 #[test]
@@ -80,13 +81,14 @@ fn r242_beyond_finish_complete() {
 }
 
 /// Relecture finale J7 : T 3 j, glisser d'un jour envoie 3 300 et R-201
-/// stocke 3 299 ; refaire le même geste ne change rien : aucun lot, aucune
-/// entrée d'annulation.
+/// stocke 3 300 (ADR-0039 ; avant : 3 299, réel arrondi à la minute) ;
+/// refaire le même geste ne change rien : aucun lot, aucune entrée
+/// d'annulation.
 #[test]
 fn r242_same_point_twice_no_batch() {
     let mut s = with_tasks(&[("T", "3j")]);
     assert_eq!(drag(&mut s, 1), 3_300);
-    assert_eq!(get(&s, 1).progress.percent_complete.get(), 3_299);
+    assert_eq!(get(&s, 1).progress.percent_complete.get(), 3_300);
     let entries = s.history().entries.len();
     let set = CalendarSet::compile(s.project()).0;
     assert_eq!(gesture::progress_drag(&s, &set, T, 1).unwrap(), None);

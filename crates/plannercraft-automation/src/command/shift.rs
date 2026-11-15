@@ -66,7 +66,7 @@ fn invalid(field: &str, why: &str) -> CommandError {
 /// Décalage signé de `by` : (minutes, écoulé). Forme lue comme un décalage
 /// de lien (R-142 : signe facultatif), pourcentage refusé ; `estimated`
 /// refusé (un décalage n'est pas estimé).
-fn amount(by: &DurationJson, ctx: &Ctx<'_>) -> Result<(i64, bool), CommandError> {
+fn amount(by: &DurationJson, ctx: &Ctx<'_>) -> Result<(Minutes, bool), CommandError> {
     if by.estimated == Some(true) {
         return Err(invalid("by", "un décalage ne peut pas être estimé (« ? »)"));
     }
@@ -79,10 +79,7 @@ fn amount(by: &DurationJson, ctx: &Ctx<'_>) -> Result<(i64, bool), CommandError>
     };
     let lag = ctx.lag(&lag, "by")?;
     match lag.value {
-        // Lot B1 : minutes entières (R-001).
-        LagValue::Time { minutes, .. } => {
-            Ok((minutes.whole_minutes_round(), lag.basis == TimeBasis::Elapsed))
-        }
+        LagValue::Time { minutes, .. } => Ok((minutes, lag.basis == TimeBasis::Elapsed)),
         LagValue::Percent { .. } => Err(invalid(
             "by",
             "durée attendue (« 1j », « -1sem ») ; un pourcentage n'a pas de sens ici",
@@ -196,18 +193,17 @@ pub(super) fn shift(op: &TaskShift, ctx: &mut Ctx<'_>) -> Result<(), CommandErro
     if op.tasks.is_empty() {
         return Err(invalid("tasks", "au moins une tâche attendue"));
     }
-    let (minutes, elapsed) = amount(&op.by, ctx)?;
+    let (by, elapsed) = amount(&op.by, ctx)?;
     let mut picked = BTreeSet::new();
     for r in &op.tasks {
         picked.insert(ctx.task(r, "tasks")?);
     }
-    if minutes == 0 {
+    if by == Minutes::ZERO {
         return Ok(());
     }
     let targets = leaves(ctx, &picked);
     ctx.ensure_schedule()?;
     let plans: Vec<(TaskUid, Plan)> = targets.into_iter().map(|uid| (uid, plan_of(ctx, uid))).collect();
-    let by = Minutes::new(minutes);
     let mut automatic = Vec::new();
     for (uid, plan) in plans {
         match plan {

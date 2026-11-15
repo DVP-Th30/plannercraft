@@ -1,16 +1,18 @@
 //! Équilibrage durée, travail et unités à l'édition (ADR-0013 D3 ; règles
 //! R-170, R-189 à R-194, lot L2).
 //!
-//! Fonctions pures, sans calendrier : durées et travail en minutes ouvrées,
-//! unités en 1/10 000, calcul en `i128`, arrondi unique R-001. Les commandes
+//! Fonctions pures, sans calendrier : durées en dixièmes de minute ouvrés,
+//! travail en millièmes de minute (ADR-0039), unités en 1/10 000, calcul en
+//! `i128`, un seul arrondi par grandeur. Les commandes
 //! (`task.update`, `assignment.*`) les appellent avec l'état d'une tâche et
 //! de ses affectations de travail, puis écrivent le résultat ; le recalcul
 //! du planning ne rééquilibre jamais (D3 : l'arrondi dériverait et casserait
 //! l'aller-retour).
 //!
 //! Conventions (cahier J5, L2) :
-//! - par affectation, `w_a = round_div(d_a × u_a, 10 000)` et
-//!   `d_a = round_div(w_a × 10 000, u_a)` (R-170) ; une affectation à
+//! - par affectation, `w_a = d_a × u_a ÷ 10 000` arrondi au millième de
+//!   minute (R-001) et `d_a = w_a × 10 000 ÷ u_a` **tronqué** au dixième de
+//!   minute (R-170, hypothèse de l'ADR-0039 D4) ; une affectation à
 //!   unités nulles n'a pas de `d_a` propre (le moteur lui donne la durée de
 //!   la tâche, R-181) ;
 //! - quand la durée de la tâche est recalculée (unités fixes ou travail
@@ -175,38 +177,50 @@ const UNIT_SCALE: i128 = 10_000;
 struct Raw {
     uid: AssignmentUid,
     units: i64,
+    /// Travail en millièmes de minute.
     work: i64,
 }
+
+/// Millièmes de minute par dixième.
+const MILLI_PER_TENTH: i128 = 100;
 
 /// Règle de durée de la tâche à la sortie.
 #[derive(Clone, Copy, Debug)]
 enum TaskDuration {
-    /// Gardée (ou saisie) : rendue telle quelle.
+    /// Gardée (ou saisie) : rendue telle quelle (dixièmes de minute).
     Held(i64),
     /// Recalculée : plus grand des `d_a`, cette valeur à défaut
     /// d'affectation à unités non nulles.
     Recalculated(i64),
 }
 
-/// `w = round_div(d × u, 10 000)` (R-170).
+/// Travail en millièmes depuis une durée en dixièmes : `w = d × u ÷ 10 000`
+/// arrondi au millième (R-170, R-001).
 fn work_from(duration: i64, units: i64) -> Result<i64, EditError> {
     let num = i128::from(duration)
         .checked_mul(i128::from(units))
+        .and_then(|n| n.checked_mul(MILLI_PER_TENTH))
         .ok_or(EditError::Overflow)?;
     round_div(num, UNIT_SCALE).ok_or(EditError::Overflow)
 }
 
-/// `d = round_div(w × 10 000, u)` (R-170) ; `None` pour des unités nulles ;
-/// au-delà du domaine des durées : [`EditError::Overflow`].
+/// Durée en dixièmes depuis un travail en millièmes : `d = w × 10 000 ÷ u`
+/// **tronqué** au dixième de minute (R-170, ADR-0039 D4, hypothèse) ;
+/// `None` pour des unités nulles ; au-delà du domaine des durées :
+/// [`EditError::Overflow`].
 fn duration_from(work: i64, units: i64) -> Result<Option<i64>, EditError> {
-    if units == 0 {
+    if units <= 0 {
         return Ok(None);
     }
-    let num = i128::from(work)
-        .checked_mul(UNIT_SCALE)
+    let den = i128::from(units)
+        .checked_mul(MILLI_PER_TENTH)
         .ok_or(EditError::Overflow)?;
-    let d = round_div(num, i128::from(units)).ok_or(EditError::Overflow)?;
-    if !(0..=Duration::MAX_MINUTES).contains(&d) {
+    let d = i128::from(work)
+        .checked_mul(UNIT_SCALE)
+        .and_then(|n| n.checked_div(den))
+        .and_then(|d| i64::try_from(d).ok())
+        .ok_or(EditError::Overflow)?;
+    if !(0..=Duration::MAX_TENTHS).contains(&d) {
         return Err(EditError::Overflow);
     }
     Ok(Some(d))
@@ -222,10 +236,14 @@ fn units_from(work: i64, duration: i64, current: i64) -> Result<i64, EditError> 
             Err(EditError::Overflow)
         };
     }
+    // Millièmes × 10 000 ÷ (dixièmes × 100) : rapport sans unité.
     let num = i128::from(work)
         .checked_mul(UNIT_SCALE)
         .ok_or(EditError::Overflow)?;
-    round_div(num, i128::from(duration)).ok_or(EditError::Overflow)
+    let den = i128::from(duration)
+        .checked_mul(MILLI_PER_TENTH)
+        .ok_or(EditError::Overflow)?;
+    round_div(num, den).ok_or(EditError::Overflow)
 }
 
 /// Somme vérifiée.
@@ -338,14 +356,14 @@ fn finish(
         TaskDuration::Held(d) => d,
         TaskDuration::Recalculated(fallback) => max.unwrap_or(fallback),
     };
-    if !(0..=Duration::MAX_MINUTES).contains(&duration) {
+    if !(0..=Duration::MAX_TENTHS).contains(&duration) {
         return Err(EditError::Overflow);
     }
     let parts = to_parts(raw)?;
     let total = sum(raw.iter().map(|r| r.work))?;
     Ok(Rebalanced {
-        duration: Minutes::new(duration),
-        work: Work::from_whole_minutes(total).map_err(|_| EditError::Overflow)?,
+        duration: Minutes::from_tenths(duration),
+        work: Work::from_milli(total).map_err(|_| EditError::Overflow)?,
         parts,
         recalculated,
     })
@@ -358,7 +376,7 @@ fn to_parts(raw: &[Raw]) -> Result<Vec<Part>, EditError> {
             Ok(Part {
                 uid: r.uid,
                 units: Units::new(r.units).map_err(|_| EditError::Overflow)?,
-                work: Work::from_whole_minutes(r.work).map_err(|_| EditError::Overflow)?,
+                work: Work::from_milli(r.work).map_err(|_| EditError::Overflow)?,
             })
         })
         .collect()
@@ -398,19 +416,17 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
         .map(|p| Raw {
             uid: p.uid,
             units: p.units.get(),
-            // Lot B1 : R-170 en minutes entières (R-001), comme avant
-            // l'ADR-0039.
-            work: p.work.whole_minutes_round(),
+            work: p.work.milli(),
         })
         .collect();
     raw.sort_by_key(|r| r.uid);
     let kind = task.task_type;
     let effort = effective_effort_driven(kind, task.effort_driven);
-    let d0 = task.duration.whole_minutes_round();
+    let d0 = task.duration.tenths();
     match *edit {
         Edit::Duration(d) => {
-            let d = d.whole_minutes_round();
-            if !(0..=Duration::MAX_MINUTES).contains(&d) {
+            let d = d.tenths();
+            if !(0..=Duration::MAX_TENTHS).contains(&d) {
                 return Err(EditError::Overflow);
             }
             let recalculated = if raw.is_empty() {
@@ -432,7 +448,7 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
                 return finish(kind, &raw, TaskDuration::Held(d0), Recalculated::Nothing);
             }
             let weights = weights(&raw, |r| r.work, |r| r.units)?;
-            spread(&mut raw, w.whole_minutes_round(), &weights, false)?;
+            spread(&mut raw, w.milli(), &weights, false)?;
             rebalance_after_work(kind, &mut raw, d0)
         }
         Edit::Units { uid, units } => {
@@ -457,7 +473,7 @@ pub fn apply(task: &TaskSide, parts: &[Part], edit: &Edit) -> Result<Rebalanced,
             let Some(r) = raw.get_mut(i) else {
                 return Err(EditError::UnknownAssignment(uid));
             };
-            r.work = work.whole_minutes_round();
+            r.work = work.milli();
             rebalance_after_work(kind, &mut raw, d0)
         }
         Edit::Add { uid, units } => {

@@ -8,12 +8,12 @@ use plannercraft_core::{AssignmentBaseline, BaselineNumber, Money, ResourceBasel
 use super::emit::Emitter;
 use super::{OrderProfile, Planned, entity, scoped};
 use crate::codes;
-use crate::scalar::{format_bool, format_datetime, format_iso_duration};
+use crate::scalar::{format_bool, format_datetime, format_iso_duration, format_iso_work};
 use crate::schema::Parent;
 
 /// Travail ISO.
 fn work(w: Option<Work>) -> Option<String> {
-    w.map(|w| format_iso_duration(w.whole_minutes_round()))
+    w.map(|w| format_iso_work(w.milli()))
 }
 
 /// Coût en centièmes (entier, O18).
@@ -42,8 +42,7 @@ pub(crate) fn task(
                 "Finish" => em.opt_leaf(name, b.finish.map(format_datetime)),
                 "Duration" => em.opt_leaf(
                     name,
-                    b.duration
-                        .map(|d| format_iso_duration(d.minutes().whole_minutes_round())),
+                    b.duration.map(|d| format_iso_duration(d.minutes().tenths())),
                 ),
                 "DurationFormat" => em.opt_leaf(
                     name,

@@ -3,10 +3,11 @@
 //! Observé (`docs/formats/mpp.md` § 6) : un horodatage tient sur 4 octets,
 //! `u32` petit-boutiste dont les 16 bits hauts sont le numéro du jour (1 =
 //! 1984-01-01) et les 16 bits bas l'heure en dixièmes de minute ;
-//! `FF FF FF FF` = aucune date (NA) ; secondes tronquées (R-004). Une durée ou un décalage est un `i32`
-//! en dixièmes de minute.
+//! `FF FF FF FF` = aucune date (NA) ; lu exactement, au dixième de minute
+//! (ADR-0039). Une durée ou un décalage est un `i32` en dixièmes de
+//! minute, lu exactement.
 
-use plannercraft_core::{Day, Minutes, Moment, round_div};
+use plannercraft_core::{Day, Minutes, Moment};
 
 /// Aucune date.
 pub const NA: u32 = 0xFFFF_FFFF;
@@ -36,11 +37,11 @@ pub fn stamp(raw: u32) -> Stamp {
     if day == 0 || tenths > TENTHS_PER_DAY {
         return Stamp::Invalid;
     }
-    // Secondes tronquées, comme une date MSPDI (R-004, R-075).
-    let minutes = i64::from(day.saturating_sub(1))
-        .checked_mul(1_440)
-        .and_then(|m| m.checked_add(i64::from(tenths.checked_div(10)?)));
-    match minutes.map(Moment::from_minutes) {
+    // Au dixième de minute, exact (ADR-0039).
+    let at = i64::from(day.saturating_sub(1))
+        .checked_mul(i64::from(TENTHS_PER_DAY))
+        .and_then(|t| t.checked_add(i64::from(tenths)));
+    match at.map(Moment::from_tenths) {
         Some(Ok(m)) => Stamp::At(m),
         _ => Stamp::Invalid,
     }
@@ -52,8 +53,9 @@ pub fn day(n: u16) -> Option<Day> {
     Day::new(i32::from(n).checked_sub(1)?).ok()
 }
 
-/// Minutes depuis des dixièmes de minute, arrondies par R-001.
+/// Durée depuis des dixièmes de minute, exacte (ADR-0039 ; avant :
+/// arrondie à la minute par R-001).
 #[must_use]
-pub fn minutes_from_tenths(tenths: i64) -> Option<Minutes> {
-    round_div(i128::from(tenths), 10).map(Minutes::new)
+pub const fn minutes_from_tenths(tenths: i64) -> Option<Minutes> {
+    Some(Minutes::from_tenths(tenths))
 }

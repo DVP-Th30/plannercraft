@@ -1,5 +1,7 @@
 //! P36 (R-186, R-187) : la surutilisation calculée par le moteur égale un
-//! oracle naïf, minute par minute, sur un horizon d'environ 30 jours, et
+//! oracle naïf, dixième de minute par dixième (ADR-0039 : les durées
+//! d'affectation tirées du travail tombent au dixième ; les plages des
+//! calendriers restent à la minute, un dixième est ouvré si sa minute l'est), sur un horizon d'environ 30 jours, et
 //! retirer une affectation n'en crée jamais ; 512 cas chacune.
 //!
 //! Réseaux générés : 1 à 3 ressources de travail (sans calendrier, sur le
@@ -180,7 +182,7 @@ fn bitmap(p: &Project, set: &CalendarSet, cal: EffectiveCalendar, from: Moment, 
         .collect()
 }
 
-/// Oracle : par ressource, minutes surchargées et pic, sur `[start, end)`.
+/// Oracle : par ressource, dixièmes surchargés et pic, sur `[start, end)`.
 fn oracle(p: &Project, s: &Schedule) -> BTreeMap<ResourceUid, (BTreeSet<i64>, i64)> {
     let (set, _) = CalendarSet::compile(p);
     let from = Moment::at(start().day(), TimeOfDay::MIDNIGHT).unwrap();
@@ -190,39 +192,42 @@ fn oracle(p: &Project, s: &Schedule) -> BTreeMap<ResourceUid, (BTreeSet<i64>, i6
         .map(|a| a.span.finish)
         .max()
         .unwrap_or(from);
-    let n = usize::try_from(from.minutes_until(end).whole_minutes().unwrap()).unwrap();
+    // Minutes du bitmap (calendriers à la minute), dixièmes de la charge.
+    let span = from.minutes_until(end).tenths();
+    let n = usize::try_from(span.div_euclid(10) + 1).unwrap();
+    let nt = usize::try_from(span).unwrap();
     let mut maps: BTreeMap<EffectiveCalendar, Vec<bool>> = BTreeMap::new();
     let mut out = BTreeMap::new();
     for res in &p.resources {
-        let mut load = vec![0i64; n];
+        let mut load = vec![0i64; nt];
         for a in s.assignments.values().filter(|a| a.resource == Some(res.uid())) {
             let map = maps
                 .entry(a.calendar)
                 .or_insert_with(|| bitmap(p, &set, a.calendar, from, n));
-            let lo = from.minutes_until(a.span.start).whole_minutes().unwrap() as usize;
-            let hi = from.minutes_until(a.span.finish).whole_minutes().unwrap() as usize;
-            for m in lo..hi {
-                if map[m] {
-                    load[m] += a.effective_units.get();
+            let lo = from.minutes_until(a.span.start).tenths() as usize;
+            let hi = from.minutes_until(a.span.finish).tenths() as usize;
+            for t in lo..hi {
+                if map[t / 10] {
+                    load[t] += a.effective_units.get();
                 }
             }
         }
         let cap = res.max_units.get();
-        let over: BTreeSet<i64> = (0..n)
-            .filter(|&m| load[m] > cap)
-            .map(|m| from.whole_minutes().unwrap() + m as i64)
+        let over: BTreeSet<i64> = (0..nt)
+            .filter(|&t| load[t] > cap)
+            .map(|t| from.tenths() + t as i64)
             .collect();
         out.insert(res.uid(), (over, load.iter().copied().max().unwrap_or(0)));
     }
     out
 }
 
-/// Minutes couvertes par les intervalles de surutilisation de `r`.
+/// Dixièmes couverts par les intervalles de surutilisation de `r`.
 fn covered(s: &Schedule, r: ResourceUid) -> BTreeSet<i64> {
     s.resources[&r]
         .overloads
         .iter()
-        .flat_map(|o| o.from.whole_minutes().unwrap()..o.to.whole_minutes().unwrap())
+        .flat_map(|o| o.from.tenths()..o.to.tenths())
         .collect()
 }
 
@@ -276,7 +281,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(512))]
 
     #[test]
-    fn r186_p36_matches_minute_oracle(seed in any::<u64>()) {
+    fn r186_p36_matches_tenth_oracle(seed in any::<u64>()) {
         p36_matches(seed);
     }
 

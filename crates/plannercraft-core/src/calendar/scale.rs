@@ -121,13 +121,14 @@ impl TimeScale<'_> {
     /// écoulé, successeur sur un autre calendrier, plafond hérité d'une
     /// récapitulative) :
     /// - temps écoulé : `y` ;
-    /// - temps ouvré, `d > 0` : `y` s'il commence une minute ouvrée
-    ///   (`next_working_moment(y) == y`), sinon le début de la dernière minute
-    ///   ouvrée avant `y` (`previous_working_moment(y) − 1 min`) ;
+    /// - temps ouvré, `d > 0` : `y` s'il commence un dixième ouvré
+    ///   (`next_working_moment(y) == y`), sinon le début du dernier dixième de
+    ///   minute ouvré avant `y` (`previous_working_moment(y) − 0,1 min`,
+    ///   ADR-0039) ;
     /// - temps ouvré, `d = 0` (jalon, R-031) : `y` s'il termine une minute
     ///   ouvrée ou en commence une, sinon `previous_working_moment(y)`.
     ///
-    /// Exemple (Standard) : `y` = mer 22:00, `d` = 480 → mer 16:59 (placé à
+    /// Exemple (Standard) : `y` = mer 22:00, `d` = 480 → mer 16:59:54 (placé à
     /// jeu 08:00, la tâche commencerait après `y`).
     ///
     /// # Errors
@@ -147,10 +148,9 @@ impl TimeScale<'_> {
         if d == Minutes::ZERO {
             return Ok(previous);
         }
-        // Début de la dernière minute ouvrée (lot B1 : une minute, comme
-        // avant l'ADR-0039).
+        // Début du dernier dixième de minute ouvré (ADR-0039).
         previous
-            .checked_add(Minutes::new(-1))
+            .checked_add(Minutes::from_tenths(-1))
             .map_err(|_| CalendarError::OutOfDomain {
                 calendar: c.uid(),
                 direction: Direction::Before,
@@ -320,25 +320,26 @@ mod tests {
         let c = std_cal();
         let w = TimeScale::Working(&c);
         let day = Minutes::new(480);
-        // Mer 22:00 hors temps ouvré : dernière minute ouvrée mer 16:59 ;
-        // placée là, la tâche commence à 16:59 ≤ 22:00.
+        // Mer 22:00 hors temps ouvré : dernier dixième ouvré mer 16:59:54
+        // (ADR-0039 ; avant : la dernière minute, 16:59) ; placée là, la
+        // tâche commence à 16:59:54 ≤ 22:00.
         assert_eq!(
             w.latest_start(m("2026-10-21T22:00"), day),
-            Ok(m("2026-10-21T16:59"))
+            Ok(m("2026-10-21T16:59:54"))
         );
-        // Jeu 01:00 : même réponse ; jeu 08:00 commence une minute ouvrée.
+        // Jeu 01:00 : même réponse ; jeu 08:00 commence un dixième ouvré.
         assert_eq!(
             w.latest_start(m("2026-10-22T01:00"), day),
-            Ok(m("2026-10-21T16:59"))
+            Ok(m("2026-10-21T16:59:54"))
         );
         assert_eq!(
             w.latest_start(m("2026-10-22T08:00"), day),
             Ok(m("2026-10-22T08:00"))
         );
-        // Pause de midi : 12:30 → 11:59.
+        // Pause de midi : 12:30 → 11:59:54.
         assert_eq!(
             w.latest_start(m("2026-10-22T12:30"), day),
-            Ok(m("2026-10-22T11:59"))
+            Ok(m("2026-10-22T11:59:54"))
         );
         for y in ["2026-10-21T22:00", "2026-10-22T12:30", "2026-10-24T10:00"] {
             let start = w.latest_start(m(y), day).unwrap();

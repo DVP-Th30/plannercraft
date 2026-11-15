@@ -36,12 +36,13 @@ fn r204_in_progress_split_point() {
     assert_eq!(p.remaining_duration, Minutes::new(960));
     assert_eq!(p.stop, moment("2026-10-19T17:00"));
     assert_eq!(p.resume, moment("2026-10-20T08:00"));
-    // 3 300 ⇒ réel 475 : `Stop` lun 16:55, reprise aussitôt, fin mer 17:00.
+    // 3 300 ⇒ réel 475,2 au dixième (ADR-0039 ; avant : 475, `Stop` 16:55) :
+    // `Stop` lun 16:55:12, reprise aussitôt, fin mer 17:00.
     let run = started(3_300).run();
     let p = run.at("T").progress.unwrap();
-    assert_eq!(p.actual_duration, Minutes::new(475));
-    assert_eq!(p.stop, moment("2026-10-19T16:55"));
-    assert_eq!(p.resume, moment("2026-10-19T16:55"));
+    assert_eq!(p.actual_duration, Minutes::from_tenths(4_752));
+    assert_eq!(p.stop, moment("2026-10-19T16:55:12"));
+    assert_eq!(p.resume, moment("2026-10-19T16:55:12"));
     assert_eq!(run.at("T").finish, moment("2026-10-21T17:00"));
     // Début réel absent : implicite = début au plus tôt du réseau,
     // `progress.actual_start_missing` une seule fois.

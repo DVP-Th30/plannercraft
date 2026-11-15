@@ -11,9 +11,10 @@ use serde::Serialize;
 
 use crate::Recorded;
 
-/// Écart d'arrondi au plus, en minutes (R-298) : le moteur compte en
-/// minutes entières, MS Project en dixièmes de minute.
+/// Écart d'arrondi au plus, en minutes (R-298).
 pub const ROUNDING_MINUTES: i64 = 2;
+/// Même seuil en dixièmes de minute (ADR-0039 : comparaison au dixième).
+const ROUNDING_TENTHS: i64 = ROUNDING_MINUTES * 10;
 
 /// Classe de l'écart d'une tâche (R-298).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -42,9 +43,6 @@ pub enum GapCause {
     /// ailleurs qu'au début du projet (planning non recalculé ou déplacé
     /// sans contrainte).
     UnexplainedStart,
-    /// Dates enregistrées à la fraction de minute : précision du moteur
-    /// (minutes entières, règle 5).
-    SubMinute,
 }
 
 impl GapCause {
@@ -55,7 +53,6 @@ impl GapCause {
             Self::ContouredAssignment => "mpp.gap.contoured_assignment",
             Self::StaggeredAssignments => "mpp.gap.staggered_assignments",
             Self::UnexplainedStart => "mpp.gap.unexplained_start",
-            Self::SubMinute => "mpp.gap.sub_minute",
         }
     }
 
@@ -69,8 +66,6 @@ impl GapCause {
             (Self::StaggeredAssignments, false) => "assignment shifted without a saved delay",
             (Self::UnexplainedStart, true) => "début enregistré sans lien ni contrainte qui l'explique",
             (Self::UnexplainedStart, false) => "saved start not explained by any link or constraint",
-            (Self::SubMinute, true) => "dates à la fraction de minute",
-            (Self::SubMinute, false) => "dates with fractions of a minute",
         }
     }
 }
@@ -88,8 +83,9 @@ pub struct DateGap {
     pub recorded: String,
     /// Date calculée par le moteur.
     pub computed: String,
-    /// Écart en minutes (calculé − enregistré).
-    pub minutes: i64,
+    /// Écart (calculé − enregistré), au dixième de minute (ADR-0039) ;
+    /// en JSON, des minutes décimales.
+    pub minutes: Minutes,
     /// Classe de l'écart de la tâche.
     pub class: GapClass,
     /// Cause connue, non recalculable (écart réel seulement).
@@ -217,9 +213,7 @@ fn cause(
                 .assignments
                 .get(&a.uid())
                 .and_then(|r| r.start)
-                .is_some_and(|s| {
-                    s.minutes_floor().saturating_sub(recorded_start.minutes_floor()) > ROUNDING_MINUTES
-                })
+                .is_some_and(|s| s.tenths().saturating_sub(recorded_start.tenths()) > ROUNDING_TENTHS)
     });
     if shifted {
         return Some(GapCause::StaggeredAssignments);
@@ -232,11 +226,7 @@ fn cause(
     {
         return Some(GapCause::UnexplainedStart);
     }
-    recorded
-        .tasks
-        .get(&uid)
-        .filter(|r| r.sub_minute)
-        .map(|_| GapCause::SubMinute)
+    None
 }
 
 /// Compare les dates enregistrées au planning calculé par le moteur.
@@ -258,9 +248,9 @@ pub fn compare(project: &Project, schedule: &Schedule, recorded: &Recorded) -> C
             continue;
         };
         out.tasks_compared = out.tasks_compared.saturating_add(1);
-        // Lot B1 : écarts à la minute affichée (secondes tronquées).
-        let ds = s.start.minutes_floor().saturating_sub(rs.minutes_floor());
-        let df = s.finish.minutes_floor().saturating_sub(rf.minutes_floor());
+        // Écarts au dixième de minute (ADR-0039), la précision de MS Project.
+        let ds = s.start.tenths().saturating_sub(rs.tenths());
+        let df = s.finish.tenths().saturating_sub(rf.tenths());
         if ds == 0 {
             out.starts_equal = out.starts_equal.saturating_add(1);
         }
@@ -271,7 +261,7 @@ pub fn compare(project: &Project, schedule: &Schedule, recorded: &Recorded) -> C
             out.tasks_identical = out.tasks_identical.saturating_add(1);
             continue;
         }
-        let rounding = ds.abs() <= ROUNDING_MINUTES && df.abs() <= ROUNDING_MINUTES;
+        let rounding = ds.abs() <= ROUNDING_TENTHS && df.abs() <= ROUNDING_TENTHS;
         let (class, why) = if rounding {
             out.tasks_rounding = out.tasks_rounding.saturating_add(1);
             (GapClass::Rounding, None)
@@ -293,7 +283,7 @@ pub fn compare(project: &Project, schedule: &Schedule, recorded: &Recorded) -> C
                     field,
                     recorded: r.to_string(),
                     computed: c.to_string(),
-                    minutes: d,
+                    minutes: Minutes::from_tenths(d),
                     class,
                     cause: why,
                 });

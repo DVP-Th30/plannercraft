@@ -1,4 +1,5 @@
-//! R-072 — `LinkLag` en dixièmes de minute → minutes (import MSPDI).
+//! R-072 — `LinkLag` en dixièmes de minute, lu exactement (import MSPDI,
+//! ADR-0039).
 
 use plannercraft_core::Minutes;
 use plannercraft_mspdi::scalar::tenths_to_minutes;
@@ -13,15 +14,16 @@ fn r072_tenths_divided_by_ten() {
 }
 
 #[test]
-fn r072_remainder_rounded_by_r001() {
-    // 25 dixièmes = 2,5 min → 3 (moitié loin de zéro), arrondi signalé ;
-    // −25 → −3 ; 24 → 2.
-    assert_eq!(tenths_to_minutes(25), (Minutes::new(3), true));
-    assert_eq!(tenths_to_minutes(-25), (Minutes::new(-3), true));
-    assert_eq!(tenths_to_minutes(24), (Minutes::new(2), true));
+fn r072_remainder_kept_exactly() {
+    // ADR-0039 : 25 dixièmes = 2,5 min, exact, sans arrondi signalé (avant :
+    // 3 min, arrondi par R-001) ; −25 → −2,5 ; 24 → 2,4.
+    assert_eq!(tenths_to_minutes(25), (Minutes::from_tenths(25), false));
+    assert_eq!(tenths_to_minutes(-25), (Minutes::from_tenths(-25), false));
+    assert_eq!(tenths_to_minutes(24), (Minutes::from_tenths(24), false));
 }
 
-/// Liens de la tâche `uid` de la fixture `tasks.xml` : (base, minutes, unité).
+/// Liens de la tâche `uid` de la fixture `tasks.xml` : (base, dixièmes,
+/// unité).
 fn lags(
     uid: u32,
 ) -> (
@@ -43,7 +45,7 @@ fn lags(
         .iter()
         .filter_map(|l| match l.lag.value {
             plannercraft_core::LagValue::Time { minutes, unit } => {
-                Some((l.lag.basis, minutes.whole_minutes().unwrap(), unit))
+                Some((l.lag.basis, minutes.tenths(), unit))
             }
             plannercraft_core::LagValue::Percent { .. } => None,
         })
@@ -56,17 +58,17 @@ fn r072_lag_format_gives_basis_and_unit() {
     use plannercraft_core::DurationUnit::Day;
     use plannercraft_core::TimeBasis::{Elapsed, Working};
     // UID 3 : 4 800 + `LagFormat` 7 → +480 ouvré (1 j).
-    assert_eq!(lags(3).0, [(Working, 480, Day)]);
+    assert_eq!(lags(3).0, [(Working, 4_800, Day)]);
     // UID 4 : FF −4 800 + 7 → −480 ; SS 28 800 + 8 → +2 880 écoulé (2 ej).
-    assert_eq!(lags(4).0, [(Working, -480, Day), (Elapsed, 2_880, Day)]);
-    // UID 5 : SF 25 dixièmes → 3 min, arrondi signalé.
+    assert_eq!(lags(4).0, [(Working, -4_800, Day), (Elapsed, 28_800, Day)]);
+    // UID 5 : SF 25 dixièmes → 2,5 min exactes, sans arrondi signalé
+    // (ADR-0039 ; avant : 3 min, `mspdi.rounded`).
     let (l, doc) = lags(5);
-    assert_eq!(l, [(Working, 3, Day)]);
+    assert_eq!(l, [(Working, 25, Day)]);
     assert!(
-        doc.diagnostics
+        !doc.diagnostics
             .iter()
             .any(|d| d.code == plannercraft_mspdi::ImportCode::Rounded
-                && d.element == "Tasks/Task/PredecessorLink/LinkLag"
-                && d.value.as_deref() == Some("25"))
+                && d.element == "Tasks/Task/PredecessorLink/LinkLag")
     );
 }

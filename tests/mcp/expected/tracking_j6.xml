@@ -367,9 +367,9 @@
 			<PercentComplete>65</PercentComplete>
 			<PercentWorkComplete>54</PercentWorkComplete>
 			<ActualStart>2026-11-02T08:00:00</ActualStart>
-			<ActualDuration>PT129H25M0S</ActualDuration>
+			<ActualDuration>PT129H24M42S</ActualDuration>
 			<ActualWork>PT56H0M0S</ActualWork>
-			<RemainingDuration>PT70H35M0S</RemainingDuration>
+			<RemainingDuration>PT70H35M18S</RemainingDuration>
 			<RemainingWork>PT48H0M0S</RemainingWork>
 			<ConstraintType>0</ConstraintType>
 			<CalendarUID>-1</CalendarUID>

@@ -3,8 +3,9 @@
 //! puis la grandeur du type est recalculée.
 
 use crate::r170_work_equals_duration_times_units::{DAY, HOUR, check, part, task, work};
+use plannercraft_core::Minutes;
 use plannercraft_core::TaskType::{FixedDuration, FixedUnits};
-use plannercraft_core::resource::{Edit, Recalculated};
+use plannercraft_core::resource::{Edit, Recalculated, apply};
 
 #[test]
 fn r194_prorata_and_remainder() {
@@ -37,13 +38,15 @@ fn r194_prorata_and_remainder() {
         out.parts,
         [part(1, 10_000, 140), part(2, 10_000, 140), part(3, 10_000, 140)]
     );
-    // 10 min sur trois égales : 3,33 → 3, 3, reste 4 à la dernière (UID 3) ;
-    // durée = plus grand d_a = 4.
-    let out = check(&side, &three, Edit::Work(work(10)), 4, 10, Recalculated::Duration);
-    assert_eq!(
-        out.parts,
-        [part(1, 10_000, 3), part(2, 10_000, 3), part(3, 10_000, 4)]
-    );
+    // 10 min sur trois égales, au millième (ADR-0039 ; avant : 3, 3, 4 min
+    // et D 4) : 3,333, 3,333, reste 3,334 à la dernière (UID 3) ; durée =
+    // plus grand d_a = 3,334 tronqué au dixième = 3,3 min (R-170).
+    let out = apply(&side, &three, &Edit::Work(work(10))).unwrap();
+    assert_eq!(out.duration, Minutes::from_tenths(33));
+    assert_eq!(out.work, work(10));
+    assert_eq!(out.recalculated, Recalculated::Duration);
+    let milli: Vec<i64> = out.parts.iter().map(|p| p.work.milli()).collect();
+    assert_eq!(milli, [3_333, 3_333, 3_334]);
 }
 
 #[test]

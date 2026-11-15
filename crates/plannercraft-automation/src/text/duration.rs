@@ -8,12 +8,10 @@ use plannercraft_core::{
 use super::lex::{Cursor, bounded_chars, fold, format_decimal, is_space};
 use super::{Language, TextContext, TextError};
 
-/// Résolution d'une saisie en texte qui entre dans le modèle (R-140) : la
-/// minute entière pendant les lots B2-B3, comme avant l'ADR-0039 ; le
-/// dixième au lot B4, quand le calcul prendra la fraction en charge. Une
-/// saisie à la minute arrondit le décimal lu une seule fois, par R-001
-/// (« 0,01j » → 5 min), jamais en passant par le dixième.
-pub const ENTRY_RESOLUTION: Resolution = Resolution::Minute;
+/// Résolution d'une saisie en texte qui entre dans le modèle (R-140) : le
+/// dixième de minute, celle du moteur et de MS Project (ADR-0039, lot B4 ;
+/// avant : la minute) : « 0,01j » donne 4,8 min.
+pub const ENTRY_RESOLUTION: Resolution = Resolution::Tenth;
 
 /// R-140 : unité ouvrée d'une écriture repliée (casse et accents ignorés,
 /// points finaux retirés).
@@ -225,24 +223,18 @@ fn abbreviation(unit: DurationUnit, basis: TimeBasis, language: Language) -> Str
 }
 
 /// R-141 : valeur exacte de `minutes` (≥ 0) dans l'unité, relue par R-140
-/// à la résolution de la valeur (minute entière : la minute, texte
-/// inchangé depuis J3 ; fraction : le dixième, ADR-0039) : 2 décimales
-/// (R-009) ; si la relecture ne redonne pas la valeur, 5 décimales ; sinon
-/// 6 (au plus 44 640 min par unité : erreur ≤ 5·10⁻⁷ × 44 640 < 0,05 min,
-/// la relecture au dixième redonne la valeur ; à la minute, 5 décimales
-/// suffisent toujours : 5·10⁻⁶ × 44 640 < 0,5). `None` si un calcul
-/// déborde (impossible dans les bornes du modèle).
+/// au dixième de minute (ADR-0039) : 2 décimales (R-009) ; si la relecture
+/// ne redonne pas la valeur, 5 décimales ; sinon 6 (au plus 44 640 min par
+/// unité : erreur ≤ 5·10⁻⁷ × 44 640 < 0,05 min, la relecture redonne
+/// toujours la valeur). `None` si un calcul déborde (impossible dans les
+/// bornes du modèle).
 fn exact_value(
     factors: &ConversionFactors,
     minutes: Minutes,
     unit: DurationUnit,
     basis: TimeBasis,
 ) -> Option<Decimal> {
-    let resolution = if minutes.whole_minutes().is_some() {
-        Resolution::Minute
-    } else {
-        Resolution::Tenth
-    };
+    let resolution = Resolution::Tenth;
     let rereads = |v: Decimal| {
         factors
             .to_minutes_at(v, unit, basis, resolution)
