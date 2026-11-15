@@ -4,7 +4,7 @@
 
 ## 1. Pourquoi passer par le format XML
 
-PlannerCraft ne lit pas les fichiers `.mpp` : c'est un format binaire non documenté, hors du périmètre de la version 1. MS Project sait en revanche enregistrer **tout le projet** dans son format XML (« Format XML », schéma MSPDI) et le relire lui-même : c'est le format natif de PlannerCraft et le chemin d'échange recommandé.
+L'application ne lit pas encore les fichiers `.mpp` (format binaire de MS Project). La ligne de commande sait les convertir : `plannercraft import-mpp projet.mpp -o projet.xml` lit un `.mpp` enregistré par MS Project 2010 ou plus récent (tâches avec leur avancement, liens, calendriers, propriétés du projet, ainsi que les modèles `.mpt` ; pas encore les ressources ni les affectations) et écrit le XML que PlannerCraft ouvre ; un `.mpp` plus ancien est refusé avec sa version. Détail : `docs/features/cli.md`. MS Project sait aussi enregistrer **tout le projet** dans son format XML (« Format XML », schéma MSPDI) et le relire lui-même : c'est le format natif de PlannerCraft et le chemin d'échange recommandé.
 
 Project pour le web (devenu Planner Premium) et Project Online sans le client de bureau ne produisent pas ce fichier : à notre connaissance (fils Microsoft Q&A, pas de page officielle), ils n'exportent que vers Excel. Il faut MS Project Desktop (2010 ou plus récent), ou passer par le CSV (section 5).
 
@@ -75,7 +75,7 @@ Le CSV convient pour partir d'un tableur, ou depuis MS Project quand le XML n'es
 
 ## 1. Why the XML format
 
-PlannerCraft does not read `.mpp` files: the binary format is undocumented and out of scope for version 1. MS Project can save **the whole project** in its XML format ("XML Format", MSPDI schema) and read it back itself: it is PlannerCraft's native format and the recommended exchange path.
+The application does not open `.mpp` files yet (MS Project's binary format). The command line can convert them: `plannercraft import-mpp project.mpp -o project.xml` reads a `.mpp` saved by MS Project 2010 or later (tasks with their progress, links, calendars, project properties, and `.mpt` templates; not yet resources or assignments) and writes the XML that PlannerCraft opens; an older `.mpp` is refused with its version. Details: `docs/features/cli.md`. MS Project can also save **the whole project** in its XML format ("XML Format", MSPDI schema) and read it back itself: it is PlannerCraft's native format and the recommended exchange path.
 
 Project for the web (now Planner Premium) and Project Online without the desktop client do not produce this file: to our knowledge (Microsoft Q&A threads, no official page), they only export to Excel. Use MS Project Desktop (2010 or later), or go through CSV (section 5).
 

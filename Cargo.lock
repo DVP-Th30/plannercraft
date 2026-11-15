@@ -3849,11 +3849,13 @@ dependencies = [
 name = "plannercraft-cli"
 version = "1.0.0-rc.1"
 dependencies = [
+ "cfb",
  "chrono",
  "clap",
  "plannercraft-automation",
  "plannercraft-core",
  "plannercraft-mcp",
+ "plannercraft-mpp",
  "plannercraft-mspdi",
  "plannercraft-pdfimport",
  "plannercraft-render",
@@ -3890,6 +3892,19 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+]
+
+[[package]]
+name = "plannercraft-mpp"
+version = "1.0.0-rc.1"
+dependencies = [
+ "cfb",
+ "plannercraft-core",
+ "plannercraft-mspdi",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml",
 ]
 
 [[package]]

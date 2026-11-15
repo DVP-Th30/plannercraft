@@ -7,7 +7,8 @@
 //!   transitivement, d'egui, eframe, winit ou rfd.
 //! - `corpus fetch` : télécharge les fichiers du corpus public
 //!   (`tests/corpus/manifest.toml`), contrôle taille et SHA-256 ;
-//!   `corpus fetch-pdf` : ceux de l'import PDF (`tests/corpus-pdf/`).
+//!   `corpus fetch-pdf` : ceux de l'import PDF (`tests/corpus-pdf/`) ;
+//!   `corpus fetch-mpp` : ceux de l'import `.mpp` (`tests/corpus-mpp/`).
 //! - `schema fetch` : extrait le schéma MSPDI `mspdi_pj15.xsd` du MSI du SDK
 //!   de Project 2013 (`tests/schema/`, sha256 vérifiés).
 //! - `panics` : complète clippy pour la règle 10 (ne jamais planter). Refuse
@@ -62,6 +63,8 @@ tâches :
            télécharge le corpus public (tests/corpus/files, sha256 vérifié)
   corpus fetch-pdf
            télécharge le corpus de l'import PDF (tests/corpus-pdf/files, sha256 vérifié)
+  corpus fetch-mpp
+           télécharge le corpus de l'import .mpp (tests/corpus-mpp/files, sha256 vérifié)
   schema fetch
            extrait mspdi_pj15.xsd du SDK de Project 2013 (tests/schema, sha256 vérifiés)";
 

@@ -1,7 +1,9 @@
 //! `cargo xtask corpus fetch` : télécharge les fichiers du corpus public
 //! (ADR-0004, ADR-0009) dans `tests/corpus/files/`, ignoré par git ;
 //! `cargo xtask corpus fetch-pdf` : ceux du corpus de l'import PDF
-//! (ADR-0032) dans `tests/corpus-pdf/files/`, même mécanisme.
+//! (ADR-0032) dans `tests/corpus-pdf/files/`, même mécanisme ;
+//! `cargo xtask corpus fetch-mpp` : ceux de l'import `.mpp` (ADR-0036) dans
+//! `tests/corpus-mpp/files/`.
 //!
 //! Le manifeste `tests/corpus/manifest.toml` est relu avec des types propres
 //! à cette tâche (`name`, `url`, `mirrors`, `size`, `sha256` ; les autres clés
@@ -65,8 +67,10 @@ pub fn run(args: &[String]) -> ExitCode {
         // Corpus de l'import PDF (ADR-0032) : même manifeste réduit (les
         // clés propres au test de l'import sont ignorées ici), autre dossier.
         Some("fetch-pdf") if args.len() == 1 => fetch(&corpus_dir("corpus-pdf")),
+        // Corpus de l'import .mpp (ADR-0036) : même mécanisme.
+        Some("fetch-mpp") if args.len() == 1 => fetch(&corpus_dir("corpus-mpp")),
         _ => {
-            eprintln!("usage : cargo xtask corpus fetch | fetch-pdf");
+            eprintln!("usage : cargo xtask corpus fetch | fetch-pdf | fetch-mpp");
             ExitCode::FAILURE
         }
     }

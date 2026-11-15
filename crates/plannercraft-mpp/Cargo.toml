@@ -1,0 +1,27 @@
+[package]
+name = "plannercraft-mpp"
+description = "Lecture des fichiers binaires de Microsoft Project (.mpp) dans PlannerCraft, sans interface."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+plannercraft-core.workspace = true
+# Codes numériques partagés avec MSPDI (formats de durée, types de lien, de
+# contrainte, de tâche) : observés identiques dans les .mpp (ADR-0036).
+plannercraft-mspdi.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+# Écriture de fichiers composés synthétiques dans les tests (crate MIT déjà
+# au lock, tirée par `msi` dans xtask) : le lecteur maison est confronté à
+# un écrivain indépendant (ADR-0036 D2). Jamais une dépendance du produit.
+cfb = "0.14.0"
+serde_json.workspace = true
+sha2.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

@@ -89,6 +89,11 @@ jobs:
       - name: plannercraft-pdf en WebAssembly
         run: cargo check -p plannercraft-pdf --target wasm32-unknown-unknown
 
+      # Lecture des .mpp (ADR-0036) : servira à la version web (fichier
+      # déposé dans le navigateur).
+      - name: plannercraft-mpp en WebAssembly
+        run: cargo check -p plannercraft-mpp --target wasm32-unknown-unknown
+
       # Version web (et plannercraft-ui-egui) en WebAssembly : seule la compilation
       # est vérifiée, `trunk build` viendra avec le packaging web.
       - name: plannercraft-web en WebAssembly
@@ -349,6 +354,34 @@ jobs:
           name: corpus-report
           # Rapport seul, jamais les fichiers du corpus.
           path: target/tmp/corpus-report.*
+
+  # Corpus de l'import .mpp (ADR-0036, lot M1) : sélection de 45 fichiers
+  # de test publics (22 Mo, adresses figées sur un commit, taille et sha256
+  # vérifiés), téléchargés à chaque exécution et jamais mis en cache, comme
+  # le corpus ci-dessus. Comptes et dates lus, plancher des dates
+  # recalculées égales aux dates enregistrées ; puis fichiers tronqués et
+  # altérés (graine fixe). Aucun fichier publié.
+  corpus-mpp:
+    name: corpus .mpp (lecture)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Téléchargement (sha256 vérifié)
+        run: cargo xtask corpus fetch-mpp
+
+      - name: Lecture et comptes
+        run: cargo test -p plannercraft-mpp --test corpus -- --nocapture
+        env:
+          PLANNERCRAFT_MPP_CORPUS: required
+
+      - name: Fichiers altérés
+        run: cargo test -p plannercraft-mpp --test robustness -- --nocapture
 
   # Schéma MSPDI pj15 (ADR-0010, D18) : fichier public de Microsoft, extrait
   # du MSI du SDK de Project 2013 (64 Mo) par `cargo xtask schema fetch`, en

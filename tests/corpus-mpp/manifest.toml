@@ -1,0 +1,1066 @@
+# Corpus public de l'import .mpp (ADR-0036, lot M1).
+#
+# Sélection de fichiers .mpp de test publics du dépôt joniles/mpxj (données
+# enregistrées par MS Project, pas de code), adresses figées sur un commit,
+# puis fichiers réels de dépôts GitHub publics (projets d'étudiants, cours,
+# livre ; adresses figées sur le commit du dépôt).
+# Les fichiers ne sont PAS commités : `cargo xtask corpus fetch-mpp` les
+# télécharge dans tests/corpus-mpp/files/, ignoré par git, et contrôle taille
+# et SHA-256. Seul ce manifeste est versionné. Clés lues par le
+# téléchargement : name, url, mirrors, size, sha256 ; par le test
+# `crates/plannercraft-mpp/tests/corpus.rs` : expect (`import` ou code de
+# refus), et pour un import tasks, null_tasks, links, calendars,
+# calendar_exceptions, project_start, min_identical (tâches dont les dates
+# recalculées par le moteur égalent les dates enregistrées, plancher).
+# Valeurs attendues : lues par le lecteur du dépôt et vérifiées contre le
+# corrigé externe (docs/plans/mpp-import.md), jamais copiées du corrigé.
+
+format = 1
+
+[[file]]
+name = "generated__task-dates__task-dates-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-dates/task-dates-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-dates/task-dates-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 199680
+sha256 = "99fefeffab54def45e201cb7a3fc4e5149bc910844ca1f40d612627966a60347"
+expect = "import"
+tasks = 10
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-10-31T08:00"
+min_identical = 10
+
+[[file]]
+name = "generated__task-dates__task-dates-project2019-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-dates/task-dates-project2019-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-dates/task-dates-project2019-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 251904
+sha256 = "58c5f8dd40c012c354929d2604e94cc9ca3012feac1d8402fc49a06d5456e759"
+expect = "import"
+tasks = 10
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2018-10-18T08:00"
+min_identical = 10
+
+[[file]]
+name = "generated__task-links__task-links-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-links/task-links-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-links/task-links-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 202752
+sha256 = "5633d197a9244e9eaa28e32116f5f392456037fa3f5acd0ce0aaa1ead49d2b30"
+expect = "import"
+tasks = 16
+null_tasks = 0
+links = 8
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-10-17T08:00"
+min_identical = 16
+
+[[file]]
+name = "generated__task-links__task-links-project2016-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-links/task-links-project2016-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-links/task-links-project2016-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 254976
+sha256 = "ead516ba194e86c79d4794bbdb9abcaa75469eda543a8386f03bd27a0ade120f"
+expect = "import"
+tasks = 16
+null_tasks = 0
+links = 8
+calendars = 1
+calendar_exceptions = 0
+project_start = "2016-02-08T08:00"
+min_identical = 16
+
+[[file]]
+name = "generated__task-durations__task-durations-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-durations/task-durations-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-durations/task-durations-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 361984
+sha256 = "64a560f510d0d4874e478b56ba1fa0694769bc881548618147b79f388e403cd7"
+expect = "import"
+tasks = 110
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-10-17T08:00"
+min_identical = 110
+
+[[file]]
+name = "generated__task-flags__task-flags-project2016-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-flags/task-flags-project2016-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-flags/task-flags-project2016-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 264704
+sha256 = "976e25dd4c815d248926bfd7b874de99c0ae828673777f282048788e33d83763"
+expect = "import"
+tasks = 20
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2016-02-08T08:00"
+min_identical = 20
+
+[[file]]
+name = "generated__task-text__task-text-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-text/task-text-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-text/task-text-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 223232
+sha256 = "bd468e3eab7aba94c52866efa5d9c94e9be3be28e6b7aecdad7453aa5bffb7ca"
+expect = "import"
+tasks = 30
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-10T08:00"
+min_identical = 30
+
+[[file]]
+name = "generated__task-starts__task-starts-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-starts/task-starts-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-starts/task-starts-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 251392
+sha256 = "764dc972df9b73d5da533a82a14b59834a5e973ae9526b2bd9264ab03f050f08"
+expect = "import"
+tasks = 10
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-03T08:00"
+min_identical = 10
+
+[[file]]
+name = "generated__task-finishes__task-finishes-project2019-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-finishes/task-finishes-project2019-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-finishes/task-finishes-project2019-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 251904
+sha256 = "0e83f7e3de97c31a930ffe1d44aca24f33fbdbd6b0dfbb7b6f4b5b7eca033bc9"
+expect = "import"
+tasks = 10
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2018-10-18T08:00"
+min_identical = 10
+
+[[file]]
+name = "generated__task-numbers__task-numbers-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-numbers/task-numbers-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-numbers/task-numbers-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 212992
+sha256 = "3232c816697d168b3bcfecff7ea63e722c9c5be75873bf48da3fad01cdd19c89"
+expect = "import"
+tasks = 20
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-10-17T08:00"
+min_identical = 20
+
+[[file]]
+name = "generated__task-baselines__task-baselines-project2016-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-baselines/task-baselines-project2016-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-baselines/task-baselines-project2016-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 367616
+sha256 = "bebbce73043b04e69273c2611363df0a1b5c966efdd6de131afdee65677fe3d9"
+expect = "import"
+tasks = 110
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2016-02-08T08:00"
+min_identical = 110
+
+[[file]]
+name = "generated__task-costs__task-costs-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-costs/task-costs-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-costs/task-costs-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 251392
+sha256 = "1ce294cedbd8b8696af6ebd944019f48a4bfc86f567284d156e4a55c9b7a30a8"
+expect = "import"
+tasks = 10
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-11T08:00"
+min_identical = 10
+
+[[file]]
+name = "generated__task-outlinecodes__task-outlinecodes-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/task-outlinecodes/task-outlinecodes-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-outlinecodes/task-outlinecodes-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 268288
+sha256 = "8216b7ccc1dca48ad45a45cf9cca974ab9bf5e6b33638cc95aca34cbeae875fd"
+expect = "import"
+tasks = 20
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-11T08:00"
+min_identical = 20
+
+[[file]]
+name = "generated__calendar-calendars__calendar-calendars-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/calendar-calendars/calendar-calendars-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/calendar-calendars/calendar-calendars-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 188416
+sha256 = "a2df0d81e463689fae9978bd7a12eac9fa4be6bec5e9d7f69f331e6f3a5777cb"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 3
+calendar_exceptions = 0
+project_start = "2015-04-29T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__calendar-calendars__calendar-calendars-project2016-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/calendar-calendars/calendar-calendars-project2016-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/calendar-calendars/calendar-calendars-project2016-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 237568
+sha256 = "5437084e495d406a0249b78ed08c88982897ebab4d2e895ea41923eab0e3d454"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 3
+calendar_exceptions = 0
+project_start = "2016-02-08T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__calendar-recurring-exceptions__calendar-recurring-exceptions-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/calendar-recurring-exceptions/calendar-recurring-exceptions-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/calendar-recurring-exceptions/calendar-recurring-exceptions-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 242176
+sha256 = "e5c182434f4cf8eb3e2b3dcffff9b5fc9834d2ccf9eed499869accca082355ed"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 26
+project_start = "2017-10-20T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__project-properties__project-properties-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/project-properties/project-properties-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/project-properties/project-properties-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 187904
+sha256 = "f7378f8b416d2f1b7b46843028bf563daa7589a7c1754b1fb038077c2775cab7"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-27T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__project-properties__project-properties-project2019-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/project-properties/project-properties-project2019-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/project-properties/project-properties-project2019-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 238592
+sha256 = "2dad632a69ffce8b5f02382e131c831da2e6a42b05c9053e9ec45435161413e0"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2018-10-18T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__resource-text__resource-text-project2019-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/resource-text/resource-text-project2019-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/resource-text/resource-text-project2019-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 264192
+sha256 = "7dd55e31ea5f47795533ed4ce0c5a282697d8272d96e5655b88ddbc9ec86ca26"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2018-10-18T08:00"
+min_identical = 0
+
+[[file]]
+name = "generated__assignment-assignments__assignment-assignments-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/assignment-assignments/assignment-assignments-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/assignment-assignments/assignment-assignments-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 194048
+sha256 = "ed4f2cdf49a50138cbed95c29ebca7e1e017fdd41c0ce661d04054a36b8b61b7"
+expect = "import"
+tasks = 3
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2016-03-10T08:00"
+min_identical = 3
+
+[[file]]
+name = "generated__assignment-assignments__assignment-assignments-project2016-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/assignment-assignments/assignment-assignments-project2016-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/assignment-assignments/assignment-assignments-project2016-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 242176
+sha256 = "a06cc337fb5b6796cb27fb3108f706ea06836660509e9ee24697b6d89cc53fab"
+expect = "import"
+tasks = 3
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2016-03-11T08:00"
+min_identical = 3
+
+[[file]]
+name = "generated__data-links__data-links-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/generated/data-links/data-links-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/data-links/data-links-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 317440
+sha256 = "b082260b01a5f1d7b84f6b43c592867e397d120c1509fe5ca4fe519f4da31f42"
+expect = "import"
+tasks = 3
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2019-06-16T08:00"
+min_identical = 0
+
+[[file]]
+name = "mpp14relations.mpp"
+source = "joniles/mpxj, junit/data/mpp14relations.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14relations.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 180736
+sha256 = "8f33cdb774aa090b664d90145879acc8a289057ca45a6575884eb0da9fd91f30"
+expect = "import"
+tasks = 5
+null_tasks = 0
+links = 4
+calendars = 1
+calendar_exceptions = 0
+project_start = "2006-09-21T08:00"
+min_identical = 4
+
+[[file]]
+name = "mpp14task.mpp"
+source = "joniles/mpxj, junit/data/mpp14task.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14task.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 210432
+sha256 = "aaef495dc99be1735de02940a6fb506573035e99de4acf0fa2ffe96344c8be4a"
+expect = "import"
+tasks = 1
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2006-08-23T08:00"
+min_identical = 1
+
+[[file]]
+name = "mpp14task-from2013.mpp"
+source = "joniles/mpxj, junit/data/mpp14task-from2013.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14task-from2013.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 209408
+sha256 = "276f26a3e8fbfc54fbf8d8df9cfc5ab6ff2ac3d86b47b37878202c5f82625314"
+expect = "import"
+tasks = 1
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2006-08-23T08:00"
+min_identical = 1
+
+[[file]]
+name = "mpp14nulltasks.mpp"
+source = "joniles/mpxj, junit/data/mpp14nulltasks.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14nulltasks.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 181248
+sha256 = "61940c6250a357d7d899483e13931403a12af2cda5a05b62b8eddb824b291587"
+expect = "import"
+tasks = 8
+null_tasks = 3
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2008-11-03T09:00"
+min_identical = 5
+
+[[file]]
+name = "mpp14calendar.mpp"
+source = "joniles/mpxj, junit/data/mpp14calendar.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14calendar.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 188416
+sha256 = "98c8a0fb569be058c0a76ec61d2918f4d81a2a6af9cdcc3ffd1e5640b888e8ec"
+expect = "import"
+tasks = 1
+null_tasks = 0
+links = 0
+calendars = 5
+calendar_exceptions = 0
+project_start = "2006-08-23T08:00"
+min_identical = 1
+
+[[file]]
+name = "mpp14exceptions.mpp"
+source = "joniles/mpxj, junit/data/mpp14exceptions.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14exceptions.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 174080
+sha256 = "d1686c1d863effb1fea5cf1fdc085ff776d6386a07bea89f3263c185845a188e"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 3
+project_start = "2008-03-23T08:00"
+min_identical = 0
+
+[[file]]
+name = "mpp14baseline.mpp"
+source = "joniles/mpxj, junit/data/mpp14baseline.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14baseline.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 241664
+sha256 = "0dbaf99cba5a568ef23ecfa629a5bbf582f365a4c2104ecd49ccf45c510afc37"
+expect = "import"
+tasks = 14
+null_tasks = 0
+links = 6
+calendars = 2
+calendar_exceptions = 0
+project_start = "2006-08-24T08:00"
+min_identical = 14
+
+[[file]]
+name = "mpp14header.mpp"
+source = "joniles/mpxj, junit/data/mpp14header.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14header.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 175616
+sha256 = "971a2201355895976a9439b93b3ff15cab47e6b76ee92022c28f43e50bd92e61"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 2
+calendar_exceptions = 0
+project_start = "2006-08-23T17:00"
+min_identical = 0
+
+[[file]]
+name = "mpp14recurring.mpp"
+source = "joniles/mpxj, junit/data/mpp14recurring.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14recurring.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 202240
+sha256 = "607c9d04f29a16814766c1c56afacff139520cd01033e5304acb36d70230ec95"
+expect = "import"
+tasks = 27
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2008-06-15T08:00"
+min_identical = 27
+
+[[file]]
+name = "mpp14viewstate.mpp"
+source = "joniles/mpxj, junit/data/mpp14viewstate.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14viewstate.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 241152
+sha256 = "9f2aa84f6e674cbe4a1024a982662043b07896d3f2f0db82521af8bc3eb1bb1b"
+expect = "import"
+tasks = 50
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2006-02-07T08:00"
+min_identical = 50
+
+[[file]]
+name = "mpp14timephasedsegmentsmanual.mpp"
+source = "joniles/mpxj, junit/data/mpp14timephasedsegmentsmanual.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp14timephasedsegmentsmanual.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 606208
+sha256 = "b647f1407a9d29947c7d8af81941fff400908b937f36418b7dab64aacd4e7fa7"
+expect = "import"
+tasks = 21
+null_tasks = 0
+links = 0
+calendars = 2
+calendar_exceptions = 3
+project_start = "2011-02-07T08:00"
+min_identical = 21
+
+[[file]]
+name = "taskFlags-mpp14Project2010.mpp"
+source = "joniles/mpxj, junit/data/taskFlags-mpp14Project2010.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/taskFlags-mpp14Project2010.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 296960
+sha256 = "a76cce3394fdec2d16946d325956b973294d305cfc6575a2322f91da8e2a962a"
+expect = "import"
+tasks = 71
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2013-09-02T08:00"
+min_identical = 69
+
+[[file]]
+name = "taskFlags-mpp14Project2013.mpp"
+source = "joniles/mpxj, junit/data/taskFlags-mpp14Project2013.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/taskFlags-mpp14Project2013.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 448000
+sha256 = "6eadbd9c8fe322a8c100f09b397225922b5bda3f2f7b58e95d00e158574fc54e"
+expect = "import"
+tasks = 71
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2013-09-02T08:00"
+min_identical = 69
+
+[[file]]
+name = "calendar-exception-precedence.mpp"
+source = "joniles/mpxj, junit/data/calendar-exception-precedence.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/calendar-exception-precedence.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 11821056
+sha256 = "8af6a8a98912e3ee2ef06c3985fc102abdb482d2dfb4afcb3fe6fb58b9ddabeb"
+expect = "import"
+tasks = 1
+null_tasks = 0
+links = 0
+calendars = 2
+calendar_exceptions = 88
+project_start = "2015-08-05T13:00"
+min_identical = 0
+
+[[file]]
+name = "calendar__multi-day-exceptions__multi-day-exceptions-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/calendar/multi-day-exceptions/multi-day-exceptions-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/calendar/multi-day-exceptions/multi-day-exceptions-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 179712
+sha256 = "60e15a64679eeb0839236f94859b9e1394eb5ec658f3df6d712fc9c9808072bf"
+expect = "import"
+tasks = 0
+null_tasks = 0
+links = 0
+calendars = 1
+calendar_exceptions = 2
+project_start = "2020-06-09T08:00"
+min_identical = 0
+
+[[file]]
+name = "task__task-deletion__task-deletion1-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/task/task-deletion/task-deletion1-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/task/task-deletion/task-deletion1-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 235008
+sha256 = "08f0bdf693d813bdbd704b321ee7934df2fa2f4f0f013d32febaafd3c20b8613"
+expect = "import"
+tasks = 9
+null_tasks = 4
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-11T08:00"
+min_identical = 5
+
+[[file]]
+name = "task__task-deletion__task-deletion2-project2013-mpp14.mpp"
+source = "joniles/mpxj, junit/data/task/task-deletion/task-deletion2-project2013-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/task/task-deletion/task-deletion2-project2013-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 235008
+sha256 = "be1e58f330e3c81eea74a7a5e7cfddffbc7233673cc472d5a539bdbe23023658"
+expect = "import"
+tasks = 5
+null_tasks = 1
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-11T08:00"
+min_identical = 4
+
+[[file]]
+name = "task__task-deletion__task-deletion2-project2010-mpp14.mpp"
+source = "joniles/mpxj, junit/data/task/task-deletion/task-deletion2-project2010-mpp14.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/task/task-deletion/task-deletion2-project2010-mpp14.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 189440
+sha256 = "f20303c16bd14f4e6f8e9ce7169ce3083c7aba251f985395ebecb6e52c39d22a"
+expect = "import"
+tasks = 5
+null_tasks = 1
+links = 0
+calendars = 1
+calendar_exceptions = 0
+project_start = "2014-11-11T08:00"
+min_identical = 4
+
+[[file]]
+name = "generated__task-dates__task-dates-project2010-mpp12.mpp"
+source = "joniles/mpxj, junit/data/generated/task-dates/task-dates-project2010-mpp12.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-dates/task-dates-project2010-mpp12.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 214016
+sha256 = "e755c4ae7b002a3038c7d71bf9271c6ff1463204a9df6482e58f571b8c1cedfc"
+expect = "mpp.unsupported_version"
+
+[[file]]
+name = "mpp12relations.mpp"
+source = "joniles/mpxj, junit/data/mpp12relations.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp12relations.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 143872
+sha256 = "e73f7686da477d24a2eac39ff7e0834521b43e7433c5d15b6d8405eeb977684d"
+expect = "mpp.unsupported_version"
+
+[[file]]
+name = "generated__task-dates__task-dates-project2003-mpp9.mpp"
+source = "joniles/mpxj, junit/data/generated/task-dates/task-dates-project2003-mpp9.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-dates/task-dates-project2003-mpp9.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 121856
+sha256 = "395ac502c5436f02e03562319befda4faf0db21c60e965c71a44395be0600b4b"
+expect = "mpp.unsupported_version"
+
+[[file]]
+name = "mpp9relations.mpp"
+source = "joniles/mpxj, junit/data/mpp9relations.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/mpp9relations.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 78336
+sha256 = "758c6f1e613b4bfde5c67839d9b5847f0c7d80534c5d231f17f5a786909da9fb"
+expect = "mpp.unsupported_version"
+
+[[file]]
+name = "generated__task-dates__task-dates-project98-mpp8.mpp"
+source = "joniles/mpxj, junit/data/generated/task-dates/task-dates-project98-mpp8.mpp"
+url = "https://raw.githubusercontent.com/joniles/mpxj/4982974b2594ffc7146cdb9ebdf2ae46186737ca/junit/data/generated/task-dates/task-dates-project98-mpp8.mpp"
+mirrors = []
+license = "LGPL-2.1 (dépôt d'origine) ; fichier de données de test"
+rights = "Fichier public de test ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-14"
+size = 63488
+sha256 = "f6effc2b9c473663270dd85de9c4fe48100b57e5436f83587b4e8d7f23f5a4f8"
+expect = "mpp.unsupported_version"
+
+[[file]]
+name = "advaith14__Project-Management-for-World-Hotels-__IST645F18A2BKamathA.mpp"
+source = "fichier réel : github.com/advaith14/Project-Management-for-World-Hotels-, IST645F18A2BKamathA.mpp"
+url = "https://raw.githubusercontent.com/advaith14/Project-Management-for-World-Hotels-/f23abf11f2f1400afa6bed8c2c2507b05c06cc5a/IST645F18A2BKamathA.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 18105856
+sha256 = "5bf70835f69f6bffda73e0ee788bf7a8ce5882cf240c923d211b541334507bbd"
+expect = "import"
+tasks = 330
+null_tasks = 0
+links = 238
+calendars = 1
+calendar_exceptions = 4
+project_start = "2018-09-11T10:00"
+min_identical = 14
+
+[[file]]
+name = "Sebastianelli-Nicola__Fidardarena-Project-Management-PMBOK__WBS-Gantt.mpp"
+source = "fichier réel : github.com/Sebastianelli-Nicola/Fidardarena-Project-Management-PMBOK, gantt/WBS-Gantt.mpp"
+url = "https://raw.githubusercontent.com/Sebastianelli-Nicola/Fidardarena-Project-Management-PMBOK/678364328cbdaf7d59a364695916b2460051e995/gantt/WBS-Gantt.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 2706944
+sha256 = "13b1fdc872b69909aedd72b9e5f3b3c46465aa86c77376f50b09d5af65dd1d7b"
+expect = "import"
+tasks = 169
+null_tasks = 0
+links = 170
+calendars = 1
+calendar_exceptions = 0
+project_start = "2025-10-01T09:00"
+min_identical = 169
+
+[[file]]
+name = "tefsantana__uala-digital-project-management-case-study__uala-project-schedule.mpp"
+source = "fichier réel : github.com/tefsantana/uala-digital-project-management-case-study, schedule/uala-project-schedule.mpp"
+url = "https://raw.githubusercontent.com/tefsantana/uala-digital-project-management-case-study/3ad4b31430825c823bfa618d1cf6f33c3a73198e/schedule/uala-project-schedule.mpp"
+mirrors = []
+license = "MIT (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 1015808
+sha256 = "f491476db399ca340eeaecff0d396053bf692e6ddbbf6dc91a6e1e604ae2ffb1"
+expect = "import"
+tasks = 120
+null_tasks = 0
+links = 67
+calendars = 2
+calendar_exceptions = 0
+project_start = "2025-09-25T09:00"
+min_identical = 114
+
+[[file]]
+name = "OlgaSlipak__-Banking-System-__BankingSystem_MSProject_ver3.mpp"
+source = "fichier réel : github.com/OlgaSlipak/-Banking-System-, BankingSystem_MSProject_ver3.mpp"
+url = "https://raw.githubusercontent.com/OlgaSlipak/-Banking-System-/a47f28a7318f14dbddd13398bec351b2b6521245/BankingSystem_MSProject_ver3.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 1005568
+sha256 = "36e0d9643e8ff8c6c6cbef5fe80401738801c0e3d1690a3e8456e185f5618fa1"
+expect = "import"
+tasks = 40
+null_tasks = 0
+links = 48
+calendars = 1
+calendar_exceptions = 0
+project_start = "2017-08-16T08:00"
+min_identical = 40
+
+[[file]]
+name = "MaralSmi__residential-construction-project-planning__Maral_Esmikhani_MSP_projrect.mpp"
+source = "fichier réel : github.com/MaralSmi/residential-construction-project-planning, Maral_Esmikhani_MSP_projrect.mpp"
+url = "https://raw.githubusercontent.com/MaralSmi/residential-construction-project-planning/3e3b1dc96ac9f6d0d20db9f5782a16bb69c581a7/Maral_Esmikhani_MSP_projrect.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 920064
+sha256 = "a2f3c47df2a0950af3657fd9e372cef36881c04617a3a013daacc61c65e06687"
+expect = "import"
+tasks = 176
+null_tasks = 0
+links = 138
+calendars = 3
+calendar_exceptions = 2
+project_start = "2026-02-01T08:00"
+min_identical = 176
+
+[[file]]
+name = "zahmed02__CS4044-Software-Project-Management__CS4044_FSPM_Project_Schedule.mpp"
+source = "fichier réel : github.com/zahmed02/CS4044-Software-Project-Management, CS4044 FSPM Project Schedule.mpp"
+url = "https://raw.githubusercontent.com/zahmed02/CS4044-Software-Project-Management/240b82b5e827959a8049d04abbfc533defa774e1/CS4044%20FSPM%20Project%20Schedule.mpp"
+mirrors = []
+license = "GPL-3.0 (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 606720
+sha256 = "897a84fda341b5f6c2fce7924146f2524601ec0cdf1512abfdc53fdf27e80a1c"
+expect = "import"
+tasks = 227
+null_tasks = 0
+links = 181
+calendars = 3
+calendar_exceptions = 42
+project_start = "2026-03-01T08:00"
+min_identical = 217
+
+[[file]]
+name = "Kalani0056__ms-project-planning__st20357430_CIS6011.mpp"
+source = "fichier réel : github.com/Kalani0056/ms-project-planning, st20357430 CIS6011.mpp"
+url = "https://raw.githubusercontent.com/Kalani0056/ms-project-planning/43e39e80172e2040b2e003940bcbbf208f89026c/st20357430%20CIS6011.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 587776
+sha256 = "ceef8cdf51e4b5ebc627b6be0bebb54be5a9c077e1c6e98ac75954c242c537cb"
+expect = "import"
+tasks = 41
+null_tasks = 0
+links = 46
+calendars = 1
+calendar_exceptions = 23
+project_start = "2026-01-01T08:00"
+min_identical = 34
+
+[[file]]
+name = "saahilanande__cse-5325__assignment2.mpp"
+source = "fichier réel : github.com/saahilanande/cse-5325, assignment 2/assignment2.mpp"
+url = "https://raw.githubusercontent.com/saahilanande/cse-5325/9c968b15d1d640cf45bbf92a11363caca557b013/assignment%202/assignment2.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 559104
+sha256 = "d21473c7360c19b81f7b77a5ff5530b3c82260e2386d9f8cfc70c73da80effa7"
+expect = "import"
+tasks = 68
+null_tasks = 0
+links = 39
+calendars = 1
+calendar_exceptions = 0
+project_start = "2022-10-22T08:00"
+min_identical = 68
+
+[[file]]
+name = "Moein-Bagheri__talent-search-project-planning__Talent_Search_Project.mpp"
+source = "fichier réel : github.com/Moein-Bagheri/talent-search-project-planning, planning/Talent Search Project.mpp"
+url = "https://raw.githubusercontent.com/Moein-Bagheri/talent-search-project-planning/1e4066220ebb10ec68113b4bcaaac3517abd66eb/planning/Talent%20Search%20Project.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 556032
+sha256 = "0dffc0fbb5ada3a2643afc3a613ad6003f23ecdd1fd3d1a9783307f859675d7e"
+expect = "import"
+tasks = 111
+null_tasks = 0
+links = 77
+calendars = 2
+calendar_exceptions = 0
+project_start = "2025-11-22T09:00"
+min_identical = 111
+
+[[file]]
+name = "ubhurase__IPM__Big_Pharma_Case_Project_Final.mpp"
+source = "fichier réel : github.com/ubhurase/IPM, Big Pharma Case Project_Final.mpp"
+url = "https://raw.githubusercontent.com/ubhurase/IPM/059827a3bb40e61f9404b017f8562bb8701ba6f0/Big%20Pharma%20Case%20Project_Final.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 541184
+sha256 = "ac91a240969c1502e1da4927a2ee517d0a7609ef652c505261732f3a4f193481"
+expect = "import"
+tasks = 106
+null_tasks = 0
+links = 74
+calendars = 5
+calendar_exceptions = 11
+project_start = "2022-10-01T08:00"
+min_identical = 105
+
+[[file]]
+name = "AlejoTechEngineer__Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project__Planificación,_Ejecución_Y_Gestión_Del_Cambio.mpp"
+source = "fichier réel : github.com/AlejoTechEngineer/Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project, Planificación, Ejecución Y Gestión Del Cambio.mpp"
+url = "https://raw.githubusercontent.com/AlejoTechEngineer/Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project/c5b7ddab678dd37ccbe89bbdc69980a76b5ef424/Planificaci%C3%B3n%2C%20Ejecuci%C3%B3n%20Y%20Gesti%C3%B3n%20Del%20Cambio.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 455680
+sha256 = "c12582db17d69ddf685ed7e1e3c413f792b8bfdff5bf0a0a8e3d592783d4ab29"
+expect = "import"
+tasks = 16
+null_tasks = 0
+links = 11
+calendars = 3
+calendar_exceptions = 18
+project_start = "2025-09-10T09:00"
+min_identical = 16
+
+[[file]]
+name = "PacktPublishing__Planning-and-Control-Using-Microsoft-Project-365-and-2021__Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+source = "fichier réel : github.com/PacktPublishing/Planning-and-Control-Using-Microsoft-Project-365-and-2021, Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+url = "https://raw.githubusercontent.com/PacktPublishing/Planning-and-Control-Using-Microsoft-Project-365-and-2021/91e6ec110cd17d2b14c9b3ad00f6fda9db54ec69/Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+mirrors = []
+license = "MIT (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 676352
+sha256 = "f2ba3d8505a816c701c159f31d2a70a49c081907e11a85427e92f3a3e0b2ef80"
+expect = "import"
+tasks = 12
+null_tasks = 2
+links = 0
+calendars = 2
+calendar_exceptions = 0
+project_start = "2022-06-21T08:00"
+min_identical = 10

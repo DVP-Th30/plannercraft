@@ -5,12 +5,13 @@ Clone open source de MS Project en Rust pur, pilotable par IA (MCP). Brief compl
 - `docs/decisions.md` — ADR courts, dont les écarts assumés par rapport au brief
 - `docs/scheduling-rules.md` — règles `R-xxx` de calcul, source et statut
 - `docs/scorecard.md` — parité mesurée (« implémenté » / « testé » / « vérifié contre MS Project »)
+- `docs/formats/` — notes d'observation des formats binaires lus (`mpp.md` : chaque fait de format `.mpp` avec sa preuve, ADR-0036)
 
 Langue : documentation, commentaires et messages en français ; identifiants de code en anglais. Commits `type(scope): description` en anglais.
 
 ## Règles non négociables
 
-1. **Clean-room strict.** Implémenter à partir des spécifications publiques (schéma MSPDI XML de Microsoft, documentation d'aide de MS Project) et du comportement observé sur des fichiers réels. Ne jamais lire, traduire ni s'inspirer du code source de MPXJ (LGPL), ProjectLibre (CPAL), GanttProject (GPL) ou de tout autre logiciel sous licence incompatible. **Leur documentation est interdite aussi** (elle décrit le code). En cas de doute sur une règle, l'écrire comme hypothèse (règle 4) ; ne pas aller chercher la réponse dans ces projets. MPXJ peut servir d'outil externe pour convertir des `.mpp` du corpus, jamais plus.
+1. **Clean-room strict.** Implémenter à partir des spécifications publiques (schéma MSPDI XML de Microsoft, documentation d'aide de MS Project) et du comportement observé sur des fichiers réels. Ne jamais lire, traduire ni s'inspirer du code source de MPXJ (LGPL), ProjectLibre (CPAL), GanttProject (GPL) ou de tout autre logiciel sous licence incompatible. **Leur documentation est interdite aussi** (elle décrit le code). En cas de doute sur une règle, l'écrire comme hypothèse (règle 4) ; ne pas aller chercher la réponse dans ces projets. MPXJ peut servir d'outil externe pour convertir des `.mpp` du corpus (corrigé de la lecture `.mpp`, ADR-0036), jamais plus.
 2. **Licence** `MIT OR Apache-2.0` pour tout le code. Toute dépendance a une licence compatible, vérifiée par `cargo deny check`.
 3. **Le LLM ne calcule jamais une date.** Toute date, durée ou marge vient du moteur. Le serveur MCP expose des opérations ; il ne renvoie jamais de résultat estimé.
 4. **Chaque règle de calcul est tracée** dans `docs/scheduling-rules.md` : identifiant `R-xxx`, formulation, source (page Microsoft ou « hypothèse »), statut (`hypothèse` / `vérifié contre MS Project`). Chaque règle a au moins un test portant son identifiant dans son nom.
@@ -25,7 +26,7 @@ Langue : documentation, commentaires et messages en français ; identifiants de 
 
 - Code écrit par des agents (Opus 5.5) en workflow, cadrés par un cahier des charges écrit ; la session principale relit, fait tourner les checks et fusionne.
 - Compte rendu d'agent : séparer ce qui a été **observé** (commande lancée, résultat lu), ce qui est **déduit** et ce qui reste **inconnu** ; ne jamais annoncer un test qui n'a pas été lancé. Après un défaut confirmé, chercher le même défaut dans les modules voisins et corriger à la source (le module qui produit la donnée), pas en aval (ADR-0023).
-- Aucun outil de rétro-ingénierie sur MS Project, ses fichiers `.mpp` ou les logiciels exclus par la règle 1 : la parité se mesure en boîte noire (ADR-0023).
+- Aucun outil de rétro-ingénierie sur le programme MS Project ni sur les logiciels exclus par la règle 1 : la parité se mesure en boîte noire (ADR-0023). Les fichiers `.mpp`/`.mpt` peuvent être analysés comme des données, avec un corrigé externe lancé comme outil, chaque fait consigné avec sa preuve dans `docs/formats/mpp.md` ; jamais le code ni la documentation d'un autre lecteur de `.mpp` (ADR-0036).
 - Machine à mémoire partagée (serveurdvp) : une seule commande cargo lourde à la fois, sous `ramwait` et `memlimit`, jamais en arrière-plan ; pas de `cargo test --workspace` ni de suite complète de `plannercraft-ui-egui` en local, tests filtrés, la CI de la PR passe le reste (ADR-0022).
 - Avant chaque jalon : plan court dans `docs/decisions.md`, choix structurants signalés au propriétaire. Règle MS Project incertaine : hypothèse consignée, on avance.
 - Commits petits et testés. Jamais `git push --force` sur `main`. Chaque jalon finit par `docs/scorecard.md` à jour et un tag `jN`.
