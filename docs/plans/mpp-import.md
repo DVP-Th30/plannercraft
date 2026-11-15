@@ -1,6 +1,6 @@
 # Import des fichiers `.mpp` de MS Project (lots M1 à M4)
 
-Décision : ADR-0036. Règles : R-281 à R-298 (`docs/scheduling-rules.md`). Faits de format, chacun avec sa preuve : `docs/formats/mpp.md`. Code : `crates/plannercraft-mpp` (lecture seule, sans interface, compile en `wasm32-unknown-unknown`), CLI `plannercraft import-mpp`.
+Décision : ADR-0036 (M1), ADR-0037 (M2), ADR-0038 (M3). Règles : R-281 à R-299 (`docs/scheduling-rules.md`). Faits de format, chacun avec sa preuve : `docs/formats/mpp.md`. Code : `crates/plannercraft-mpp` (lecture seule, sans interface, compile en `wasm32-unknown-unknown`), CLI `plannercraft import-mpp`.
 
 ## 1. Besoin
 
@@ -12,9 +12,9 @@ Les plannings échangés entre entreprises du bâtiment circulent souvent en `.m
 |---|---|---|
 | **M1** | Lecteur MPP14 (Project 2010 à 2021, Microsoft 365) et gabarits `.mpt` : tâches (avec réels, reprise, retard de nivellement), liens, calendriers de base (exceptions périodiques comprises), propriétés et options de calcul du projet ; refus clair des autres formats et des tables incohérentes ; CLI `import-mpp` ; corpus public, fichiers réels et mesure contre un corrigé | livré (ce document) |
 | **M2** | Parité des dates sur les fichiers réels : diagnostic des écarts par tâche racine, récapitulatives manuelles (R-293), ressources, affectations et calendriers de ressource (R-294 à R-296), durée des profils non uniformes (R-297), classes d'écart et causes non recalculables au rapport (R-298) ; analyse de l'arrondi (ADR-0037) | livré (§ 10) |
-| **M5** | MPP12 (Project 2007), puis MPP9 et MPP8 si la demande existe | à faire |
-| **M3** | Ouverture d'un `.mpp` depuis l'application bureau et la version web (fichier déposé dans le navigateur, lu localement) : même chemin que l'ouverture d'un XML, rapport dans les diagnostics | à faire |
-| **M4** | Présentation : affichages, tables, styles de barres (`   214`), champs personnalisés | à faire |
+| **M3** | Ouverture d'un `.mpp` ou d'un `.mpt` depuis l'application bureau et la version web (lu dans le navigateur) : même « Ouvrir » qu'un XML, type reconnu au contenu, nouveau planning enregistré en XML, bandeau de compte rendu, fenêtre « Différences avec MS Project » et « Garder les dates de MS Project » (R-299) | livré (§ 11) |
+| **M5** | Formats 2007 et 2003 : MPP12 (Project 2007), puis MPP9 (2000 à 2003) et MPP8 (98) si la demande existe | à faire |
+| **M4** | Présentation : gabarits avec leurs colonnes et leurs styles (affichages, tables, styles de barres, `   214`), champs personnalisés | à faire |
 
 ## 3. Chaîne de lecture (M1)
 
@@ -147,8 +147,8 @@ Refusés : aucun fichier réel ; au corpus de test, les seuls formats non pris e
 
 - **M2** : commencer par les ressources et affectations (5 fichiers réels y perdent 94 tâches recalculées que le corrigé avec ressources retrouve), avec les champs du corrigé et `generated/resource-*`, `generated/assignment-*` ; MPP12 (178 fichiers au corpus, même conteneur, enregistrements de 264 octets) ensuite.
 - **Moteur** : examiner les 10 fichiers réels où le moteur s'écarte de MS Project sur les deux lectures (523 tâches) ; c'est hors de la lecture, mais c'est le plus gros écart restant.
-- **M3** : ouvrir un `.mpp` comme un `.xml` (même chemin de chargement), rapport de lecture dans le panneau des diagnostics ; sur le web, lecture locale du fichier déposé.
-- Faire relire au propriétaire quelques-uns de ses propres `.mpp` (hors dépôt, comme les plannings R1 à R6 de l'import PDF) avant M3.
+- **M3** (fait, § 11) : ouvrir un `.mpp` comme un `.xml` (même chemin de chargement) ; le rapport est un bandeau et une fenêtre des différences plutôt que le panneau des diagnostics (ADR-0038).
+- Faire relire au propriétaire quelques-uns de ses propres `.mpp` (hors dépôt, comme les plannings R1 à R6 de l'import PDF) avant M3 : non fait au lot M3, toujours à faire.
 
 ## 10. Lot M2 : parité des dates sur les fichiers réels (2026-11-15)
 
@@ -253,3 +253,34 @@ MS Project calcule en dixièmes de minute et les fichiers le montrent : `advaith
 - Causes non recalculables : constatées sur la tâche elle-même ; une tâche héritée n'en reçoit pas (elle suit sa racine).
 - Non lus : répartition saisie d'un profil modifié à la main, retards d'affectation en disposition Project 2010, étiquette des ressources matérielles, coûts.
 - Suite proposée : l'arbitrage de l'ADR-0037 (dixièmes de minute) ; puis M3 (interface), avec le rapport d'écarts affiché par cause.
+
+## 11. Lot M3 : ouvrir un `.mpp` dans l'application (2026-11-15)
+
+Décision : ADR-0038. Interface : `docs/features/ui.md` § 1.56 (H-UI-230 à H-UI-236). Guide : `docs/user/ms-project-export.md` § 1. Règle : R-299.
+
+### 11.1 Parcours
+
+« Ouvrir » (menu, raccourci, accueil, glisser-déposer ; bureau et web) accepte `.mpp` et `.mpt` ; le type se reconnaît au contenu (signature `[MS-CFB]`). Le planning s'affiche tout de suite, comme un nouveau planning importé (nom du fichier sans extension, `.mpt` : « Projet1 », aucun fichier lié, « Enregistrer » en XML). Un bandeau dit ce qui a été ouvert et, s'il y a lieu, combien de tâches diffèrent de MS Project (écart réel, R-298) ; « Voir » ouvre la fenêtre « Différences avec MS Project » (aussi au menu Fichier tant que le planning n'est pas modifié), dont l'action unique « Garder les dates de MS Project » passe les feuilles en écart en planification manuelle avec les dates enregistrées. Refus clairs pour les formats 2007 et plus anciens, les fichiers abîmés ou protégés et les autres documents Office.
+
+### 11.2 Mesure de « Garder les dates » (R-299)
+
+`MPP_MEASURE_DIR=… cargo test --release -p plannercraft-mpp --test measure keep_measure -- --ignored --nocapture` : tâches en écart réel avant, tâches gardées, écart réel après (projet relu avec les tâches gardées en manuel).
+
+| | Écart réel avant | Tâches gardées | Écart réel après | Temps (release) |
+|---|---|---|---|---|
+| 41 fichiers réels (16 avec écart) | 378 | 277 | 2 | 5 ms au plus par fichier (`advaith14…`, 330 tâches) |
+| Corpus de test MPP14 (164 fichiers) | 33 | 33 | 0 | 0,8 s pour tout le corpus |
+
+Les deux écarts restants sont des récapitulatives, qui ne se gardent pas : `Kalani0056…` UID 189 (fin enregistrée lue autrement par le corrigé, § 7) et `ubhurase…` UID 121 (fin enregistrée à 08:00 le lendemain de la fin de ses sous-tâches). Les écarts d'arrondi ne sont pas gardés : 65 tâches à deux minutes près après l'action sur les fichiers réels, contre 165 avant (déduit : des tâches à l'arrondi retombent juste quand leurs prédécesseurs gardent les dates enregistrées).
+
+Par l'application (`tests/ui/mpp_open.rs`, `h_ui_230_corpus_files_open`, chemin réel `App::open_path`, puis le lot de l'action) : 41 fichiers réels ouverts sur 41, 16 avec « Garder les dates », aucun écart réel restant hors récapitulatives, aucun lot refusé ; corpus versionné : 52 ouverts, 5 refusés avec message (formats anciens), 8 avec l'action ; 76 fichiers de test pris au hasard : 31 ouverts, 45 refusés avec message, 3 avec l'action.
+
+### 11.3 Taille de la version web
+
+`.wasm` de `cargo build --profile wasm-release -p plannercraft-web --target wasm32-unknown-unknown`, sections personnalisées retirées, avant wasm-bindgen et `wasm-opt` (même méthode qu'ADR-0033 D3), gzip -9 : `main` (`9934298`) 5 652 738 octets, lot M3 5 699 766 octets (+47 028, +0,8 %), sous la porte C-REL-05 de 6 Mio. Le lecteur `.mpp` était déjà dans le lien de la CLI, pas dans le web : c'est son poids. La mesure de référence est celle du job web de la CI (trunk, `wasm-opt`).
+
+### 11.4 Limites et suite
+
+- Rien n'est vérifié dans un navigateur réel par ce lot (chemins web compilés en `wasm32-unknown-unknown`, logique testée en natif) ni contre MS Project.
+- Diagnostics de lecture `mpp.*` hors du panneau des diagnostics ; compte rendu perdu au rechargement de la page.
+- Suite : M5 (formats 2007 et 2003, si des fichiers du propriétaire l'exigent), M4 (gabarits avec leurs colonnes et leurs styles, champs personnalisés) ; mesure sur des plannings de chantier du propriétaire, toujours à faire.

@@ -2127,3 +2127,12 @@ Règles du moteur établies en comparant les dates recalculées aux dates enregi
 - **Source** : hypothèse (seuil de 2 minutes : écarts d'arrondi observés de 1 à 2 minutes sur les fichiers réels, `docs/plans/mpp-import.md` § 10).
 - **Statut** : `hypothèse`.
 - **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r298_comparison_classes_and_causes`).
+
+### Ouverture dans l'application (R-299 ; ADR-0038, lot M3)
+
+## R-299 — Import .mpp : « Garder les dates de MS Project »
+- **Formulation** : à la demande de l'utilisateur (fenêtre « Différences avec MS Project », jamais d'office), les **feuilles** en écart réel (R-298 ; les écarts d'au plus deux minutes restent) passent en planification manuelle avec, pour valeurs saisies, le début et la fin enregistrés par MS Project (R-063 : dates gardées sans recalage, durée utilisée = temps ouvré du début à la fin). Le moteur recalcule, puis compare de nouveau : une feuille jusque-là identique qu'une feuille gardée déplace est gardée à son tour, par passes (8 au plus), jusqu'à ce qu'aucune feuille nouvelle ne soit en écart réel. Une récapitulative n'est jamais gardée (ses dates suivent ses sous-tâches, R-053 ; R-157 refuse une date saisie sur une récapitulative) ; une feuille déjà gardée qui reste en écart (début réel qui remplace le début saisi, R-208) n'est pas reprise ; une fin enregistrée avant le début est ignorée. Les tâches gardées sont posées en un lot ordinaire de `task.update` (mode et début, puis fin ; R-253, R-254), une entrée d'annulation.
+  - Exemple : S { A sans lien enregistrée le mercredi ; B FS de A enregistrée le jeudi } ; D FS de A enregistrée le mardi ; projet au lundi. Le moteur place A et B lundi et mardi (écarts réels, S aussi) ; A et B gardées, S suit (mercredi – jeudi) ; D, identique jusque-là, est poussée au jeudi par A : gardée à la seconde passe (mardi, `link.manual_not_honored`). Plus aucun écart réel.
+- **Source** : décision (ADR-0038) ; ce n'est pas un comportement de MS Project. Mesure : 378 tâches en écart réel sur les 41 fichiers réels deviennent 2 (deux récapitulatives : `Kalani0056…` UID 189, date enregistrée lue différemment par le corrigé ; `ubhurase…` UID 121, fin enregistrée au début de la période suivante), 277 tâches gardées ; au corpus de test MPP14, 33 deviennent 0 (`docs/plans/mpp-import.md` § 11).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r299_kept_dates_pin_real_gap_leaves_until_none_is_left`), `crates/plannercraft-automation/tests/keep_dates.rs` (`r299_keep_dates_one_batch_manual_with_both_dates`).

@@ -1,14 +1,28 @@
-# Échanger avec MS Project : XML et CSV
+# Échanger avec MS Project : fichiers .mpp, XML et CSV
 
-*English version below.* Sources : pages Microsoft « Export or import data to another file format » et « Saving and Opening Projects in XML Format » ; détail des règles dans [`docs/scheduling-rules.md`](../scheduling-rules.md) (R-087 à R-089, R-120 à R-133, R-140 à R-146).
+*English version below.* Sources : pages Microsoft « Export or import data to another file format » et « Saving and Opening Projects in XML Format » ; détail des règles dans [`docs/scheduling-rules.md`](../scheduling-rules.md) (R-087 à R-089, R-120 à R-133, R-140 à R-146, R-281 à R-299).
 
-## 1. Pourquoi passer par le format XML
+## 1. Ouvrir directement un fichier MS Project (.mpp, .mpt)
 
-L'application ne lit pas encore les fichiers `.mpp` (format binaire de MS Project). La ligne de commande sait les convertir : `plannercraft import-mpp projet.mpp -o projet.xml` lit un `.mpp` enregistré par MS Project 2010 ou plus récent (tâches avec leur avancement, liens, calendriers, ressources et affectations, propriétés du projet, ainsi que les modèles `.mpt`) et écrit le XML que PlannerCraft ouvre ; un `.mpp` plus ancien est refusé avec sa version. Détail : `docs/features/cli.md`. MS Project sait aussi enregistrer **tout le projet** dans son format XML (« Format XML », schéma MSPDI) et le relire lui-même : c'est le format natif de PlannerCraft et le chemin d'échange recommandé.
+PlannerCraft ouvre les fichiers `.mpp` (plannings) et `.mpt` (modèles) enregistrés par **MS Project 2010, 2013, 2016, 2019, 2021 et Microsoft 365**, sur le bureau comme dans la version web : **Fichier › Ouvrir un fichier (.mpp, .xml)…**, l'écran d'accueil, ou un glisser-déposer du fichier sur la fenêtre. Le type se reconnaît au contenu du fichier, pas à son nom. Dans la version web, le fichier est lu dans le navigateur : rien n'est envoyé.
 
-Project pour le web (devenu Planner Premium) et Project Online sans le client de bureau ne produisent pas ce fichier : à notre connaissance (fils Microsoft Q&A, pas de page officielle), ils n'exportent que vers Excel. Il faut MS Project Desktop (2010 ou plus récent), ou passer par le CSV (section 5).
+- **Ce qui s'ouvre.** Un nouveau planning PlannerCraft, nommé comme le fichier (« Chantier B.mpp » ⇒ « Chantier B ») ; un modèle `.mpt` s'ouvre comme un nouveau planning sans nom (« Projet1 »). PlannerCraft **n'écrit jamais** dans le `.mpp` : « Enregistrer » demande où écrire et enregistre au format XML de MS Project (« Chantier B.xml »), que MS Project sait rouvrir (sections 3 à 6).
+- **Ce qui est repris.** Tâches et hiérarchie, durées, jalons, % achevé et avancement (dates et durées réelles), tâches manuelles et inactives, contraintes, échéances, notes, liens et décalages, calendriers (semaine type, jours fériés et exceptions, y compris périodiques), ressources, affectations et calendriers de ressource, propriétés et options de calcul du projet.
+- **Ce qui ne l'est pas.** Champs personnalisés, affichages, tables, filtres et styles de barres, lignes de base, coûts, et la répartition du travail modifiée à la main dans une affectation (le travail est réparti uniformément) ; les décalages en pourcentage sont gardés sans décalage. Quand le fichier ouvert contient l'une de ces deux dernières choses, ou des calendriers de ressource sans leur base, le bandeau le dit.
+- **Le compte rendu.** Un bandeau en haut du planning dit ce qui a été ouvert (« Planning MS Project ouvert : 330 tâches, 238 liens. ») et, seulement s'il y a lieu, combien de tâches n'ont pas les mêmes dates que dans MS Project. PlannerCraft **recalcule** toutes les dates à partir des durées, des liens et des calendriers du fichier ; sur 41 fichiers publics mesurés, 87 % des tâches retombent sur les dates de MS Project à deux minutes près. Les écarts d'une ou deux minutes (MS Project compte en dixièmes de minute) ne sont pas comptés. **Voir** ouvre la fenêtre « Différences avec MS Project » (aussi dans le menu Fichier tant que le planning n'a pas été modifié) : pour chaque tâche, les dates de MS Project, les dates calculées et, quand elle est connue, la cause en clair (nivellement, répartition du travail modifiée à la main, début placé à la main sans lien ni contrainte, fractions de minute). Un clic sur une ligne montre la tâche dans le planning.
+- **Garder les dates de MS Project.** Une seule action dans cette fenêtre : les tâches qui diffèrent passent en **planification manuelle**, avec le début et la fin de MS Project (comme une tâche manuelle dans MS Project : leurs dates ne bougent plus seules, les liens restent). Les récapitulatives suivent leurs sous-tâches. Ctrl+Z (Cmd+Z sur Mac) annule. Sans cette action, le planning reste celui que PlannerCraft calcule.
+- **Fichiers refusés.** Un fichier enregistré par Project 2007, 2000 à 2003 ou 98 est refusé avec sa version : l'enregistrer depuis MS Project 2010 ou plus récent, ou au format XML (section 3), qui reste le repli. Un fichier abîmé ou protégé par un mot de passe est refusé : l'ouvrir dans MS Project et l'enregistrer sans mot de passe, ou en XML. Le planning ouvert jusque-là reste à l'écran.
+- **Ligne de commande.** `plannercraft import-mpp projet.mpp -o projet.xml` fait la même lecture et écrit le XML, avec un rapport détaillé (`--json`) ; détail : `docs/features/cli.md`.
 
-## 2. Les cinq étapes (MS Project Desktop 2010 et suivants)
+Ce qui reste à vérifier : la lecture est mesurée sur des fichiers publics (projets d'étudiants, de cours et de formation) contre un convertisseur externe, pas contre MS Project lui-même (aucune licence) ; aucun planning de chantier d'entreprise n'a encore été mesuré.
+
+## 2. Pourquoi le format XML reste utile
+
+MS Project sait enregistrer **tout le projet** dans son format XML (« Format XML », schéma MSPDI) et le relire lui-même : c'est le format natif de PlannerCraft, celui qu'il enregistre, et le repli pour les fichiers `.mpp` trop anciens.
+
+Project pour le web (devenu Planner Premium) et Project Online sans le client de bureau ne produisent ni `.mpp` ni ce fichier : à notre connaissance (fils Microsoft Q&A, pas de page officielle), ils n'exportent que vers Excel. Il faut MS Project Desktop (2010 ou plus récent), ou passer par le CSV (section 6).
+
+## 3. Les cinq étapes (MS Project Desktop 2010 et suivants)
 
 Les libellés des menus sont ceux des pages Microsoft en anglais, traduits : ils peuvent varier légèrement selon la version.
 
@@ -20,7 +34,7 @@ Les libellés des menus sont ceux des pages Microsoft en anglais, traduits : ils
 
 Si MS Project refuse d'ouvrir le fichier, vérifier **Fichier › Options › Centre de gestion de la confidentialité › Paramètres › Formats hérités** (source communautaire, Microsoft Q&A : l'ouverture de certains formats peut y être bloquée). Selon Microsoft, MS Project n'importe qu'un XML valide contre son schéma d'échange ; PlannerCraft écrit dans l'ordre des fichiers que MS Project enregistre lui-même, mais **la relecture par MS Project n'a pas encore été vérifiée** (aucune licence pour l'instant).
 
-## 3. Ce qui est conservé
+## 4. Ce qui est conservé
 
 | Donnée | Conservation |
 |---|---|
@@ -34,9 +48,9 @@ Si MS Project refuse d'ouvrir le fichier, vérifier **Fichier › Options › Ce
 | Lignes de base 0 à 10 | lues et réécrites |
 | Avancement saisi (% achevé, dates et durées réelles, date de reprise d'une tâche en cours), options de la date d'état, notes | lus et réécrits ; durée et travail restants dérivés (durée − réel, travail − travail réel), une valeur stockée en désaccord est remplacée et signalée une fois (`mspdi.progress_inconsistent`) |
 | Tâches manuelles et inactives | lues et réécrites, telles quelles |
-| Champs personnalisés, codes hiérarchiques, vues, tables, filtres, groupes, tables de taux, disponibilités, répartitions détaillées (sauf le travail planifié d'une affectation, voir section 4) | **recopiés tels quels**, sans être interprétés |
+| Champs personnalisés, codes hiérarchiques, vues, tables, filtres, groupes, tables de taux, disponibilités, répartitions détaillées (sauf le travail planifié d'une affectation, voir section 5) | **recopiés tels quels**, sans être interprétés |
 
-## 4. Ce qui est recalculé ou perdu
+## 5. Ce qui est recalculé ou perdu
 
 **Recalculé par MS Project à l'ouverture** (PlannerCraft ne les écrit pas) : coûts, valeur acquise, pic d'unités des ressources, répartition du travail planifié d'une affectation (`TimephasedData` de type 1, écartée à la lecture sauf si le profil de travail a été modifié à la main ; gardée alors seulement tant que l'affectation n'a pas bougé). Début et fin des affectations, travail et surutilisation des ressources, avancement (date d'arrêt `Stop`, réels et restes des récapitulatives et du projet, parties réelles des affectations) et écarts (début, fin et travail, par rapport à la ligne de base 0, en minutes × 1000) sont écrits par PlannerCraft depuis son moteur ; les écarts de début et de fin d'une affectation sont omis (leur unité n'est pas documentée). La répartition du travail réel d'une affectation (`TimephasedData` de types 2 et 3) est gardée tant que sa somme vaut toujours son travail réel. **Date de reprise (`Resume`) d'une tâche en cours** : PlannerCraft n'écrit que la reprise **saisie** (celle de « replanifier le reste », ou relue d'un fichier), jamais la reprise qu'il calcule depuis les liens ; MS Project la recalcule à l'ouverture. Raison : un `Resume` relu est pris pour une reprise saisie, un plancher ; écrire la reprise calculée la figerait. Conséquence à l'ouverture d'un fichier enregistré par MS Project : la reprise qu'il a calculée pour une tâche hors séquence devient un plancher dans PlannerCraft, et le reste ne peut plus avancer si son prédécesseur raccourcit (`explain_date` cite alors « reprise saisie »).
 
@@ -54,7 +68,7 @@ Si MS Project refuse d'ouvrir le fichier, vérifier **Fichier › Options › Ce
 - les pourcentages non entiers (arrondis au pour-cent) et la précision des décalages en % (arrondis au pas de 0,1 %) ;
 - une exception « périodique » réécrite en exception quotidienne (mêmes jours).
 
-## 5. CSV
+## 6. CSV
 
 Le CSV convient pour partir d'un tableur, ou depuis MS Project quand le XML n'est pas disponible.
 
@@ -71,15 +85,29 @@ Le CSV convient pour partir d'un tableur, ou depuis MS Project quand le XML n'es
 
 ---
 
-# Exchanging with MS Project: XML and CSV
+# Exchanging with MS Project: .mpp files, XML and CSV
 
-## 1. Why the XML format
+## 1. Opening an MS Project file directly (.mpp, .mpt)
 
-The application does not open `.mpp` files yet (MS Project's binary format). The command line can convert them: `plannercraft import-mpp project.mpp -o project.xml` reads a `.mpp` saved by MS Project 2010 or later (tasks with their progress, links, calendars, resources and assignments, project properties, and `.mpt` templates) and writes the XML that PlannerCraft opens; an older `.mpp` is refused with its version. Details: `docs/features/cli.md`. MS Project can also save **the whole project** in its XML format ("XML Format", MSPDI schema) and read it back itself: it is PlannerCraft's native format and the recommended exchange path.
+PlannerCraft opens `.mpp` files (plans) and `.mpt` files (templates) saved by **MS Project 2010, 2013, 2016, 2019, 2021 and Microsoft 365**, on the desktop and in the web version: **File › Open a file (.mpp, .xml)…**, the welcome screen, or by dragging the file onto the window. The type is recognised from the file's content, not its name. In the web version the file is read in the browser: nothing is sent.
 
-Project for the web (now Planner Premium) and Project Online without the desktop client do not produce this file: to our knowledge (Microsoft Q&A threads, no official page), they only export to Excel. Use MS Project Desktop (2010 or later), or go through CSV (section 5).
+- **What opens.** A new PlannerCraft plan, named after the file ("Site B.mpp" ⇒ "Site B"); an `.mpt` template opens as a new untitled plan ("Project1"). PlannerCraft **never writes** to the `.mpp`: Save asks where to write and saves in MS Project's XML format ("Site B.xml"), which MS Project can reopen (sections 3 to 6).
+- **What is taken over.** Tasks and outline, durations, milestones, % complete and progress (actual dates and durations), manual and inactive tasks, constraints, deadlines, notes, links and lags, calendars (work week, holidays and exceptions, recurring ones included), resources, assignments and resource calendars, project properties and calculation options.
+- **What is not.** Custom fields, views, tables, filters and bar styles, baselines, costs, and work distributions edited by hand in an assignment (work is spread evenly); percentage lags are kept without lag. When the opened file has one of the last two, or resource calendars without their base, the banner says so.
+- **The report.** A banner above the plan says what was opened ("MS Project plan opened: 330 tasks, 238 links.") and, only when it applies, how many tasks do not have the same dates as in MS Project. PlannerCraft **recomputes** every date from the file's durations, links and calendars; on 41 measured public files, 87 % of tasks land on MS Project's dates within two minutes. Differences of one or two minutes (MS Project counts in tenths of a minute) are not counted. **View** opens the "Differences with MS Project" window (also in the File menu while the plan is unmodified): for each task, the MS Project dates, the computed dates and, when known, the cause in plain words (leveling, work distribution edited by hand, start placed by hand without link or constraint, fractions of a minute). Clicking a row shows the task in the plan.
+- **Keep the MS Project dates.** The one action of that window: the tasks that differ become **manually scheduled**, with MS Project's start and finish (like a manual task in MS Project: their dates no longer move on their own, links stay). Summary tasks follow their subtasks. Ctrl+Z (Cmd+Z on a Mac) undoes it. Without this action, the plan stays the one PlannerCraft computes.
+- **Refused files.** A file saved by Project 2007, 2000 to 2003 or 98 is refused with its version: save it from MS Project 2010 or later, or as XML (section 3), which remains the fallback. A damaged or password-protected file is refused: open it in MS Project and save it without a password, or as XML. The plan open until then stays on screen.
+- **Command line.** `plannercraft import-mpp project.mpp -o project.xml` does the same reading and writes the XML, with a detailed report (`--json`); details: `docs/features/cli.md`.
 
-## 2. Five steps (MS Project Desktop 2010 and later)
+Still to verify: reading is measured on public files (student, course and training projects) against an external converter, not against MS Project itself (no licence); no company construction schedule has been measured yet.
+
+## 2. Why the XML format is still useful
+
+MS Project can save **the whole project** in its XML format ("XML Format", MSPDI schema) and read it back itself: it is PlannerCraft's native format, the one it saves, and the fallback for `.mpp` files that are too old.
+
+Project for the web (now Planner Premium) and Project Online without the desktop client produce neither `.mpp` nor this file: to our knowledge (Microsoft Q&A threads, no official page), they only export to Excel. Use MS Project Desktop (2010 or later), or go through CSV (section 6).
+
+## 3. Five steps (MS Project Desktop 2010 and later)
 
 1. In MS Project: **File › Save As › Browse**.
 2. In **Save as type**, choose **XML Format (\*.xml)**. The whole project is saved, without a wizard or map.
@@ -89,7 +117,7 @@ Project for the web (now Planner Premium) and Project Online without the desktop
 
 If MS Project refuses the file, check **File › Options › Trust Center › Trust Center Settings › Legacy Formats** (community source, Microsoft Q&A: opening some formats can be blocked there). According to Microsoft, MS Project imports only XML that validates against its data interchange schema; PlannerCraft writes in the order of the files MS Project saves itself, but **reading back by MS Project has not been verified yet** (no licence so far).
 
-## 3. What is kept
+## 4. What is kept
 
 | Data | Kept |
 |---|---|
@@ -103,9 +131,9 @@ If MS Project refuses the file, check **File › Options › Trust Center › Tr
 | Baselines 0 to 10 | read and written back |
 | Entered progress (% complete, actual dates and durations, resume date of a task in progress), status-date options, notes | read and written back; remaining duration and work are derived (duration − actual, work − actual work), a stored value that disagrees is replaced and reported once (`mspdi.progress_inconsistent`) |
 | Manual and inactive tasks | read and written back, as they are |
-| Custom fields, outline codes, views, tables, filters, groups, cost rate tables, availability, detailed timephased data (except an assignment's scheduled work, see section 4) | **copied verbatim**, not interpreted |
+| Custom fields, outline codes, views, tables, filters, groups, cost rate tables, availability, detailed timephased data (except an assignment's scheduled work, see section 5) | **copied verbatim**, not interpreted |
 
-## 4. What is recalculated or lost
+## 5. What is recalculated or lost
 
 **Recalculated by MS Project on opening** (PlannerCraft does not write them): costs, earned value, an assignment's scheduled work distribution (`TimephasedData` type 1, dropped on reading unless the work contour was edited by hand; written back only while PlannerCraft places the assignment the same way). Assignment start and finish, resource work and overallocation, progress (stop and resume dates, actual parts of assignments) and variances (start, finish and work, against baseline 0, in minutes × 1000) are written by PlannerCraft from its engine; an assignment's start and finish variances are left out (their unit is not documented). An assignment's actual work distribution (`TimephasedData` types 2-3) is kept while it still adds up to its actual work.
 
@@ -123,7 +151,7 @@ If MS Project refuses the file, check **File › Options › Trust Center › Tr
 - non-integer percentages (rounded to the percent) and percentage-lag precision (rounded to steps of 0.1 %);
 - a "periodic" exception written back as a daily exception (same days).
 
-## 5. CSV
+## 6. CSV
 
 CSV suits a start from a spreadsheet, or from MS Project when XML is not available.
 
