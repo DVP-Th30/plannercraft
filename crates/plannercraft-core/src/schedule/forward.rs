@@ -227,12 +227,26 @@ impl Calc<'_, '_> {
         Ok(b)
     }
 
+    /// Début saisi de la récapitulative manuelle datée dont `v` est la
+    /// porte (R-293), sinon `None`.
+    fn manual_gate_span(&self, v: NodeIx) -> Option<Span> {
+        let node = self.net.node(v)?;
+        if node.kind != NodeKind::Gate {
+            return None;
+        }
+        match &self.net.node(node.twin?)?.fixed {
+            Some(Ok(span)) => Some(*span),
+            _ => None,
+        }
+    }
+
     /// Plancher de base du nœud `v` : le début du projet (R-036), sauf sous
     /// une récapitulative manuelle datée (R-293) : sa porte part de son
-    /// début saisi, et ses descendants du début saisi de la plus proche
-    /// récapitulative manuelle datée qui les contient, même avant le début
-    /// du projet ; les autres bornes (liens, portes des ancêtres) restent
-    /// des planchers. Passe secondaire à rebours : le début calculé `S*`
+    /// début saisi seul (voir [`Self::gate`]), et ses descendants du début
+    /// saisi de la plus proche récapitulative manuelle datée qui les
+    /// contient, même avant le début du projet ; leurs propres liens et les
+    /// portes des récapitulatives intermédiaires restent des
+    /// planchers. Passe secondaire à rebours : le début calculé `S*`
     /// (R-107), inchangé.
     fn base_floor(&self, v: NodeIx) -> Moment {
         if self.role == PassRole::Secondary {
@@ -246,9 +260,6 @@ impl Calc<'_, '_> {
             return self.start;
         };
         let mut up = if node.kind == NodeKind::Gate {
-            if let Some(start) = node.twin.and_then(fixed_start) {
-                return start;
-            }
             node.twin
                 .and_then(|r| self.net.node(r))
                 .and_then(|n| n.parent_rollup)
@@ -331,6 +342,23 @@ impl Calc<'_, '_> {
     /// projet, porte du parent, liens FS/SS entrants, SNET de la
     /// récapitulative), non recalée.
     fn gate(&mut self, v: NodeIx) -> Result<(), Fail> {
+        // R-293 : porte d'une récapitulative manuelle datée, depuis le début
+        // : son début saisi seul ; ni ses liens entrants ni la porte de son
+        // parent ne passent à ses enfants (ses dates ne bougent pas).
+        if self.role != PassRole::Secondary
+            && let Some(span) = self.manual_gate_span(v)
+        {
+            // Les liens entrants non tenus restent signalés (R-063).
+            self.bounds(v, Some(span))?;
+            let start = span.start;
+            let s = self.state_mut(v).ok_or(Fail::Internal("nœud hors bornes"))?;
+            s.early = Some(Span { start, finish: start });
+            s.driver = Driver::Manual;
+            s.driver_bound = Some(start);
+            s.degraded = false;
+            s.linked = false;
+            return Ok(());
+        }
         let mut b = self.bounds(v, None)?;
         // R-103 : SNET d'une récapitulative, plancher brut de sa porte (non
         // recalé, comme une borne de lien, R-056), candidat en dernier.

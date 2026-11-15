@@ -1,7 +1,10 @@
 //! R-293 — Sous-tâches d'une récapitulative manuelle datée : leur plancher
 //! de base est le début saisi de la plus proche récapitulative manuelle
 //! datée qui les contient, à la place du début du projet, même avant lui ;
-//! les liens et les portes des ancêtres restent des planchers. Source :
+//! la porte de cette récapitulative est son début saisi seul (ses liens
+//! entrants ne passent pas à ses enfants) ; les liens propres des enfants
+//! et les portes des récapitulatives intermédiaires restent des planchers.
+//! Source :
 //! hypothèse fondée sur l'observation de fichiers `.mpp` réels publics (20
 //! feuilles automatiques sans lien ni contrainte sous une récapitulative
 //! manuelle, toutes au début saisi de celle-ci, dont 2 avant le début du
@@ -73,4 +76,20 @@ fn r293_undated_manual_summary_keeps_the_project_start() {
         .level("A", 2)
         .run();
     assert_eq!(run.at("A").early.start, moment("2026-10-19T08:00"));
+}
+
+#[test]
+fn r293_links_into_the_manual_summary_are_not_inherited() {
+    // X 4 j FS → S manuelle mar 20/10 {A 1 j} : S garde ses dates, A part
+    // de mar 20/10 08:00 (et non de la fin de X, ven 23/10).
+    let run = Net::new("2026-10-19T08:00")
+        .task("X", 1_920)
+        .task("S", 0)
+        .manual("S", Some("2026-10-20T08:00"), Some("2026-10-21T17:00"))
+        .task("A", 480)
+        .level("A", 2)
+        .fs("X", "S")
+        .run();
+    assert_eq!(run.at("A").early.start, moment("2026-10-20T08:00"));
+    assert_eq!(run.at("S").early.start, moment("2026-10-20T08:00"));
 }
