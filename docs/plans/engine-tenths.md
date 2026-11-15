@@ -241,6 +241,24 @@ Soit trois PR, cinq étapes, environ huit à douze commits.
 
 ## 11. Points ouverts pour le propriétaire
 
+Réponses du propriétaire le 2026-11-15 : § 12.
+
 1. **Durée tirée du travail : troncature (20/22) ou arrondi R-001 (18/22).** Je propose la troncature, comme hypothèse.
 2. **Travail en millièmes de minute** (au lieu du dixième) : nécessaire pour `advaith14…` UID 226. Cela ajoute une seconde échelle, propre au travail.
 3. **Travail dans les contrats JSON** : jusqu'à 3 décimales de minute, ou bien arrondi au dixième en sortie seulement (le moteur gardant les millièmes).
+
+## 12. Réponses du propriétaire (2026-11-15) et état
+
+Conception validée, décision reportée dans ADR-0039. Les réponses priment sur les propositions des § 1 à § 11 quand elles diffèrent.
+
+1. **Durée tirée de travail ÷ unités : troncature au dixième**, au statut `hypothèse`. La fiche (R-170 inverse, en B4) donne les 22 cas observés : 20 expliqués par la troncature, 18 par l'arrondi R-001, 2 par aucune des deux ; elle dit que les artefacts flottants de MS Project ne sont pas reproduits.
+2. **Travail en millièmes de minute : oui.** La seconde échelle se voit dans les noms (`Work::from_milli`, `Work::milli`) et aucune conversion travail ↔ durée ne se fait sans dire sa règle (`duration_exact`, `duration_round`, `whole_minutes`, `whole_minutes_round` ; `Work::new(Minutes)` exact).
+3. **Travail dans le JSON, sans perte** : minutes avec jusqu'à 3 décimales, écrites seulement quand la valeur n'est pas entière. Une valeur entière s'écrit comme un entier JSON (jamais `480.0`, jamais `112.0`), pour les durées comme pour le travail. En entrée, un entier garde son sens ; un décimal est accepté s'il tombe sur un millième (travail) ou un dixième (durée), sinon refusé. Un contrat ne perd jamais ce que le moteur garde. Dès B2 : test d'octets identiques sur un planning en minutes entières (modèle, journal, sauvegarde, vues), entre `main` et la branche.
+4. **Trois PR** : B1 seul ; B2 + B3 ; B4 + B5.
+
+Précisions :
+- le nom `Minutes` pour une valeur en dixièmes est une dette assumée, dite dans la documentation du type et dans ADR-0039 ; aucun accès ne rend des minutes sans dire sa règle ;
+- interface : aucun changement d'apparence pour un planning en minutes entières ; toute capture qui change est un défaut à corriger, pas une capture à régénérer ;
+- la règle 5 de `CLAUDE.md` n'est réécrite qu'en B4.
+
+**État de B1 (branche `engine-tenths`).** Représentation livrée, sans changement de résultat ; accès retenus : `Minutes` (`new`, `from_tenths`, `tenths`, `whole_minutes`, `whole_minutes_floor`, `whole_minutes_round`, `round_to_minute`), `Moment` (`from_minutes`, `from_tenths`, `tenths`, `whole_minutes`, `minutes_floor`, `time_of_day_floor`), `Work` (`new`, `from_whole_minutes`, `from_milli`, `milli`, `duration_exact`, `duration_round`, `whole_minutes`, `whole_minutes_round`). Mesures et limites : ADR-0039.
