@@ -1,4 +1,5 @@
-//! Raccourcis d'édition de l'interface (R-252, R-253, R-255 ; ADR-0016 D4).
+//! Raccourcis d'édition de l'interface (R-252, R-253, R-255 ; ADR-0016 D4 ;
+//! R-299, lot M3 : « Garder les dates de MS Project »).
 //!
 //! Chaque raccourci rend un lot ordinaire (`progress.update`, `task.update`)
 //! appliqué par le registre : une entrée d'annulation, `dry_run` gratuit ;
@@ -9,7 +10,7 @@
 use std::collections::BTreeSet;
 
 use plannercraft_core::schedule::{Exclusion, TaskOutcome};
-use plannercraft_core::{Percent, Project, SchedulingMode, Task, TaskUid};
+use plannercraft_core::{Moment, Percent, Project, SchedulingMode, Task, TaskUid};
 
 use crate::command::{
     Batch, Command, ModeJson, Patch, PercentJson, ProgressUpdate, TaskRef, TaskUpdate, is_summary_at,
@@ -240,5 +241,56 @@ pub fn toggle_active(s: &Session, uids: &[TaskUid]) -> Result<Option<Batch>, Hel
             })
         })
         .collect();
+    Ok(batch_of(ops))
+}
+
+/// R-299 (lot M3, ADR-0038) : « Garder les dates de MS Project ». Chaque
+/// tâche de `dates` (UID, début, fin enregistrés) passe en planification
+/// manuelle avec ce début et cette fin, valeurs saisies d'une tâche
+/// manuelle (R-063) : `task.update { mode: manual, start }` (R-253, R-254),
+/// puis `task.update { finish }` (durée mesurée du début à la fin sur
+/// l'échelle de la tâche). Un seul lot, une entrée d'annulation. Ignorées :
+/// lignes vides, récapitulatives (leurs dates viennent de leurs
+/// sous-tâches, R-157), fin avant le début, tâche déjà manuelle à ces deux
+/// dates ; doublons fusionnés ; ordre des ID.
+///
+/// # Errors
+///
+/// [`HelperError::UnknownTask`] : UID absent du projet.
+pub fn keep_dates(s: &Session, dates: &[(TaskUid, Moment, Moment)]) -> Result<Option<Batch>, HelperError> {
+    let project = s.project();
+    let mut by_position = std::collections::BTreeMap::new();
+    for &(uid, start, finish) in dates {
+        let pos = project.tasks.position(uid).ok_or(HelperError::UnknownTask(uid))?;
+        by_position.insert(pos, (start, finish));
+    }
+    let mut ops = Vec::new();
+    for (&pos, &(start, finish)) in &by_position {
+        let Some(t) = project.tasks.at(pos) else {
+            continue;
+        };
+        if t.is_null || is_summary_at(&project.tasks, pos) || finish < start {
+            continue;
+        }
+        if let SchedulingMode::Manual {
+            start: Some(s0),
+            finish: Some(f0),
+            ..
+        } = t.mode
+            && s0 == start
+            && f0 == finish
+        {
+            continue;
+        }
+        ops.push(Command::TaskUpdate(TaskUpdate {
+            mode: Patch::Set(ModeJson::Manual),
+            start: Patch::Set(start),
+            ..task_update(t.uid())
+        }));
+        ops.push(Command::TaskUpdate(TaskUpdate {
+            finish: Patch::Set(finish),
+            ..task_update(t.uid())
+        }));
+    }
     Ok(batch_of(ops))
 }
