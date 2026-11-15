@@ -1070,6 +1070,10 @@ fn synthetic_mpp() -> Vec<u8> {
     rec[78..80].copy_from_slice(&500_u16.to_le_bytes());
     rec[178..182].copy_from_slice(&u32::MAX.to_le_bytes());
     rec[182..186].copy_from_slice(&u32::MAX.to_le_bytes());
+    // Création, début et fin réels, reprise : aucune date.
+    for off in [128_usize, 120, 124, 132] {
+        rec.splice(off..off.saturating_add(4), u32::MAX.to_le_bytes());
+    }
     let mut meta = vec![0_u8; 16];
     meta[8..12].copy_from_slice(&1_u32.to_le_bytes());
     meta.extend_from_slice(&[0_u8; 47]);

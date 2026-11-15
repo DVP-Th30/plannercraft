@@ -12,8 +12,8 @@
 
 mod common;
 
-use common::{C, Mpp, NA, T, day, exception, stamp, utf16, week};
-use plannercraft_core::calendar::model::{CalendarKind, DaySetting};
+use common::{C, Mpp, NA, T, day, exception, exception_rec, stamp, utf16, week};
+use plannercraft_core::calendar::model::{CalendarKind, DaySetting, Recurrence};
 use plannercraft_core::{
     ConstraintKind, DurationUnit, LagValue, LinkType, Minutes, ScheduleAnchor, SchedulingMode, TaskUid,
     TimeBasis, Weekday, schedule,
@@ -243,10 +243,30 @@ fn r287_calendars_week_exceptions_and_recurring() {
                 day(None),
             ],
             &[
-                exception("2026-12-25", "2026-12-25", &[], "Noël", false),
-                exception("2026-08-03", "2026-08-07", &[(540, 600)], "Été", false),
-                exception("2027-01-01", "2027-01-01", &[], "Périodique", true),
-                exception("2027-05-01", "2027-05-01", &[], "Jamais lue", false),
+                exception("2026-12-25", "2026-12-25", &[], "Noël"),
+                exception("2026-08-03", "2026-08-07", &[(540, 600)], "Été"),
+                // 1er mai chaque année, 5 occurrences (type 2 : mois 4, jour 1).
+                exception_rec(
+                    "2027-05-01",
+                    "2031-05-01",
+                    &[],
+                    "Fête du travail",
+                    2,
+                    [4, 1, 0, 0],
+                    Some(5),
+                ),
+                // Type inconnu : ignorée, la suivante est lue.
+                exception_rec("2027-01-01", "2027-01-01", &[], "Inconnue", 9, [0; 4], None),
+                // Un vendredi sur deux, 3 occurrences (type 6 : masque 32, tous les 2).
+                exception_rec(
+                    "2027-06-04",
+                    "2027-07-02",
+                    &[],
+                    "Vendredis",
+                    6,
+                    [32, 0, 2, 0],
+                    Some(3),
+                ),
             ],
         );
         m.calendars.push(C {
@@ -279,7 +299,7 @@ fn r287_calendars_week_exceptions_and_recurring() {
         assert_eq!(week.get(Weekday::Tuesday).total(), Minutes::new(480));
         assert_eq!(*week.get(Weekday::Saturday), DaySetting::NonWorking);
         let ex = cal.exceptions();
-        assert_eq!(ex.len(), 2);
+        assert_eq!(ex.len(), 4);
         assert_eq!(
             (ex[0].name.as_str(), ex[0].setting.total()),
             ("Noël", Minutes::ZERO)
@@ -288,8 +308,24 @@ fn r287_calendars_week_exceptions_and_recurring() {
             (ex[1].name.as_str(), ex[1].setting.total()),
             ("Été", Minutes::new(60))
         );
-        // Exception périodique : elle et les suivantes non lues, signalé.
-        assert!(has(&doc, MppCode::CalendarRecurringSkipped));
+        // Exceptions périodiques lues avec leur récurrence et leurs occurrences.
+        assert_eq!(
+            ex[2].recurrence,
+            Recurrence::YearlyByDay {
+                month: plannercraft_core::Month::May,
+                day: 1
+            }
+        );
+        assert_eq!(ex[2].occurrences, Some(5));
+        assert_eq!(
+            plannercraft_core::calendar::expand_exception(&ex[2])
+                .unwrap()
+                .len(),
+            5
+        );
+        assert!(matches!(ex[3].recurrence, Recurrence::Weekly { every: 2, .. }));
+        // Type inconnu : ignorée, signalée.
+        assert!(has(&doc, MppCode::CalendarExceptionUnknownType));
         // Calendrier dérivé (de ressource) : compté, pas repris.
         assert!(
             doc.project
@@ -311,10 +347,10 @@ fn r288_project_properties() {
     );
     assert_eq!(doc.project.info.title, "Projet synthétique");
     assert_eq!(doc.project.options.factors.minutes_per_day(), 480);
-    // Planifier à rebours : les deux clés valent 0.
+    // Planifier à rebours : la clé 0x02400004 vaut 0.
     let mut m = Mpp::new(Layout::Project2013);
     for (k, v) in &mut m.props {
-        if *k == 0x0240_0004 || *k == 0x0240_0019 {
+        if *k == 0x0240_0004 {
             *v = 0_u16.to_le_bytes().to_vec();
         }
     }
@@ -323,10 +359,10 @@ fn r288_project_properties() {
         doc.project.anchor,
         ScheduleAnchor::FromFinish("2026-01-30T17:00".parse().unwrap())
     );
-    // Une seule des deux à 0 : depuis le début.
+    // 0x02400019 à 0 (« la tâche met à jour la ressource ») : sans effet.
     let mut m = Mpp::new(Layout::Project2013);
     for (k, v) in &mut m.props {
-        if *k == 0x0240_0004 {
+        if *k == 0x0240_0019 {
             *v = 0_u16.to_le_bytes().to_vec();
         }
     }
@@ -420,4 +456,66 @@ fn r291_saved_dates_compared_with_the_engine() {
     // Les dates enregistrées ne vont jamais dans le projet (règle 3).
     let b = doc.project.tasks.get(TaskUid::new(2)).unwrap();
     assert_eq!(b.constraint.kind(), ConstraintKind::AsSoonAsPossible);
+}
+
+#[test]
+fn r292_inconsistent_task_table_is_refused() {
+    use plannercraft_mpp::project::refuse_inconsistent;
+    // Seuils : aucune tâche lue sur des enregistrements en service ; ou au
+    // moins deux incohérents et au moins un quart.
+    assert!(refuse_inconsistent(5, 0, false));
+    assert!(!refuse_inconsistent(0, 0, false));
+    assert!(refuse_inconsistent(8, 2, true));
+    assert!(!refuse_inconsistent(9, 2, true));
+    assert!(!refuse_inconsistent(4, 1, true));
+    for layout in LAYOUTS {
+        // Dates invalides en série (jour 0) : disposition non reconnue.
+        let mut m = Mpp::new(layout);
+        for u in 1..=4 {
+            let mut t = T::new(u, u, "t");
+            t.start = 0x0000_12C0;
+            t.finish = 0x0000_27D8;
+            m.tasks.push(t);
+        }
+        let e = read(&m.bytes(), &common::options()).unwrap_err();
+        assert_eq!(e.code(), "mpp.layout_unrecognized");
+        assert!(e.message(true).contains(match layout {
+            Layout::Project2010 => "14,0,7011,1000",
+            Layout::Project2013 => "16,0,10730,20102",
+        }));
+        // Une seule tâche incohérente sur dix : lue, signalée.
+        let mut m = Mpp::new(layout);
+        for u in 1..=9 {
+            m.tasks.push(T::new(u, u, "t"));
+        }
+        let mut bad = T::new(10, 10, "t");
+        bad.start = 0x0000_12C0;
+        m.tasks.push(bad);
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        assert_eq!(doc.source.inconsistent_records, 1);
+        assert!(has(&doc, MppCode::DateInvalid));
+    }
+}
+
+#[test]
+fn r284_meta_count_limits_slots_and_known_item_size() {
+    use plannercraft_mpp::tables::{ItemLen, fixed_items};
+    // Quatre emplacements de 47 octets, deux en service (en-tête) : le
+    // nombre ne divise pas le corps, la taille connue s'applique.
+    let mut meta = vec![0_u8; 16];
+    meta[8] = 2;
+    let data = vec![0_u8; 64];
+    for k in 0..4_u32 {
+        let mut item = vec![0_u8; 47];
+        item[4..8].copy_from_slice(&(k * 16).to_le_bytes());
+        meta.extend_from_slice(&item);
+    }
+    meta[8] = 3;
+    let items = fixed_items(&meta, &data, 100, ItemLen::Known(47));
+    assert_eq!(items.len(), 3);
+    // Deux emplacements vers le même enregistrement : le dernier fait foi.
+    let mut meta2 = meta.clone();
+    meta2[16 + 47 + 4..16 + 47 + 8].copy_from_slice(&0_u32.to_le_bytes());
+    let items = fixed_items(&meta2, &data, 100, ItemLen::Known(47));
+    assert!(items[0].deleted() && !items[1].deleted());
 }

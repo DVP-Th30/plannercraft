@@ -112,6 +112,16 @@ pub enum MppError {
     UnknownLayout,
     /// Flux attendu absent ou illisible.
     MissingStream(&'static str),
+    /// Enregistrements de tâche incohérents (R-292) : disposition non
+    /// reconnue pour cette version d'enregistrement.
+    LayoutUnrecognized {
+        /// Version de l'application qui a enregistré le fichier.
+        saved_by: String,
+        /// Enregistrements en service.
+        records: u32,
+        /// Dont incohérents.
+        inconsistent: u32,
+    },
 }
 
 impl MppError {
@@ -126,6 +136,7 @@ impl MppError {
             Self::Unsupported(_) => "mpp.unsupported_version",
             Self::UnknownLayout => "mpp.unknown_layout",
             Self::MissingStream(_) => "mpp.missing_stream",
+            Self::LayoutUnrecognized { .. } => "mpp.layout_unrecognized",
         }
     }
 
@@ -169,6 +180,26 @@ impl MppError {
             (Self::MissingStream(s), false) => {
                 format!("incomplete .mpp file: stream {s} missing or unreadable")
             }
+            (
+                Self::LayoutUnrecognized {
+                    saved_by,
+                    records,
+                    inconsistent,
+                },
+                true,
+            ) => format!(
+                "disposition des enregistrements non reconnue pour un fichier enregistré par MS Project {saved_by} : {inconsistent} tâches incohérentes sur {records} ; rien n'est importé plutôt qu'un planning faux"
+            ),
+            (
+                Self::LayoutUnrecognized {
+                    saved_by,
+                    records,
+                    inconsistent,
+                },
+                false,
+            ) => format!(
+                "record layout not recognised for a file saved by MS Project {saved_by}: {inconsistent} inconsistent tasks out of {records}; nothing is imported rather than a wrong schedule"
+            ),
         }
     }
 }
@@ -228,6 +259,10 @@ pub struct SourceInfo {
     pub not_imported: NotImported,
     /// Diagnostics supprimés au-delà de la borne.
     pub dropped_diagnostics: u64,
+    /// Enregistrements de tâche en service lus (R-292).
+    pub task_records: u32,
+    /// Dont incohérents (R-292).
+    pub inconsistent_records: u32,
 }
 
 /// Fichier lu.
@@ -278,6 +313,8 @@ pub fn read(bytes: &[u8], options: &ReadOptions) -> Result<MppDocument, MppError
             saved_by: found.saved_by,
             not_imported: built.not_imported,
             dropped_diagnostics: sink.dropped,
+            task_records: built.task_records,
+            inconsistent_records: built.inconsistent_records,
         },
         diagnostics,
     })

@@ -107,7 +107,7 @@ fn rich(layout: Layout) -> Vec<u8> {
                 day(None),
                 day(Some(&[])),
             ],
-            &[exception("2026-12-25", "2026-12-25", &[], "Noël", false)],
+            &[exception("2026-12-25", "2026-12-25", &[], "Noël")],
         )),
     });
     m.bytes()

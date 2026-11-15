@@ -42,6 +42,17 @@ pub struct TaskLayout {
     pub created: usize,
     /// Échéance (horodatage).
     pub deadline: usize,
+    /// Début réel (horodatage) ; `None` : non établi pour cette disposition.
+    pub actual_start: Option<usize>,
+    /// Fin réelle (horodatage).
+    pub actual_finish: Option<usize>,
+    /// Durée réelle (`i32`, dixièmes de minute).
+    pub actual_duration: Option<usize>,
+    /// Reprise du reste d'une tâche commencée (horodatage).
+    pub resume: usize,
+    /// Retard de nivellement (`i32`, dixièmes de minute) et son format
+    /// (`u16`, codes MSPDI).
+    pub leveling_delay: (usize, usize),
     /// Jalon : octet de l'élément de `FixedMeta` et masque.
     pub milestone: (usize, u8),
     /// Planification manuelle : octet de l'élément de `Fixed2Meta` et
@@ -83,6 +94,11 @@ pub const fn task(layout: Layout) -> TaskLayout {
             calendar: 118,
             created: 98,
             deadline: 122,
+            actual_start: Some(72),
+            actual_finish: Some(76),
+            actual_duration: Some(48),
+            leveling_delay: (58, 62),
+            resume: 20,
             milestone: (8, 0x20),
             manual: (8, 0x08),
             active: (8, 0x04),
@@ -104,6 +120,11 @@ pub const fn task(layout: Layout) -> TaskLayout {
             calendar: 178,
             created: 128,
             deadline: 182,
+            actual_start: Some(120),
+            actual_finish: Some(124),
+            actual_duration: Some(80),
+            leveling_delay: (70, 162),
+            resume: 132,
             milestone: (10, 0x02),
             manual: (8, 0x80),
             active: (8, 0x40),
@@ -196,11 +217,10 @@ pub mod project_prop {
     pub const START: u32 = 0x0240_0002;
     /// Fin du projet (horodatage).
     pub const FINISH: u32 = 0x0240_0003;
-    /// Planifier depuis le début (`u16`, 1 = oui) — première clé.
-    pub const FROM_START_A: u32 = 0x0240_0004;
-    /// Planifier depuis le début — seconde clé (indiscernable de la
-    /// première sur le corpus).
-    pub const FROM_START_B: u32 = 0x0240_0019;
+    /// Planifier depuis le début (`u16`, 1 = oui, 0 = depuis la fin) ;
+    /// `0x02400019`, qui lui ressemblait sur le corpus de test, porte « la
+    /// tâche met à jour la ressource » (discriminé par un fichier réel).
+    pub const FROM_START: u32 = 0x0240_0004;
     /// Titre (UTF-16).
     pub const TITLE: u32 = 0x0240_0008;
     /// Nom du calendrier du projet (UTF-16).
@@ -215,6 +235,13 @@ pub mod project_prop {
     pub const MINUTES_PER_DAY: u32 = 0x0240_001D;
     /// Minutes par semaine (`u32`).
     pub const MINUTES_PER_WEEK: u32 = 0x0240_001E;
+    /// Semaine par défaut (7 jours de 60 octets, dimanche d'abord) : jours
+    /// « par défaut » des calendriers.
+    pub const DEFAULT_WEEK: u32 = 0x0240_1388;
+    /// Date d'état (horodatage).
+    pub const STATUS_DATE: u32 = 0x0240_0045;
+    /// Premier jour de la semaine (`u16`, codes MSPDI `WeekStartDay`).
+    pub const WEEK_START: u32 = 0x0240_0025;
     /// Jours par mois (`u16`).
     pub const DAYS_PER_MONTH: u32 = 0x0240_138F;
 }

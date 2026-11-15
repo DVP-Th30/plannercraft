@@ -14,7 +14,7 @@ use crate::cfb::Cfb;
 use crate::detect::Found;
 use crate::diag::{MppCode, Sink};
 use crate::layout::project_prop;
-use crate::tables::{self, FixedItem};
+use crate::tables::{self, FixedItem, ItemLen};
 use crate::time::{self, Stamp};
 
 use crate::{MppError, NotImported, ReadOptions, Recorded, calendar, task};
@@ -28,6 +28,10 @@ pub struct Built {
     pub recorded: Recorded,
     /// Non repris.
     pub not_imported: NotImported,
+    /// Enregistrements de tâche en service (R-292).
+    pub task_records: u32,
+    /// Dont incohérents (R-292).
+    pub inconsistent_records: u32,
 }
 
 /// Flux d'une entité : (méta fixe, données fixes, méta variable, données
@@ -114,6 +118,14 @@ fn apply_props(project: &mut Project, props: &BTreeMap<u32, Vec<u8>>, sink: &mut
             .and_then(|v| le_u16(v, 0))
             .and_then(|t| TimeOfDay::new(t / 10).ok())
     };
+    project.status_date = stamp_prop(props, project_prop::STATUS_DATE);
+    if let Some(d) = props
+        .get(&project_prop::WEEK_START)
+        .and_then(|v| le_u16(v, 0))
+        .and_then(|c| codes::week_start_day(i64::from(c)))
+    {
+        project.options.week_start_day = d;
+    }
     if let Some(t) = time_prop(project_prop::DEFAULT_START) {
         project.options.default_start_time = t;
     }
@@ -142,18 +154,19 @@ fn install_calendars(
         .get(&project_prop::CALENDAR_NAME)
         .map(|b| utf16_z(b, 255))
         .unwrap_or_default();
+    let shown = if calendar_name.is_empty() {
+        "nom du calendrier du projet absent".to_owned()
+    } else {
+        calendar_name.clone()
+    };
     if base.is_empty() {
-        sink.push(MppCode::ProjectCalendarFallback, None, Some(calendar_name));
+        sink.push(MppCode::ProjectCalendarFallback, None, Some(shown));
     } else {
         let project_calendar = base
             .iter()
             .find(|c| c.name == calendar_name)
             .or_else(|| {
-                sink.push(
-                    MppCode::ProjectCalendarFallback,
-                    None,
-                    Some(calendar_name.clone()),
-                );
+                sink.push(MppCode::ProjectCalendarFallback, None, Some(shown.clone()));
                 base.first()
             })
             .map(Calendar::uid);
@@ -166,6 +179,36 @@ fn install_calendars(
         if let Some(uid) = project_calendar {
             project.calendar = uid;
         }
+    }
+}
+
+/// R-292 : refus d'une table de tâches incohérente : des enregistrements en
+/// service sans aucune tâche lue, ou un quart au moins d'enregistrements
+/// incohérents (au moins deux). Seuils : `docs/plans/mpp-import.md` § 9.
+#[must_use]
+pub const fn refuse_inconsistent(records: u32, inconsistent: u32, any_task: bool) -> bool {
+    if records > 0 && !any_task {
+        return true;
+    }
+    inconsistent >= 2 && inconsistent.saturating_mul(4) >= records
+}
+
+/// Ce que ce lot ne reprend pas : enregistrements vivants des ressources et
+/// des affectations (comptes approchés), calendriers dérivés.
+fn not_imported(cfb: &Cfb<'_>, dir: usize, max: usize, records: usize, derived: u32) -> NotImported {
+    let count = |name: &str, len: usize| {
+        let e = entity(cfb, dir, name, max);
+        live(&tables::fixed_items(
+            &e.fixed_meta,
+            &e.fixed_data,
+            records,
+            ItemLen::Known(len),
+        ))
+    };
+    NotImported {
+        resources: count("TBkndRsc", 37),
+        assignments: count("TBkndAssn", 34),
+        resource_calendars: derived,
     }
 }
 
@@ -192,9 +235,7 @@ pub fn build(
     // Ancre et facteurs.
     let start = stamp_prop(&props, project_prop::START);
     let finish = stamp_prop(&props, project_prop::FINISH);
-    let from_finish = [project_prop::FROM_START_A, project_prop::FROM_START_B]
-        .iter()
-        .all(|k| props.get(k).and_then(|v| le_u16(v, 0)) == Some(0));
+    let from_finish = props.get(&project_prop::FROM_START).and_then(|v| le_u16(v, 0)) == Some(0);
     let anchor = match (from_finish, start, finish) {
         (true, _, Some(f)) => ScheduleAnchor::FromFinish(f),
         (_, Some(s), _) => ScheduleAnchor::FromStart(s),
@@ -214,9 +255,10 @@ pub fn build(
 
     // Calendriers.
     let cal = entity(cfb, dir, "TBkndCal", max);
-    let cal_items = tables::fixed_items(&cal.fixed_meta, &cal.fixed_data, records);
+    let cal_items = tables::fixed_items(&cal.fixed_meta, &cal.fixed_data, records, ItemLen::Known(10));
     let cal_var = tables::var_values(&cal.var_meta, &cal.var_data, records);
-    let calendars = calendar::read(&cal_items, &cal_var, found.layout, sink);
+    let defaults = calendar::default_week(props.get(&project_prop::DEFAULT_WEEK).map(Vec::as_slice), sink);
+    let calendars = calendar::read(&cal_items, &cal_var, found.layout, &defaults, sink);
     install_calendars(&mut project, calendars.base, &props, sink);
     let known_calendars: BTreeSet<u32> = project.calendars.iter().map(|c| c.uid().get()).collect();
 
@@ -225,9 +267,15 @@ pub fn build(
     if tasks.fixed_meta.is_empty() {
         return Err(MppError::MissingStream("TBkndTask/FixedMeta"));
     }
-    let task_items = tables::fixed_items(&tasks.fixed_meta, &tasks.fixed_data, records);
+    let task_items = tables::fixed_items(&tasks.fixed_meta, &tasks.fixed_data, records, ItemLen::Known(47));
+    let task_slots = tables::item_geometry(&tasks.fixed_meta, ItemLen::Known(47)).map_or(0, |(_, n)| n);
     let task_var = tables::var_values(&tasks.var_meta, &tasks.var_data, records);
-    let task_items2 = tables::fixed_items(&tasks.fixed2_meta, &tasks.fixed2_data, records);
+    let task_items2 = tables::fixed_items(
+        &tasks.fixed2_meta,
+        &tasks.fixed2_data,
+        records,
+        ItemLen::Slots(task_slots),
+    );
     let mut read = task::read(
         &task_items,
         &task_items2,
@@ -238,7 +286,20 @@ pub fn build(
         sink,
     );
     let cons = entity(cfb, dir, "TBkndCons", max);
-    let cons_items = tables::fixed_items(&cons.fixed_meta, &cons.fixed_data, records);
+    let cons_items = tables::fixed_items(&cons.fixed_meta, &cons.fixed_data, records, ItemLen::Known(10));
+    // R-292 : lire juste ou ne pas lire.
+    if refuse_inconsistent(
+        read.records,
+        read.inconsistent,
+        read.summary.is_some() || !read.tasks.is_empty(),
+    ) {
+        return Err(MppError::LayoutUnrecognized {
+            saved_by: found.saved_by.clone(),
+            records: read.records,
+            inconsistent: read.inconsistent,
+        });
+    }
+    let (task_records, inconsistent_records) = (read.records, read.inconsistent);
     task::attach_links(&cons_items, found.layout, &mut read, default_unit, sink);
     project.summary_task = read.summary;
     let mut arena = Arena::new();
@@ -250,14 +311,7 @@ pub fn build(
     }
     project.tasks = arena;
 
-    // Non repris.
-    let rsc = entity(cfb, dir, "TBkndRsc", max);
-    let assn = entity(cfb, dir, "TBkndAssn", max);
-    let not_imported = NotImported {
-        resources: live(&tables::fixed_items(&rsc.fixed_meta, &rsc.fixed_data, records)),
-        assignments: live(&tables::fixed_items(&assn.fixed_meta, &assn.fixed_data, records)),
-        resource_calendars: calendars.derived,
-    };
+    let not_imported = not_imported(cfb, dir, max, records, calendars.derived);
     Ok(Built {
         project,
         recorded: Recorded {
@@ -266,5 +320,7 @@ pub fn build(
             tasks: read.recorded,
         },
         not_imported,
+        task_records,
+        inconsistent_records,
     })
 }

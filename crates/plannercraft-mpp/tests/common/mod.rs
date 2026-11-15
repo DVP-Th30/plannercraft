@@ -212,6 +212,8 @@ struct Off {
     milestone: (usize, u8),
     manual: (usize, u8),
     active: (usize, u8),
+    /// Autres dates de l'enregistrement (création, réels, reprise) : NA.
+    other_dates: [usize; 4],
 }
 
 fn off(layout: Layout) -> Off {
@@ -234,6 +236,7 @@ fn off(layout: Layout) -> Off {
             milestone: (8, 0x20),
             manual: (8, 0x08),
             active: (8, 0x04),
+            other_dates: [98, 72, 76, 20],
         },
         Layout::Project2013 => Off {
             len: 202,
@@ -253,6 +256,7 @@ fn off(layout: Layout) -> Off {
             milestone: (10, 0x02),
             manual: (8, 0x80),
             active: (8, 0x40),
+            other_dates: [128, 120, 124, 132],
         },
     }
 }
@@ -292,9 +296,23 @@ pub fn day(ranges: Option<&[(u32, u32)]>) -> Vec<u8> {
     d
 }
 
-/// Exception : premier et dernier jour (`AAAA-MM-JJ`), plages, nom,
-/// périodique.
-pub fn exception(first: &str, last: &str, ranges: &[(u32, u32)], name: &str, recurring: bool) -> Vec<u8> {
+/// Exception simple : premier et dernier jour (`AAAA-MM-JJ`), plages, nom.
+pub fn exception(first: &str, last: &str, ranges: &[(u32, u32)], name: &str) -> Vec<u8> {
+    exception_rec(first, last, ranges, name, 1, [0; 4], None)
+}
+
+/// Exception de type `kind` (1 période, 2 annuelle par jour, 3 annuelle par
+/// rang, 4 mensuelle par jour, 5 mensuelle par rang, 6 hebdomadaire, 7
+/// quotidienne), paramètres des octets 76 à 79, occurrences saisies.
+pub fn exception_rec(
+    first: &str,
+    last: &str,
+    ranges: &[(u32, u32)],
+    name: &str,
+    kind: u32,
+    params: [u8; 4],
+    occurrences: Option<u32>,
+) -> Vec<u8> {
     let dn = |s: &str| {
         let m: Moment = format!("{s}T00:00").parse().unwrap();
         (m.minutes() / 1_440 + 1) as u16
@@ -302,12 +320,13 @@ pub fn exception(first: &str, last: &str, ranges: &[(u32, u32)], name: &str, rec
     let mut e = vec![0_u8; 12];
     put16(&mut e, 0, dn(first));
     put16(&mut e, 2, dn(last));
-    put32(&mut e, 4, 1);
-    put32(&mut e, 8, u32::from(recurring));
+    put32(&mut e, 4, occurrences.unwrap_or(1));
+    put32(&mut e, 8, u32::from(occurrences.is_some()));
     e.extend_from_slice(&day(Some(ranges)));
     let n = utf16(name);
     let mut tail = vec![0_u8; 20];
-    put32(&mut tail, 0, 1);
+    put32(&mut tail, 0, kind);
+    tail[4..8].copy_from_slice(&params);
     put32(&mut tail, 16, n.len() as u32);
     e.extend_from_slice(&tail);
     e.extend_from_slice(&n);
@@ -391,6 +410,9 @@ impl Mpp {
                 continue;
             }
             let mut rec = vec![0_u8; o.len];
+            for off in o.other_dates {
+                put32(&mut rec, off, NA);
+            }
             put32(&mut rec, o.uid, t.uid);
             put32(&mut rec, o.id, t.id);
             put32(&mut rec, o.start, t.start);

@@ -1,7 +1,9 @@
 # Corpus public de l'import .mpp (ADR-0036, lot M1).
 #
 # Sélection de fichiers .mpp de test publics du dépôt joniles/mpxj (données
-# enregistrées par MS Project, pas de code), adresses figées sur un commit.
+# enregistrées par MS Project, pas de code), adresses figées sur un commit,
+# puis fichiers réels de dépôts GitHub publics (projets d'étudiants, cours,
+# livre ; adresses figées sur le commit du dépôt).
 # Les fichiers ne sont PAS commités : `cargo xtask corpus fetch-mpp` les
 # télécharge dans tests/corpus-mpp/files/, ignoré par git, et contrôle taille
 # et SHA-256. Seul ce manifeste est versionné. Clés lues par le
@@ -315,7 +317,7 @@ tasks = 0
 null_tasks = 0
 links = 0
 calendars = 1
-calendar_exceptions = 0
+calendar_exceptions = 26
 project_start = "2017-10-20T08:00"
 min_identical = 0
 
@@ -564,7 +566,7 @@ links = 6
 calendars = 2
 calendar_exceptions = 0
 project_start = "2006-08-24T08:00"
-min_identical = 12
+min_identical = 14
 
 [[file]]
 name = "mpp14header.mpp"
@@ -695,7 +697,7 @@ tasks = 1
 null_tasks = 0
 links = 0
 calendars = 2
-calendar_exceptions = 17
+calendar_exceptions = 88
 project_start = "2015-08-05T13:00"
 min_identical = 0
 
@@ -834,3 +836,231 @@ date = "2026-11-14"
 size = 63488
 sha256 = "f6effc2b9c473663270dd85de9c4fe48100b57e5436f83587b4e8d7f23f5a4f8"
 expect = "mpp.unsupported_version"
+
+[[file]]
+name = "advaith14__Project-Management-for-World-Hotels-__IST645F18A2BKamathA.mpp"
+source = "fichier réel : github.com/advaith14/Project-Management-for-World-Hotels-, IST645F18A2BKamathA.mpp"
+url = "https://raw.githubusercontent.com/advaith14/Project-Management-for-World-Hotels-/f23abf11f2f1400afa6bed8c2c2507b05c06cc5a/IST645F18A2BKamathA.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 18105856
+sha256 = "5bf70835f69f6bffda73e0ee788bf7a8ce5882cf240c923d211b541334507bbd"
+expect = "import"
+tasks = 330
+null_tasks = 0
+links = 238
+calendars = 1
+calendar_exceptions = 4
+project_start = "2018-09-11T10:00"
+min_identical = 14
+
+[[file]]
+name = "Sebastianelli-Nicola__Fidardarena-Project-Management-PMBOK__WBS-Gantt.mpp"
+source = "fichier réel : github.com/Sebastianelli-Nicola/Fidardarena-Project-Management-PMBOK, gantt/WBS-Gantt.mpp"
+url = "https://raw.githubusercontent.com/Sebastianelli-Nicola/Fidardarena-Project-Management-PMBOK/678364328cbdaf7d59a364695916b2460051e995/gantt/WBS-Gantt.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 2706944
+sha256 = "13b1fdc872b69909aedd72b9e5f3b3c46465aa86c77376f50b09d5af65dd1d7b"
+expect = "import"
+tasks = 169
+null_tasks = 0
+links = 170
+calendars = 1
+calendar_exceptions = 0
+project_start = "2025-10-01T09:00"
+min_identical = 169
+
+[[file]]
+name = "tefsantana__uala-digital-project-management-case-study__uala-project-schedule.mpp"
+source = "fichier réel : github.com/tefsantana/uala-digital-project-management-case-study, schedule/uala-project-schedule.mpp"
+url = "https://raw.githubusercontent.com/tefsantana/uala-digital-project-management-case-study/3ad4b31430825c823bfa618d1cf6f33c3a73198e/schedule/uala-project-schedule.mpp"
+mirrors = []
+license = "MIT (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 1015808
+sha256 = "f491476db399ca340eeaecff0d396053bf692e6ddbbf6dc91a6e1e604ae2ffb1"
+expect = "import"
+tasks = 120
+null_tasks = 0
+links = 67
+calendars = 2
+calendar_exceptions = 0
+project_start = "2025-09-25T09:00"
+min_identical = 114
+
+[[file]]
+name = "OlgaSlipak__-Banking-System-__BankingSystem_MSProject_ver3.mpp"
+source = "fichier réel : github.com/OlgaSlipak/-Banking-System-, BankingSystem_MSProject_ver3.mpp"
+url = "https://raw.githubusercontent.com/OlgaSlipak/-Banking-System-/a47f28a7318f14dbddd13398bec351b2b6521245/BankingSystem_MSProject_ver3.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 1005568
+sha256 = "36e0d9643e8ff8c6c6cbef5fe80401738801c0e3d1690a3e8456e185f5618fa1"
+expect = "import"
+tasks = 40
+null_tasks = 0
+links = 48
+calendars = 1
+calendar_exceptions = 0
+project_start = "2017-08-16T08:00"
+min_identical = 40
+
+[[file]]
+name = "MaralSmi__residential-construction-project-planning__Maral_Esmikhani_MSP_projrect.mpp"
+source = "fichier réel : github.com/MaralSmi/residential-construction-project-planning, Maral_Esmikhani_MSP_projrect.mpp"
+url = "https://raw.githubusercontent.com/MaralSmi/residential-construction-project-planning/3e3b1dc96ac9f6d0d20db9f5782a16bb69c581a7/Maral_Esmikhani_MSP_projrect.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 920064
+sha256 = "a2f3c47df2a0950af3657fd9e372cef36881c04617a3a013daacc61c65e06687"
+expect = "import"
+tasks = 176
+null_tasks = 0
+links = 138
+calendars = 3
+calendar_exceptions = 2
+project_start = "2026-02-01T08:00"
+min_identical = 176
+
+[[file]]
+name = "zahmed02__CS4044-Software-Project-Management__CS4044_FSPM_Project_Schedule.mpp"
+source = "fichier réel : github.com/zahmed02/CS4044-Software-Project-Management, CS4044 FSPM Project Schedule.mpp"
+url = "https://raw.githubusercontent.com/zahmed02/CS4044-Software-Project-Management/240b82b5e827959a8049d04abbfc533defa774e1/CS4044%20FSPM%20Project%20Schedule.mpp"
+mirrors = []
+license = "GPL-3.0 (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 606720
+sha256 = "897a84fda341b5f6c2fce7924146f2524601ec0cdf1512abfdc53fdf27e80a1c"
+expect = "import"
+tasks = 227
+null_tasks = 0
+links = 181
+calendars = 3
+calendar_exceptions = 42
+project_start = "2026-03-01T08:00"
+min_identical = 217
+
+[[file]]
+name = "Kalani0056__ms-project-planning__st20357430_CIS6011.mpp"
+source = "fichier réel : github.com/Kalani0056/ms-project-planning, st20357430 CIS6011.mpp"
+url = "https://raw.githubusercontent.com/Kalani0056/ms-project-planning/43e39e80172e2040b2e003940bcbbf208f89026c/st20357430%20CIS6011.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 587776
+sha256 = "ceef8cdf51e4b5ebc627b6be0bebb54be5a9c077e1c6e98ac75954c242c537cb"
+expect = "import"
+tasks = 41
+null_tasks = 0
+links = 46
+calendars = 1
+calendar_exceptions = 23
+project_start = "2026-01-01T08:00"
+min_identical = 34
+
+[[file]]
+name = "saahilanande__cse-5325__assignment2.mpp"
+source = "fichier réel : github.com/saahilanande/cse-5325, assignment 2/assignment2.mpp"
+url = "https://raw.githubusercontent.com/saahilanande/cse-5325/9c968b15d1d640cf45bbf92a11363caca557b013/assignment%202/assignment2.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 559104
+sha256 = "d21473c7360c19b81f7b77a5ff5530b3c82260e2386d9f8cfc70c73da80effa7"
+expect = "import"
+tasks = 68
+null_tasks = 0
+links = 39
+calendars = 1
+calendar_exceptions = 0
+project_start = "2022-10-22T08:00"
+min_identical = 68
+
+[[file]]
+name = "Moein-Bagheri__talent-search-project-planning__Talent_Search_Project.mpp"
+source = "fichier réel : github.com/Moein-Bagheri/talent-search-project-planning, planning/Talent Search Project.mpp"
+url = "https://raw.githubusercontent.com/Moein-Bagheri/talent-search-project-planning/1e4066220ebb10ec68113b4bcaaac3517abd66eb/planning/Talent%20Search%20Project.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 556032
+sha256 = "0dffc0fbb5ada3a2643afc3a613ad6003f23ecdd1fd3d1a9783307f859675d7e"
+expect = "import"
+tasks = 111
+null_tasks = 0
+links = 77
+calendars = 2
+calendar_exceptions = 0
+project_start = "2025-11-22T09:00"
+min_identical = 111
+
+[[file]]
+name = "ubhurase__IPM__Big_Pharma_Case_Project_Final.mpp"
+source = "fichier réel : github.com/ubhurase/IPM, Big Pharma Case Project_Final.mpp"
+url = "https://raw.githubusercontent.com/ubhurase/IPM/059827a3bb40e61f9404b017f8562bb8701ba6f0/Big%20Pharma%20Case%20Project_Final.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 541184
+sha256 = "ac91a240969c1502e1da4927a2ee517d0a7609ef652c505261732f3a4f193481"
+expect = "import"
+tasks = 106
+null_tasks = 0
+links = 74
+calendars = 5
+calendar_exceptions = 11
+project_start = "2022-10-01T08:00"
+min_identical = 105
+
+[[file]]
+name = "AlejoTechEngineer__Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project__Planificación,_Ejecución_Y_Gestión_Del_Cambio.mpp"
+source = "fichier réel : github.com/AlejoTechEngineer/Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project, Planificación, Ejecución Y Gestión Del Cambio.mpp"
+url = "https://raw.githubusercontent.com/AlejoTechEngineer/Planificacion_Ejecucion_Y_Gestion_Del_Cambio_En_Project/c5b7ddab678dd37ccbe89bbdc69980a76b5ef424/Planificaci%C3%B3n%2C%20Ejecuci%C3%B3n%20Y%20Gesti%C3%B3n%20Del%20Cambio.mpp"
+mirrors = []
+license = "aucune déclarée (dépôt public)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 455680
+sha256 = "c12582db17d69ddf685ed7e1e3c413f792b8bfdff5bf0a0a8e3d592783d4ab29"
+expect = "import"
+tasks = 16
+null_tasks = 0
+links = 11
+calendars = 3
+calendar_exceptions = 18
+project_start = "2025-09-10T09:00"
+min_identical = 16
+
+[[file]]
+name = "PacktPublishing__Planning-and-Control-Using-Microsoft-Project-365-and-2021__Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+source = "fichier réel : github.com/PacktPublishing/Planning-and-Control-Using-Microsoft-Project-365-and-2021, Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+url = "https://raw.githubusercontent.com/PacktPublishing/Planning-and-Control-Using-Microsoft-Project-365-and-2021/91e6ec110cd17d2b14c9b3ad00f6fda9db54ec69/Eastwood_Harris_MSP2021_Template_Ver_01.mpt"
+mirrors = []
+license = "MIT (dépôt)"
+rights = "Fichier public d'un dépôt GitHub ; jamais commité ni redistribué, téléchargé pour le test."
+date = "2026-11-15"
+size = 676352
+sha256 = "f2ba3d8505a816c701c159f31d2a70a49c081907e11a85427e92f3a3e0b2ef80"
+expect = "import"
+tasks = 12
+null_tasks = 2
+links = 0
+calendars = 2
+calendar_exceptions = 0
+project_start = "2022-06-21T08:00"
+min_identical = 10

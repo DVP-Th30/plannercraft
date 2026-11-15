@@ -36,9 +36,9 @@ pub enum MppCode {
     ConstraintWithoutDate,
     /// Plage horaire d'un calendrier invalide : ignorée.
     CalendarRangeInvalid,
-    /// Exception périodique : elle et les suivantes du calendrier ne sont
-    /// pas lues (format non établi).
-    CalendarRecurringSkipped,
+    /// Exception d'un type de récurrence inconnu ou aux paramètres hors
+    /// bornes : ignorée.
+    CalendarExceptionUnknownType,
     /// Exception invalide ou en chevauchement : ignorée.
     CalendarExceptionInvalid,
     /// Calendrier du projet introuvable par son nom : premier calendrier
@@ -75,7 +75,7 @@ impl MppCode {
             Self::CodeUnknown => "mpp.code_unknown",
             Self::ConstraintWithoutDate => "mpp.constraint_without_date",
             Self::CalendarRangeInvalid => "mpp.calendar_range_invalid",
-            Self::CalendarRecurringSkipped => "mpp.calendar_recurring_skipped",
+            Self::CalendarExceptionUnknownType => "mpp.calendar_exception_unknown_type",
             Self::CalendarExceptionInvalid => "mpp.calendar_exception_invalid",
             Self::ProjectCalendarFallback => "mpp.project_calendar_fallback",
             Self::TaskCalendarUnknown => "mpp.task_calendar_unknown",
@@ -135,6 +135,10 @@ pub struct Sink {
     pub items: Vec<MppDiagnostic>,
     /// Diagnostics supprimés au-delà de la borne.
     pub dropped: u64,
+    /// Diagnostics d'incohérence d'un enregistrement (date ou durée
+    /// invalide, code inconnu, valeur hors bornes, UID en double), comptés
+    /// même au-delà de la borne : garde de R-292.
+    pub inconsistencies: u64,
     max: usize,
 }
 
@@ -145,12 +149,25 @@ impl Sink {
         Self {
             items: Vec::new(),
             dropped: 0,
+            inconsistencies: 0,
             max,
         }
     }
 
     /// Ajoute un diagnostic.
     pub fn push(&mut self, code: MppCode, uid: Option<u32>, value: Option<String>) {
+        if matches!(
+            code,
+            MppCode::DateInvalid
+                | MppCode::DurationInvalid
+                | MppCode::FormatUnknown
+                | MppCode::ValueInvalid
+                | MppCode::CodeUnknown
+                | MppCode::DuplicateUid
+                | MppCode::FieldMissing
+        ) {
+            self.inconsistencies = self.inconsistencies.saturating_add(1);
+        }
         if self.items.len() >= self.max {
             self.dropped = self.dropped.saturating_add(1);
             return;

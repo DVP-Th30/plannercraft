@@ -13,6 +13,8 @@ use plannercraft_core::calendar::model::{
 };
 use plannercraft_core::{CalendarUid, DayRange, TimeOfDay, Week, Weekday};
 
+use plannercraft_mspdi::codes;
+
 use crate::bytes::{le_i32, le_u16, le_u32, utf16_z};
 use crate::diag::{MppCode, Sink};
 use crate::layout::{self, CALENDAR_LEN, calendar_var};
@@ -105,9 +107,9 @@ fn day_record(rec: &[u8], uid: u32, sink: &mut Sink) -> Option<DaySetting> {
     }
 }
 
-/// Semaine par défaut de MS Project (observé : un jour « par défaut » d'un
-/// calendrier de base vaut le jour du calendrier Standard).
-fn default_week() -> Week<DaySetting> {
+/// Semaine du calendrier Standard (repli quand le fichier n'a pas de
+/// semaine par défaut).
+fn standard_week() -> Week<DaySetting> {
     if let CalendarKind::Base { week } =
         plannercraft_core::calendar::standard(CalendarUid::new(1), String::new()).kind()
     {
@@ -115,6 +117,73 @@ fn default_week() -> Week<DaySetting> {
     } else {
         Week::from_fn(|_| DaySetting::NonWorking)
     }
+}
+
+/// Semaine par défaut du projet (propriété `0x02401388` : 7 jours de 60
+/// octets, comme ceux d'un calendrier) : elle donne les jours « par
+/// défaut » (code 1) des calendriers de base (observé,
+/// `docs/formats/mpp.md` § 10). Absente ou illisible : semaine Standard.
+#[must_use]
+pub fn default_week(prop: Option<&[u8]>, sink: &mut Sink) -> Week<DaySetting> {
+    let mut week = standard_week();
+    let Some(blob) = prop else { return week };
+    for (k, d) in DAYS.iter().enumerate() {
+        let start = k.saturating_mul(DAY_LEN);
+        let Some(rec) = start.checked_add(DAY_LEN).and_then(|e| blob.get(start..e)) else {
+            break;
+        };
+        if let Some(setting) = day_record(rec, 0, sink) {
+            *week.get_mut(*d) = setting;
+        }
+    }
+    week
+}
+
+/// Récurrence d'une exception (R-287), lue à la fin de l'en-tête de
+/// l'exception : type (`u32` à l'octet 72), paramètres aux octets 76 à 79 ;
+/// nombre d'occurrences (`u32` à l'octet 4) quand l'exception a été saisie
+/// par occurrences (`u32` à l'octet 8 égal à 1). Codes des mois, rangs,
+/// jours et masques de jours : ceux de MSPDI (observé,
+/// `docs/formats/mpp.md` § 10). `None` : type inconnu ou paramètre hors
+/// bornes.
+fn recurrence(head: &[u8]) -> Option<(Recurrence, Option<u32>)> {
+    let kind = le_u32(head, 72)?;
+    let b76 = i64::from(*head.get(76)?);
+    let b77 = i64::from(*head.get(77)?);
+    let w76 = le_u16(head, 76)?;
+    let w78 = le_u16(head, 78)?;
+    let rec = match kind {
+        1 => Recurrence::Period,
+        7 => Recurrence::Daily { every: w76 },
+        6 => Recurrence::Weekly {
+            every: w78,
+            days: codes::days_of_week(b76)?,
+        },
+        5 => Recurrence::MonthlyByPosition {
+            every: w78,
+            position: codes::month_position(b76)?,
+            item: codes::month_item(b77)?,
+        },
+        4 => Recurrence::MonthlyByDay {
+            every: w78,
+            day: u8::try_from(b76).ok()?,
+        },
+        3 => Recurrence::YearlyByPosition {
+            month: codes::month(b76)?,
+            position: codes::month_position(b77)?,
+            item: codes::month_item(i64::from(w78))?,
+        },
+        2 => Recurrence::YearlyByDay {
+            month: codes::month(b76)?,
+            day: u8::try_from(b77).ok()?,
+        },
+        _ => return None,
+    };
+    rec.validate().ok()?;
+    let occurrences = (kind != 1 && le_u32(head, 8) == Some(1))
+        .then(|| le_u32(head, 4))
+        .flatten();
+    Some((rec, occurrences))
 }
 
 /// Exceptions à la suite de la semaine.
@@ -135,12 +204,6 @@ fn exceptions(blob: &[u8], uid: u32, cal: &mut Calendar, sink: &mut Sink) {
             );
             return;
         };
-        // Octet 8 non nul : exception périodique (format non établi) ; la
-        // longueur des suivantes n'est plus connue.
-        if le_u32(head, 8) != Some(0) {
-            sink.push(MppCode::CalendarRecurringSkipped, Some(uid), None);
-            return;
-        }
         let name_len = le_u32(head, 88)
             .and_then(|n| usize::try_from(n).ok())
             .unwrap_or(0);
@@ -169,12 +232,16 @@ fn exceptions(blob: &[u8], uid: u32, cal: &mut Calendar, sink: &mut Sink) {
             .get(12..72)
             .and_then(|d| day_record(d, uid, sink))
             .unwrap_or(DaySetting::NonWorking);
+        let Some((recurrence, occurrences)) = recurrence(head) else {
+            sink.push(MppCode::CalendarExceptionUnknownType, Some(uid), Some(name));
+            continue;
+        };
         let exception = CalendarException {
             name: name.clone(),
             period,
             setting,
-            recurrence: Recurrence::Period,
-            occurrences: None,
+            recurrence,
+            occurrences,
         };
         if cal.add_exception(exception).is_err() {
             sink.push(MppCode::CalendarExceptionInvalid, Some(uid), Some(name));
@@ -185,7 +252,13 @@ fn exceptions(blob: &[u8], uid: u32, cal: &mut Calendar, sink: &mut Sink) {
 /// Lit les calendriers de base ; les calendriers dérivés (de ressource)
 /// sont comptés, pas repris.
 #[must_use]
-pub fn read(items: &[FixedItem<'_>], var: &VarValues<'_>, lay: crate::Layout, sink: &mut Sink) -> Calendars {
+pub fn read(
+    items: &[FixedItem<'_>],
+    var: &VarValues<'_>,
+    lay: crate::Layout,
+    defaults: &Week<DaySetting>,
+    sink: &mut Sink,
+) -> Calendars {
     let cl = layout::calendar(lay);
     let mut out = Calendars::default();
     let mut seen = BTreeSet::new();
@@ -212,7 +285,7 @@ pub fn read(items: &[FixedItem<'_>], var: &VarValues<'_>, lay: crate::Layout, si
             .and_then(|f| f.get(&calendar_var::NAME))
             .map(|b| utf16_z(b, 255))
             .unwrap_or_default();
-        let mut week = default_week();
+        let mut week = defaults.clone();
         let blob = fields.and_then(|f| f.get(&calendar_var::DATA));
         if let Some(blob) = blob {
             for (k, d) in DAYS.iter().enumerate() {

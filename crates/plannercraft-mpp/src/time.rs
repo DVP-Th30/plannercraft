@@ -3,7 +3,7 @@
 //! Observé (`docs/formats/mpp.md` § 6) : un horodatage tient sur 4 octets,
 //! `u32` petit-boutiste dont les 16 bits hauts sont le numéro du jour (1 =
 //! 1984-01-01) et les 16 bits bas l'heure en dixièmes de minute ;
-//! `FF FF FF FF` = aucune date (NA). Une durée ou un décalage est un `i32`
+//! `FF FF FF FF` = aucune date (NA) ; secondes tronquées (R-004). Une durée ou un décalage est un `i32`
 //! en dixièmes de minute.
 
 use plannercraft_core::{Day, Minutes, Moment, round_div};
@@ -36,9 +36,10 @@ pub fn stamp(raw: u32) -> Stamp {
     if day == 0 || tenths > TENTHS_PER_DAY {
         return Stamp::Invalid;
     }
+    // Secondes tronquées, comme une date MSPDI (R-004, R-075).
     let minutes = i64::from(day.saturating_sub(1))
         .checked_mul(1_440)
-        .and_then(|m| m.checked_add(round_div(i128::from(tenths), 10)?));
+        .and_then(|m| m.checked_add(i64::from(tenths.checked_div(10)?)));
     match minutes.map(Moment::from_minutes) {
         Some(Ok(m)) => Stamp::At(m),
         _ => Stamp::Invalid,

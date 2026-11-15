@@ -35,6 +35,12 @@ pub struct Tasks {
     pub tasks: Vec<Task>,
     /// Dates enregistrées.
     pub recorded: BTreeMap<TaskUid, RecordedTask>,
+    /// Enregistrements en service lus (complets, courts, en double compris ;
+    /// réservés et supprimés exclus).
+    pub records: u32,
+    /// Enregistrements incohérents : UID en double, ou au moins un
+    /// diagnostic d'incohérence pendant sa lecture (R-292).
+    pub inconsistent: u32,
 }
 
 /// Ligne lue avant mise en ordre.
@@ -121,7 +127,7 @@ fn computed_zero(d: Duration) -> Duration {
 
 /// Lignes du tableau, sans les enregistrements réservés ni supprimés ;
 /// UID en double : le premier gagne.
-fn rows<'a>(items: &[FixedItem<'a>], tl: &TaskLayout, sink: &mut Sink) -> Vec<Row<'a>> {
+fn rows<'a>(items: &[FixedItem<'a>], tl: &TaskLayout, sink: &mut Sink, dup: &mut u32) -> Vec<Row<'a>> {
     let mut out = Vec::new();
     let mut seen = BTreeSet::new();
     for (pos, item) in items.iter().enumerate() {
@@ -165,6 +171,7 @@ fn rows<'a>(items: &[FixedItem<'a>], tl: &TaskLayout, sink: &mut Sink) -> Vec<Ro
         };
         if !seen.insert(row.uid) {
             sink.push(MppCode::DuplicateUid, Some(row.uid), None);
+            *dup = dup.saturating_add(1);
             continue;
         }
         out.push(row);
@@ -259,6 +266,33 @@ fn fill_fixed(
     }
     task.created = moment(f.stamp(tl.created, "created"));
     task.deadline = moment(f.stamp(tl.deadline, "deadline"));
+    // Retard de nivellement enregistré (lu, jamais calculé, R-289).
+    let (delay_off, delay_fmt_off) = tl.leveling_delay;
+    if let Some(tenths) = f.i32(delay_off, "leveling_delay")
+        && tenths > 0
+    {
+        let (unit, elapsed) = f
+            .u16(delay_fmt_off, "leveling_delay_format")
+            .and_then(|c| codes::leveling_delay_format(i64::from(c)))
+            .unwrap_or((DurationUnit::Day, true));
+        task.leveling_delay = time::minutes_from_tenths(i64::from(tenths))
+            .filter(|m| m.get() > 0)
+            .and_then(|m| plannercraft_core::LevelingDelay::new(m, unit, elapsed));
+    }
+    // Réels (R-289).
+    if let Some(off) = tl.actual_start {
+        task.progress.actual_start = moment(f.stamp(off, "actual_start"));
+    }
+    if let Some(off) = tl.actual_finish {
+        task.progress.actual_finish = moment(f.stamp(off, "actual_finish"));
+    }
+    if let Some(off) = tl.actual_duration
+        && let Some(t) = f.i32(off, "actual_duration")
+    {
+        task.progress.actual_duration = time::minutes_from_tenths(i64::from(t))
+            .filter(|m| m.get() >= 0)
+            .unwrap_or(Minutes::ZERO);
+    }
     RecordedTask { start, finish }
 }
 
@@ -297,10 +331,17 @@ pub fn read(
     // `Fixed2` n'est lu que s'il a autant d'éléments que `Fixed` (observé
     // sur 164 fichiers sur 164).
     let second = (items2.len() == items.len()).then_some(items2);
-    let mut rows = rows(items, &tl, sink);
+    let mut duplicates = 0_u32;
+    let mut rows = rows(items, &tl, sink, &mut duplicates);
     // Ordre des ID enregistrés (à égalité : ordre des enregistrements).
     rows.sort_by_key(|r| (r.id, r.pos));
-    let mut out = Tasks::default();
+    let mut out = Tasks {
+        records: u32::try_from(rows.len())
+            .unwrap_or(u32::MAX)
+            .saturating_add(duplicates),
+        inconsistent: duplicates,
+        ..Tasks::default()
+    };
     let mut expected = 1_u32;
     let mut renumbered = 0_u32;
     for row in &rows {
@@ -328,7 +369,11 @@ pub fn read(
             uid: row.uid,
             sink,
         };
+        let before = f.sink.inconsistencies;
         let rec_dates = fill_fixed(&mut task, &mut f, &tl, options, calendars);
+        if f.sink.inconsistencies > before {
+            out.inconsistent = out.inconsistent.saturating_add(1);
+        }
         out.recorded.insert(uid, rec_dates);
         // Jalon : bit de l'élément de méta.
         let (byte, mask) = tl.milestone;
@@ -340,7 +385,22 @@ pub fn read(
             task.active = bit(tl.active);
             if bit(tl.manual) {
                 task.mode = manual_mode(second.data, &task, row.uid, sink);
+                // Durée d'une tâche manuelle : la durée saisie (observé sur
+                // des fichiers réels où la durée de l'enregistrement fixe en
+                // diffère, `docs/formats/mpp.md` § 8).
+                if let SchedulingMode::Manual {
+                    duration: Some(d), ..
+                } = task.mode
+                {
+                    task.duration = d;
+                }
             }
+        }
+        // Reste dérivé des réels et de la durée (R-200), comme le lecteur MSPDI ;
+        // reprise gardée pour une tâche commencée non achevée (R-214).
+        task.progress.remaining_duration = plannercraft_core::progress::remaining_duration(&task);
+        if plannercraft_core::progress::facts(&task).state == plannercraft_core::ProgressState::Started {
+            task.progress.resume = le_u32(rec, tl.resume).map(time::stamp).and_then(moment);
         }
         // Notes (valeur variable).
         if let Some(raw) = fields.and_then(|v| v.get(&task_var::NOTES)) {
@@ -372,7 +432,10 @@ pub fn read(
         }
         let level = task.outline_level.get();
         if next_level.is_some_and(|n| n > level) {
-            task.duration = computed_zero(task.duration);
+            task.progress.resume = None;
+            if task.mode == SchedulingMode::Auto {
+                task.duration = computed_zero(task.duration);
+            }
         }
         next_level = Some(level);
     }

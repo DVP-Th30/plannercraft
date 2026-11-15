@@ -40,7 +40,10 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     for p in entries {
         if p.is_dir() {
             walk(&p, out);
-        } else if p.extension().is_some_and(|e| e.eq_ignore_ascii_case("mpp")) {
+        } else if p
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("mpp") || e.eq_ignore_ascii_case("mpt"))
+        {
             out.push(p);
         }
     }
@@ -80,7 +83,17 @@ fn links(p: &Project, uid: TaskUid) -> BTreeSet<String> {
         .map(|t| {
             t.predecessors
                 .iter()
-                .map(|l| format!("{}-{:?}-{:?}", l.predecessor.get(), l.kind, l.lag))
+                .map(|l| {
+                    // Décalage nul : l'unité d'affichage n'a pas d'effet (le
+                    // corrigé écrit l'unité par défaut du projet).
+                    let lag = match l.lag.value {
+                        plannercraft_core::LagValue::Time { minutes, .. } if minutes.get() == 0 => {
+                            "0".to_owned()
+                        }
+                        _ => format!("{:?}", l.lag),
+                    };
+                    format!("{}-{:?}-{lag}", l.predecessor.get(), l.kind)
+                })
                 .collect()
         })
         .unwrap_or_default()
@@ -100,6 +113,7 @@ fn measure_against_oracle() {
     let mut tally = Tally::default();
     let mut engine = (0_u64, 0_u64);
     let mut engine_oracle = (0_u64, 0_u64);
+    let mut engine_bare = (0_u64, 0_u64);
     let mut no_oracle = 0;
     for path in &files {
         let rel = path.strip_prefix(&dir).unwrap().to_string_lossy().into_owned();
@@ -130,6 +144,12 @@ fn measure_against_oracle() {
             continue;
         }
         *read_ok.entry(doc.source.format.label()).or_default() += 1;
+        if doc.source.inconsistent_records > 0 {
+            println!(
+                "R-292 {rel} : {} enregistrements incohérents sur {}",
+                doc.source.inconsistent_records, doc.source.task_records
+            );
+        }
         let xml = oracle_dir.join(&rel).with_extension("xml");
         let Ok(xml) = std::fs::read(&xml) else {
             no_oracle += 1;
@@ -141,6 +161,7 @@ fn measure_against_oracle() {
         // Projet.
         tally.check("projet : ancre (sens et date)", file, 0, &p.anchor, &op.anchor);
         tally.check("projet : titre", file, 0, &p.info.title, &op.info.title);
+        tally.check("projet : date d'état", file, 0, &p.status_date, &op.status_date);
         tally.check(
             "projet : facteurs",
             file,
@@ -218,6 +239,41 @@ fn measure_against_oracle() {
                 &t.progress.percent_complete,
                 &ot.progress.percent_complete,
             );
+            tally.check(
+                "tâche : début réel",
+                file,
+                u,
+                &t.progress.actual_start,
+                &ot.progress.actual_start,
+            );
+            tally.check(
+                "tâche : fin réelle",
+                file,
+                u,
+                &t.progress.actual_finish,
+                &ot.progress.actual_finish,
+            );
+            tally.check(
+                "tâche : durée réelle",
+                file,
+                u,
+                &t.progress.actual_duration,
+                &ot.progress.actual_duration,
+            );
+            tally.check(
+                "tâche : retard de nivellement",
+                file,
+                u,
+                &t.leveling_delay,
+                &ot.leveling_delay,
+            );
+            tally.check(
+                "tâche : reprise (tâche commencée)",
+                file,
+                u,
+                &t.progress.resume,
+                &ot.progress.resume,
+            );
             tally.check("tâche : contrainte", file, u, &t.constraint, &ot.constraint);
             tally.check("tâche : échéance", file, u, &t.deadline, &ot.deadline);
             tally.check(
@@ -274,23 +330,25 @@ fn measure_against_oracle() {
             if let CalendarKind::Base { week } = c.kind() {
                 tally.check("calendrier : semaine", file, u, week, ow);
             }
+            // Exceptions comparées par leur effet : jours couverts (récurrence
+            // dépliée par le moteur), réglage du jour, nom. Le corrigé écrit une
+            // récurrence « tous les N jours » avec le code 7, que le lecteur
+            // MSPDI garde sans la déplier : ramenée ici à « Daily ».
             let ex = |cal: &plannercraft_core::calendar::model::Calendar| {
                 let mut v: Vec<String> = cal
                     .exceptions()
                     .iter()
                     .map(|e| {
-                        // Même effet : chaque jour de la période (le corrigé écrit
-                        // « Daily », tous les 1 jour, pour une exception simple).
-                        let r = match e.recurrence {
-                            plannercraft_core::calendar::model::Recurrence::Daily { every: 1 } => {
-                                plannercraft_core::calendar::model::Recurrence::Period
-                            }
-                            r => r,
-                        };
-                        format!(
-                            "{:?} {:?} {:?} {:?} {}",
-                            e.period, e.setting, r, e.occurrences, e.name
-                        )
+                        let mut e = e.clone();
+                        if let plannercraft_core::calendar::model::Recurrence::ByDayCount { every } =
+                            e.recurrence
+                        {
+                            e.recurrence = plannercraft_core::calendar::model::Recurrence::Daily { every };
+                        }
+                        let days = plannercraft_core::calendar::expand_exception(&e)
+                            .map(|d| format!("{d:?}"))
+                            .unwrap_or_else(|_| "?".to_owned());
+                        format!("{days} {:?} {}", e.setting, e.name.trim())
                     })
                     .collect();
                 v.sort();
@@ -317,14 +375,25 @@ fn measure_against_oracle() {
         let cmpo = compare(op, &so, &orec);
         engine_oracle.0 += u64::from(cmpo.tasks_identical);
         engine_oracle.1 += u64::from(cmpo.tasks_compared);
+        // Même projet du corrigé sans ressources ni affectations : ce que
+        // ce lot reprend (référence équitable pour le lecteur).
+        let mut bare = op.clone();
+        bare.resources = plannercraft_core::Arena::new();
+        bare.assignments = plannercraft_core::Arena::new();
+        let sb = schedule(&bare);
+        let cmpb = compare(&bare, &sb, &orec);
+        engine_bare.0 += u64::from(cmpb.tasks_identical);
+        engine_bare.1 += u64::from(cmpb.tasks_compared);
         if verbose {
             println!(
-                "{rel}: {} tâches, moteur {}/{} (corrigé relu par MSPDI : {}/{})",
+                "{rel}: {} tâches, moteur {}/{} (corrigé relu par MSPDI : {}/{} ; sans ressources : {}/{})",
                 p.tasks.len(),
                 cmp.tasks_identical,
                 cmp.tasks_compared,
                 cmpo.tasks_identical,
-                cmpo.tasks_compared
+                cmpo.tasks_compared,
+                cmpb.tasks_identical,
+                cmpb.tasks_compared
             );
         }
     }
@@ -342,13 +411,62 @@ fn measure_against_oracle() {
         println!("| {field} | {ok} | {n} | {rate:.1} % |");
     }
     println!(
-        "\nMoteur : tâches aux dates recalculées identiques aux dates enregistrées : {}/{} (lecture .mpp) ; {}/{} (même calcul sur le projet relu depuis le XML du corrigé)",
-        engine.0, engine.1, engine_oracle.0, engine_oracle.1
+        "\nMoteur : tâches aux dates recalculées identiques aux dates enregistrées : {}/{} (lecture .mpp) ; {}/{} (même calcul sur le projet relu depuis le XML du corrigé) ; {}/{} (corrigé sans ressources ni affectations)",
+        engine.0, engine.1, engine_oracle.0, engine_oracle.1, engine_bare.0, engine_bare.1
     );
     for (field, ex) in &tally.bad_examples {
         println!("\nÉcarts « {field} » (exemples) :");
         for e in ex {
             println!("  {e}");
+        }
+    }
+}
+
+/// Différences de champs de tâche et d'options entre la lecture et le corrigé
+/// pour un fichier (`MPP_DIFF_FILE`, `MPP_DIFF_XML`) : outil de mise au point.
+#[test]
+#[ignore = "outil de mise au point"]
+fn diff_one_file() {
+    let now: Moment = "2026-11-14T08:00".parse().unwrap();
+    let bytes = std::fs::read(std::env::var("MPP_DIFF_FILE").unwrap()).unwrap();
+    let xml = std::fs::read(std::env::var("MPP_DIFF_XML").unwrap()).unwrap();
+    let doc = read(&bytes, &ReadOptions::new("m".to_owned(), now)).unwrap();
+    let o = plannercraft_mspdi::read(&xml, &plannercraft_mspdi::ReadOptions::new(now)).unwrap();
+    let (p, op) = (&doc.project, &o.project);
+    println!("options lu {:?}\noptions corrigé {:?}", p.options, op.options);
+    println!(
+        "statut lu {:?} / {:?} ; corrigé {:?} / {:?}",
+        p.status_date, p.current_date, op.status_date, op.current_date
+    );
+    let mut shown = 0;
+    for ot in op.tasks.iter() {
+        let Some(t) = p.tasks.get(ot.uid()) else { continue };
+        // Champs que ce lot ne lit pas : alignés sur la lecture.
+        let mut ot = ot.clone();
+        ot.guid = t.guid;
+        ot.wbs.clone_from(&t.wbs);
+        ot.work = t.work;
+        ot.baselines.clone_from(&t.baselines);
+        ot.extras.clone_from(&t.extras);
+        ot.custom.clone_from(&t.custom);
+        ot.effort_driven = t.effort_driven;
+        ot.progress.percent_work_complete = t.progress.percent_work_complete;
+        ot.progress.physical_percent_complete = t.progress.physical_percent_complete;
+        ot.progress.actual_work = t.progress.actual_work;
+        ot.progress.remaining_work = t.progress.remaining_work;
+        ot.created = t.created;
+        let ot = &ot;
+        let a = format!("{:?}", t.fields());
+        let b = format!("{:?}", ot.fields());
+        if a != b && shown < 4 {
+            shown += 1;
+            let fa: Vec<&str> = a.split(", ").collect();
+            let fb: Vec<&str> = b.split(", ").collect();
+            for (x, y) in fa.iter().zip(fb.iter()) {
+                if x != y {
+                    println!("UID {} : lu {x} / corrigé {y}", ot.uid().get());
+                }
+            }
         }
     }
 }

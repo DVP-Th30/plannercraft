@@ -123,6 +123,13 @@ pub fn to_text(raw: &[u8], max_chars: usize) -> (String, bool) {
                         w if SKIPPED.contains(&w) => skip = true,
                         "par" | "line" => push('\n', &mut out, skip),
                         "tab" => push('\t', &mut out, skip),
+                        "endash" => push('\u{2013}', &mut out, skip),
+                        "emdash" => push('\u{2014}', &mut out, skip),
+                        "lquote" => push('\u{2018}', &mut out, skip),
+                        "rquote" => push('\u{2019}', &mut out, skip),
+                        "ldblquote" => push('\u{201C}', &mut out, skip),
+                        "rdblquote" => push('\u{201D}', &mut out, skip),
+                        "bullet" => push('\u{2022}', &mut out, skip),
                         "uc" => uc = param.and_then(|p| u32::try_from(p).ok()).unwrap_or(1).min(8),
                         "u" => {
                             let v = param.unwrap_or(0);
