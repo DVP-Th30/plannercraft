@@ -135,9 +135,9 @@ fn total_work(parts: &[Part]) -> i64 {
 }
 
 /// P31 pour une affectation hors durée fixe (ADR-0039) : `d_a = W × 10 000
-/// / U` tronqué au dixième (R-170) dans le domaine des durées, et
+/// / U` arrondi au dixième (R-170) dans le domaine des durées, et
 /// `|W − d_a × U / 10 000|` borné par l'arrondi du travail au millième
-/// (½ millième) plus la troncature de `d_a` (moins d'un dixième × U).
+/// (½ millième) plus celui de `d_a` (moins d'un dixième × U).
 /// Mesures : W en millièmes, d en dixièmes, écart en millièmes × 10 000.
 fn p31_holds(p: &Part) -> bool {
     let u = i128::from(p.units.get());
@@ -145,7 +145,7 @@ fn p31_holds(p: &Part) -> bool {
         return true;
     }
     let w = i128::from(p.work.milli());
-    let d = w * 10_000 / (u * 100);
+    let d = (2 * w * 10_000 + u * 100) / (2 * u * 100);
     if !(0..=i128::from(Duration::MAX_TENTHS)).contains(&d) {
         return false;
     }
@@ -269,7 +269,7 @@ proptest! {
     }
 
     /// P33 : une seule affectation initiale, à l'état normalisé de R-170
-    /// (unités fixes, travail fixe : D = W × 10 000 / U tronqué au dixième ;
+    /// (unités fixes, travail fixe : D = W × 10 000 / U arrondi au dixième ;
     /// durée fixe : U = W × 10 000 / D) : ajouter puis retirer une ressource restaure
     /// exactement l'état, pilotée par l'effort ou non.
     #[test]
@@ -288,8 +288,7 @@ proptest! {
             (d_fd * 10, u)
         } else {
             if u1 == 0 { return Ok(()); }
-            let d = i128::from(w1) * 1_000 * 10_000 / (i128::from(u1) * 100);
-            let Ok(d) = i64::try_from(d) else { return Ok(()) };
+            let Some(d) = round_div(i128::from(w1) * 1_000 * 10_000, i128::from(u1) * 100) else { return Ok(()) };
             if d > Duration::MAX_TENTHS { return Ok(()); }
             (d, units(u1))
         };

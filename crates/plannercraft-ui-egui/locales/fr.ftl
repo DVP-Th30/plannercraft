@@ -2159,8 +2159,8 @@ mpp-diff-none = Plus aucune différence avec MS Project.
 mpp-diff-kept = Les tâches qui différaient gardent les dates de MS Project, en planification manuelle. { $undo } annule.
 mpp-diff-rounding =
     { $count ->
-        [one] { $count } tâche diffère d'une ou deux minutes (arrondi) : non comptée.
-       *[other] { $count } tâches diffèrent d'une ou deux minutes (arrondi) : non comptées.
+        [one] { $count } tâche diffère d'une minute au plus : non comptée.
+       *[other] { $count } tâches diffèrent d'une minute au plus : non comptées.
     }
 mpp-diff-keep = Garder les dates de MS Project
 mpp-diff-keep-hint = Ces tâches passent en planification manuelle, avec les dates de MS Project. { $undo } annule.

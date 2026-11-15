@@ -183,7 +183,7 @@ fn comparison_text(s: &mut String, c: &Comparison, fr: bool) {
         ),
         c.tasks_compared,
         c.tasks_rounding,
-        t("à deux minutes près (arrondi)", "within two minutes (rounding)"),
+        t("à une minute près", "within one minute"),
         c.tasks_off,
         t("en écart réel", "really different"),
         c.starts_equal,

@@ -11,8 +11,8 @@
 //!
 //! Conventions (cahier J5, L2) :
 //! - par affectation, `w_a = d_a × u_a ÷ 10 000` arrondi au millième de
-//!   minute (R-001) et `d_a = w_a × 10 000 ÷ u_a` **tronqué** au dixième de
-//!   minute (R-170, hypothèse de l'ADR-0039 D4) ; une affectation à
+//!   minute (R-001) et `d_a = w_a × 10 000 ÷ u_a` arrondi au dixième de
+//!   minute (R-170, R-001, ADR-0039 D4 révisée) ; une affectation à
 //!   unités nulles n'a pas de `d_a` propre (le moteur lui donne la durée de
 //!   la tâche, R-181) ;
 //! - quand la durée de la tâche est recalculée (unités fixes ou travail
@@ -205,7 +205,8 @@ fn work_from(duration: i64, units: i64) -> Result<i64, EditError> {
 }
 
 /// Durée en dixièmes depuis un travail en millièmes : `d = w × 10 000 ÷ u`
-/// **tronqué** au dixième de minute (R-170, ADR-0039 D4, hypothèse) ;
+/// arrondi au dixième de minute par R-001 (R-170, ADR-0039 D4 révisée,
+/// hypothèse) ;
 /// `None` pour des unités nulles ; au-delà du domaine des durées :
 /// [`EditError::Overflow`].
 fn duration_from(work: i64, units: i64) -> Result<Option<i64>, EditError> {
@@ -217,8 +218,7 @@ fn duration_from(work: i64, units: i64) -> Result<Option<i64>, EditError> {
         .ok_or(EditError::Overflow)?;
     let d = i128::from(work)
         .checked_mul(UNIT_SCALE)
-        .and_then(|n| n.checked_div(den))
-        .and_then(|d| i64::try_from(d).ok())
+        .and_then(|n| round_div(n, den))
         .ok_or(EditError::Overflow)?;
     if !(0..=Duration::MAX_TENTHS).contains(&d) {
         return Err(EditError::Overflow);

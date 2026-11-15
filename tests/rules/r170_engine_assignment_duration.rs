@@ -33,8 +33,8 @@ fn r170_engine_d_a_from_work() {
         assert_eq!(a.duration, Minutes::new(1_920));
         assert_eq!(a.role, AssignmentRole::Work);
     }
-    // Troncature au dixième (ADR-0039 D4, hypothèse) : 7 min à 30 % ⇒
-    // 23,333… → 23,3 min (avant : arrondi à la minute, 23).
+    // Arrondi au dixième (R-001, ADR-0039 D4 révisée, hypothèse) : 7 min à
+    // 30 % ⇒ 23,333… → 23,3 min (avant : arrondi à la minute, 23).
     let r = run(TaskType::FixedUnits, 7, 3_000);
     assert_eq!(placed(&r, 1).duration, Minutes::from_tenths(233));
 }

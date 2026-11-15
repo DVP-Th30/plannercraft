@@ -207,8 +207,8 @@ fn usable(set: &CalendarSet, uid: CalendarUid) -> bool {
     set.get(uid).is_ok_and(CompiledCalendar::has_working_time)
 }
 
-/// R-170 (moteur) : `d_a = W × 10 000 ÷ U` **tronqué** au dixième de minute
-/// (ADR-0039 D4, hypothèse) pour les unités fixes
+/// R-170 (moteur) : `d_a = W × 10 000 ÷ U` arrondi au dixième de minute
+/// (R-001, ADR-0039 D4 révisée, hypothèse) pour les unités fixes
 /// et le travail fixe ; durée de la tâche pour une feuille à durée fixe et
 /// pour des unités nulles (R-181) ; hors du domaine des durées : échec
 /// (R-069). Une récapitulative (`summary`) n'a pas de durée tenue : son
@@ -231,15 +231,14 @@ fn assignment_duration(
     duration_of_work(i128::from(work.milli()), units)
 }
 
-/// Durée tirée d'un travail en millièmes : `W × 10 000 ÷ U` tronqué au
-/// dixième de minute (R-170, R-209, ADR-0039 D4) ; hors du domaine des
-/// durées : échec (R-069).
+/// Durée tirée d'un travail en millièmes : `W × 10 000 ÷ U` arrondi au
+/// dixième de minute par R-001 (R-170, R-209, ADR-0039 D4 révisée) ; hors
+/// du domaine des durées : échec (R-069).
 fn duration_of_work(milli: i128, units: Units) -> Result<Minutes, &'static str> {
-    // Millièmes × 10 000 ÷ (U × 100) : dixièmes, tronqués (U > 0).
+    // Millièmes × 10 000 ÷ (U × 100) : dixièmes, arrondis (R-001).
     milli
         .checked_mul(10_000)
-        .and_then(|num| num.checked_div(i128::from(units.get()).checked_mul(100)?))
-        .and_then(|t| i64::try_from(t).ok())
+        .and_then(|num| round_div(num, i128::from(units.get()).checked_mul(100)?))
         .filter(|t| (0..=Duration::MAX_TENTHS).contains(t))
         .map(Minutes::from_tenths)
         .ok_or(OUT_OF_DOMAIN)
@@ -248,7 +247,7 @@ fn duration_of_work(milli: i128, units: Units) -> Result<Minutes, &'static str> 
 /// R-209 (tâche en cours) : durées de la partie réelle et du reste d'une
 /// affectation de travail `W`, travail réel `AW` (borné à `[0, W]`),
 /// unités `U` : `d_act = AW × 10 000 ÷ U`, `d_rem = (W − AW) × 10 000 ÷ U`,
-/// tronqués au dixième (ADR-0039 D4) ; unités nulles (R-181) et durée fixe
+/// arrondis au dixième (R-001, ADR-0039 D4 révisée) ; unités nulles (R-181) et durée fixe
 /// (R-170) : durée réelle et reste de la tâche. `None` si la tâche n'est pas
 /// en cours ; hors du domaine des durées : échec (R-069).
 fn progress_durations(

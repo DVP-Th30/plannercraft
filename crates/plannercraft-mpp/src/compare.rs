@@ -11,16 +11,22 @@ use serde::Serialize;
 
 use crate::Recorded;
 
-/// Écart d'arrondi au plus, en minutes (R-298).
-pub const ROUNDING_MINUTES: i64 = 2;
-/// Même seuil en dixièmes de minute (ADR-0039 : comparaison au dixième).
+/// Écart au plus d'une tâche « proche », en minutes (R-298) : depuis
+/// ADR-0039 (comparaison au dixième), une minute ; avant, deux (arrondi
+/// du moteur à la minute).
+pub const ROUNDING_MINUTES: i64 = 1;
+/// Même seuil en dixièmes de minute.
 const ROUNDING_TENTHS: i64 = ROUNDING_MINUTES * 10;
+/// Décalage d'une affectation au-delà duquel elle est « décalée » (R-298),
+/// en dixièmes de minute : deux minutes, inchangé.
+const STAGGER_TENTHS: i64 = 20;
 
 /// Classe de l'écart d'une tâche (R-298).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GapClass {
-    /// Début et fin à au plus [`ROUNDING_MINUTES`] minutes : arrondi.
+    /// Début et fin à au plus [`ROUNDING_MINUTES`] minute : écart de calcul
+    /// de MS Project que le moteur ne reproduit pas (durées flottantes).
     Rounding,
     /// Écart réel.
     Real,
@@ -103,7 +109,7 @@ pub struct Comparison {
     /// enregistrés.
     pub tasks_identical: u32,
     /// Tâches non identiques dont le début et la fin sont à au plus
-    /// [`ROUNDING_MINUTES`] minutes (arrondi).
+    /// [`ROUNDING_MINUTES`] minute.
     pub tasks_rounding: u32,
     /// Tâches en écart réel.
     pub tasks_off: u32,
@@ -213,7 +219,7 @@ fn cause(
                 .assignments
                 .get(&a.uid())
                 .and_then(|r| r.start)
-                .is_some_and(|s| s.tenths().saturating_sub(recorded_start.tenths()) > ROUNDING_TENTHS)
+                .is_some_and(|s| s.tenths().saturating_sub(recorded_start.tenths()) > STAGGER_TENTHS)
     });
     if shifted {
         return Some(GapCause::StaggeredAssignments);

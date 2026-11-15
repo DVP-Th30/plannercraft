@@ -488,7 +488,7 @@ fn measure_against_oracle() {
         engine.0, engine.1, engine_oracle.0, engine_oracle.1, engine_bare.0, engine_bare.1
     );
     println!(
-        "Classes (lecture .mpp) : identiques à la minute {} ; à deux minutes près {} ; écart réel {} ; dont causes non recalculables {causes:?}",
+        "Classes (lecture .mpp) : identiques au dixième {} ; à une minute près {} ; écart réel {} ; dont causes non recalculables {causes:?}",
         classes.0, classes.1, classes.2
     );
     for (field, ex) in &tally.bad_examples {
@@ -578,7 +578,7 @@ fn task_gaps(
 
 /// Diagnostic des écarts du moteur par tâche racine (lot M2) : une tâche en
 /// écart dont les prédécesseurs (successeurs à rebours) et ceux de ses
-/// récapitulatives sont justes (à deux minutes près) porte la cause ; une
+/// récapitulatives sont justes (à une minute près) porte la cause ; une
 /// récapitulative en écart dont toutes les tâches filles sont justes aussi.
 /// Une ligne TSV par tâche en écart (`MPP_DIAG_OUT`), avec les indices du
 /// corrigé.

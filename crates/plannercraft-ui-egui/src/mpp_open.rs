@@ -211,7 +211,7 @@ impl MppOpened {
         self.pristine
     }
 
-    /// Tâches en écart réel (au-delà de deux minutes), 0 si le planning
+    /// Tâches en écart réel (au-delà d'une minute), 0 si le planning
     /// n'est plus comparable.
     #[must_use]
     pub const fn real_gaps(&self) -> u32 {
@@ -222,7 +222,7 @@ impl MppOpened {
         }
     }
 
-    /// Tâches à une ou deux minutes près (arrondi, non comptées).
+    /// Tâches à une minute près au plus (non comptées).
     #[must_use]
     pub const fn rounding(&self) -> u32 {
         if self.pristine {

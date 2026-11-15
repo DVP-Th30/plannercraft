@@ -40,7 +40,7 @@ fn r194_prorata_and_remainder() {
     );
     // 10 min sur trois égales, au millième (ADR-0039 ; avant : 3, 3, 4 min
     // et D 4) : 3,333, 3,333, reste 3,334 à la dernière (UID 3) ; durée =
-    // plus grand d_a = 3,334 tronqué au dixième = 3,3 min (R-170).
+    // plus grand d_a = 3,334 arrondi au dixième = 3,3 min (R-170).
     let out = apply(&side, &three, &Edit::Work(work(10))).unwrap();
     assert_eq!(out.duration, Minutes::from_tenths(33));
     assert_eq!(out.work, work(10));

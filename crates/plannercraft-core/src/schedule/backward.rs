@@ -631,7 +631,7 @@ impl Calc<'_, '_> {
             self.placer(v)?.backward_span(lf.finish)?.start
         };
         let stop = self.stop_of(v, actual_start, ip.actual)?;
-        let from = ip.resume.map_or(stop, |r| r.max(stop));
+        let from = self.resume_from(v, stop, ip.resume)?;
         let rest = self.remaining_placer(v)?.forward_span(from)?;
         let run = super::Run {
             actual_start,
