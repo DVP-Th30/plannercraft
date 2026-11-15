@@ -278,3 +278,12 @@ Détail et décisions : ADR-0039, « État des lots B2-B3 ». Pour chaque entré
 | Fichier du modèle (sauvegarde automatique, journal de reprise) | relu sans perte ; une fraction écrite à la main subit les arrondis de B1 | sans arrondi |
 
 Sorties sans perte dès B2 : modèle, journal, sauvegarde, vues, presse-papiers, diff. Restent à la minute jusqu'à B4 : écrivain MSPDI, CSV (format d'échange à la minute pour les dates), message du diagnostic `ConversionOutOfDomain`.
+
+## 14. État final (lots B4-B5, 2026-11-15)
+
+B1 à B5 réalisés (ADR-0039, « État des lots B4-B5 »). Écarts aux critères du § 9 :
+- fichiers réels `.mpp` : 2 444 identiques, objectif ≥ 2 750 non atteint (2 755 avec l'arrondi de la durée tirée du travail au lieu de la troncature : décision au propriétaire) ; un fichier perd une tâche (`maryam24-git…`, reste de 0,1 min après une reprise) ;
+- classe « à deux minutes près » : 355 tâches, gardée ;
+- textes R-141 de quelques minutes entières changés (relecture au dixième) ;
+- tests de règles : attendus changés listés, chacun avec sa règle, dans les commentaires des tests et le compte rendu du lot ;
+- corpus MSPDI, corpus `.mpp` de test, captures, temps et `.wasm` : dans les critères.
