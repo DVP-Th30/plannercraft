@@ -73,8 +73,7 @@ impl Minutes {
     /// (R-001).
     #[must_use]
     pub fn whole_minutes_round(self) -> i64 {
-        round_div(i128::from(self.0), i128::from(TENTHS_PER_MINUTE))
-            .unwrap_or_else(|| self.whole_minutes_floor())
+        round_half_away(self.0, TENTHS_PER_MINUTE)
     }
 
     /// Valeur arrondie à la minute entière (R-001), en `Minutes`. Sert aux
@@ -524,9 +523,7 @@ impl Work {
     /// Le travail comme durée, arrondi au dixième de minute (R-001).
     #[must_use]
     pub fn duration_round(self) -> Minutes {
-        Minutes::from_tenths(
-            round_div(i128::from(self.0), i128::from(MILLI_PER_TENTH)).unwrap_or(self.0 / MILLI_PER_TENTH),
-        )
+        Minutes::from_tenths(round_half_away(self.0, MILLI_PER_TENTH))
     }
 
     /// Minutes entières si le travail en est un nombre entier, sinon `None`.
@@ -543,7 +540,7 @@ impl Work {
     /// (R-001).
     #[must_use]
     pub fn whole_minutes_round(self) -> i64 {
-        round_div(i128::from(self.0), i128::from(MILLI_PER_MINUTE)).unwrap_or(self.0 / MILLI_PER_MINUTE)
+        round_half_away(self.0, MILLI_PER_MINUTE)
     }
 
     /// Somme, `None` en cas de débordement ou hors des bornes.
@@ -643,6 +640,30 @@ pub fn percent_of(duration: Minutes, pct: SignedPercent) -> Result<Minutes, Dura
         .and_then(|m| m.checked_mul(TENTHS_PER_MINUTE))
         .map(Minutes)
         .ok_or(DurationError::Overflow)
+}
+
+/// `v ÷ den` arrondi au plus proche, la moitié loin de zéro (R-001), comme
+/// [`round_div`] mais sans `i128` : les conversions de minutes du lot B1
+/// sont sur le chemin chaud du calcul (ADR-0039). `den` est une des
+/// constantes d'échelle (10, 100, 1 000) ; `den <= 0` rend 0 (jamais
+/// atteint).
+const fn round_half_away(v: i64, den: i64) -> i64 {
+    if den <= 0 {
+        return 0;
+    }
+    // Division tronquée vers zéro : |r| < den, et le quotient est au plus
+    // `i64::MAX / 2` en valeur absolue (den >= 2), donc ± 1 ne déborde pas.
+    let (Some(q), Some(r)) = (v.checked_div(den), v.checked_rem(den)) else {
+        return 0;
+    };
+    let twice = r.unsigned_abs().saturating_mul(2);
+    if twice < den.unsigned_abs() {
+        q
+    } else if r < 0 {
+        q.saturating_sub(1)
+    } else {
+        q.saturating_add(1)
+    }
 }
 
 #[cfg(test)]
@@ -914,7 +935,32 @@ mod tests {
 
 #[cfg(test)]
 mod minutes_tests {
-    use super::Minutes;
+    use super::{MILLI_PER_MINUTE, MILLI_PER_TENTH, Minutes, TENTHS_PER_MINUTE, round_half_away};
+    use crate::fixed::round_div;
+
+    /// `round_half_away` rend exactement `round_div` (R-001) sur les trois
+    /// échelles, valeurs proches de zéro et bornes comprises.
+    #[test]
+    fn r001_round_half_away_matches_round_div() {
+        let mut values: Vec<i64> = (-3_000..=3_000).collect();
+        values.extend([
+            i64::MIN,
+            i64::MIN + 1,
+            i64::MAX,
+            i64::MAX - 1,
+            i64::MAX - 5,
+            i64::MIN + 5,
+        ]);
+        for den in [TENTHS_PER_MINUTE, MILLI_PER_TENTH, MILLI_PER_MINUTE] {
+            for &v in &values {
+                assert_eq!(
+                    Some(round_half_away(v, den)),
+                    round_div(i128::from(v), i128::from(den)),
+                    "{v} / {den}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn minutes_checked_ops() {

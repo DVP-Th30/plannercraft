@@ -57,6 +57,7 @@ const TENTHS_PER_DAY: i64 = 14_400;
 const TENTHS_PER_MINUTE: i64 = crate::duration::TENTHS_PER_MINUTE;
 
 /// Début d'une plage, en dixièmes de minute du jour.
+#[inline]
 fn from_tenths(r: TimeRange) -> i64 {
     i64::from(r.from().minutes()).saturating_mul(TENTHS_PER_MINUTE)
 }
@@ -149,7 +150,17 @@ impl DayPattern {
     /// (`0..=14 400`).
     #[inline]
     fn within(&self, m: i64) -> Option<i64> {
-        let count = self.ranges.partition_point(|r| from_tenths(*r) < m);
+        // `début × 10 < m` ⇔ `début < ⌈m / 10⌉` : la recherche compare des
+        // minutes, sans multiplication par plage (chemin chaud).
+        let floor = m.div_euclid(TENTHS_PER_MINUTE);
+        let ceil = if m.rem_euclid(TENTHS_PER_MINUTE) == 0 {
+            floor
+        } else {
+            floor.saturating_add(1)
+        };
+        let count = self
+            .ranges
+            .partition_point(|r| i64::from(r.from().minutes()) < ceil);
         let Some(j) = count.checked_sub(1) else {
             return Some(0);
         };
@@ -1876,8 +1887,8 @@ mod tests {
                     "{u} {t}"
                 );
                 assert_eq!(
-                    over.span_after(t, d.whole_minutes().unwrap().abs() + 1),
-                    full.span_after(t, d.whole_minutes().unwrap().abs() + 1)
+                    over.span_after(t, (d.whole_minutes().unwrap().abs() + 1) * T),
+                    full.span_after(t, (d.whole_minutes().unwrap().abs() + 1) * T)
                 );
             }
         }
