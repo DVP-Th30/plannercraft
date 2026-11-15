@@ -287,9 +287,9 @@ pub enum CommandErrorKind {
     /// Durée saisie sous la durée réelle (J6, R-213).
     DurationBelowActual {
         /// Durée réelle stockée, minutes ouvrées.
-        actual: i64,
+        actual: plannercraft_core::Minutes,
         /// Durée saisie, minutes ouvrées.
-        entered: i64,
+        entered: plannercraft_core::Minutes,
     },
     /// Ligne de base déjà présente (J6).
     BaselineExists {
@@ -687,6 +687,8 @@ fn kind_message(kind: &CommandErrorKind, lang: Language) -> String {
             }
         }
         K::DurationBelowActual { actual, entered } => {
+            let actual = plannercraft_core::number::to_text(actual.tenths(), 1);
+            let entered = plannercraft_core::number::to_text(entered.tenths(), 1);
             if fr {
                 format!(
                     "durée de {entered} min inférieure à la durée réelle déjà saisie ({actual} min) : réduire d'abord l'avancement (progress.update)"

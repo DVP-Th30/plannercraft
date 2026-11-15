@@ -48,10 +48,9 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (signées).",
-          "format": "int64",
+          "description": "Minutes (signées). En sortie, entier, ou décimal au dixième de minute\nquand la valeur ne l'est pas ; en saisie, minutes entières (une\nfraction est refusée).",
           "type": [
-            "integer",
+            "number",
             "null"
           ]
         },

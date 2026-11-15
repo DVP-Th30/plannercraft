@@ -7,13 +7,16 @@
 use std::collections::BTreeMap;
 
 use plannercraft_core::calendar::{Calendar, CalendarSet};
-use plannercraft_core::{Arena, CalendarUid, Diagnostic, Project, ResourceUid, Schedule, Subject, TaskUid};
+use plannercraft_core::{
+    Arena, CalendarUid, Diagnostic, Moment, Project, ResourceUid, Schedule, Subject, TaskUid,
+};
 
 use super::{
-    Command, assignment, baseline, calendar, constraint, custom, group_by, link, progress, project, resource,
-    shift, style, task, text_style,
+    AnchorSpec, Command, Patch, assignment, baseline, calendar, constraint, custom, group_by, link, progress,
+    project, resource, shift, style, task, text_style,
 };
 use crate::error::{CommandError, CommandErrorKind, codes};
+use crate::json::whole_minute_moment;
 use crate::outcome::SideEffect;
 use crate::text::TextContext;
 use crate::uid::UidAlloc;
@@ -199,8 +202,37 @@ pub(crate) trait Exec {
     fn exec(&self, ctx: &mut Ctx<'_>) -> Result<(), CommandError>;
 }
 
+/// Instants saisis par une commande, avec leur champ.
+fn entered_moments(cmd: &Command) -> Vec<(&'static str, Moment)> {
+    let patch = |p: &Patch<Moment>| match p {
+        Patch::Set(m) => Some(*m),
+        Patch::Keep | Patch::Clear => None,
+    };
+    let list: Vec<(&'static str, Option<Moment>)> = match cmd {
+        Command::TaskAdd(op) => vec![("start", op.start), ("finish", op.finish)],
+        Command::TaskUpdate(op) => vec![("start", patch(&op.start)), ("finish", patch(&op.finish))],
+        Command::TaskSetConstraint(op) => vec![("date", op.date)],
+        Command::TaskSetDeadline(op) => vec![("deadline", patch(&op.deadline))],
+        Command::ProjectSetAnchor(AnchorSpec::Start(m)) => vec![("start", Some(*m))],
+        Command::ProjectSetAnchor(AnchorSpec::Finish(m)) => vec![("finish", Some(*m))],
+        Command::ProjectSetStatusDate(op) => vec![("date", patch(&op.date))],
+        Command::ProgressUpdate(op) => vec![
+            ("actual_start", op.actual_start),
+            ("actual_finish", op.actual_finish),
+        ],
+        Command::ProgressReschedule(op) => vec![("after", op.after)],
+        _ => Vec::new(),
+    };
+    list.into_iter().filter_map(|(f, m)| m.map(|m| (f, m))).collect()
+}
+
 impl Exec for Command {
     fn exec(&self, ctx: &mut Ctx<'_>) -> Result<(), CommandError> {
+        // Lots B2-B3 (ADR-0039) : une date saisie tombe sur la minute
+        // entière ; les durées le sont par `DurationJson` et `LagJson`.
+        for (field, m) in entered_moments(self) {
+            whole_minute_moment(m).map_err(|e| e.with_field(field))?;
+        }
         // Toute opération autre qu'un passage en manuel pur retire le
         // planning de référence de la suite (R-253, relecture finale J8).
         if !matches!(self, Self::TaskUpdate(op) if task::is_pure_freeze(op)) {

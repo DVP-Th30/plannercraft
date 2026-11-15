@@ -42,8 +42,8 @@ use crate::diff::{ScheduleDiff, TaskChange};
 use crate::error::{CommandError, CommandErrorKind, MAX_MESSAGE_CHARS, codes};
 use crate::filter::{FilterCtx, TaskFilter};
 use crate::json::{
-    ConstraintKindJson, DurationJson, GranularityJson, LagJson, LinkTypeJson, PercentJson, ResourceKindJson,
-    TaskTypeJson, UnitsJson,
+    ConstraintKindJson, DurationJson, GranularityJson, LagJson, LinkTypeJson, MinutesNumber, PercentJson,
+    ResourceKindJson, TaskTypeJson, UnitsJson,
 };
 use crate::outcome::{ApplyOutcome, SideEffect};
 use crate::session::Session;
@@ -606,8 +606,9 @@ pub struct TaskChangeView {
     pub critical_before: bool,
     /// Critique après.
     pub critical_after: bool,
-    /// Minutes écoulées entre la fin avant et la fin après.
-    pub finish_delta_min: i64,
+    /// Minutes écoulées entre la fin avant et la fin après (entier, ou
+    /// décimal au dixième quand l'écart ne tombe pas sur la minute).
+    pub finish_delta_min: MinutesNumber,
 }
 
 /// Chemin critique (`analysis.critical_path`).
@@ -641,14 +642,13 @@ pub fn signed_minutes(minutes: Minutes, unit: DurationUnit, ctx: &TextContext) -
     let parsed = abs.and_then(|a| Duration::new(a, unit, TimeBasis::Working, false).ok());
     let Some(d) = parsed else {
         return DurationJson {
-            // Lot B1 : minutes entières (R-001).
-            minutes: Some(minutes.whole_minutes_round()),
+            minutes: Some(MinutesNumber::from_minutes(minutes)),
             unit: Some(unit.into()),
             ..DurationJson::default()
         };
     };
     let mut out = DurationJson::from_duration(&d, ctx);
-    out.minutes = Some(minutes.whole_minutes_round());
+    out.minutes = Some(MinutesNumber::from_minutes(minutes));
     out.elapsed = None;
     out.estimated = None;
     if negative {
@@ -696,11 +696,18 @@ pub fn material_quantity(w: Work) -> Units {
     Units::new(q).unwrap_or(Units::ZERO)
 }
 
-/// Travail de sortie, en heures (J5).
+/// Travail de sortie, en heures (J5) : `minutes` exact, au millième
+/// (ADR-0039 D5) ; le texte (R-141) seulement si le travail tombe sur un
+/// dixième de minute, pour que la sortie reste une entrée qui redonne la
+/// même valeur.
 #[must_use]
 pub fn work_out(w: Work, ctx: &TextContext) -> DurationJson {
-    // Travail arrondi au dixième de minute (R-001) pour l'affichage.
-    signed_minutes(w.duration_round(), DurationUnit::Hour, ctx)
+    let mut out = signed_minutes(w.duration_round(), DurationUnit::Hour, ctx);
+    out.minutes = Some(MinutesNumber::from_work(w));
+    if w.duration_exact().is_none() {
+        out.text = None;
+    }
+    out
 }
 
 /// Type de ressource en JSON.
@@ -960,8 +967,7 @@ impl<'a> ViewCtx<'a> {
         let actual_work = task.progress.actual_work;
         let remaining_work =
             plannercraft_core::Work::from_milli(ts.work.milli().saturating_sub(actual_work.milli()).max(0))
-                .unwrap_or(plannercraft_core::Work::ZERO)
-                .duration_round();
+                .unwrap_or(plannercraft_core::Work::ZERO);
         Some(ProgressDetailOut {
             state: g.state,
             percent_complete: percent_out(g.percent_complete, &self.text),
@@ -972,7 +978,7 @@ impl<'a> ViewCtx<'a> {
             actual_duration: signed_minutes(g.actual_duration, unit, &self.text),
             remaining_duration: signed_minutes(g.remaining_duration, unit, &self.text),
             actual_work: leaf.then(|| work_out(actual_work, &self.text)),
-            remaining_work: leaf.then(|| signed_minutes(remaining_work, DurationUnit::Hour, &self.text)),
+            remaining_work: leaf.then(|| work_out(remaining_work, &self.text)),
             stop: iso(g.stop),
             resume: iso(g.resume),
         })
@@ -1108,7 +1114,7 @@ impl<'a> ViewCtx<'a> {
             total_slack_after: slack(c.total_slack.1),
             critical_before: c.critical.0,
             critical_after: c.critical.1,
-            finish_delta_min: c.finish_delta_min,
+            finish_delta_min: MinutesNumber::from_minutes(c.finish_delta),
         }
     }
 

@@ -673,7 +673,7 @@ fn drawn_passes(
                     succ: TaskRef::Uid(succ),
                     kind: None,
                     lag: Some(LagJson {
-                        minutes: Some(new_lag),
+                        minutes: Some(plannercraft_automation::json::MinutesNumber::whole(new_lag)),
                         unit: Some(plannercraft_automation::json::DurationUnitJson::Day),
                         ..LagJson::default()
                     }),

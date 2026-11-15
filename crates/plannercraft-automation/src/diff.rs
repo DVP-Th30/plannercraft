@@ -70,8 +70,11 @@ pub struct TaskChange {
     pub total_slack: (Option<Minutes>, Option<Minutes>),
     /// Critique.
     pub critical: (bool, bool),
-    /// Minutes écoulées fin après − fin avant (0 si un côté est absent).
+    /// Minutes écoulées fin après − fin avant, arrondies à la minute
+    /// (R-001 ; 0 si un côté est absent).
     pub finish_delta_min: i64,
+    /// Même écart, exact (dixièmes de minute, ADR-0039).
+    pub finish_delta: Minutes,
 }
 
 impl ScheduleDiff {
@@ -143,10 +146,11 @@ pub(crate) fn diff_schedules(
         if !presence_changed && start.0 == start.1 && finish.0 == finish.1 {
             continue;
         }
-        let finish_delta_min = match finish {
-            (Some(f0), Some(f1)) => f0.minutes_until(f1).whole_minutes_round(),
-            _ => 0,
+        let finish_delta = match finish {
+            (Some(f0), Some(f1)) => f0.minutes_until(f1),
+            _ => Minutes::ZERO,
         };
+        let finish_delta_min = finish_delta.whole_minutes_round();
         changed.push(TaskChange {
             uid,
             id_before: b.and(before_p.task_id(uid)),
@@ -156,6 +160,7 @@ pub(crate) fn diff_schedules(
             total_slack: (bs.map(|s| s.total_slack), as_.map(|s| s.total_slack)),
             critical: crit,
             finish_delta_min,
+            finish_delta,
         });
     }
     changed.sort_by(compare);
@@ -282,9 +287,10 @@ fn overallocation_changes(
 
 /// Ordre de R-163.
 fn compare(x: &TaskChange, y: &TaskChange) -> Ordering {
-    y.finish_delta_min
+    y.finish_delta
+        .tenths()
         .unsigned_abs()
-        .cmp(&x.finish_delta_min.unsigned_abs())
+        .cmp(&x.finish_delta.tenths().unsigned_abs())
         .then_with(|| match (x.id_after, y.id_after) {
             (Some(a), Some(b)) => a.cmp(&b),
             (Some(_), None) => Ordering::Less,

@@ -5,7 +5,7 @@
   "properties": {
     "after": {
       "description": "Date après laquelle le reste est replanifié (défaut : date d'état\neffective, R-219).",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"

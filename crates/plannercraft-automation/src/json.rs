@@ -15,8 +15,8 @@ use std::borrow::Cow;
 
 use plannercraft_core::resource::Granularity;
 use plannercraft_core::{
-    ConstraintKind, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, LinkType, Minutes,
-    SignedPercent, TaskType, TimeBasis, TimeOfDay, Units,
+    ConstraintKind, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, LinkType, Minutes, Moment,
+    SignedPercent, TaskType, TimeBasis, TimeOfDay, Units, Work,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
@@ -25,8 +25,9 @@ use crate::error::{CommandError, CommandErrorKind, codes};
 use crate::text::lex::{Cursor, bounded_chars};
 use crate::text::{TextContext, TextError, format_duration, format_lag, parse_duration, parse_lag};
 
-/// Schéma JSON d'un instant (`plannercraft_core::Moment`) : ISO local à la minute,
-/// sans fuseau (`"2026-11-02T08:00"`, `":00"` final toléré).
+/// Schéma JSON d'un instant (`plannercraft_core::Moment`) : ISO local sans
+/// fuseau (`"2026-11-02T08:00"`), `":SS"` quand l'instant tombe entre deux
+/// minutes (ADR-0039 D5 ; en saisie, encore refusé).
 pub struct MomentSchema;
 
 impl JsonSchema for MomentSchema {
@@ -37,8 +38,8 @@ impl JsonSchema for MomentSchema {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         json_schema!({
             "type": "string",
-            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
-            "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00."
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
+            "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière."
         })
     }
 }
@@ -76,6 +77,120 @@ impl JsonSchema for TimeOfDaySchema {
             "description": "Heure : 08:00 (24:00 = fin du jour)."
         })
     }
+}
+
+/// Nombre de minutes d'un contrat (ADR-0039 D5) : entier JSON quand la
+/// valeur est entière (octets inchangés), sinon décimal sans perte, au
+/// dixième pour une durée, au millième pour un travail. Porté en millièmes
+/// de minute, l'échelle la plus fine du moteur ; écrit et relu sans calcul
+/// flottant ([`plannercraft_core::number`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MinutesNumber(i64);
+
+/// Millièmes de minute par dixième.
+const MILLI_PER_TENTH: i64 = 100;
+/// Millièmes de minute par minute.
+const MILLI_PER_MINUTE: i64 = 1_000;
+
+impl MinutesNumber {
+    /// Nombre de minutes entières.
+    #[must_use]
+    pub const fn whole(v: i64) -> Self {
+        Self(v.saturating_mul(MILLI_PER_MINUTE))
+    }
+
+    /// Durée ou décalage, exact (dixièmes × 100).
+    #[must_use]
+    pub const fn from_minutes(m: Minutes) -> Self {
+        Self(m.tenths().saturating_mul(MILLI_PER_TENTH))
+    }
+
+    /// Travail, exact (millièmes).
+    #[must_use]
+    pub const fn from_work(w: Work) -> Self {
+        Self(w.milli())
+    }
+
+    /// Valeur exacte en millièmes de minute.
+    #[must_use]
+    pub const fn milli(self) -> i64 {
+        self.0
+    }
+
+    /// Durée exacte si la valeur tombe sur un dixième de minute.
+    #[must_use]
+    pub const fn to_minutes(self) -> Option<Minutes> {
+        if self.0 % MILLI_PER_TENTH == 0 {
+            Some(Minutes::from_tenths(self.0 / MILLI_PER_TENTH))
+        } else {
+            None
+        }
+    }
+
+    /// Minutes entières si la valeur en est une.
+    #[must_use]
+    pub const fn whole_minutes(self) -> Option<i64> {
+        if self.0 % MILLI_PER_MINUTE == 0 {
+            Some(self.0 / MILLI_PER_MINUTE)
+        } else {
+            None
+        }
+    }
+}
+
+impl Serialize for MinutesNumber {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        plannercraft_core::number::serialize(self.0, 3, s)
+    }
+}
+
+impl<'de> Deserialize<'de> for MinutesNumber {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        plannercraft_core::number::deserialize(d, 3).map(Self)
+    }
+}
+
+impl JsonSchema for MinutesNumber {
+    fn schema_name() -> Cow<'static, str> {
+        "MinutesNumber".into()
+    }
+
+    fn inline_schema() -> bool {
+        true
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        json_schema!({ "type": "number" })
+    }
+}
+
+/// Lots B2-B3 (ADR-0039) : les contrats savent porter une fraction de
+/// minute, le calcul ne la prend en charge qu'au lot B4 (il arrondit
+/// encore à la minute le travail, l'avancement et les cumuls qui en
+/// dérivent). Une valeur saisie au dixième est donc refusée, et dite,
+/// plutôt qu'arrondie en silence plus loin.
+pub(crate) fn whole_minute_entry(m: Minutes) -> Result<Minutes, CommandError> {
+    if m.whole_minutes().is_some() {
+        Ok(m)
+    } else {
+        Err(sub_minute())
+    }
+}
+
+/// Comme [`whole_minute_entry`], pour un instant (secondes non nulles).
+pub(crate) fn whole_minute_moment(m: Moment) -> Result<Moment, CommandError> {
+    if m.whole_minutes().is_some() {
+        Ok(m)
+    } else {
+        Err(sub_minute())
+    }
+}
+
+/// Erreur `param.invalid` d'une fraction de minute (lots B2-B3).
+fn sub_minute() -> CommandError {
+    invalid(
+        "fraction de minute : les durées, décalages, travaux et dates sont encore saisis à la minute entière",
+    )
 }
 
 /// Erreur `param.invalid` avec son explication.
@@ -120,8 +235,7 @@ impl DurationJson {
     #[must_use]
     pub fn from_duration(d: &Duration, ctx: &TextContext) -> Self {
         Self {
-            // Lot B1 : minutes entières (R-001) ; la décimale arrive en B2.
-            minutes: Some(d.minutes().whole_minutes_round()),
+            minutes: Some(MinutesNumber::from_minutes(d.minutes())),
             unit: Some(d.unit().into()),
             text: Some(format_duration(d, ctx)),
             elapsed: Some(d.basis() == TimeBasis::Elapsed),
@@ -145,7 +259,7 @@ impl DurationJson {
     pub fn to_duration(&self, ctx: &TextContext) -> Result<Duration, CommandError> {
         if let Some(text) = &self.text {
             let d = parse_duration(text, ctx).map_err(CommandError::text)?;
-            let consistent = agrees(self.minutes, d.minutes().whole_minutes_round())
+            let consistent = agrees(self.minutes, MinutesNumber::from_minutes(d.minutes()))
                 && agrees(self.unit, d.unit().into())
                 && agrees(self.elapsed, d.basis() == TimeBasis::Elapsed)
                 && agrees(self.estimated, d.is_estimated());
@@ -154,9 +268,10 @@ impl DurationJson {
         let Some(minutes) = self.minutes else {
             return Err(invalid("« minutes » ou « text » attendu"));
         };
+        let minutes = whole_minute_entry(minutes.to_minutes().ok_or_else(sub_minute)?)?;
         let unit = self.unit.map_or(ctx.default_duration_unit, DurationUnit::from);
         Duration::new(
-            Minutes::new(minutes),
+            minutes,
             unit,
             basis_of(self.elapsed.unwrap_or(false)),
             self.estimated.unwrap_or(false),
@@ -172,9 +287,11 @@ impl LagJson {
     #[must_use]
     pub fn from_lag(l: &Lag, ctx: &TextContext) -> Self {
         let (minutes, percent, unit) = match l.value {
-            LagValue::Time { minutes, unit } => {
-                (Some(minutes.whole_minutes_round()), None, Some(unit.into()))
-            }
+            LagValue::Time { minutes, unit } => (
+                Some(MinutesNumber::from_minutes(minutes)),
+                None,
+                Some(unit.into()),
+            ),
             LagValue::Percent { percent } => (None, Some(percent.get()), None),
         };
         Self {
@@ -203,7 +320,7 @@ impl LagJson {
             let value_ok = match l.value {
                 LagValue::Time { minutes, unit } => {
                     self.percent.is_none()
-                        && agrees(self.minutes, minutes.whole_minutes_round())
+                        && agrees(self.minutes, MinutesNumber::from_minutes(minutes))
                         && agrees(self.unit, unit.into())
                 }
                 LagValue::Percent { percent } => {
@@ -218,7 +335,7 @@ impl LagJson {
             (Some(_), Some(_)) => return Err(invalid("« minutes » et « percent » exclusifs")),
             (None, None) => return Err(invalid("« minutes », « percent » ou « text » attendu")),
             (Some(m), None) => LagValue::Time {
-                minutes: Minutes::new(m),
+                minutes: whole_minute_entry(m.to_minutes().ok_or_else(sub_minute)?)?,
                 unit: self.unit.map_or(ctx.default_duration_unit, DurationUnit::from),
             },
             (None, Some(p)) => {
@@ -238,9 +355,12 @@ impl LagJson {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DurationJson {
-    /// Minutes (ouvrées, ou écoulées si `elapsed`).
+    /// Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou
+    /// décimal quand la valeur ne l'est pas (au dixième de minute, au
+    /// millième pour un travail) ; en saisie, minutes entières (une fraction
+    /// est refusée).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub minutes: Option<i64>,
+    pub minutes: Option<MinutesNumber>,
     /// Unité d'affichage.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<DurationUnitJson>,
@@ -260,9 +380,11 @@ pub struct DurationJson {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LagJson {
-    /// Minutes (signées).
+    /// Minutes (signées). En sortie, entier, ou décimal au dixième de minute
+    /// quand la valeur ne l'est pas ; en saisie, minutes entières (une
+    /// fraction est refusée).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub minutes: Option<i64>,
+    pub minutes: Option<MinutesNumber>,
     /// Pourcentage en 1/100 de % (5 000 = 50 %).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub percent: Option<i64>,
