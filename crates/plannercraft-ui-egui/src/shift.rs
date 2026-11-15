@@ -36,7 +36,9 @@ pub fn step_amount(project: &Project, step: ShiftStep) -> DurationJson {
         .minutes_per_unit(unit.into(), TimeBasis::Working)
         .whole_minutes_floor();
     DurationJson {
-        minutes: Some(count.saturating_mul(per)),
+        minutes: Some(plannercraft_automation::json::MinutesNumber::whole(
+            count.saturating_mul(per),
+        )),
         unit: Some(unit),
         text: None,
         elapsed: None,

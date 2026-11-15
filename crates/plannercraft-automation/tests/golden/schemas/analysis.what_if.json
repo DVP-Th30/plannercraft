@@ -186,10 +186,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -246,7 +245,7 @@
               },
               "finish": {
                 "description": "Fin saisie (→ contrainte, R-158).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -276,7 +275,7 @@
               },
               "start": {
                 "description": "Début saisi (→ contrainte, R-158).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -324,10 +323,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -391,7 +389,7 @@
               },
               "finish": {
                 "description": "Fin saisie (R-158).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -447,7 +445,7 @@
               },
               "start": {
                 "description": "Début saisi (R-158).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -514,10 +512,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -856,10 +853,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (signées).",
-                    "format": "int64",
+                    "description": "Minutes (signées). En sortie, entier, ou décimal au dixième de minute\nquand la valeur ne l'est pas ; en saisie, minutes entières (une\nfraction est refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -1011,10 +1007,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (signées).",
-                    "format": "int64",
+                    "description": "Minutes (signées). En sortie, entier, ou décimal au dixième de minute\nquand la valeur ne l'est pas ; en saisie, minutes entières (une\nfraction est refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -1167,7 +1162,7 @@
             "properties": {
               "date": {
                 "description": "Date (obligatoire pour les types datés, interdite sinon).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -1250,7 +1245,7 @@
             "properties": {
               "deadline": {
                 "description": "Échéance (`null` : retirée).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -1393,8 +1388,8 @@
             "description": "Change le sens et la date pilote du projet.",
             "properties": {
               "finish": {
-                "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00.",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière.",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -1405,8 +1400,8 @@
                 "type": "string"
               },
               "start": {
-                "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00.",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière.",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -1424,7 +1419,7 @@
             "properties": {
               "date": {
                 "description": "Date d'état (`null` : NA).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -2050,10 +2045,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2211,10 +2205,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2300,10 +2293,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2461,10 +2453,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2594,10 +2585,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2654,7 +2644,7 @@
               },
               "actual_finish": {
                 "description": "Fin réelle (R-202 : 100 %, durée mesurée).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -2662,7 +2652,7 @@
               },
               "actual_start": {
                 "description": "Début réel (R-202).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -2687,10 +2677,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2849,10 +2838,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },
@@ -2934,7 +2922,7 @@
             "properties": {
               "after": {
                 "description": "Date après laquelle le reste est replanifié (défaut : date d'état\neffective, R-219).",
-                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
                 "type": [
                   "string",
                   "null"
@@ -4031,10 +4019,9 @@
                     ]
                   },
                   "minutes": {
-                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-                    "format": "int64",
+                    "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
                     "type": [
-                      "integer",
+                      "number",
                       "null"
                     ]
                   },

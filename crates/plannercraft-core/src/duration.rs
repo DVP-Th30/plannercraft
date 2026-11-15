@@ -23,7 +23,8 @@ pub const TENTHS_PER_MINUTE: i64 = 10;
 /// ([`Minutes::tenths`]), et tout accès qui rend des minutes entières dit sa
 /// règle dans son nom ([`Minutes::whole_minutes`], exact ou `None` ;
 /// [`Minutes::whole_minutes_floor`] ; [`Minutes::whole_minutes_round`]).
-/// En JSON : un entier de minutes (lot B1 ; la décimale arrive en B2).
+/// En JSON : un nombre de minutes, entier quand la valeur l'est, sinon avec
+/// une décimale (ADR-0039 D5).
 ///
 /// Pas d'opérateurs `+`/`-` : ils devraient paniquer ou saturer sans le dire
 /// (règle 10). Les opérations passent par `checked_*`.
@@ -109,22 +110,28 @@ impl Minutes {
 }
 
 impl Serialize for Minutes {
-    /// Entier de minutes (lot B1 : les valeurs sont toujours entières ; une
-    /// fraction, qui ne devrait pas survenir, est arrondie par R-001 — le lot
-    /// B2 écrit la décimale).
+    /// Nombre de minutes : entier JSON si la valeur est entière, sinon une
+    /// décimale (`112.5`) ; sans perte (ADR-0039 D5, [`crate::number`]).
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_i64(self.whole_minutes().unwrap_or_else(|| self.whole_minutes_round()))
+        crate::number::serialize(self.0, 1, s)
     }
 }
 
 impl<'de> Deserialize<'de> for Minutes {
-    /// Entier de minutes.
+    /// Nombre de minutes : un entier garde son sens ; un décimal est
+    /// accepté s'il tombe sur un dixième de minute, sinon refusé.
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let v = i64::deserialize(d)?;
-        v.checked_mul(TENTHS_PER_MINUTE)
-            .map(Self)
-            .ok_or_else(|| serde::de::Error::custom("minutes hors des bornes"))
+        crate::number::deserialize(d, 1).map(Self)
     }
+}
+
+/// Pas d'arrondi d'une saisie décimale (R-140, ADR-0039).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Resolution {
+    /// Minute entière : la saisie des lots B2-B3, comme avant l'ADR-0039.
+    Minute,
+    /// Dixième de minute, la résolution de MS Project et du moteur.
+    Tenth,
 }
 
 /// Unité d'affichage et de saisie d'une durée.
@@ -264,8 +271,9 @@ impl ConversionFactors {
         Minutes::new(m)
     }
 
-    /// Saisie décimale → minutes, arrondie par R-001. Un négatif est admis
-    /// ici (décalages) ; c'est [`Duration::new`] qui le refuse.
+    /// Saisie décimale → minutes arrondies à la minute entière par R-001
+    /// (saisie des lots B2-B3 : [`Resolution::Minute`]). Un négatif est
+    /// admis ici (décalages) ; c'est [`Duration::new`] qui le refuse.
     ///
     /// # Errors
     ///
@@ -276,12 +284,37 @@ impl ConversionFactors {
         unit: DurationUnit,
         basis: TimeBasis,
     ) -> Result<Minutes, DurationError> {
-        // Lot B1 : arrondi à la minute (R-001), comme avant l'ADR-0039.
-        let factor = self.minutes_per_unit(unit, basis).whole_minutes_floor();
+        self.to_minutes_at(value, unit, basis, Resolution::Minute)
+    }
+
+    /// Saisie décimale → durée arrondie par R-001 à la `resolution` donnée
+    /// (R-140) : au dixième de minute, « 0,01 j » donne 4,8 min ; à la
+    /// minute, 5 min.
+    ///
+    /// # Errors
+    ///
+    /// [`DurationError::Overflow`] si le résultat ne tient pas dans un `i64`.
+    pub fn to_minutes_at(
+        &self,
+        value: Decimal,
+        unit: DurationUnit,
+        basis: TimeBasis,
+        resolution: Resolution,
+    ) -> Result<Minutes, DurationError> {
+        // Facteurs entiers en minutes (R-006) : exacts à chaque échelle.
+        let factor = self.minutes_per_unit(unit, basis);
+        let scaled = match resolution {
+            Resolution::Minute => factor.whole_minutes_floor(),
+            Resolution::Tenth => factor.tenths(),
+        };
+        let per_step = match resolution {
+            Resolution::Minute => TENTHS_PER_MINUTE,
+            Resolution::Tenth => 1,
+        };
         value
-            .scale_to_integer(factor)
+            .scale_to_integer(scaled)
             .ok()
-            .and_then(|m| m.checked_mul(TENTHS_PER_MINUTE))
+            .and_then(|m| m.checked_mul(per_step))
             .map(Minutes::from_tenths)
             .ok_or(DurationError::Overflow)
     }
@@ -432,7 +465,8 @@ const MILLI_PER_TENTH: i64 = 100;
 
 /// Travail : >= 0, au plus 1 666 666 666 h = 99 999 999 960 min (S11),
 /// **en millièmes de minute** depuis l'ADR-0039 (l'échelle des `.mpp`).
-/// Distinct de [`Duration`] ; entier JSON de minutes (lot B1).
+/// Distinct de [`Duration`] ; en JSON, un nombre de minutes, entier quand la
+/// valeur l'est, sinon jusqu'à trois décimales (ADR-0039 D5).
 ///
 /// Toute conversion vers une durée dit sa règle dans son nom
 /// ([`Work::duration_exact`], [`Work::duration_round`]).
@@ -440,18 +474,19 @@ const MILLI_PER_TENTH: i64 = 100;
 pub struct Work(i64);
 
 impl Serialize for Work {
-    /// Entier de minutes (lot B1 ; une fraction, qui ne devrait pas
-    /// survenir, est arrondie par R-001 — le lot B2 écrit les décimales).
+    /// Nombre de minutes : entier JSON si la valeur est entière, sinon
+    /// jusqu'à trois décimales (`0.125`) ; sans perte (ADR-0039 D5).
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_i64(self.whole_minutes().unwrap_or_else(|| self.whole_minutes_round()))
+        crate::number::serialize(self.0, 3, s)
     }
 }
 
 impl<'de> Deserialize<'de> for Work {
-    /// Entier de minutes, validé (R-008).
+    /// Nombre de minutes : un entier garde son sens ; un décimal est
+    /// accepté s'il tombe sur un millième de minute ; validé (R-008).
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let v = i64::deserialize(d)?;
-        Self::from_whole_minutes(v).map_err(serde::de::Error::custom)
+        let milli = crate::number::deserialize(d, 3)?;
+        Self::from_milli(milli).map_err(serde::de::Error::custom)
     }
 }
 
@@ -856,6 +891,70 @@ mod tests {
         assert_eq!(
             percent_of(Minutes::new(i64::MAX), SignedPercent::new(1_000_000).unwrap()),
             Err(DurationError::Overflow)
+        );
+    }
+
+    /// ADR-0039 D5 (lot B2) : une valeur au dixième (durée) ou au millième
+    /// (travail) s'écrit en minutes décimales, se relit identique ; une
+    /// valeur entière reste un entier JSON ; un décimal qui ne tombe pas
+    /// sur l'échelle est refusé.
+    #[test]
+    fn fractional_json_round_trip() {
+        let m = Minutes::from_tenths(1_125);
+        assert_eq!(serde_json::to_string(&m).unwrap(), "112.5");
+        assert_eq!(serde_json::from_str::<Minutes>("112.5").unwrap(), m);
+        assert_eq!(serde_json::to_string(&Minutes::from_tenths(-5)).unwrap(), "-0.5");
+        assert_eq!(serde_json::to_string(&Minutes::new(480)).unwrap(), "480");
+        assert_eq!(serde_json::from_str::<Minutes>("480").unwrap(), Minutes::new(480));
+        assert_eq!(
+            serde_json::from_str::<Minutes>("480.0").unwrap(),
+            Minutes::new(480)
+        );
+        assert_eq!(
+            serde_json::from_str::<Minutes>("0.1").unwrap(),
+            Minutes::from_tenths(1)
+        );
+        for bad in ["112.15", "0.05", "1e-7", "\"480\"", "null"] {
+            assert!(serde_json::from_str::<Minutes>(bad).is_err(), "{bad}");
+        }
+        let w = Work::from_milli(112_125).unwrap();
+        assert_eq!(serde_json::to_string(&w).unwrap(), "112.125");
+        assert_eq!(serde_json::from_str::<Work>("112.125").unwrap(), w);
+        assert_eq!(
+            serde_json::to_string(&Work::from_milli(1).unwrap()).unwrap(),
+            "0.001"
+        );
+        assert_eq!(
+            serde_json::from_str::<Work>("0.001").unwrap(),
+            Work::from_milli(1).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_string(&Work::from_milli(480_000).unwrap()).unwrap(),
+            "480"
+        );
+        assert!(serde_json::from_str::<Work>("0.0005").is_err());
+        let max = Work::from_milli(Work::MAX_MILLI - 1).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Work>(&serde_json::to_string(&max).unwrap()).unwrap(),
+            max
+        );
+        let d = Duration::new(Minutes::from_tenths(1_125), DurationUnit::Minute, W, false).unwrap();
+        let json = serde_json::to_string(&d).unwrap();
+        assert_eq!(
+            json,
+            r#"{"minutes":112.5,"unit":"minute","basis":"working","estimated":false}"#
+        );
+        assert_eq!(serde_json::from_str::<Duration>(&json).unwrap(), d);
+        let max = Duration::new(
+            Duration::MAX.checked_sub(Minutes::from_tenths(1)).unwrap(),
+            DurationUnit::Day,
+            W,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Duration>(&serde_json::to_string(&max).unwrap()).unwrap(),
+            max
         );
     }
 

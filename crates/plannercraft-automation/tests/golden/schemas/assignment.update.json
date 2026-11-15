@@ -22,10 +22,9 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-          "format": "int64",
+          "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
           "type": [
-            "integer",
+            "number",
             "null"
           ]
         },
@@ -179,10 +178,9 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-          "format": "int64",
+          "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
           "type": [
-            "integer",
+            "number",
             "null"
           ]
         },

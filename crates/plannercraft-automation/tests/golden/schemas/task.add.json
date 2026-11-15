@@ -144,10 +144,9 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (ouvrées, ou écoulées si `elapsed`).",
-          "format": "int64",
+          "description": "Minutes (ouvrées, ou écoulées si `elapsed`). En sortie, entier, ou\ndécimal quand la valeur ne l'est pas (au dixième de minute, au\nmillième pour un travail) ; en saisie, minutes entières (une fraction\nest refusée).",
           "type": [
-            "integer",
+            "number",
             "null"
           ]
         },
@@ -204,7 +203,7 @@
     },
     "finish": {
       "description": "Fin saisie (→ contrainte, R-158).",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"
@@ -230,7 +229,7 @@
     },
     "start": {
       "description": "Début saisi (→ contrainte, R-158).",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"

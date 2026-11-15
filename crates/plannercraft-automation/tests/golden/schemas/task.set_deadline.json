@@ -5,7 +5,7 @@
   "properties": {
     "deadline": {
       "description": "Échéance (`null` : retirée).",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"
