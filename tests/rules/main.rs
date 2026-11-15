@@ -255,6 +255,7 @@ mod r264_custom_commands;
 mod r265_mspdi_custom_read;
 mod r266_mspdi_custom_write;
 mod r267_shift_tasks;
+mod r293_manual_summary_floor;
 
 /// Vérifie que chaque fichier de `tests/rules/` suit la convention
 /// `rNNN_titre.rs` et qu'il est bien déclaré comme module dans `main.rs`

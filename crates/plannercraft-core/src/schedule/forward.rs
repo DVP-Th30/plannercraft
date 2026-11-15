@@ -123,12 +123,13 @@ impl Calc<'_, '_> {
     fn bounds(&mut self, v: NodeIx, fixed: Option<Span>) -> Result<Bounds, Fail> {
         let node = self.net.node(v).ok_or(Fail::Internal("nœud hors bornes"))?;
         let (place, kind) = (node.place, node.kind);
+        let base = self.base_floor(v);
         let mut b = Bounds {
-            start: self.start,
+            start: base,
             driver: Driver::ProjectStart,
             degraded: false,
             linked: false,
-            start_side: (self.start, Driver::ProjectStart),
+            start_side: (base, Driver::ProjectStart),
             finish_side: None,
         };
         let incoming = self
@@ -224,6 +225,50 @@ impl Calc<'_, '_> {
             }
         }
         Ok(b)
+    }
+
+    /// Plancher de base du nœud `v` : le début du projet (R-036), sauf sous
+    /// une récapitulative manuelle datée (R-293) : sa porte part de son
+    /// début saisi, et ses descendants du début saisi de la plus proche
+    /// récapitulative manuelle datée qui les contient, même avant le début
+    /// du projet ; les autres bornes (liens, portes des ancêtres) restent
+    /// des planchers. Passe secondaire à rebours : le début calculé `S*`
+    /// (R-107), inchangé.
+    fn base_floor(&self, v: NodeIx) -> Moment {
+        if self.role == PassRole::Secondary {
+            return self.start;
+        }
+        let fixed_start = |r: NodeIx| match self.net.node(r).map(|n| &n.fixed) {
+            Some(Some(Ok(span))) => Some(span.start),
+            _ => None,
+        };
+        let Some(node) = self.net.node(v) else {
+            return self.start;
+        };
+        let mut up = if node.kind == NodeKind::Gate {
+            if let Some(start) = node.twin.and_then(fixed_start) {
+                return start;
+            }
+            node.twin
+                .and_then(|r| self.net.node(r))
+                .and_then(|n| n.parent_rollup)
+        } else {
+            node.parent_rollup
+        };
+        // Remontée bornée par le nombre de nœuds (aucune boucle possible
+        // dans une hiérarchie, mais jamais de boucle sans fin, règle 10).
+        let mut budget = self.net.nodes.len();
+        while let Some(r) = up {
+            if let Some(start) = fixed_start(r) {
+                return start;
+            }
+            budget = budget.saturating_sub(1);
+            if budget == 0 {
+                break;
+            }
+            up = self.net.node(r).and_then(|n| n.parent_rollup);
+        }
+        self.start
     }
 
     /// R-063 : borne `cand` d'un lien entrant d'une feuille manuelle de
