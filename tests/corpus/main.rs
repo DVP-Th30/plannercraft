@@ -21,6 +21,8 @@
     reason = "tests : les interdits de la règle 10 ne s'appliquent pas, un échec doit paniquer"
 )]
 
+mod bytes;
+
 use std::path::Path;
 
 use plannercraft_core::parity::{CORPUS_FLOOR, FLOOR, ORACLE_FLOOR};
