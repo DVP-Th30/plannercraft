@@ -262,3 +262,19 @@ Précisions :
 - la règle 5 de `CLAUDE.md` n'est réécrite qu'en B4.
 
 **État de B1 (branche `engine-tenths`).** Représentation livrée, sans changement de résultat ; accès retenus : `Minutes` (`new`, `from_tenths`, `tenths`, `whole_minutes`, `whole_minutes_floor`, `whole_minutes_round`, `round_to_minute`), `Moment` (`from_minutes`, `from_tenths`, `tenths`, `whole_minutes`, `minutes_floor`, `time_of_day_floor`), `Work` (`new`, `from_whole_minutes`, `from_milli`, `milli`, `duration_exact`, `duration_round`, `whole_minutes`, `whole_minutes_round`). Mesures et limites : ADR-0039.
+
+## 13. État des lots B2-B3 (2026-11-15)
+
+Détail et décisions : ADR-0039, « État des lots B2-B3 ». Pour chaque entrée, qui ouvre la fraction de minute :
+
+| Entrée | B2-B3 | B4 |
+|---|---|---|
+| `minutes` d'une commande (durée, décalage, travail, décalage de tâches) | lu sans perte, refusé s'il n'est pas entier (`param.invalid`) | accepté au dixième (au millième pour un travail) |
+| Date d'une commande (début, fin, contrainte, échéance, date d'état, date pilote, début et fin réels, replanification, `project.new`) | lue sans perte, refusée si ses secondes ne sont pas nulles | acceptée au dixième |
+| Texte de durée ou de décalage (cellules, `text` des commandes, CSV, import PDF) | R-140 arrondit une seule fois à la minute (`ENTRY_RESOLUTION`), comme avant | au dixième |
+| Texte de date (R-143) | secondes tronquées, à la minute | à la minute (MS Project ne saisit pas les secondes) |
+| Gestes (glisser, redimensionner, décaler) | minutes entières (R-240) | minutes entières |
+| Lecteurs MSPDI, `.mpp`, CSV, PDF | à la minute (diagnostics d'arrondi inchangés) | exacts (R-070, R-072, R-283…) |
+| Fichier du modèle (sauvegarde automatique, journal de reprise) | relu sans perte ; une fraction écrite à la main subit les arrondis de B1 | sans arrondi |
+
+Sorties sans perte dès B2 : modèle, journal, sauvegarde, vues, presse-papiers, diff. Restent à la minute jusqu'à B4 : écrivain MSPDI, CSV (format d'échange à la minute pour les dates), message du diagnostic `ConversionOutOfDomain`.
