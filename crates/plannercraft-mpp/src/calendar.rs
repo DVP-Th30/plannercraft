@@ -9,7 +9,7 @@
 use std::collections::BTreeSet;
 
 use plannercraft_core::calendar::model::{
-    Calendar, CalendarException, CalendarKind, DayHours, DaySetting, Recurrence, TimeRange,
+    Calendar, CalendarException, CalendarKind, DayHours, DayRule, DaySetting, Recurrence, TimeRange,
 };
 use plannercraft_core::{CalendarUid, DayRange, TimeOfDay, Week, Weekday};
 
@@ -48,8 +48,9 @@ const DAYS: [Weekday; 7] = [
 pub struct Calendars {
     /// Calendriers de base, dans l'ordre des enregistrements.
     pub base: Vec<Calendar>,
-    /// Calendriers dérivés (de ressource) non repris.
-    pub derived: u32,
+    /// Calendriers dérivés (calendriers de ressource, R-296), dans l'ordre
+    /// des enregistrements.
+    pub derived: Vec<Calendar>,
 }
 
 /// Jour d'un enregistrement de 60 octets : `None` = jour par défaut (code
@@ -249,8 +250,8 @@ fn exceptions(blob: &[u8], uid: u32, cal: &mut Calendar, sink: &mut Sink) {
     }
 }
 
-/// Lit les calendriers de base ; les calendriers dérivés (de ressource)
-/// sont comptés, pas repris.
+/// Lit les calendriers de base et les calendriers dérivés (calendriers de
+/// ressource, R-296 : jour au code 1 = hérité de la base).
 #[must_use]
 pub fn read(
     items: &[FixedItem<'_>],
@@ -272,10 +273,6 @@ pub fn read(
         let (Some(uid), Some(base)) = (le_u32(rec, cl.uid), le_i32(rec, cl.base)) else {
             continue;
         };
-        if base > 0 {
-            out.derived = out.derived.saturating_add(1);
-            continue;
-        }
         if !seen.insert(uid) {
             sink.push(MppCode::DuplicateUid, Some(uid), Some("calendrier".to_owned()));
             continue;
@@ -285,8 +282,31 @@ pub fn read(
             .and_then(|f| f.get(&calendar_var::NAME))
             .map(|b| utf16_z(b, 255))
             .unwrap_or_default();
-        let mut week = defaults.clone();
         let blob = fields.and_then(|f| f.get(&calendar_var::DATA));
+        if base > 0 {
+            let mut cal =
+                Calendar::new_derived(CalendarUid::new(uid), name, CalendarUid::new(base.unsigned_abs()));
+            if let Some(blob) = blob {
+                for (k, d) in DAYS.iter().enumerate() {
+                    let start = k.saturating_mul(DAY_LEN);
+                    let Some(rec) = start.checked_add(DAY_LEN).and_then(|e| blob.get(start..e)) else {
+                        break;
+                    };
+                    let rule = match day_record(rec, uid, sink) {
+                        None => DayRule::Inherit,
+                        Some(DaySetting::NonWorking) => DayRule::NonWorking,
+                        Some(DaySetting::Working(h)) => DayRule::Working(h),
+                    };
+                    if cal.set_day(*d, rule).is_err() {
+                        sink.push(MppCode::CalendarRangeInvalid, Some(uid), None);
+                    }
+                }
+                exceptions(blob, uid, &mut cal, sink);
+            }
+            out.derived.push(cal);
+            continue;
+        }
+        let mut week = defaults.clone();
         if let Some(blob) = blob {
             for (k, d) in DAYS.iter().enumerate() {
                 let start = k.saturating_mul(DAY_LEN);

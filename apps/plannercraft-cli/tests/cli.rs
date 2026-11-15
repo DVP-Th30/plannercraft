@@ -1128,7 +1128,11 @@ fn cli_import_mpp() {
     assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
     assert!(text.contains("Fichier MPP14"), "{text}");
-    assert!(text.contains("1 tâches identiques sur 1"), "{text}");
+    assert!(text.contains("1 tâches identiques à la minute sur 1"), "{text}");
+    assert!(
+        text.contains("0 à deux minutes près (arrondi), 0 en écart réel"),
+        "{text}"
+    );
     let o = run(&["tasks", s(&out), "--json"]);
     assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
     assert!(String::from_utf8_lossy(&o.stdout).contains("Gros œuvre"));
@@ -1137,6 +1141,9 @@ fn cli_import_mpp() {
     let view = stdout_json(&o);
     assert_eq!(view["tasks"], 1);
     assert_eq!(view["comparison"]["tasks_identical"], 1);
+    assert_eq!(view["comparison"]["tasks_rounding"], 0);
+    assert_eq!(view["comparison"]["tasks_off"], 0);
+    assert_eq!(view["resources"], 0);
     // Pas un .mpp : refus, code 4, erreur structurée en JSON.
     let bad = dir.join("faux.mpp");
     std::fs::write(&bad, b"<Project/>").unwrap();

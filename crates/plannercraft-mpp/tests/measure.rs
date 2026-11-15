@@ -114,6 +114,8 @@ fn measure_against_oracle() {
     let mut read_ok: BTreeMap<&'static str, u32> = BTreeMap::new();
     let mut tally = Tally::default();
     let mut engine = (0_u64, 0_u64);
+    let mut classes = (0_u64, 0_u64, 0_u64);
+    let mut causes: BTreeMap<&'static str, u64> = BTreeMap::new();
     let mut engine_oracle = (0_u64, 0_u64);
     let mut engine_bare = (0_u64, 0_u64);
     let mut no_oracle = 0;
@@ -180,22 +182,58 @@ fn measure_against_oracle() {
             &p.options.default_start_time,
             &op.options.default_start_time,
         );
-        // Non repris : comptes annoncés par le rapport.
-        let ni = doc.source.not_imported;
+        // Ressources et affectations (R-294, R-295) : la ressource 0 du
+        // corrigé est la ressource vide du projet, non reprise.
         tally.check(
-            "non repris : ressources",
+            "ressources : nombre",
             file,
             0,
-            &(ni.resources as usize),
-            &op.resources.len(),
+            &p.resources.len(),
+            &op.resources.iter().filter(|r| r.uid().get() != 0).count(),
         );
         tally.check(
-            "non repris : affectations",
+            "affectations : nombre",
             file,
             0,
-            &(ni.assignments as usize),
+            &p.assignments.len(),
             &op.assignments.len(),
         );
+        for oa in op.assignments.iter() {
+            let Some(a) = p.assignments.get(oa.uid()) else {
+                tally.check("affectation présente", file, oa.uid().get(), &false, &true);
+                continue;
+            };
+            let u = oa.uid().get();
+            tally.check("affectation présente", file, u, &true, &true);
+            tally.check(
+                "affectation : tâche et ressource",
+                file,
+                u,
+                &(a.task, a.resource),
+                &(oa.task, oa.resource),
+            );
+            tally.check("affectation : unités", file, u, &a.units, &oa.units);
+            tally.check("affectation : travail", file, u, &a.work, &oa.work);
+            tally.check("affectation : retard", file, u, &a.delay, &oa.delay);
+            tally.check("affectation : profil", file, u, &a.contour, &oa.contour);
+        }
+        for or in op.resources.iter().filter(|r| r.uid().get() != 0) {
+            let Some(r) = p.resources.get(or.uid()) else {
+                tally.check("ressource présente", file, or.uid().get(), &false, &true);
+                continue;
+            };
+            let u = or.uid().get();
+            tally.check("ressource présente", file, u, &true, &true);
+            tally.check("ressource : nature", file, u, &r.kind, &or.kind);
+            tally.check(
+                "ressource : unités maximales",
+                file,
+                u,
+                &r.max_units,
+                &or.max_units,
+            );
+            tally.check("ressource : calendrier", file, u, &r.calendar, &or.calendar);
+        }
         // Tâches : ordre et nombre.
         let mine_uids: Vec<u32> = p.tasks.iter().map(|t| t.uid().get()).collect();
         let oracle_uids: Vec<u32> = op.tasks.iter().map(|t| t.uid().get()).collect();
@@ -317,6 +355,29 @@ fn measure_against_oracle() {
                 &links(op, uid),
             );
         }
+        // Calendriers dérivés du corrigé (calendriers de ressource, R-296).
+        for oc in op.calendars.iter() {
+            let CalendarKind::Derived { base: ob, week: ow } = oc.kind() else {
+                continue;
+            };
+            let u = oc.uid().get();
+            let Some(c) = p.calendars.get(oc.uid()) else {
+                tally.check("calendrier dérivé présent", file, u, &false, &true);
+                continue;
+            };
+            tally.check("calendrier dérivé présent", file, u, &true, &true);
+            if let CalendarKind::Derived { base, week } = c.kind() {
+                tally.check("calendrier dérivé : base", file, u, base, ob);
+                tally.check("calendrier dérivé : semaine", file, u, week, ow);
+            }
+            tally.check(
+                "calendrier dérivé : exceptions (nombre)",
+                file,
+                u,
+                &c.exceptions().len(),
+                &oc.exceptions().len(),
+            );
+        }
         // Calendriers de base du corrigé : semaine et exceptions.
         for oc in op.calendars.iter() {
             let CalendarKind::Base { week: ow } = oc.kind() else {
@@ -363,6 +424,12 @@ fn measure_against_oracle() {
         let cmp = compare(p, &s, &doc.recorded);
         engine.0 += u64::from(cmp.tasks_identical);
         engine.1 += u64::from(cmp.tasks_compared);
+        classes.0 += u64::from(cmp.tasks_identical);
+        classes.1 += u64::from(cmp.tasks_rounding);
+        classes.2 += u64::from(cmp.tasks_off);
+        for (c, n) in &cmp.causes {
+            *causes.entry(c).or_default() += u64::from(*n);
+        }
         let so = schedule(op);
         let mut orec = plannercraft_mpp::Recorded::default();
         for (uid, r) in &o.recorded.tasks {
@@ -371,6 +438,7 @@ fn measure_against_oracle() {
                 plannercraft_mpp::RecordedTask {
                     start: r.start,
                     finish: r.finish,
+                    sub_minute: false,
                 },
             );
         }
@@ -388,10 +456,12 @@ fn measure_against_oracle() {
         engine_bare.1 += u64::from(cmpb.tasks_compared);
         if verbose {
             println!(
-                "{rel}: {} tâches, moteur {}/{} (corrigé relu par MSPDI : {}/{} ; sans ressources : {}/{})",
+                "{rel}: {} tâches, moteur {}/{} (arrondi {}, écart réel {}) (corrigé relu par MSPDI : {}/{} ; sans ressources : {}/{})",
                 p.tasks.len(),
                 cmp.tasks_identical,
                 cmp.tasks_compared,
+                cmp.tasks_rounding,
+                cmp.tasks_off,
                 cmpo.tasks_identical,
                 cmpo.tasks_compared,
                 cmpb.tasks_identical,
@@ -415,6 +485,10 @@ fn measure_against_oracle() {
     println!(
         "\nMoteur : tâches aux dates recalculées identiques aux dates enregistrées : {}/{} (lecture .mpp) ; {}/{} (même calcul sur le projet relu depuis le XML du corrigé) ; {}/{} (corrigé sans ressources ni affectations)",
         engine.0, engine.1, engine_oracle.0, engine_oracle.1, engine_bare.0, engine_bare.1
+    );
+    println!(
+        "Classes (lecture .mpp) : identiques à la minute {} ; à deux minutes près {} ; écart réel {} ; dont causes non recalculables {causes:?}",
+        classes.0, classes.1, classes.2
     );
     for (field, ex) in &tally.bad_examples {
         println!("\nÉcarts « {field} » (exemples) :");
@@ -471,4 +545,199 @@ fn diff_one_file() {
             }
         }
     }
+}
+
+/// Écart d'une tâche : (début, fin) calculé − enregistré, en minutes.
+fn task_gaps(
+    p: &Project,
+    s: &plannercraft_core::Schedule,
+    rec: &plannercraft_mpp::Recorded,
+) -> BTreeMap<TaskUid, (i64, i64)> {
+    let mut out = BTreeMap::new();
+    for t in p.tasks.iter() {
+        if t.is_null {
+            continue;
+        }
+        let (Some(r), Some(sc)) = (rec.tasks.get(&t.uid()), s.scheduled(t.uid())) else {
+            continue;
+        };
+        let (Some(rs), Some(rf)) = (r.start, r.finish) else {
+            continue;
+        };
+        out.insert(
+            t.uid(),
+            (
+                sc.start.minutes() - rs.minutes(),
+                sc.finish.minutes() - rf.minutes(),
+            ),
+        );
+    }
+    out
+}
+
+/// Diagnostic des écarts du moteur par tâche racine (lot M2) : une tâche en
+/// écart dont les prédécesseurs (successeurs à rebours) et ceux de ses
+/// récapitulatives sont justes (à deux minutes près) porte la cause ; une
+/// récapitulative en écart dont toutes les tâches filles sont justes aussi.
+/// Une ligne TSV par tâche en écart (`MPP_DIAG_OUT`), avec les indices du
+/// corrigé.
+#[test]
+#[ignore = "diagnostic local, hors CI"]
+fn diagnose_roots() {
+    use plannercraft_core::progress::{ProgressState, facts};
+    use plannercraft_core::{ConstraintKind, SchedulingMode, TimeBasis};
+    use std::fmt::Write as _;
+    let dir = PathBuf::from(std::env::var("MPP_MEASURE_DIR").expect("MPP_MEASURE_DIR"));
+    let oracle_dir = PathBuf::from(std::env::var("MPP_ORACLE_DIR").expect("MPP_ORACLE_DIR"));
+    let out_path = std::env::var("MPP_DIAG_OUT").expect("MPP_DIAG_OUT");
+    let now: Moment = "2026-11-14T08:00".parse().unwrap();
+    let mut files = Vec::new();
+    walk(&dir, &mut files);
+    let mut out = String::from(
+        "file\tuid\tid\trole\tsummary\tds\tdf\tmilestone\tmanual\tconstraint\tcalendar\tstate\tresume\tlevel_delay\telapsed\tinactive\tdeadline\ttype\teffort\tassignments\tres_cal\tok_oracle\tok_bare\tdur\tfrom_finish\trs\tcs\tpreds\tname\n",
+    );
+    for path in &files {
+        let rel = path.strip_prefix(&dir).unwrap().to_string_lossy().into_owned();
+        let Ok(doc) = read(
+            &std::fs::read(path).unwrap(),
+            &ReadOptions::new("m".to_owned(), now),
+        ) else {
+            continue;
+        };
+        let Ok(xml) = std::fs::read(oracle_dir.join(&rel).with_extension("xml")) else {
+            continue;
+        };
+        let o = plannercraft_mspdi::read(&xml, &plannercraft_mspdi::ReadOptions::new(now)).unwrap();
+        let p = &doc.project;
+        let op = &o.project;
+        let from_finish = matches!(p.anchor, plannercraft_core::ScheduleAnchor::FromFinish(_));
+        let s = schedule(p);
+        let gaps = task_gaps(p, &s, &doc.recorded);
+        let mut orec = plannercraft_mpp::Recorded::default();
+        for (uid, r) in &o.recorded.tasks {
+            orec.tasks.insert(
+                *uid,
+                plannercraft_mpp::RecordedTask {
+                    start: r.start,
+                    finish: r.finish,
+                    sub_minute: false,
+                },
+            );
+        }
+        let go = task_gaps(op, &schedule(op), &orec);
+        let mut bare = op.clone();
+        bare.resources = plannercraft_core::Arena::new();
+        bare.assignments = plannercraft_core::Arena::new();
+        let gb = task_gaps(&bare, &schedule(&bare), &orec);
+        let ok = |g: Option<&(i64, i64)>| g.is_none_or(|(a, b)| a.abs() <= 2 && b.abs() <= 2);
+        // Hiérarchie : parent et enfants par l'ordre et les niveaux.
+        let tasks: Vec<_> = p.tasks.iter().filter(|t| !t.is_null).collect();
+        let mut parent: BTreeMap<TaskUid, TaskUid> = BTreeMap::new();
+        let mut children: BTreeMap<TaskUid, Vec<TaskUid>> = BTreeMap::new();
+        let mut stack: Vec<(u16, TaskUid)> = Vec::new();
+        for t in &tasks {
+            let lvl = t.outline_level.get();
+            while stack.last().is_some_and(|(l, _)| *l >= lvl) {
+                stack.pop();
+            }
+            if let Some((_, pu)) = stack.last() {
+                parent.insert(t.uid(), *pu);
+                children.entry(*pu).or_default().push(t.uid());
+            }
+            stack.push((lvl, t.uid()));
+        }
+        let mut successors: BTreeMap<TaskUid, Vec<TaskUid>> = BTreeMap::new();
+        for t in &tasks {
+            for l in &t.predecessors {
+                successors.entry(l.predecessor).or_default().push(t.uid());
+            }
+        }
+        let drivers = |u: TaskUid| -> Vec<TaskUid> {
+            if from_finish {
+                successors.get(&u).cloned().unwrap_or_default()
+            } else {
+                p.tasks
+                    .get(u)
+                    .map(|t| t.predecessors.iter().map(|l| l.predecessor).collect())
+                    .unwrap_or_default()
+            }
+        };
+        for t in &tasks {
+            let u = t.uid();
+            let Some(g) = gaps.get(&u) else { continue };
+            let is_summary = children.contains_key(&u);
+            let role = if *g == (0, 0) {
+                "juste"
+            } else if ok(Some(g)) {
+                "arrondi"
+            } else if is_summary {
+                let kids_ok = children[&u].iter().all(|c| ok(gaps.get(c)));
+                if kids_ok { "racine" } else { "héritée" }
+            } else {
+                let mut all_ok = drivers(u).iter().all(|d| ok(gaps.get(d)));
+                let mut a = parent.get(&u).copied();
+                while let Some(pu) = a {
+                    all_ok &= drivers(pu).iter().all(|d| ok(gaps.get(d)));
+                    a = parent.get(&pu).copied();
+                }
+                if all_ok { "racine" } else { "héritée" }
+            };
+            let ot = op.tasks.get(u);
+            let assigned: Vec<_> = op.assignments.iter().filter(|a| a.task == u).collect();
+            let res_cal = assigned
+                .iter()
+                .filter_map(|a| a.resource)
+                .filter_map(|r| op.resources.get(r))
+                .filter_map(|r| r.calendar)
+                .filter_map(|c| op.calendars.get(c))
+                .any(|c| {
+                    !c.exceptions().is_empty()
+                        || matches!(c.kind(), plannercraft_core::calendar::model::CalendarKind::Derived { week, .. } if format!("{week:?}").contains("Set"))
+                });
+            let st = match facts(t).state {
+                ProgressState::NotStarted => "non",
+                ProgressState::Started => "commencée",
+                ProgressState::Complete => "achevée",
+            };
+            let mut line = String::new();
+            writeln!(
+                line,
+                "{rel}\t{}\t{}\t{role}\t{is_summary}\t{}\t{}\t{}\t{}\t{}\t{}\t{st}\t{}\t{}\t{}\t{}\t{}\t{:?}\t{}\t{}\t{res_cal}\t{}\t{}\t{}\t{from_finish}\t{}\t{}\t{}\t{}",
+                u.get(),
+                p.task_id(u).map_or(0, plannercraft_core::TaskId::get),
+                g.0,
+                g.1,
+                t.milestone,
+                !matches!(t.mode, SchedulingMode::Auto),
+                if t.constraint.kind() == ConstraintKind::AsSoonAsPossible {
+                    String::new()
+                } else {
+                    format!("{:?}", t.constraint.kind())
+                },
+                t.calendar.is_some(),
+                t.progress.resume.is_some(),
+                t.leveling_delay.is_some(),
+                t.duration.basis() == TimeBasis::Elapsed,
+                !t.active,
+                t.deadline.is_some(),
+                ot.map(|x| x.task_type),
+                ot.is_some_and(|x| x.effort_driven),
+                assigned.len(),
+                ok(go.get(&u)),
+                ok(gb.get(&u)),
+                t.duration.minutes().get(),
+                doc.recorded.tasks.get(&u).and_then(|r| r.start).map(|m| m.to_string()).unwrap_or_default(),
+                s.scheduled(u).map(|x| x.start.to_string()).unwrap_or_default(),
+                t.predecessors
+                    .iter()
+                    .map(|l| format!("{}{:?}{:?}", l.predecessor.get(), l.kind, l.lag.value))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                t.name.replace('\t', " "),
+            )
+            .unwrap();
+            out.push_str(&line);
+        }
+    }
+    std::fs::write(out_path, out).unwrap();
 }

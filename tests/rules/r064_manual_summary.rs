@@ -1,11 +1,13 @@
 //! R-064 — Récapitulative manuelle : avec au moins une date saisie, elle
 //! garde ses dates comme une feuille manuelle (R-063, durée saisie sinon
 //! temps ouvré entre les dates, sur son calendrier) et ses successeurs les
-//! lisent ; ses enfants sont planifiés normalement, la porte de ses liens
-//! entrants s'applique à eux (S24) et ils n'héritent ni de ses liens
+//! lisent ; ses enfants sont planifiés normalement à partir de son début
+//! saisi, sans ses liens entrants (amendement R-293), et n'héritent ni de ses liens
 //! sortants ni de ceux de ses ancêtres ; ses dates au plus tard et sa marge
 //! se calculent comme pour une feuille manuelle ; sans date : récapitulative
 //! automatique. Source : observé O8 (A7 UID 1, 5, 6) ; reste : hypothèse.
+//! Amendement R-293 : ses enfants partent de son début saisi, pas du début
+//! du projet.
 
 use plannercraft_core::{Driver, Minutes, TaskRole};
 use plannercraft_tests::moment;
@@ -13,8 +15,8 @@ use plannercraft_tests::net::Net;
 
 #[test]
 fn r064_manual_summary_keeps_entered_dates() {
-    // S manuelle mar 20/10 08:00 – ven 23/10 17:00 {A 1 j} : A lun 08:00 –
-    // 17:00, S reste mar – ven ; Y FS de S 1 j → lun 26/10 08:00 – 17:00.
+    // S manuelle mar 20/10 08:00 – ven 23/10 17:00 {A 1 j} : A mar 08:00 –
+    // 17:00 (R-293), S reste mar – ven ; Y FS de S 1 j → lun 26/10 08:00 – 17:00.
     let run = Net::new("2026-10-19T08:00")
         .task("S", 0)
         .manual("S", Some("2026-10-20T08:00"), Some("2026-10-23T17:00"))
@@ -31,7 +33,7 @@ fn r064_manual_summary_keeps_entered_dates() {
     assert_eq!(s.early.finish, moment("2026-10-23T17:00"));
     // Durée utilisée : temps ouvré entre les dates, 4 j = 1 920.
     assert_eq!(s.duration, Minutes::new(1_920));
-    assert_eq!(run.at("A").early.start, moment("2026-10-19T08:00"));
+    assert_eq!(run.at("A").early.start, moment("2026-10-20T08:00"));
     assert_eq!(run.at("Y").early.start, moment("2026-10-26T08:00"));
     assert_eq!(run.schedule.project_finish, moment("2026-10-26T17:00"));
     // Au plus tard, comme une feuille : plafond h(LS_Y) = lun 26/10 08:00
@@ -40,16 +42,18 @@ fn r064_manual_summary_keeps_entered_dates() {
     assert_eq!(s.total_slack, Minutes::ZERO);
     assert!(s.critical);
     // A n'hérite pas du lien S → Y (les dates de S ne dépendent pas d'elle) :
-    // LF = fin du projet → TF = between(lun 19 17:00, lun 26 17:00) = 2 400.
+    // LF = fin du projet → TF = between(mar 20 17:00, lun 26 17:00) = 1 920.
     assert_eq!(run.at("A").late.finish, moment("2026-10-26T17:00"));
-    assert_eq!(run.at("A").total_slack, Minutes::new(2_400));
-    assert_eq!(run.at("A").free_slack, Minutes::new(2_400));
+    assert_eq!(run.at("A").total_slack, Minutes::new(1_920));
+    assert_eq!(run.at("A").free_slack, Minutes::new(1_920));
 }
 
 #[test]
-fn r064_gate_applies_to_children() {
-    // X 2 j FS → S manuelle lun 19/10 08:00 – 17:00 {A 1 j} : A suit la
-    // porte (mer 21/10 08:00), S garde ses dates.
+fn r064_links_of_the_summary_do_not_move_its_children() {
+    // X 2 j FS → S manuelle lun 19/10 08:00 – 17:00 {A 1 j} : S garde ses
+    // dates (lien non tenu, signalé) et A part de son début saisi, lun 08:00
+    // (amendement R-293 : la porte d'une récapitulative manuelle datée est
+    // son début saisi seul).
     let run = Net::new("2026-10-19T08:00")
         .task("X", 960)
         .task("S", 0)
@@ -58,10 +62,9 @@ fn r064_gate_applies_to_children() {
         .level("A", 2)
         .fs("X", "S")
         .run();
-    assert_eq!(run.at("A").early.start, moment("2026-10-21T08:00"));
+    assert_eq!(run.at("A").early.start, moment("2026-10-19T08:00"));
     assert_eq!(run.at("S").early.start, moment("2026-10-19T08:00"));
-    // Marge libre de X : écart au début réel des sous-tâches (mer 08:00) = 0.
-    assert_eq!(run.at("X").free_slack, Minutes::ZERO);
+    assert!(run.codes().contains(&"link.manual_not_honored"));
 }
 
 #[test]
@@ -96,7 +99,7 @@ fn r064_undated_manual_summary_is_automatic() {
 #[test]
 fn r064_parent_aggregates_entered_dates() {
     // P {S manuelle mar 20/10 – ven 23/10 {A 1 j}} : P agrège les dates de S
-    // (son enfant direct), pas celles de A.
+    // (son enfant direct), pas celles de A ; A part du début de S (R-293).
     let run = Net::new("2026-10-19T08:00")
         .task("P", 0)
         .task("S", 0)
@@ -107,5 +110,5 @@ fn r064_parent_aggregates_entered_dates() {
         .run();
     assert_eq!(run.at("P").early.start, moment("2026-10-20T08:00"));
     assert_eq!(run.at("P").early.finish, moment("2026-10-23T17:00"));
-    assert_eq!(run.at("A").early.start, moment("2026-10-19T08:00"));
+    assert_eq!(run.at("A").early.start, moment("2026-10-20T08:00"));
 }

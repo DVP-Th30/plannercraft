@@ -1,6 +1,6 @@
 # Import des fichiers `.mpp` de MS Project (lots M1 à M4)
 
-Décision : ADR-0036. Règles : R-281 à R-292 (`docs/scheduling-rules.md`). Faits de format, chacun avec sa preuve : `docs/formats/mpp.md`. Code : `crates/plannercraft-mpp` (lecture seule, sans interface, compile en `wasm32-unknown-unknown`), CLI `plannercraft import-mpp`.
+Décision : ADR-0036. Règles : R-281 à R-298 (`docs/scheduling-rules.md`). Faits de format, chacun avec sa preuve : `docs/formats/mpp.md`. Code : `crates/plannercraft-mpp` (lecture seule, sans interface, compile en `wasm32-unknown-unknown`), CLI `plannercraft import-mpp`.
 
 ## 1. Besoin
 
@@ -11,7 +11,8 @@ Les plannings échangés entre entreprises du bâtiment circulent souvent en `.m
 | Lot | Contenu | État |
 |---|---|---|
 | **M1** | Lecteur MPP14 (Project 2010 à 2021, Microsoft 365) et gabarits `.mpt` : tâches (avec réels, reprise, retard de nivellement), liens, calendriers de base (exceptions périodiques comprises), propriétés et options de calcul du projet ; refus clair des autres formats et des tables incohérentes ; CLI `import-mpp` ; corpus public, fichiers réels et mesure contre un corrigé | livré (ce document) |
-| **M2** | Ressources, affectations, calendriers de ressource ; MPP12 (Project 2007), puis MPP9 et MPP8 si la demande existe | à faire |
+| **M2** | Parité des dates sur les fichiers réels : diagnostic des écarts par tâche racine, récapitulatives manuelles (R-293), ressources, affectations et calendriers de ressource (R-294 à R-296), durée des profils non uniformes (R-297), classes d'écart et causes non recalculables au rapport (R-298) ; analyse de l'arrondi (ADR-0037) | livré (§ 10) |
+| **M5** | MPP12 (Project 2007), puis MPP9 et MPP8 si la demande existe | à faire |
 | **M3** | Ouverture d'un `.mpp` depuis l'application bureau et la version web (fichier déposé dans le navigateur, lu localement) : même chemin que l'ouverture d'un XML, rapport dans les diagnostics | à faire |
 | **M4** | Présentation : affichages, tables, styles de barres (`   214`), champs personnalisés | à faire |
 
@@ -148,3 +149,107 @@ Refusés : aucun fichier réel ; au corpus de test, les seuls formats non pris e
 - **Moteur** : examiner les 10 fichiers réels où le moteur s'écarte de MS Project sur les deux lectures (523 tâches) ; c'est hors de la lecture, mais c'est le plus gros écart restant.
 - **M3** : ouvrir un `.mpp` comme un `.xml` (même chemin de chargement), rapport de lecture dans le panneau des diagnostics ; sur le web, lecture locale du fichier déposé.
 - Faire relire au propriétaire quelques-uns de ses propres `.mpp` (hors dépôt, comme les plannings R1 à R6 de l'import PDF) avant M3.
+
+## 10. Lot M2 : parité des dates sur les fichiers réels (2026-11-15)
+
+Décision : ADR-0037. Question : sur les 41 fichiers réels, le moteur ne retrouvait les dates enregistrées par MS Project que pour 2 255 tâches sur 2 966, presque autant en partant du XML du corrigé : l'écart venait du calcul ou de données non reprises.
+
+### 10.1 Méthode
+
+- Outil `diagnose_roots` (`crates/plannercraft-mpp/tests/measure.rs`, ignoré, hors CI) : une ligne par tâche (écarts de début et de fin, indices de la lecture et du corrigé). Une tâche est **racine** si elle est en écart réel (plus de 2 minutes) alors que ses prédécesseurs, ceux de ses récapitulatives (ses successeurs à rebours) et, pour une récapitulative, ses sous-tâches sont justes à 2 minutes près ; sinon elle est **héritée**. Chaque héritée est attribuée à la cause des racines qui la pilotent.
+- Les causes sont établies sur les champs du XML du corrigé et des fichiers (scripts d'analyse hors dépôt), puis classées : (a) donnée non lue dans le `.mpp` ; (b) donnée lue mais ignorée par l'import ; (c) règle du moteur absente ou différente ; (d) non reproductible par un calcul (valeur saisie, nivellement, état laissé par l'utilisateur).
+- Le rapport d'import liste désormais tous les écarts (plus de plafond de 200) avec leur classe (R-298).
+
+### 10.2 Causes, avant corrections
+
+Tâches en écart réel sur les 41 fichiers réels à la fin du lot M1 : 568 (71 racines, 497 héritées), plus 143 tâches à deux minutes près.
+
+| Cause | Classe | Racines | Héritées | Fichiers | Suite donnée |
+|---|---|---|---|---|---|
+| Fractions de minute (MS Project calcule en dixièmes de minute, le moteur en minutes ; un écart d'une minute franchit une fin de journée et devient un jour) | c | 8 | 191 | 2 | analysée, non corrigée (ADR-0037) |
+| Récapitulative manuelle : ses sous-tâches partent de son début saisi, ses liens entrants ne passent pas | c | 26 | 142 | 7 | corrigée (R-293) |
+| Ressources, affectations, calendriers de ressource non lus | a | 9 | 103 | 5 | corrigée (R-294 à R-296) |
+| Profil d'affectation modifié à la main | d | 5 | 33 | 4 | signalée (R-298) |
+| Retard ou fractionnement de nivellement | d | 3 | 14 | 3 | non reproductible |
+| Jalon contraint (FNLT, SNET, ALAP) | c | 3 | 3 | 3 | non corrigée, cause exacte inconnue |
+| Affectations décalées sans retard enregistré (nivellement par affectation) | d | 4 | 0 | 1 | signalée (R-298) |
+| Début enregistré sans lien ni contrainte qui l'explique | d | 2 | 1 | 2 | signalée (R-298) |
+| Travail fixe et unités fractionnaires (durée enregistrée ≠ travail ÷ unités) | c | 2 | 1 | 2 | non corrigée, cause inconnue |
+| Tâche commencée et fractionnée (reprise) | c | 1 | 1 | 1 | non corrigée |
+| Inconnue | ? | 8 | 8 | 2 | — |
+
+Sur le corpus de test MPP14, une cause de plus : les profils non uniformes (`WorkContour` 1 à 8), où MS Project enregistre une durée de tâche qui n'est pas travail ÷ unités ; corrigée par R-297 une fois les affectations lues.
+
+### 10.3 Corrections et mesure
+
+| Étape | Fichiers réels (2 966 tâches) | Corpus de test MPP14 (2 221) | Corpus MSPDI (159 cas) | Relecture (75) |
+|---|---|---|---|---|
+| Fin du lot M1 | 2 255 | 2 179 | 156 | 74 |
+| R-293, plancher des sous-tâches d'une récapitulative manuelle | 2 335 | 2 179 | 156 | 74 |
+| R-293, liens de la récapitulative manuelle non hérités | 2 358 | 2 179 | 156 | 74 |
+| R-294 à R-296, ressources, affectations, calendriers de ressource | 2 423 | 2 167 | 156 | 74 |
+| R-297, durée d'une affectation à profil non uniforme | 2 423 | 2 188 | 156 | 74 |
+
+Comparaison : même calcul sur le projet relu depuis le XML du corrigé, avec ses ressources : 2 417 sur les fichiers réels, 2 189 sur le corpus de test. Classes après corrections (R-298) :
+
+| | Identiques à la minute | À deux minutes près | Écart réel | Dont cause non recalculable constatée |
+|---|---|---|---|---|
+| Fichiers réels | 2 423 | 165 | 378 | fractions de minute 238, profil modifié à la main 6, affectations décalées 5, début inexpliqué 1 |
+| Corpus de test MPP14 | 2 188 | 0 | 33 | profil modifié à la main 10, affectations décalées 1, début inexpliqué 1 |
+| Relecture | 74 | 0 | 1 | — |
+
+Lecture des ressources et affectations contre le corrigé (fichiers réels) : ressources 598/598 présentes, nature 581/598 (17 étiquettes d'unité matérielle non lues), unités maximales 596/598, calendrier 587/598 ; affectations 4 096 présentes sur 4 225 (les 129 absentes sont des affectations de récapitulatives que le corrigé fabrique, § 15 de `docs/formats/mpp.md`), unités et profil 4 096/4 096, travail 4 072/4 096, retard 4 088/4 096 ; calendriers de ressource 632/632 (base, semaine, exceptions). Corpus de test : ressources 909/909, affectations 2 197/2 241, calendriers de ressource 1 068/1 070.
+
+### 10.4 Par fichier (fichiers réels en écart avant ou après)
+
+| Fichier | Fin M1 | Après M2 | À 2 min près | Écart réel |
+|---|---|---|---|---|
+| `4jvarun__Total-Quality-Project-Management__Project_V2v_Communications.mpp` | 29 / 72 | 72 / 72 | 0 | 0 |
+| `advaith14__Project-Management-for-World-Hotels-__IST645F18A2BKamathA.mpp` | 14 / 330 | 14 / 330 | 143 | 173 |
+| `AmaalAyman__Project-Management__Pm_Project_1.mpp` | 15 / 20 | 14 / 20 | 0 | 6 |
+| `AtharvaTK1997__Software-Project-Management-Assignment-1__assign_1_20%.mpp` | 1 / 62 | 1 / 62 | 22 | 39 |
+| `chandana7373__branding-and-website-strategy-project-capstone__Capstone_Project_Integrated_Plan_Latinas_Outreach.mpp` | 37 / 83 | 81 / 83 | 0 | 2 |
+| `davidramosf__Planificacion-de-un-proyecto-utilizando-MS-Project__Paso_1.mpp` | 48 / 61 | 25 / 61 | 0 | 36 |
+| `Dimitrije-Sokolovic__Guitar-Shop-Management-Project__GuitarShop.mpp` | 42 / 64 | 42 / 64 | 0 | 22 |
+| `HamzaMalikProjects__CPS714-Software-Project-Management__CPS714_Lab6.mpp` | 55 / 56 | 55 / 56 | 0 | 1 |
+| `Kalani0056__ms-project-planning__st20357430_CIS6011.mpp` | 34 / 41 | 34 / 41 | 0 | 7 |
+| `lautarofaccini__Proyecto-Planificacion__Proyect_POS_Corralon_M_-_G3_-_SEGUIMIENTO.mpp` | 37 / 44 | 37 / 44 | 0 | 7 |
+| `MaralSmi__residential-construction-project-planning__Maral_Esmikhani_MSP_projrect.mpp` | 176 / 176 | 172 / 176 | 0 | 4 |
+| `Masetto97__PLANIFICACION_DE_PROYECTOS__Plan_de_Proyecto_E11.mpp` | 57 / 69 | 57 / 69 | 0 | 12 |
+| `nehathota123__projectmanagement__ISM4314_–_MS_Project_Plan_for_Gress_J_&_Thota_N_(1).mpp` | 55 / 83 | 46 / 83 | 0 | 37 |
+| `salemsolomon25__project-server-2019-deployment-plan__project_server_2019_deployment_plan.mpp` | 7 / 27 | 17 / 27 | 0 | 10 |
+| `ShidehParastariFarkoush__Project-Control-Project__PC-MSP-Phase2-Code.mpp` | 32 / 66 | 66 / 66 | 0 | 0 |
+| `Smruti0708__Residential-Construction-Simulation__Residential_Construction_Project_Simulation.mpp` | 38 / 102 | 83 / 102 | 0 | 19 |
+| `svsuriyaa__Project-Management--Mitigating-Systematic-Biases-in-Project-US-Air-force-Firefly__Gantt_Chart_Team7.mpp` | 73 / 80 | 80 / 80 | 0 | 0 |
+| `tefsantana__uala-digital-project-management-case-study__uala-project-schedule.mpp` | 114 / 120 | 118 / 120 | 0 | 2 |
+| `ubhurase__IPM__Big_Pharma_Case_Project_Final.mpp` | 105 / 106 | 105 / 106 | 0 | 1 |
+| `vincenzorusso3__uniseats__C06_SA_Vers.1.1.mpp` | 88 / 96 | 96 / 96 | 0 | 0 |
+| `zahmed02__CS4044-Software-Project-Management__CS4044_FSPM_Project_Schedule.mpp` | 217 / 227 | 227 / 227 | 0 | 0 |
+
+25 fichiers sur 41 tout identiques (21 à la fin du lot M1). Quatre fichiers perdent des tâches en lisant les affectations, comme le même calcul sur le XML du corrigé avec ses ressources : `davidramosf…` (−23 : affectations à travail fixe décalées les unes après les autres, sans retard enregistré, laissées par un nivellement par affectation), `nehathota123…` (−9 : travail fixe à unités fractionnaires, MS Project enregistre 9 h là où travail ÷ unités donne 10 h, cause inconnue), `MaralSmi…` (−4 : une affectation de 48 h à 100 % sur une tâche de 8 h, enregistrée sur 8 h : valeurs incohérentes laissées dans le fichier), `AmaalAyman…` (−1). Le plancher du manifeste de `MaralSmi…` passe de 176 à 172 ; les autres planchers du manifeste montent (`zahmed02…` 217 → 227, `tefsantana…` 114 → 118).
+
+### 10.5 Ce qui reste en écart réel (fichiers réels, 378 tâches)
+
+| Cause | Classe | Racines | Héritées | Fichiers |
+|---|---|---|---|---|
+| Fractions de minute (avec 165 tâches à deux minutes près) | c | 12 | 226 | 3 |
+| Retard ou fractionnement de nivellement (dont `davidramosf…`) | d | 6 | 40 | 4 |
+| Profil d'affectation modifié à la main | d | 5 | 33 | 4 |
+| Inconnue | ? | 5 | 13 | 4 |
+| Travail fixe et unités fractionnaires (`nehathota123…`) | c | 8 | 3 | 1 |
+| Début enregistré inexpliqué | d | 3 | 7 | 2 |
+| Tâche commencée et fractionnée (`Dimitrije-Sokolovic…`, `tefsantana…`) | c | 2 | 4 | 2 |
+| Rebours : début enregistré à la fin de la période précédente (`Kalani0056…` UID 24, 42, 168, 185 : 17:00 la veille au lieu de 08:00 ; les 20 autres feuilles du fichier sont justes à 08:00, et les 4 ont une affectation de travail à 0 unité) | c | 4 | 0 | 1 |
+| Jalon contraint (`chandana7373…` UID 272, 275 : FNLT, placés au début du projet par MS Project ; `AmaalAyman…` UID 8 ; `ubhurase…` UID 171) | c | 4 | 0 | 3 |
+| Récapitulative manuelle dans un projet planifié à rebours (`Kalani0056…` UID 3, au début saisi de sa récapitulative ; R-293 ne joue que depuis le début) | c | 1 | 2 | 1 |
+
+### 10.6 Arrondi
+
+MS Project calcule en dixièmes de minute et les fichiers le montrent : `advaith14…` UID 80 a une durée de 1 125 dixièmes (`PT1H52M30S`), un début à 09:27:12 et une fin à 11:19:42, exactement 112,5 minutes plus tard ; son affectation a 67,5 minutes de travail à 60 %. Les dates affichées sont tronquées à la minute (R-283), les durées gardées en dixièmes. Le moteur compte en minutes entières (règle 5) : chaque tâche arrondit sa durée (R-001), l'écart s'accumule le long des chaînes (1 à 2 minutes), puis franchit une fin de journée et devient un écart d'une nuit (902 minutes chez `advaith14…`). 4 fichiers réels sur 41 sont concernés (`advaith14…`, `AtharvaTK1997…`, `nehathota123…`, `lautarofaccini…`), environ 400 tâches. Analyse, coût et options : ADR-0037 ; rien n'est changé dans le moteur en attendant l'arbitrage.
+
+### 10.7 Limites et suite
+
+- Le seuil d'arrondi de 2 minutes est une convention de rapport (R-298), pas une tolérance de calcul.
+- Causes non recalculables : constatées sur la tâche elle-même ; une tâche héritée n'en reçoit pas (elle suit sa racine).
+- Non lus : répartition saisie d'un profil modifié à la main, retards d'affectation en disposition Project 2010, étiquette des ressources matérielles, coûts.
+- Suite proposée : l'arbitrage de l'ADR-0037 (dixièmes de minute) ; puis M3 (interface), avec le rapport d'écarts affiché par cause.

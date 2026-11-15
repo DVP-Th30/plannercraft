@@ -29,6 +29,7 @@ pub mod diag;
 pub mod layout;
 pub mod project;
 pub mod report;
+pub mod resource;
 pub mod rtf;
 pub mod tables;
 pub mod task;
@@ -220,6 +221,18 @@ pub struct RecordedTask {
     pub start: Option<Moment>,
     /// Fin enregistrée.
     pub finish: Option<Moment>,
+    /// Le début ou la fin enregistré porte une fraction de minute
+    /// (dixièmes non multiples de 10), tronquée à la lecture (R-283).
+    pub sub_minute: bool,
+}
+
+/// Dates d'une affectation telles qu'enregistrées par MS Project.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct RecordedAssignment {
+    /// Début enregistré.
+    pub start: Option<Moment>,
+    /// Fin enregistrée.
+    pub finish: Option<Moment>,
 }
 
 /// Valeurs enregistrées.
@@ -231,9 +244,13 @@ pub struct Recorded {
     pub project_finish: Option<Moment>,
     /// Par tâche (UID), lignes vides exclues.
     pub tasks: BTreeMap<TaskUid, RecordedTask>,
+    /// Par affectation (UID).
+    pub assignments: BTreeMap<plannercraft_core::AssignmentUid, RecordedAssignment>,
 }
 
-/// Ce que le fichier contient et que ce lot ne reprend pas.
+/// Ce que le fichier contient et qui n'est pas repris : enregistrements
+/// illisibles ou rattachés à rien (ressources et affectations : lues
+/// depuis le lot M2, R-294, R-295).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct NotImported {
     /// Ressources (enregistrements de `TBkndRsc`, hors réservés et
@@ -241,7 +258,7 @@ pub struct NotImported {
     pub resources: u32,
     /// Affectations (`TBkndAssn`).
     pub assignments: u32,
-    /// Calendriers dérivés (calendriers de ressource).
+    /// Calendriers dérivés (calendriers de ressource) dont la base manque.
     pub resource_calendars: u32,
 }
 
