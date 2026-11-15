@@ -1,12 +1,19 @@
 //! Durées et décalages en texte (R-140, R-141).
 
 use plannercraft_core::{
-    ConversionFactors, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, Minutes, SignedPercent,
-    TimeBasis, round_div,
+    ConversionFactors, Decimal, Duration, DurationError, DurationUnit, Lag, LagValue, Minutes, Resolution,
+    SignedPercent, TimeBasis, round_div,
 };
 
 use super::lex::{Cursor, bounded_chars, fold, format_decimal, is_space};
 use super::{Language, TextContext, TextError};
+
+/// Résolution d'une saisie en texte qui entre dans le modèle (R-140) : la
+/// minute entière pendant les lots B2-B3, comme avant l'ADR-0039 ; le
+/// dixième au lot B4, quand le calcul prendra la fraction en charge. Une
+/// saisie à la minute arrondit le décimal lu une seule fois, par R-001
+/// (« 0,01j » → 5 min), jamais en passant par le dixième.
+pub const ENTRY_RESOLUTION: Resolution = Resolution::Minute;
 
 /// R-140 : unité ouvrée d'une écriture repliée (casse et accents ignorés,
 /// points finaux retirés).
@@ -102,6 +109,17 @@ const fn from_duration_error(e: &DurationError) -> TextError {
 /// [`TextError`] : vide, nombre illisible, unité inconnue, négatif, hors
 /// bornes, trop long.
 pub fn parse_duration(s: &str, ctx: &TextContext) -> Result<Duration, TextError> {
+    parse_duration_at(s, ctx, ENTRY_RESOLUTION)
+}
+
+/// [`parse_duration`] arrondie par R-001 à la `resolution` donnée : au
+/// dixième, « 0,01j » (480 min/j) donne 4,8 min et « 112,5m » 112,5 min
+/// (R-140, ADR-0039).
+///
+/// # Errors
+///
+/// Comme [`parse_duration`].
+pub fn parse_duration_at(s: &str, ctx: &TextContext, resolution: Resolution) -> Result<Duration, TextError> {
     let chars = bounded_chars(s)?;
     let mut cur = Cursor::new(&chars);
     cur.skip_spaces();
@@ -123,7 +141,7 @@ pub fn parse_duration(s: &str, ctx: &TextContext) -> Result<Duration, TextError>
     }
     let minutes = ctx
         .factors
-        .to_minutes(value, unit, basis)
+        .to_minutes_at(value, unit, basis, resolution)
         .map_err(|e| from_duration_error(&e))?;
     Duration::new(minutes, unit, basis, estimated).map_err(|e| from_duration_error(&e))
 }
@@ -141,6 +159,15 @@ pub fn parse_duration(s: &str, ctx: &TextContext) -> Result<Duration, TextError>
 /// [`TextError`] : vide, nombre illisible, unité inconnue, hors bornes
 /// (R-008 : |décalage| ≤ 87 308 640 min ; R-002 : ±10 000 %), trop long.
 pub fn parse_lag(s: &str, ctx: &TextContext) -> Result<Lag, TextError> {
+    parse_lag_at(s, ctx, ENTRY_RESOLUTION)
+}
+
+/// [`parse_lag`] arrondi par R-001 à la `resolution` donnée (R-140).
+///
+/// # Errors
+///
+/// Comme [`parse_lag`].
+pub fn parse_lag_at(s: &str, ctx: &TextContext, resolution: Resolution) -> Result<Lag, TextError> {
     let chars = bounded_chars(s)?;
     let mut cur = Cursor::new(&chars);
     cur.skip_spaces();
@@ -174,7 +201,7 @@ pub fn parse_lag(s: &str, ctx: &TextContext) -> Result<Lag, TextError> {
     };
     let minutes = ctx
         .factors
-        .to_minutes(value, unit, basis)
+        .to_minutes_at(value, unit, basis, resolution)
         .map_err(|e| from_duration_error(&e))?;
     Lag::new(basis, LagValue::Time { minutes, unit }).map_err(|_| TextError::OutOfRange)
 }
@@ -197,26 +224,42 @@ fn abbreviation(unit: DurationUnit, basis: TimeBasis, language: Language) -> Str
     }
 }
 
-/// R-141 : valeur exacte de `minutes` (≥ 0) dans l'unité : 2 décimales
-/// (R-009) ; si la relecture ne redonne pas les minutes, 5 décimales (au
-/// plus 44 640 min par unité : erreur ≤ 5·10⁻⁶ × 44 640 < 0,5 minute, la
-/// relecture arrondie redonne la valeur). `None` si un calcul déborde
-/// (impossible dans les bornes du modèle).
+/// R-141 : valeur exacte de `minutes` (≥ 0) dans l'unité, relue par R-140
+/// à la résolution de la valeur (minute entière : la minute, texte
+/// inchangé depuis J3 ; fraction : le dixième, ADR-0039) : 2 décimales
+/// (R-009) ; si la relecture ne redonne pas la valeur, 5 décimales ; sinon
+/// 6 (au plus 44 640 min par unité : erreur ≤ 5·10⁻⁷ × 44 640 < 0,05 min,
+/// la relecture au dixième redonne la valeur ; à la minute, 5 décimales
+/// suffisent toujours : 5·10⁻⁶ × 44 640 < 0,5). `None` si un calcul
+/// déborde (impossible dans les bornes du modèle).
 fn exact_value(
     factors: &ConversionFactors,
     minutes: Minutes,
     unit: DurationUnit,
     basis: TimeBasis,
 ) -> Option<Decimal> {
+    let resolution = if minutes.whole_minutes().is_some() {
+        Resolution::Minute
+    } else {
+        Resolution::Tenth
+    };
+    let rereads = |v: Decimal| {
+        factors
+            .to_minutes_at(v, unit, basis, resolution)
+            .is_ok_and(|m| m == minutes)
+    };
     let two = factors.to_unit_value(minutes, unit, basis).ok()?;
-    if factors.to_minutes(two, unit, basis).ok()? == minutes {
+    if rereads(two) {
         return Some(two);
     }
-    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
-    let factor = factors.minutes_per_unit(unit, basis).whole_minutes_floor();
-    let scaled = i128::from(minutes.whole_minutes_round()).checked_mul(100_000)?;
-    let five = Decimal::new(round_div(scaled, i128::from(factor))?, 5).ok()?;
-    Some(five.normalized())
+    let factor = i128::from(factors.minutes_per_unit(unit, basis).tenths());
+    let tenths = i128::from(minutes.tenths());
+    let five = Decimal::new(round_div(tenths.checked_mul(100_000)?, factor)?, 5).ok()?;
+    if rereads(five) {
+        return Some(five.normalized());
+    }
+    let six = Decimal::new(round_div(tenths.checked_mul(1_000_000)?, factor)?, 6).ok()?;
+    Some(six.normalized())
 }
 
 /// Valeur et abréviation de `minutes` (≥ 0) ; repli exact en minutes si la
@@ -227,7 +270,10 @@ fn value_and_unit(ctx: &TextContext, minutes: Minutes, unit: DurationUnit, basis
         s = format_decimal(v, ctx.decimal);
         s.push_str(&abbreviation(unit, basis, ctx.language));
     } else {
-        s = minutes.whole_minutes_round().to_string();
+        s = Decimal::new(minutes.tenths(), 1).map_or_else(
+            |_| minutes.whole_minutes_round().to_string(),
+            |d| format_decimal(d.normalized(), ctx.decimal),
+        );
         s.push_str(&abbreviation(DurationUnit::Minute, basis, ctx.language));
     }
     s
