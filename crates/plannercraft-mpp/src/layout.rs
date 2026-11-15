@@ -238,6 +238,14 @@ pub mod project_prop {
     /// Semaine par défaut (7 jours de 60 octets, dimanche d'abord) : jours
     /// « par défaut » des calendriers.
     pub const DEFAULT_WEEK: u32 = 0x0240_1388;
+    /// « La tâche met à jour la ressource » (`u16`, 0 = non).
+    pub const TASK_UPDATES_RESOURCE: u32 = 0x0240_0019;
+    /// Fractionner les tâches en cours (`u16`, 0 = non).
+    pub const SPLIT_IN_PROGRESS: u32 = 0x0240_001A;
+    /// « Les tâches respectent toujours leurs dates de contrainte » : deux
+    /// clés toujours égales sur 212 fichiers, indiscernables ; lue à 0
+    /// seulement quand les deux valent 0.
+    pub const HONOR_CONSTRAINTS: [u32; 2] = [0x0240_0038, 0x0240_13CD];
     /// Date d'état (horodatage).
     pub const STATUS_DATE: u32 = 0x0240_0045;
     /// Premier jour de la semaine (`u16`, codes MSPDI `WeekStartDay`).

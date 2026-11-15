@@ -94,6 +94,10 @@ fn r283_timestamps() {
     assert_eq!(decode(NA), Stamp::Na);
     assert_eq!(decode(0x0000_12C0), Stamp::Invalid);
     assert_eq!(decode(0x0001_3841), Stamp::Invalid);
+    // Secondes tronquées (R-004) : 4 805 et 4 809 dixièmes ⇒ 08:00.
+    for raw in [0x206C_12C5, 0x206C_12C9] {
+        assert_eq!(decode(raw), Stamp::At("2006-09-21T08:00".parse().unwrap()));
+    }
     assert_eq!(stamp("2026-01-05T17:00") >> 16, 15_346);
 }
 
@@ -338,8 +342,59 @@ fn r287_calendars_week_exceptions_and_recurring() {
 }
 
 #[test]
+fn r287_default_days_follow_the_project_default_week() {
+    for layout in LAYOUTS {
+        // Semaine par défaut du projet (0x02401388) : les jours « par
+        // défaut » la suivent, pas le calendrier Standard.
+        let mut m = Mpp::new(layout);
+        let short = [(480, 720)];
+        let split = [(540, 720), (840, 1_080)];
+        let default_days = [
+            day(Some(&[])),
+            day(Some(&split)),
+            day(Some(&split)),
+            day(Some(&split)),
+            day(Some(&split)),
+            day(Some(&split)),
+            day(Some(&[])),
+        ]
+        .concat();
+        m.props.push((0x0240_1388, default_days));
+        m.calendars[0].data = Some(week(
+            [
+                day(Some(&[])),
+                day(Some(&short)),
+                day(None),
+                day(None),
+                day(None),
+                day(None),
+                day(None),
+            ],
+            &[],
+        ));
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        let cal = doc
+            .project
+            .calendars
+            .get(plannercraft_core::CalendarUid::new(1))
+            .unwrap();
+        let CalendarKind::Base { week } = cal.kind() else {
+            panic!()
+        };
+        assert_eq!(week.get(Weekday::Monday).total(), Minutes::new(240));
+        assert_eq!(week.get(Weekday::Tuesday).total(), Minutes::new(420));
+    }
+}
+
+#[test]
 fn r288_project_properties() {
-    let m = Mpp::new(Layout::Project2010);
+    let mut m = Mpp::new(Layout::Project2010);
+    // Valeur de longueur impaire en tête : l'octet de bourrage est sauté et
+    // les propriétés suivantes restent lues.
+    m.props.insert(0, (0x0240_000B, vec![1, 2, 3]));
+    m.props
+        .push((0x0240_0045, stamp("2026-01-16T17:00").to_le_bytes().to_vec()));
+    m.props.push((0x0240_0025, 1_u16.to_le_bytes().to_vec()));
     let doc = read(&m.bytes(), &common::options()).unwrap();
     assert_eq!(
         doc.project.anchor,
@@ -347,6 +402,9 @@ fn r288_project_properties() {
     );
     assert_eq!(doc.project.info.title, "Projet synthétique");
     assert_eq!(doc.project.options.factors.minutes_per_day(), 480);
+    assert_eq!(doc.project.status_date, Some("2026-01-16T17:00".parse().unwrap()));
+    assert_eq!(doc.project.options.week_start_day, Weekday::Monday);
+    assert!(!has(&doc, MppCode::PropertyMissing));
     // Planifier à rebours : la clé 0x02400004 vaut 0.
     let mut m = Mpp::new(Layout::Project2013);
     for (k, v) in &mut m.props {
@@ -368,6 +426,19 @@ fn r288_project_properties() {
     }
     let doc = read(&m.bytes(), &common::options()).unwrap();
     assert!(matches!(doc.project.anchor, ScheduleAnchor::FromStart(_)));
+    assert!(!doc.project.options.progress.task_updates_resource);
+    assert!(doc.project.options.honor_constraints);
+    // Options de calcul : fractionner les tâches en cours (0x0240001A) ;
+    // respecter les contraintes : à 0 seulement si les deux clés valent 0.
+    let mut m = Mpp::new(Layout::Project2013);
+    m.props.push((0x0240_001A, 0_u16.to_le_bytes().to_vec()));
+    m.props.push((0x0240_0038, 0_u16.to_le_bytes().to_vec()));
+    let doc = read(&m.bytes(), &common::options()).unwrap();
+    assert!(!doc.project.options.progress.split_in_progress);
+    assert!(doc.project.options.honor_constraints);
+    m.props.push((0x0240_13CD, 0_u16.to_le_bytes().to_vec()));
+    let doc = read(&m.bytes(), &common::options()).unwrap();
+    assert!(!doc.project.options.honor_constraints);
     // Calendrier du projet introuvable : premier calendrier, signalé.
     let mut m = Mpp::new(Layout::Project2013);
     m.props.retain(|(k, _)| *k != 0x0240_000E);
@@ -400,6 +471,35 @@ fn r289_constraints_deadline_notes_milestone() {
         // Contrainte datée sans date : « Dès que possible », signalé.
         assert_eq!(b.constraint.kind(), ConstraintKind::AsSoonAsPossible);
         assert!(has(&doc, MppCode::ConstraintWithoutDate));
+
+        // Réels, reprise et retard de nivellement enregistrés.
+        let mut m = Mpp::new(layout);
+        let mut c = T::new(1, 1, "Commencée");
+        c.actual = (stamp("2026-01-05T08:00"), NA, 2_400);
+        c.resume = stamp("2026-01-05T12:00");
+        c.percent = 50;
+        c.leveling = (4_800, 7);
+        let mut d = T::new(2, 2, "Achevée");
+        d.actual = (stamp("2026-01-05T08:00"), stamp("2026-01-05T17:00"), 4_800);
+        d.percent = 100;
+        d.resume = stamp("2026-01-05T13:00");
+        m.tasks.extend([c, d]);
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        let c = doc.project.tasks.get(TaskUid::new(1)).unwrap();
+        assert_eq!(c.progress.actual_start, Some("2026-01-05T08:00".parse().unwrap()));
+        assert_eq!(c.progress.actual_finish, None);
+        assert_eq!(c.progress.actual_duration, Minutes::new(240));
+        assert_eq!(c.progress.resume, Some("2026-01-05T12:00".parse().unwrap()));
+        let delay = c.leveling_delay.unwrap();
+        assert_eq!((delay.minutes, delay.elapsed), (Minutes::new(480), false));
+        let d = doc.project.tasks.get(TaskUid::new(2)).unwrap();
+        assert_eq!(
+            d.progress.actual_finish,
+            Some("2026-01-05T17:00".parse().unwrap())
+        );
+        // Reprise d'une tâche achevée : sans objet, non reprise.
+        assert_eq!(d.progress.resume, None);
+        assert!(d.leveling_delay.is_none());
     }
 }
 
@@ -409,6 +509,8 @@ fn r290_manual_mode_and_active_flag() {
         let mut m = Mpp::new(layout);
         let mut a = T::new(1, 1, "Manuelle");
         a.manual = Some((stamp("2026-01-07T08:00"), stamp("2026-01-09T17:00"), 14_400));
+        // Durée de l'enregistrement fixe différente : la durée saisie fait foi.
+        a.fixed_duration = Some(27_600);
         let mut b = T::new(2, 2, "Inactive");
         b.active = false;
         m.tasks.extend([a, b]);
@@ -425,6 +527,7 @@ fn r290_manual_mode_and_active_flag() {
         assert_eq!(*start, Some("2026-01-07T08:00".parse().unwrap()));
         assert_eq!(*finish, Some("2026-01-09T17:00".parse().unwrap()));
         assert_eq!(duration.unwrap().minutes(), Minutes::new(1_440));
+        assert_eq!(a.duration.minutes(), Minutes::new(1_440));
         let b = doc.project.tasks.get(TaskUid::new(2)).unwrap();
         assert!(!b.active);
         assert_eq!(b.mode, SchedulingMode::Auto);

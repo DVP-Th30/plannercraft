@@ -138,6 +138,10 @@ pub fn props(entries: &[(u32, Vec<u8>)]) -> Vec<u8> {
         out.extend_from_slice(&key.to_le_bytes());
         out.extend_from_slice(&(value.len() as u32).to_le_bytes());
         out.extend_from_slice(value);
+        // Valeur de longueur impaire : un octet de bourrage.
+        if value.len() % 2 == 1 {
+            out.push(0);
+        }
     }
     out
 }
@@ -166,6 +170,14 @@ pub struct T {
     pub null: bool,
     /// Enregistrement supprimé.
     pub deleted: bool,
+    /// Début réel, fin réelle (horodatages), durée réelle (dixièmes).
+    pub actual: (u32, u32, i32),
+    /// Reprise (horodatage).
+    pub resume: u32,
+    /// Retard de nivellement (dixièmes) et son format.
+    pub leveling: (i32, u16),
+    /// Durée de l'enregistrement fixe si elle diffère de `duration`.
+    pub fixed_duration: Option<i32>,
 }
 
 impl T {
@@ -189,6 +201,10 @@ impl T {
             notes: None,
             null: false,
             deleted: false,
+            actual: (NA, NA, 0),
+            resume: NA,
+            leveling: (0, 7),
+            fixed_duration: None,
         }
     }
 }
@@ -214,6 +230,9 @@ struct Off {
     active: (usize, u8),
     /// Autres dates de l'enregistrement (création, réels, reprise) : NA.
     other_dates: [usize; 4],
+    actual: (usize, usize, usize),
+    resume: usize,
+    leveling: (usize, usize),
 }
 
 fn off(layout: Layout) -> Off {
@@ -237,6 +256,9 @@ fn off(layout: Layout) -> Off {
             manual: (8, 0x08),
             active: (8, 0x04),
             other_dates: [98, 72, 76, 20],
+            actual: (72, 76, 48),
+            resume: 20,
+            leveling: (58, 62),
         },
         Layout::Project2013 => Off {
             len: 202,
@@ -257,6 +279,9 @@ fn off(layout: Layout) -> Off {
             manual: (8, 0x80),
             active: (8, 0x40),
             other_dates: [128, 120, 124, 132],
+            actual: (120, 124, 80),
+            resume: 132,
+            leveling: (70, 162),
         },
     }
 }
@@ -417,7 +442,17 @@ impl Mpp {
             put32(&mut rec, o.id, t.id);
             put32(&mut rec, o.start, t.start);
             put32(&mut rec, o.finish, t.finish);
-            put32(&mut rec, o.duration, t.duration as u32);
+            put32(
+                &mut rec,
+                o.duration,
+                t.fixed_duration.unwrap_or(t.duration) as u32,
+            );
+            put32(&mut rec, o.actual.0, t.actual.0);
+            put32(&mut rec, o.actual.1, t.actual.1);
+            put32(&mut rec, o.actual.2, t.actual.2 as u32);
+            put32(&mut rec, o.resume, t.resume);
+            put32(&mut rec, o.leveling.0, t.leveling.0 as u32);
+            put16(&mut rec, o.leveling.1, t.leveling.1);
             put16(&mut rec, o.format, t.format);
             put16(&mut rec, o.level, t.level);
             put16(&mut rec, o.ctype, t.constraint.0);

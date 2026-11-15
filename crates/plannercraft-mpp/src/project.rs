@@ -126,6 +126,20 @@ fn apply_props(project: &mut Project, props: &BTreeMap<u32, Vec<u8>>, sink: &mut
     {
         project.options.week_start_day = d;
     }
+    // Options de calcul (`u16`, 0 = non) ; absentes : celles d'un projet neuf.
+    let flag = |key: u32| props.get(&key).and_then(|v| le_u16(v, 0)).map(|v| v != 0);
+    if let Some(b) = flag(project_prop::TASK_UPDATES_RESOURCE) {
+        project.options.progress.task_updates_resource = b;
+    }
+    if let Some(b) = flag(project_prop::SPLIT_IN_PROGRESS) {
+        project.options.progress.split_in_progress = b;
+    }
+    if project_prop::HONOR_CONSTRAINTS
+        .iter()
+        .all(|k| flag(*k) == Some(false))
+    {
+        project.options.honor_constraints = false;
+    }
     if let Some(t) = time_prop(project_prop::DEFAULT_START) {
         project.options.default_start_time = t;
     }
