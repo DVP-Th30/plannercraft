@@ -158,7 +158,9 @@ Faits détaillés :
 ## 10. Calendriers (`TBkndCal`)
 
 - **observé** (`generated/calendar-calendars/calendar-calendars-project2016-mpp14.mpp`, B) : enregistrements de 12 octets `00 00 00 00 ff ff ff ff 01 00 00 00` (calendrier 1, « Standard », de base au corrigé), `01 00 00 00 00 00 00 00 02 00 00 00` (calendrier 2, dérivé du 1 au corrigé), `01 00 00 00 01 00 00 00 05 00 00 00` (calendrier 5, dérivé du 1). Même fichier enregistré par Project 2010 (A) : `01 00 00 00 ff ff ff ff ff ff ff ff` (1, de base), `02 00 00 00 01 00 00 00 00 00 00 00` (2, base 1).
-- **déduit** (164 fichiers, 540 calendriers en B, 719 en A, tous de nature et de base égales au corrigé, hors calendriers supprimés et absents du corrigé) : A `[u32 UID][i32 base][i32 ?]` ; B `[i32 base][i32 ?][u32 UID]` ; base nulle ou négative = calendrier de base (B : 0 ; A : −1, ou une valeur négative aberrante sur 2 calendriers), sinon UID du calendrier de base. Un calendrier dérivé est un calendrier de ressource (non repris dans ce lot).
+- **déduit** (164 fichiers, 540 calendriers en B, 719 en A, tous de nature et de base égales au corrigé, hors calendriers supprimés et absents du corrigé) : A `[u32 UID][i32 base][i32 ?]` ; B `[i32 base][i32 ?][u32 UID]` ; base nulle ou négative = calendrier de base (B : 0 ; A : −1, ou une valeur négative aberrante sur 2 calendriers), sinon UID du calendrier de base. Un calendrier dérivé est un calendrier de ressource (repris depuis le lot M2, R-296).
+- **observé** (lot M2 ; 41 fichiers réels, champ `?` des calendriers dérivés comparé au calendrier des ressources du corrigé) : le champ `i32 ?` d'un calendrier dérivé est l'UID de sa ressource (631 sur 633) ; `ffffffff` sur un calendrier de base.
+- **déduit** (lot M2 ; 632 calendriers dérivés réels et 1 068 de test, tous de base, semaine et nombre d'exceptions égaux au corrigé) : un calendrier dérivé a les mêmes valeurs variables qu'un calendrier de base ; jour au code 1 = hérité de la base (`Inherit`), code 0 = réglé ici.
 - **observé** (`mpp14calendar.mpp`, calendrier 7 « Night Shift », clé `0x0D400008`, 428 octets) : 7 jours de 60 octets puis 8 octets ; jour 1 (lundi) `00 00 01 00 58 02 00 00 e8 35 …` puis à l'octet 20 `58 02 00 00` : une plage, 600 dixièmes au total, début 13 800 dixièmes (23:00), durée 600 (1 h) ; le corrigé : lundi 23:00-00:00. Jour 2 : `00 00 03 00 c0 12 00 00 00 00 60 09 e8 35 …`, durées à l'octet 20 `08 07 00 00 60 09 00 00 58 02 00 00` : plages 00:00-03:00, 04:00-08:00, 23:00-24:00 ; le corrigé : idem. Jour 0 (dimanche) : `01 00 00 00 …`, chômé au corrigé.
 - **déduit** (207 calendriers de base de test et 96 réels, semaine entière égale au corrigé pour tous) : jour = `[u16 code][u16 nombre de plages][u32 total][5 × u16 débuts][u16][5 × u32 durées][5 × u32 cumuls]`, dixièmes de minute, dimanche d'abord ; code 0 = jour défini ici (aucune plage = chômé) ; code 1 = jour « par défaut » : celui de la semaine par défaut du projet (propriété `0x02401388`, § 5 ; Standard 08:00-12:00, 13:00-17:00 sur tout le corpus de test, autre sur 13 calendriers réels) ; calendrier de base sans clé `0x0D400008` = semaine par défaut. Sur un calendrier dérivé, code 1 = jour hérité de la base (5 jours vérifiés).
 - **observé** (`mpp14exceptions.mpp`, calendrier 1, 704 octets) : à l'octet 420 `03 00 00 00` (3 exceptions) ; première à 424 : `7f 22 7f 22` (jour 8 831 = 2008-03-05, du 5 au 5), puis un jour de 60 octets à l'octet 12 sans plage ; le corrigé : exception chômée du 2008-03-05. Troisième : `8a 22 8a 22` (2008-03-16) et cinq plages de 1 h (08:00, 11:00, 14:00, 16:00, 18:00) : idem au corrigé.
@@ -190,3 +192,42 @@ Faits détaillés :
 - **Source** : 41 fichiers publics de dépôts GitHub (projets d'étudiants et de cours de gestion de projet, un livre de formation ; un fichier `.mpt`) trouvés par la liste des arbres de dépôts publics, sans ouvrir de page ni de dépôt de lecteur de `.mpp` ; 7 fichiers d'un dépôt de formation fournis à la relecture. Source, commit et empreinte de chacun : `SOURCES.tsv` hors dépôt ; une sélection de 12 est au manifeste du corpus.
 - **observé** (réel : `PacktPublishing__Planning-and-Control-Using-Microsoft-Project-365-and-2021__Eastwood_Harris_MSP2021_Template_Ver_01.mpt`) : un gabarit `.mpt` a le même conteneur (dossier `   114`) et se lit comme un `.mpp` (12 tâches, toutes égales au corrigé). Un seul échantillon.
 - Ce que les fichiers réels ont appris, et que le corpus de test cachait : emplacements en surnombre (§ 4), bourrage des propriétés et semaine par défaut (§ 5), secondes tronquées (§ 6), réels et reprise, retard de nivellement, % achevé de B, durée des tâches manuelles (§ 7, § 8), exceptions périodiques (§ 10), clé du sens de planification (§ 5).
+
+## 14. Ressources (`TBkndRsc`, lot M2)
+
+- **observé** (`generated/resource-type/resource-type-project2013-mpp14.mpp`, B, 15 ressources : 5 coût, 5 matérielles, 5 travail au corrigé) : enregistrements fixes de 172 octets ; `u16` à l'octet 170 : `01 00` pour les UID 1 à 10 (coût et matérielles), `00 00` pour les UID 11 à 15 (travail) ; octet 8 de l'élément de `Fixed2Meta` de même rang : `1b` pour les UID 1 à 5 (coût), `0b` pour les autres. `f64` à l'octet 8 : `00 00 00 00 00 88 c3 40` = 10 000 (unités maximales 1 au corrigé).
+- **observé** (réel : `abhuiyan00__Computer-Project-Management__export-import-system.mpp`, B) : l'enregistrement de l'emplacement 13 commence par `0a 00 00 00 0b 00 00 00` ; son `Fixed2Data` porte le GUID `9DAFFB8F-0465-F111-A9D1-F447DB86B7CA`, celui de la ressource UID 11 (« Server hosting ») au corrigé : l'octet 0 est l'ID, l'octet 4 l'UID (comme pour les tâches en B).
+- **déduit** (lot M2 ; B : 638 ressources réelles et 453 de test ; A : 617 de test) :
+
+| Champ | A (Project 2010) | B (Project 2013 et suivants) | Égaux au corrigé |
+|---|---|---|---|
+| UID (`u32`) | 0 | 4 | A 617/617 ; B 638/638 et 453/453 |
+| Unités maximales (`f64`, 1/10 000) | 44 | 8 | A 617/617 ; B 634/638 et 453/453 |
+| Calendrier (`i32`, UID d'un calendrier dérivé) | 16 | 154 | A 615/617 ; B 625/631 et 453/453 |
+| Nature (`u16`, bit 0 posé = matérielle ou coût) | 14 | 170 | A 540/540 ; B 598/598 réelles, 368/369 de test |
+| Nom (valeur variable `0x0C400001`, UTF-16) | id. | id. | 598/598 |
+
+- **déduit** (A 15/15 ; B 39/39 réelles et 25/26 de test) : ressource coût = bit `0x10` de l'octet 8 de l'élément de `TBkndRsc/Fixed2Meta` de même rang. Le contre-exemple de test (une ressource « travail » au corrigé, bit coût et nature non travail posés dans le fichier) est soupçonné côté corrigé.
+- **inconnu** : étiquette d'unité d'une ressource matérielle (17 ressources réelles), taux et coûts, disponibilités datées, ressource générique ou inactive.
+
+## 15. Affectations (`TBkndAssn`, lot M2)
+
+- **observé** (réel : `advaith14__Project-Management-for-World-Hotels-__IST645F18A2BKamathA.mpp`, B, affectation UID 80) : `50 00 00 00` (UID 80) `50 00 00 00` (tâche 80) `09 00 00 00` (ressource 9) ; octet 12 : `00 00 00 00 00 70 b7 40` = 6 000 (unités 0,6 au corrigé) ; octet 20 : `00 00 00 00 c0 7a f0 40` = 67 500 (travail `PT1H7M30S`, 67,5 min) ; octet 52 : `28 16 8e 31` (début 2018-09-24 09:27:12 au corrigé).
+- **observé** (réel : `tefsantana__uala-digital-project-management-case-study__uala-project-schedule.mpp`, UID 638) : `i32` à l'octet 64 = 96 000 dixièmes (9 600 min) ; le corrigé écrit `Delay` 30 464 = 96 000 − 65 536. Même écart de 65 536 sur 5 autres affectations réelles (`AmaalAyman__…` UID 68, 69, 91, 92 ; `AlizaKhan3__…` UID 219) : le corrigé lit 16 bits ; les 21 autres retards non nuls sont égaux.
+- **observé** (`mpp14timephasedsegments.mpp`, A, une affectation par profil) : valeur variable `0x0F400031` (répartition), octet 28 : `02` pour le profil 2 au corrigé (UID 20 et 36), `01` (UID 22), `03` (24), `04` (26), `05` (28), `06` (30), `07` (32) ; `00` pour l'affectation UID 34, profil 8 au corrigé, et pour les profils uniformes.
+- **déduit** (B : 4 091 affectations réelles et 1 396 de test ; A : 823 de test) :
+
+| Champ | A | B | Égaux au corrigé |
+|---|---|---|---|
+| UID, tâche, ressource (`u32`, `u32`, `i32` ; −65 535 = aucune) | 0, 4, 8 | 0, 4, 8 | A 823/823 ; B 4 091/4 091 et 1 396/1 396 |
+| Unités (`f64`, 1/10 000) | 46 | 12 | A 823/823 ; B 4 051/4 091 et 1 396/1 396 |
+| Travail (`f64`, millièmes de minute) | 54 | 20 | A 804/804 ; B 3 565/3 736 et 1 376/1 376 |
+| Travail réel (`f64`, millièmes de minute) | 62 | 28 | A 64/65 ; B 9/9 de test |
+| Début, fin enregistrés (horodatages) | 12, 16 | 52, 56 | A 823/823 ; B 4 055/4 091 et 1 396/1 396 |
+| Retard d'affectation (`i32`, dixièmes) | inconnu | 64 | B 21/29, les 8 autres par troncature du corrigé (ci-dessus) |
+| Retard de nivellement (`i32`, dixièmes) | inconnu | 100 | B 17/17 |
+| Profil modifié à la main (bit de l'élément de `FixedMeta`) | octet 8, `0x10` | octet 10, `0x04` | A 25/25 ; B 42/42 réelles (0 sur 4 049 autres) et 28/28 de test |
+
+- **déduit** : profil 1 à 7 = octet 28 de la répartition (21 affectations de test, toutes égales) ; profil modifié à la main (8) : bit ci-dessus, la répartition saisie (la suite de la valeur `0x0F400031`) n'est pas lue.
+- Mesure après lecture (§ 10 du plan) : 4 096 affectations réelles présentes sur 4 225 au corrigé ; les 129 absentes sont des affectations de récapitulatives (ressource −65 535) que le fichier ne contient pas (aucun emplacement de `FixedMeta` ne les désigne : réel `AlejoTechEngineer__…` UID 45, 46, 47, sur les tâches 0, 1, 5) et que le corrigé fabrique. Unités 4 096/4 096, tâche et ressource 4 096/4 096, profil 4 096/4 096, retard 4 088/4 096 (troncature du corrigé), travail 4 072/4 096 (travail sous la minute : le lecteur arrondit, le corrigé tronque).
+- **inconnu** : retards d'affectation et de nivellement en A (aucun échantillon non nul lu), répartition saisie d'un profil modifié à la main, heures supplémentaires, coûts.

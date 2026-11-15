@@ -213,14 +213,18 @@ fn usable(set: &CalendarSet, uid: CalendarUid) -> bool {
 /// (R-069). Une récapitulative (`summary`) n'a pas de durée tenue : son
 /// affectation dure W ÷ U quel que soit son type (R-179 ; toutes les
 /// récapitulatives du corpus sont à durée fixe, O32, de durée enregistrée
-/// nulle dans A6).
+/// nulle dans A6). R-297 : profil non uniforme (`contour` autre que
+/// `Flat`) d'une feuille : durée de la tâche, comme à durée fixe.
 fn assignment_duration(
     task: &Task,
     work: Work,
     units: Units,
+    contour: WorkContour,
     summary: bool,
 ) -> Result<Minutes, &'static str> {
-    if (task.task_type == TaskType::FixedDuration && !summary) || units == Units::ZERO {
+    if (!summary && (task.task_type == TaskType::FixedDuration || contour != WorkContour::Flat))
+        || units == Units::ZERO
+    {
         return Ok(task.duration.minutes());
     }
     i128::from(work.minutes().get())
@@ -242,12 +246,13 @@ fn progress_durations(
     work: Work,
     actual_work: Work,
     units: Units,
+    contour: WorkContour,
 ) -> Option<Result<(Minutes, Minutes), &'static str>> {
     let f = crate::progress::facts(task);
     if f.state != crate::progress::ProgressState::Started {
         return None;
     }
-    if task.task_type == TaskType::FixedDuration || units == Units::ZERO {
+    if task.task_type == TaskType::FixedDuration || units == Units::ZERO || contour != WorkContour::Flat {
         return Some(Ok((f.actual_duration, crate::progress::remaining_duration(task))));
     }
     let w = work.minutes().get().max(0);
@@ -522,13 +527,13 @@ pub(super) fn resolve(
             task_calendar,
             // Rôle de la tâche inconnu ici : une récapitulative est
             // corrigée par `attach` (R-179).
-            duration: assignment_duration(task, a.work, a.units, false),
+            duration: assignment_duration(task, a.work, a.units, a.contour, false),
             delay: a.delay.max(Minutes::ZERO),
             leveling: a.leveling_delay.filter(|l| l.minutes > Minutes::ZERO),
             contour: a.contour,
             work: a.work,
             units: a.units,
-            progress: progress_durations(task, a.work, a.actual_work, a.units),
+            progress: progress_durations(task, a.work, a.actual_work, a.units, a.contour),
         });
     }
     // Clés uniques (UID d'affectation) : tri instable sans effet sur l'ordre.
@@ -856,7 +861,7 @@ pub(super) fn attach<'a>(
                 if summary {
                     // R-179 : W ÷ U, même pour une récapitulative à durée
                     // fixe.
-                    resolution.duration = assignment_duration(task, res.work, res.units, true);
+                    resolution.duration = assignment_duration(task, res.work, res.units, res.contour, true);
                     if resolution.duration.is_err() {
                         diags.push(Diagnostic::AssignmentDurationOutOfDomain { assignment: res.uid });
                     }

@@ -371,8 +371,57 @@ pub fn week(days: [Vec<u8>; 7], exceptions: &[Vec<u8>]) -> Vec<u8> {
     b
 }
 
+/// Ressource synthétique : UID, nom, nature (0 travail, 1 matérielle,
+/// 2 coût), unités maximales en 1/10 000, calendrier (UID ou 0).
+#[derive(Clone)]
+pub struct R {
+    pub uid: u32,
+    pub name: &'static str,
+    pub kind: u8,
+    pub max_units: f64,
+    pub calendar: i32,
+}
+
+/// Affectation synthétique.
+#[derive(Clone)]
+pub struct A {
+    pub uid: u32,
+    pub task: u32,
+    /// −65 535 : aucune ressource.
+    pub resource: i32,
+    /// En 1/10 000.
+    pub units: f64,
+    /// Millièmes de minute.
+    pub work: f64,
+    pub actual_work: f64,
+    /// Dixièmes de minute (disposition Project 2013 seulement).
+    pub delay: i32,
+    /// Code du profil (0 à 7) dans la répartition.
+    pub contour: u8,
+    /// Profil modifié à la main (bit de l'élément de méta).
+    pub contoured: bool,
+}
+
+impl A {
+    pub fn new(uid: u32, task: u32, resource: i32, units: f64, work_minutes: f64) -> Self {
+        Self {
+            uid,
+            task,
+            resource,
+            units,
+            work: work_minutes * 1_000.0,
+            actual_work: 0.0,
+            delay: 0,
+            contour: 0,
+            contoured: false,
+        }
+    }
+}
+
 /// Fichier `.mpp` synthétique.
 pub struct Mpp {
+    pub resources: Vec<R>,
+    pub assignments: Vec<A>,
     pub layout: Layout,
     pub tasks: Vec<T>,
     pub links: Vec<L>,
@@ -385,6 +434,8 @@ pub struct Mpp {
 impl Mpp {
     pub fn new(layout: Layout) -> Self {
         Self {
+            resources: Vec::new(),
+            assignments: Vec::new(),
             layout,
             tasks: vec![T::new(0, 0, "Projet")],
             links: Vec::new(),
@@ -531,6 +582,55 @@ impl Mpp {
         let (cm, cd) = cons.build();
         let (calm, cald) = cal.build();
         let (calvm, calvd) = var(&cal_vars);
+        // Ressources (docs/formats/mpp.md § 14) et affectations (§ 15).
+        let mut rsc = Fixed::new(37);
+        let mut rsc2 = Fixed::new(50);
+        rsc.reserved();
+        rsc2.reserved();
+        let mut rsc_vars = Vec::new();
+        for r in &self.resources {
+            let (len, uid, max, cal, kind) = match self.layout {
+                Layout::Project2010 => (188, 0, 44, 16, 14),
+                Layout::Project2013 => (172, 4, 8, 154, 170),
+            };
+            let mut rec = vec![0_u8; len];
+            put32(&mut rec, uid, r.uid);
+            rec[max..max + 8].copy_from_slice(&r.max_units.to_le_bytes());
+            put32(&mut rec, cal, r.calendar as u32);
+            put16(&mut rec, kind, u16::from(r.kind != 0));
+            rsc.push(0, &[], rec);
+            let bits: Vec<(usize, u8)> = if r.kind == 2 { vec![(8, 0x10)] } else { Vec::new() };
+            rsc2.push(0, &bits, vec![0_u8; 64]);
+            rsc_vars.push((r.uid, 0x0C40_0001, utf16(r.name)));
+        }
+        let mut assn = Fixed::new(34);
+        let mut assn_vars = Vec::new();
+        for a in &self.assignments {
+            let mut rec = vec![0_u8; 110];
+            put32(&mut rec, 0, a.uid);
+            put32(&mut rec, 4, a.task);
+            put32(&mut rec, 8, a.resource as u32);
+            let (units, work, actual, bit) = match self.layout {
+                Layout::Project2010 => (46, 54, 62, (8, 0x10)),
+                Layout::Project2013 => (12, 20, 28, (10, 0x04)),
+            };
+            rec[units..units + 8].copy_from_slice(&a.units.to_le_bytes());
+            rec[work..work + 8].copy_from_slice(&a.work.to_le_bytes());
+            rec[actual..actual + 8].copy_from_slice(&a.actual_work.to_le_bytes());
+            if self.layout == Layout::Project2013 {
+                put32(&mut rec, 64, a.delay as u32);
+            }
+            let bits: Vec<(usize, u8)> = if a.contoured { vec![bit] } else { Vec::new() };
+            assn.push(0, &bits, rec);
+            let mut dist = vec![0_u8; 68];
+            dist[28] = a.contour;
+            assn_vars.push((a.uid, 0x0F40_0031, dist));
+        }
+        let (rm, rd) = rsc.build();
+        let (r2m, r2d) = rsc2.build();
+        let (rvm, rvd) = var(&rsc_vars);
+        let (am, ad) = assn.build();
+        let (avm, avd) = var(&assn_vars);
         let mut streams: Vec<(String, Vec<u8>)> = vec![
             ("/Props14".to_owned(), utf16(self.saved_by())),
             (format!("/{}/Props", self.dir), props(&self.props)),
@@ -548,6 +648,16 @@ impl Mpp {
             ("TBkndCal/FixedData", cald),
             ("TBkndCal/VarMeta", calvm),
             ("TBkndCal/Var2Data", calvd),
+            ("TBkndRsc/FixedMeta", rm),
+            ("TBkndRsc/FixedData", rd),
+            ("TBkndRsc/Fixed2Meta", r2m),
+            ("TBkndRsc/Fixed2Data", r2d),
+            ("TBkndRsc/VarMeta", rvm),
+            ("TBkndRsc/Var2Data", rvd),
+            ("TBkndAssn/FixedMeta", am),
+            ("TBkndAssn/FixedData", ad),
+            ("TBkndAssn/VarMeta", avm),
+            ("TBkndAssn/Var2Data", avd),
         ] {
             streams.push((format!("/{}/{name}", self.dir), data));
         }

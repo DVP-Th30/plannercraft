@@ -114,6 +114,8 @@ fn measure_against_oracle() {
     let mut read_ok: BTreeMap<&'static str, u32> = BTreeMap::new();
     let mut tally = Tally::default();
     let mut engine = (0_u64, 0_u64);
+    let mut classes = (0_u64, 0_u64, 0_u64);
+    let mut causes: BTreeMap<&'static str, u64> = BTreeMap::new();
     let mut engine_oracle = (0_u64, 0_u64);
     let mut engine_bare = (0_u64, 0_u64);
     let mut no_oracle = 0;
@@ -180,22 +182,58 @@ fn measure_against_oracle() {
             &p.options.default_start_time,
             &op.options.default_start_time,
         );
-        // Non repris : comptes annoncés par le rapport.
-        let ni = doc.source.not_imported;
+        // Ressources et affectations (R-294, R-295) : la ressource 0 du
+        // corrigé est la ressource vide du projet, non reprise.
         tally.check(
-            "non repris : ressources",
+            "ressources : nombre",
             file,
             0,
-            &(ni.resources as usize),
-            &op.resources.len(),
+            &p.resources.len(),
+            &op.resources.iter().filter(|r| r.uid().get() != 0).count(),
         );
         tally.check(
-            "non repris : affectations",
+            "affectations : nombre",
             file,
             0,
-            &(ni.assignments as usize),
+            &p.assignments.len(),
             &op.assignments.len(),
         );
+        for oa in op.assignments.iter() {
+            let Some(a) = p.assignments.get(oa.uid()) else {
+                tally.check("affectation présente", file, oa.uid().get(), &false, &true);
+                continue;
+            };
+            let u = oa.uid().get();
+            tally.check("affectation présente", file, u, &true, &true);
+            tally.check(
+                "affectation : tâche et ressource",
+                file,
+                u,
+                &(a.task, a.resource),
+                &(oa.task, oa.resource),
+            );
+            tally.check("affectation : unités", file, u, &a.units, &oa.units);
+            tally.check("affectation : travail", file, u, &a.work, &oa.work);
+            tally.check("affectation : retard", file, u, &a.delay, &oa.delay);
+            tally.check("affectation : profil", file, u, &a.contour, &oa.contour);
+        }
+        for or in op.resources.iter().filter(|r| r.uid().get() != 0) {
+            let Some(r) = p.resources.get(or.uid()) else {
+                tally.check("ressource présente", file, or.uid().get(), &false, &true);
+                continue;
+            };
+            let u = or.uid().get();
+            tally.check("ressource présente", file, u, &true, &true);
+            tally.check("ressource : nature", file, u, &r.kind, &or.kind);
+            tally.check(
+                "ressource : unités maximales",
+                file,
+                u,
+                &r.max_units,
+                &or.max_units,
+            );
+            tally.check("ressource : calendrier", file, u, &r.calendar, &or.calendar);
+        }
         // Tâches : ordre et nombre.
         let mine_uids: Vec<u32> = p.tasks.iter().map(|t| t.uid().get()).collect();
         let oracle_uids: Vec<u32> = op.tasks.iter().map(|t| t.uid().get()).collect();
@@ -317,6 +355,29 @@ fn measure_against_oracle() {
                 &links(op, uid),
             );
         }
+        // Calendriers dérivés du corrigé (calendriers de ressource, R-296).
+        for oc in op.calendars.iter() {
+            let CalendarKind::Derived { base: ob, week: ow } = oc.kind() else {
+                continue;
+            };
+            let u = oc.uid().get();
+            let Some(c) = p.calendars.get(oc.uid()) else {
+                tally.check("calendrier dérivé présent", file, u, &false, &true);
+                continue;
+            };
+            tally.check("calendrier dérivé présent", file, u, &true, &true);
+            if let CalendarKind::Derived { base, week } = c.kind() {
+                tally.check("calendrier dérivé : base", file, u, base, ob);
+                tally.check("calendrier dérivé : semaine", file, u, week, ow);
+            }
+            tally.check(
+                "calendrier dérivé : exceptions (nombre)",
+                file,
+                u,
+                &c.exceptions().len(),
+                &oc.exceptions().len(),
+            );
+        }
         // Calendriers de base du corrigé : semaine et exceptions.
         for oc in op.calendars.iter() {
             let CalendarKind::Base { week: ow } = oc.kind() else {
@@ -363,6 +424,12 @@ fn measure_against_oracle() {
         let cmp = compare(p, &s, &doc.recorded);
         engine.0 += u64::from(cmp.tasks_identical);
         engine.1 += u64::from(cmp.tasks_compared);
+        classes.0 += u64::from(cmp.tasks_identical);
+        classes.1 += u64::from(cmp.tasks_rounding);
+        classes.2 += u64::from(cmp.tasks_off);
+        for (c, n) in &cmp.causes {
+            *causes.entry(c).or_default() += u64::from(*n);
+        }
         let so = schedule(op);
         let mut orec = plannercraft_mpp::Recorded::default();
         for (uid, r) in &o.recorded.tasks {
@@ -371,6 +438,7 @@ fn measure_against_oracle() {
                 plannercraft_mpp::RecordedTask {
                     start: r.start,
                     finish: r.finish,
+                    sub_minute: false,
                 },
             );
         }
@@ -388,10 +456,12 @@ fn measure_against_oracle() {
         engine_bare.1 += u64::from(cmpb.tasks_compared);
         if verbose {
             println!(
-                "{rel}: {} tâches, moteur {}/{} (corrigé relu par MSPDI : {}/{} ; sans ressources : {}/{})",
+                "{rel}: {} tâches, moteur {}/{} (arrondi {}, écart réel {}) (corrigé relu par MSPDI : {}/{} ; sans ressources : {}/{})",
                 p.tasks.len(),
                 cmp.tasks_identical,
                 cmp.tasks_compared,
+                cmp.tasks_rounding,
+                cmp.tasks_off,
                 cmpo.tasks_identical,
                 cmpo.tasks_compared,
                 cmpb.tasks_identical,
@@ -415,6 +485,10 @@ fn measure_against_oracle() {
     println!(
         "\nMoteur : tâches aux dates recalculées identiques aux dates enregistrées : {}/{} (lecture .mpp) ; {}/{} (même calcul sur le projet relu depuis le XML du corrigé) ; {}/{} (corrigé sans ressources ni affectations)",
         engine.0, engine.1, engine_oracle.0, engine_oracle.1, engine_bare.0, engine_bare.1
+    );
+    println!(
+        "Classes (lecture .mpp) : identiques à la minute {} ; à deux minutes près {} ; écart réel {} ; dont causes non recalculables {causes:?}",
+        classes.0, classes.1, classes.2
     );
     for (field, ex) in &tally.bad_examples {
         println!("\nÉcarts « {field} » (exemples) :");
@@ -546,6 +620,7 @@ fn diagnose_roots() {
                 plannercraft_mpp::RecordedTask {
                     start: r.start,
                     finish: r.finish,
+                    sub_minute: false,
                 },
             );
         }

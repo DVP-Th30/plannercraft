@@ -1,11 +1,13 @@
 //! Assemblage du projet : propriétés (`   114/Props`, R-288), calendriers,
-//! tâches, liens ; comptes de ce qui n'est pas repris.
+//! tâches, liens, ressources et affectations ; comptes de ce qui n'est pas
+//! repris.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use plannercraft_core::calendar::model::Calendar;
+use plannercraft_core::calendar::model::{Calendar, CalendarKind};
 use plannercraft_core::{
-    Arena, ConversionFactors, DurationUnit, Project, ProjectInit, ScheduleAnchor, TaskUid, TimeOfDay,
+    Arena, ConversionFactors, DurationUnit, Project, ProjectInit, ResourceKind, ResourceUid, ScheduleAnchor,
+    TaskUid, TimeOfDay,
 };
 use plannercraft_mspdi::codes::{self, DurationCode};
 
@@ -14,10 +16,10 @@ use crate::cfb::Cfb;
 use crate::detect::Found;
 use crate::diag::{MppCode, Sink};
 use crate::layout::project_prop;
-use crate::tables::{self, FixedItem, ItemLen};
+use crate::tables::{self, ItemLen};
 use crate::time::{self, Stamp};
 
-use crate::{MppError, NotImported, ReadOptions, Recorded, calendar, task};
+use crate::{MppError, NotImported, ReadOptions, Recorded, calendar, resource, task};
 
 /// Projet assemblé.
 #[derive(Debug)]
@@ -60,17 +62,6 @@ fn entity(cfb: &Cfb<'_>, dir: usize, name: &str, max: usize) -> Entity {
         fixed2_meta: read("Fixed2Meta"),
         fixed2_data: read("Fixed2Data"),
     }
-}
-
-/// Enregistrements vivants d'une table (ni réservés, ni supprimés, ni
-/// courts) : comptes de ce qui n'est pas repris.
-fn live(items: &[FixedItem<'_>]) -> u32 {
-    let n = items
-        .iter()
-        .filter(|i| !i.deleted() && !i.short())
-        .filter(|i| le_u32(i.data, 0).is_some_and(|u| u < 0xFFFF_0000))
-        .count();
-    u32::try_from(n).unwrap_or(u32::MAX)
 }
 
 fn stamp_prop(p: &BTreeMap<u32, Vec<u8>>, key: u32) -> Option<plannercraft_core::Moment> {
@@ -207,23 +198,90 @@ pub const fn refuse_inconsistent(records: u32, inconsistent: u32, any_task: bool
     inconsistent >= 2 && inconsistent.saturating_mul(4) >= records
 }
 
-/// Ce que ce lot ne reprend pas : enregistrements vivants des ressources et
-/// des affectations (comptes approchés), calendriers dérivés.
-fn not_imported(cfb: &Cfb<'_>, dir: usize, max: usize, records: usize, derived: u32) -> NotImported {
-    let count = |name: &str, len: usize| {
-        let e = entity(cfb, dir, name, max);
-        live(&tables::fixed_items(
-            &e.fixed_meta,
-            &e.fixed_data,
-            records,
-            ItemLen::Known(len),
-        ))
+/// Ancre du projet (R-288) et dates enregistrées de début et de fin.
+fn anchor(
+    props: &BTreeMap<u32, Vec<u8>>,
+    options: &ReadOptions,
+    sink: &mut Sink,
+) -> (
+    ScheduleAnchor,
+    Option<plannercraft_core::Moment>,
+    Option<plannercraft_core::Moment>,
+) {
+    let start = stamp_prop(props, project_prop::START);
+    let finish = stamp_prop(props, project_prop::FINISH);
+    let from_finish = props.get(&project_prop::FROM_START).and_then(|v| le_u16(v, 0)) == Some(0);
+    let anchor = match (from_finish, start, finish) {
+        (true, _, Some(f)) => ScheduleAnchor::FromFinish(f),
+        (_, Some(s), _) => ScheduleAnchor::FromStart(s),
+        _ => {
+            sink.push(MppCode::PropertyMissing, None, Some("début du projet".to_owned()));
+            ScheduleAnchor::FromStart(options.current_date)
+        }
     };
-    NotImported {
-        resources: count("TBkndRsc", 37),
-        assignments: count("TBkndAssn", 34),
-        resource_calendars: derived,
+    (anchor, start, finish)
+}
+
+/// R-294, R-295 : ressources et affectations au projet ; rend les dates
+/// enregistrées des affectations (règle 3).
+fn read_people(
+    cfb: &Cfb<'_>,
+    dir: usize,
+    (max, records): (usize, usize),
+    layout: crate::Layout,
+    calendars: &BTreeSet<u32>,
+    project: &mut Project,
+    sink: &mut Sink,
+) -> BTreeMap<plannercraft_core::AssignmentUid, crate::RecordedAssignment> {
+    let rsc = entity(cfb, dir, "TBkndRsc", max);
+    let items = tables::fixed_items(&rsc.fixed_meta, &rsc.fixed_data, records, ItemLen::Known(37));
+    let slots = tables::item_geometry(&rsc.fixed_meta, ItemLen::Known(37)).map_or(0, |(_, n)| n);
+    let second = tables::fixed_items(&rsc.fixed2_meta, &rsc.fixed2_data, records, ItemLen::Slots(slots));
+    let values = tables::var_values(&rsc.var_meta, &rsc.var_data, records);
+    let resources = resource::read_resources(&items, &second, &values, layout, calendars, sink);
+    let kinds: BTreeMap<ResourceUid, ResourceKind> =
+        resources.iter().map(|r| (r.uid(), r.kind.clone())).collect();
+    let mut arena = Arena::new();
+    for r in resources {
+        // UID uniques (filtrés à la lecture) : l'ajout ne peut pas échouer.
+        let _ = arena.push(r);
     }
+    project.resources = arena;
+    let assn = entity(cfb, dir, "TBkndAssn", max);
+    let items = tables::fixed_items(&assn.fixed_meta, &assn.fixed_data, records, ItemLen::Known(34));
+    let values = tables::var_values(&assn.var_meta, &assn.var_data, records);
+    let tasks: BTreeSet<TaskUid> = project.tasks.iter().map(plannercraft_core::Task::uid).collect();
+    let (assignments, recorded) = resource::read_assignments(&items, &values, layout, &tasks, &kinds, sink);
+    let mut arena = Arena::new();
+    for a in assignments {
+        let _ = arena.push(a);
+    }
+    project.assignments = arena;
+    recorded
+}
+
+/// R-296 : calendriers de ressource, dérivés d'un calendrier de base lu ;
+/// rend le nombre de calendriers écartés.
+fn install_derived(project: &mut Project, derived: Vec<Calendar>, sink: &mut Sink) -> u32 {
+    let base: BTreeSet<u32> = project.calendars.iter().map(|c| c.uid().get()).collect();
+    let mut dropped: u32 = 0;
+    for c in derived {
+        let known = match c.kind() {
+            CalendarKind::Derived { base: b, .. } => base.contains(&b.get()),
+            CalendarKind::Base { .. } => false,
+        };
+        if !known {
+            sink.push(MppCode::CalendarBaseUnknown, Some(c.uid().get()), None);
+            dropped = dropped.saturating_add(1);
+            continue;
+        }
+        let uid = c.uid().get();
+        if project.calendars.push(c).is_err() {
+            sink.push(MppCode::DuplicateUid, Some(uid), Some("calendrier".to_owned()));
+            dropped = dropped.saturating_add(1);
+        }
+    }
+    dropped
 }
 
 /// Assemble le projet.
@@ -247,17 +305,7 @@ pub fn build(
     let props = tables::props(&props_raw, records);
 
     // Ancre et facteurs.
-    let start = stamp_prop(&props, project_prop::START);
-    let finish = stamp_prop(&props, project_prop::FINISH);
-    let from_finish = props.get(&project_prop::FROM_START).and_then(|v| le_u16(v, 0)) == Some(0);
-    let anchor = match (from_finish, start, finish) {
-        (true, _, Some(f)) => ScheduleAnchor::FromFinish(f),
-        (_, Some(s), _) => ScheduleAnchor::FromStart(s),
-        _ => {
-            sink.push(MppCode::PropertyMissing, None, Some("début du projet".to_owned()));
-            ScheduleAnchor::FromStart(options.current_date)
-        }
-    };
+    let (anchor, start, finish) = anchor(&props, options, sink);
     let mut project = Project::new(ProjectInit {
         name: options.name.clone(),
         anchor,
@@ -275,6 +323,8 @@ pub fn build(
     let calendars = calendar::read(&cal_items, &cal_var, found.layout, &defaults, sink);
     install_calendars(&mut project, calendars.base, &props, sink);
     let known_calendars: BTreeSet<u32> = project.calendars.iter().map(|c| c.uid().get()).collect();
+    let dropped_calendars = install_derived(&mut project, calendars.derived, sink);
+    let all_calendars: BTreeSet<u32> = project.calendars.iter().map(|c| c.uid().get()).collect();
 
     // Tâches et liens.
     let tasks = entity(cfb, dir, "TBkndTask", max);
@@ -325,13 +375,29 @@ pub fn build(
     }
     project.tasks = arena;
 
-    let not_imported = not_imported(cfb, dir, max, records, calendars.derived);
+    // R-294, R-295 : ressources et affectations.
+    let recorded_assignments = read_people(
+        cfb,
+        dir,
+        (max, records),
+        found.layout,
+        &all_calendars,
+        &mut project,
+        sink,
+    );
+
+    let not_imported = NotImported {
+        resources: 0,
+        assignments: 0,
+        resource_calendars: dropped_calendars,
+    };
     Ok(Built {
         project,
         recorded: Recorded {
             project_start: start,
             project_finish: finish,
             tasks: read.recorded,
+            assignments: recorded_assignments,
         },
         not_imported,
         task_records,

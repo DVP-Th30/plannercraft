@@ -1,4 +1,4 @@
-//! Règles de l'import `.mpp` (R-281 à R-291, `docs/scheduling-rules.md`),
+//! Règles de l'import `.mpp` (R-281 à R-292, R-294 à R-296, `docs/scheduling-rules.md`),
 //! sur des fichiers synthétiques construits d'après `docs/formats/mpp.md`.
 #![allow(
     clippy::unwrap_used,
@@ -12,7 +12,7 @@
 
 mod common;
 
-use common::{C, Mpp, NA, T, day, exception, exception_rec, stamp, utf16, week};
+use common::{A, C, Mpp, NA, R, T, day, exception, exception_rec, stamp, utf16, week};
 use plannercraft_core::calendar::model::{CalendarKind, DaySetting, Recurrence};
 use plannercraft_core::{
     ConstraintKind, DurationUnit, LagValue, LinkType, Minutes, ScheduleAnchor, SchedulingMode, TaskUid,
@@ -232,6 +232,10 @@ fn r286_links() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "un scénario par disposition, lisible d'un bloc"
+)]
 fn r287_calendars_week_exceptions_and_recurring() {
     for layout in LAYOUTS {
         let mut m = Mpp::new(layout);
@@ -330,14 +334,17 @@ fn r287_calendars_week_exceptions_and_recurring() {
         assert!(matches!(ex[3].recurrence, Recurrence::Weekly { every: 2, .. }));
         // Type inconnu : ignorée, signalée.
         assert!(has(&doc, MppCode::CalendarExceptionUnknownType));
-        // Calendrier dérivé (de ressource) : compté, pas repris.
-        assert!(
+        // Calendrier dérivé (de ressource) : repris comme calendrier dérivé
+        // de sa base (R-296).
+        assert!(matches!(
             doc.project
                 .calendars
                 .get(plannercraft_core::CalendarUid::new(4))
-                .is_none()
-        );
-        assert_eq!(doc.source.not_imported.resource_calendars, 1);
+                .unwrap()
+                .kind(),
+            CalendarKind::Derived { .. }
+        ));
+        assert_eq!(doc.source.not_imported.resource_calendars, 0);
     }
 }
 
@@ -621,4 +628,212 @@ fn r284_meta_count_limits_slots_and_known_item_size() {
     meta2[16 + 47 + 4..16 + 47 + 8].copy_from_slice(&0_u32.to_le_bytes());
     let items = fixed_items(&meta2, &data, 100, ItemLen::Known(47));
     assert!(items[0].deleted() && !items[1].deleted());
+}
+
+/// Projet à deux tâches de 2 j (UID 1 et 2) et un calendrier de ressource
+/// dérivé (UID 5, base Standard, lundi chômé).
+fn with_resources(layout: Layout) -> Mpp {
+    let mut m = Mpp::new(layout);
+    let mut a = T::new(1, 1, "A");
+    a.duration = 9_600;
+    let mut b = T::new(2, 2, "B");
+    b.duration = 9_600;
+    m.tasks.extend([a, b]);
+    m.calendars.push(C {
+        uid: 5,
+        base: 1,
+        name: "Ana",
+        data: Some(week(
+            [
+                day(None),
+                day(Some(&[])),
+                day(None),
+                day(None),
+                day(None),
+                day(None),
+                day(None),
+            ],
+            &[],
+        )),
+    });
+    m.resources = vec![
+        R {
+            uid: 1,
+            name: "Ana",
+            kind: 0,
+            max_units: 20_000.0,
+            calendar: 5,
+        },
+        R {
+            uid: 2,
+            name: "Béton",
+            kind: 1,
+            max_units: 10_000.0,
+            calendar: 0,
+        },
+        R {
+            uid: 3,
+            name: "Frais",
+            kind: 2,
+            max_units: 10_000.0,
+            calendar: 0,
+        },
+    ];
+    m
+}
+
+#[test]
+fn r294_resources_kind_units_calendar() {
+    use plannercraft_core::{ResourceKind, ResourceUid};
+    for layout in LAYOUTS {
+        let doc = read(&with_resources(layout).bytes(), &common::options()).unwrap();
+        let r = |u: u32| doc.project.resources.get(ResourceUid::new(u)).unwrap();
+        assert_eq!(r(1).name, "Ana");
+        assert_eq!(r(1).kind, ResourceKind::Work);
+        assert_eq!(r(1).max_units.get(), 20_000);
+        assert_eq!(r(1).calendar, Some(plannercraft_core::CalendarUid::new(5)));
+        assert!(matches!(r(2).kind, ResourceKind::Material { .. }));
+        assert_eq!(r(3).kind, ResourceKind::Cost);
+        assert_eq!(doc.project.resources.len(), 3);
+        // Calendrier de ressource inconnu : calendrier du projet, signalé.
+        let mut m = with_resources(layout);
+        m.resources[0].calendar = 9;
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        assert_eq!(
+            doc.project.resources.get(ResourceUid::new(1)).unwrap().calendar,
+            None
+        );
+        assert!(has(&doc, MppCode::ResourceCalendarUnknown));
+    }
+}
+
+#[test]
+fn r295_assignments_units_work_delay_contour() {
+    use plannercraft_core::{AssignmentUid, ResourceUid, WorkContour};
+    for layout in LAYOUTS {
+        let mut m = with_resources(layout);
+        let mut x = A::new(10, 1, 1, 5_000.0, 480.0);
+        x.delay = 4_800;
+        let mut y = A::new(11, 2, 1, 10_000.0, 960.0);
+        y.contour = 6;
+        let mut z = A::new(12, 2, -65_535, 10_000.0, 0.0);
+        z.contoured = true;
+        // Tâche absente : ignorée, signalée.
+        let w = A::new(13, 99, 1, 10_000.0, 480.0);
+        m.assignments = vec![x, y, z, w];
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        let a = |u: u32| doc.project.assignments.get(AssignmentUid::new(u)).unwrap();
+        assert_eq!(a(10).task, TaskUid::new(1));
+        assert_eq!(a(10).resource, Some(ResourceUid::new(1)));
+        assert_eq!(a(10).units.get(), 5_000);
+        assert_eq!(a(10).work.minutes(), Minutes::new(480));
+        // Retard : lu en Project 2013 seulement.
+        let delay = match layout {
+            Layout::Project2010 => 0,
+            Layout::Project2013 => 480,
+        };
+        assert_eq!(a(10).delay, Minutes::new(delay));
+        assert_eq!(a(11).contour, WorkContour::Bell);
+        assert_eq!(a(12).resource, None);
+        assert_eq!(a(12).contour, WorkContour::Contoured);
+        assert!(has(&doc, MppCode::AssignmentContoured));
+        assert!(doc.project.assignments.get(AssignmentUid::new(13)).is_none());
+        assert!(has(&doc, MppCode::AssignmentIgnored));
+        assert_eq!(
+            has(&doc, MppCode::AssignmentDelayNotRead),
+            layout == Layout::Project2010
+        );
+    }
+}
+
+#[test]
+fn r296_resource_calendars_are_derived_calendars() {
+    use plannercraft_core::calendar::model::DayRule;
+    for layout in LAYOUTS {
+        let mut m = with_resources(layout);
+        // Calendrier dérivé dont la base manque : ignoré, signalé.
+        m.calendars.push(C {
+            uid: 6,
+            base: 42,
+            name: "Orphelin",
+            data: None,
+        });
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        let cal = doc
+            .project
+            .calendars
+            .get(plannercraft_core::CalendarUid::new(5))
+            .unwrap();
+        let CalendarKind::Derived { base, week } = cal.kind() else {
+            panic!("{:?}", cal.kind())
+        };
+        assert_eq!(base.get(), 1);
+        assert_eq!(*week.get(Weekday::Monday), DayRule::NonWorking);
+        assert_eq!(*week.get(Weekday::Tuesday), DayRule::Inherit);
+        assert!(
+            doc.project
+                .calendars
+                .get(plannercraft_core::CalendarUid::new(6))
+                .is_none()
+        );
+        assert!(has(&doc, MppCode::CalendarBaseUnknown));
+        assert_eq!(doc.source.not_imported.resource_calendars, 1);
+        // Le moteur place l'affectation d'Ana sur son calendrier : lundi
+        // chômé, tâche de 2 j du lun 05/01 → mar 06/01 08:00 – mer 17:00.
+        let mut m = with_resources(layout);
+        m.assignments = vec![A::new(10, 1, 1, 10_000.0, 960.0)];
+        let doc = read(&m.bytes(), &common::options()).unwrap();
+        let s = schedule(&doc.project);
+        let t = s.scheduled(TaskUid::new(1)).unwrap();
+        assert_eq!(t.start, "2026-01-06T08:00".parse().unwrap());
+        assert_eq!(t.finish, "2026-01-07T17:00".parse().unwrap());
+    }
+}
+
+#[test]
+fn r298_comparison_classes_and_causes() {
+    use plannercraft_mpp::compare::{GapCause, GapClass};
+    let mut m = Mpp::new(Layout::Project2013);
+    // 1 : une minute d'écart → arrondi.
+    let mut a = T::new(1, 1, "A");
+    a.start = stamp("2026-01-05T08:01");
+    a.finish = stamp("2026-01-05T17:01");
+    // 2 : sans lien ni contrainte, enregistrée le mercredi → début
+    // inexpliqué.
+    let mut b = T::new(2, 2, "B");
+    b.start = stamp("2026-01-07T08:00");
+    b.finish = stamp("2026-01-07T17:00");
+    // 3 : profil d'affectation modifié à la main.
+    let mut c = T::new(3, 3, "C");
+    c.start = stamp("2026-01-12T08:00");
+    c.finish = stamp("2026-01-12T17:00");
+    // 4 : FS de A, enregistrée un jour plus tard, à la fraction de minute.
+    let mut d = T::new(4, 4, "D");
+    d.start = stamp("2026-01-07T08:00") + 5;
+    d.finish = stamp("2026-01-07T17:00");
+    m.tasks.extend([a, b, c, d]);
+    m.links = vec![(1, 4, 1, 0, 7)];
+    let mut x = A::new(10, 3, -65_535, 10_000.0, 480.0);
+    x.contoured = true;
+    m.assignments = vec![x];
+    let doc = read(&m.bytes(), &common::options()).unwrap();
+    let s = schedule(&doc.project);
+    let cmp = compare(&doc.project, &s, &doc.recorded);
+    assert_eq!(
+        (
+            cmp.tasks_compared,
+            cmp.tasks_identical,
+            cmp.tasks_rounding,
+            cmp.tasks_off
+        ),
+        (4, 0, 1, 3)
+    );
+    let of = |uid: u32| cmp.gaps.iter().find(|g| g.uid == uid).unwrap();
+    assert_eq!(of(1).class, GapClass::Rounding);
+    assert_eq!(of(2).cause, Some(GapCause::UnexplainedStart));
+    assert_eq!(of(3).cause, Some(GapCause::ContouredAssignment));
+    assert_eq!(of(4).cause, Some(GapCause::SubMinute));
+    assert_eq!(cmp.causes.get("mpp.gap.unexplained_start"), Some(&1));
+    // Plus de plafond : tous les écarts sont listés (un par date).
+    assert_eq!(cmp.gaps.len(), 8);
 }

@@ -41,6 +41,10 @@ pub struct View<'a> {
     pub calendars: usize,
     /// Exceptions de calendrier reprises.
     pub calendar_exceptions: usize,
+    /// Ressources reprises (R-294).
+    pub resources: usize,
+    /// Affectations reprises (R-295).
+    pub assignments: usize,
     /// Non repris.
     pub not_imported: NotImported,
     /// Diagnostics par code.
@@ -74,6 +78,8 @@ pub fn view<'a>(doc: &'a MppDocument, comparison: Option<&'a Comparison>) -> Vie
         links: p.tasks.iter().map(|t| t.predecessors.len()).sum(),
         calendars: p.calendars.len(),
         calendar_exceptions: p.calendars.iter().map(|c| c.exceptions().len()).sum(),
+        resources: p.resources.len(),
+        assignments: p.assignments.len(),
         not_imported: doc.source.not_imported,
         diagnostics,
         diagnostic_list: &doc.diagnostics,
@@ -112,6 +118,14 @@ pub fn text(doc: &MppDocument, comparison: Option<&Comparison>, fr: bool) -> Str
         v.calendar_exceptions,
         t("exceptions", "exceptions"),
     );
+    let _ = writeln!(
+        s,
+        "{} : {}, {} : {}",
+        t("Ressources", "Resources"),
+        v.resources,
+        t("affectations", "assignments"),
+        v.assignments,
+    );
     let ni = v.not_imported;
     if ni.resources > 0 || ni.assignments > 0 || ni.resource_calendars > 0 {
         let _ = writeln!(
@@ -127,37 +141,7 @@ pub fn text(doc: &MppDocument, comparison: Option<&Comparison>, fr: bool) -> Str
         );
     }
     if let Some(c) = comparison {
-        let _ = writeln!(
-            s,
-            "{} : {} {} {}, {} {} ({} {}, {} {})",
-            t(
-                "Dates enregistrées par MS Project comparées aux dates calculées",
-                "Dates saved by MS Project compared with computed dates"
-            ),
-            c.tasks_identical,
-            t("tâches identiques sur", "identical tasks out of"),
-            c.tasks_compared,
-            c.tasks_different(),
-            t("différentes", "different"),
-            c.starts_equal,
-            t("débuts égaux", "equal starts"),
-            c.finishes_equal,
-            t("fins égales", "equal finishes"),
-        );
-        for g in c.gaps.iter().take(MAX_GAPS_SHOWN) {
-            let _ = writeln!(
-                s,
-                "  {} {} {} : {} {}, {} {} ({:+} min)",
-                t("ID", "ID"),
-                g.id,
-                g.field,
-                t("enregistrée", "saved"),
-                g.recorded,
-                t("calculée", "computed"),
-                g.computed,
-                g.minutes
-            );
-        }
+        comparison_text(&mut s, c, fr);
     }
     if !v.diagnostics.is_empty() {
         let _ = writeln!(s, "{} :", t("Diagnostics", "Diagnostics"));
@@ -180,4 +164,66 @@ pub fn text(doc: &MppDocument, comparison: Option<&Comparison>, fr: bool) -> Str
         }
     }
     s
+}
+
+/// Comparaison des dates enregistrées et calculées (R-291, R-298).
+fn comparison_text(s: &mut String, c: &Comparison, fr: bool) {
+    let t = |a: &'static str, b: &'static str| if fr { a } else { b };
+    let _ = writeln!(
+        s,
+        "{} : {} {} {}, {} {}, {} {} ({} {}, {} {})",
+        t(
+            "Dates enregistrées par MS Project comparées aux dates calculées",
+            "Dates saved by MS Project compared with computed dates"
+        ),
+        c.tasks_identical,
+        t(
+            "tâches identiques à la minute sur",
+            "tasks identical to the minute out of"
+        ),
+        c.tasks_compared,
+        c.tasks_rounding,
+        t("à deux minutes près (arrondi)", "within two minutes (rounding)"),
+        c.tasks_off,
+        t("en écart réel", "really different"),
+        c.starts_equal,
+        t("débuts égaux", "equal starts"),
+        c.finishes_equal,
+        t("fins égales", "equal finishes"),
+    );
+    for (code, n) in &c.causes {
+        let label = [
+            crate::compare::GapCause::ContouredAssignment,
+            crate::compare::GapCause::StaggeredAssignments,
+            crate::compare::GapCause::UnexplainedStart,
+            crate::compare::GapCause::SubMinute,
+        ]
+        .into_iter()
+        .find(|g| g.code() == *code)
+        .map_or("", |g| g.label(fr));
+        let _ = writeln!(
+            s,
+            "  {} : {code} × {n} ({label})",
+            t("non recalculable", "not recomputable"),
+        );
+    }
+    for g in c
+        .gaps
+        .iter()
+        .filter(|g| g.class == crate::compare::GapClass::Real)
+        .take(MAX_GAPS_SHOWN)
+    {
+        let _ = writeln!(
+            s,
+            "  {} {} {} : {} {}, {} {} ({:+} min)",
+            t("ID", "ID"),
+            g.id,
+            g.field,
+            t("enregistrée", "saved"),
+            g.recorded,
+            t("calculée", "computed"),
+            g.computed,
+            g.minutes
+        );
+    }
 }

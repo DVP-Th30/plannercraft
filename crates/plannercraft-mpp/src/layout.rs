@@ -195,6 +195,129 @@ pub const fn calendar(layout: Layout) -> CalendarLayout {
     }
 }
 
+/// Décalages d'un enregistrement de ressource (`TBkndRsc/FixedData`,
+/// `docs/formats/mpp.md` § 14).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResourceLayout {
+    /// UID (`u32`).
+    pub uid: usize,
+    /// Unités maximales (`f64`, en 1/10 000 : 10 000 = 100 %).
+    pub max_units: usize,
+    /// Calendrier de la ressource (`i32`, UID d'un calendrier dérivé).
+    pub calendar: usize,
+    /// Nature (`u16`) : bit 0 nul = travail, posé = matérielle ou coût.
+    pub kind: usize,
+    /// Longueur lue au moins.
+    pub len: usize,
+}
+
+/// Ressource coût : octet de l'élément de `TBkndRsc/Fixed2Meta` (même rang)
+/// et masque (les deux dispositions).
+pub const RESOURCE_COST: (usize, u8) = (8, 0x10);
+
+/// Disposition des ressources.
+#[must_use]
+pub const fn resource(layout: Layout) -> ResourceLayout {
+    match layout {
+        Layout::Project2010 => ResourceLayout {
+            uid: 0,
+            max_units: 44,
+            calendar: 16,
+            kind: 14,
+            len: 52,
+        },
+        Layout::Project2013 => ResourceLayout {
+            uid: 4,
+            max_units: 8,
+            calendar: 154,
+            kind: 170,
+            len: 172,
+        },
+    }
+}
+
+/// Décalages d'un enregistrement d'affectation (`TBkndAssn/FixedData`,
+/// `docs/formats/mpp.md` § 15).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AssignmentLayout {
+    /// UID (`u32`).
+    pub uid: usize,
+    /// UID de la tâche (`u32`).
+    pub task: usize,
+    /// UID de la ressource (`i32` ; −65 535 = aucune).
+    pub resource: usize,
+    /// Unités (`f64`, en 1/10 000).
+    pub units: usize,
+    /// Travail (`f64`, millièmes de minute).
+    pub work: usize,
+    /// Travail réel (`f64`, millièmes de minute).
+    pub actual_work: usize,
+    /// Début enregistré (horodatage).
+    pub start: usize,
+    /// Fin enregistrée (horodatage).
+    pub finish: usize,
+    /// Retard d'affectation (`i32`, dixièmes de minute) ; `None` : non
+    /// établi pour cette disposition.
+    pub delay: Option<usize>,
+    /// Retard de nivellement de l'affectation (`i32`, dixièmes de minute).
+    pub leveling_delay: Option<usize>,
+    /// Profil modifié à la main : octet de l'élément de `FixedMeta` et
+    /// masque.
+    pub contoured: (usize, u8),
+    /// Longueur lue au moins.
+    pub len: usize,
+}
+
+/// Disposition des affectations.
+#[must_use]
+pub const fn assignment(layout: Layout) -> AssignmentLayout {
+    match layout {
+        Layout::Project2010 => AssignmentLayout {
+            uid: 0,
+            task: 4,
+            resource: 8,
+            units: 46,
+            work: 54,
+            actual_work: 62,
+            start: 12,
+            finish: 16,
+            delay: None,
+            leveling_delay: None,
+            contoured: (8, 0x10),
+            len: 86,
+        },
+        Layout::Project2013 => AssignmentLayout {
+            uid: 0,
+            task: 4,
+            resource: 8,
+            units: 12,
+            work: 20,
+            actual_work: 28,
+            start: 52,
+            finish: 56,
+            delay: Some(64),
+            leveling_delay: Some(100),
+            contoured: (10, 0x04),
+            len: 104,
+        },
+    }
+}
+
+/// Clés des valeurs variables d'une ressource (`TBkndRsc/VarMeta`).
+pub mod resource_var {
+    /// Nom (UTF-16).
+    pub const NAME: u32 = 0x0C40_0001;
+}
+
+/// Clés des valeurs variables d'une affectation (`TBkndAssn/VarMeta`).
+pub mod assignment_var {
+    /// Répartition du travail ; le code du profil (`u8`, codes MSPDI
+    /// `WorkContour` 0 à 7) est à l'octet [`CONTOUR_AT`].
+    pub const DISTRIBUTION: u32 = 0x0F40_0031;
+    /// Octet du code du profil dans [`DISTRIBUTION`].
+    pub const CONTOUR_AT: usize = 28;
+}
+
 /// Clés des valeurs variables d'une tâche (`TBkndTask/VarMeta`).
 pub mod task_var {
     /// Nom (UTF-16, terminé par un nul).

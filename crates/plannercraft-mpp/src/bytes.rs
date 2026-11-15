@@ -64,3 +64,54 @@ pub fn utf16_z_all(b: &[u8], max_chars: usize) -> String {
         .collect();
     String::from_utf16_lossy(&units)
 }
+
+/// Nombre IEEE 754 double (`f64` petit-boutiste) à `off`, divisé par
+/// `divisor` et arrondi à l'entier, moitié loin de zéro (R-001). Décodé
+/// exactement à partir des bits (mantisse et exposant), sans calcul
+/// flottant : même résultat sur toutes les plateformes (règle 5). `None`
+/// hors des octets, pour un infini ou un non-nombre, ou hors de `i64`.
+#[must_use]
+pub fn le_f64_round(b: &[u8], off: usize, divisor: u64) -> Option<i64> {
+    let bits = le_u64(b, off)?;
+    let negative = bits >> 63 == 1;
+    let exponent = u16::try_from((bits >> 52) & 0x7FF).ok()?;
+    let fraction = bits & ((1_u64 << 52) - 1);
+    if exponent == 0x7FF || divisor == 0 {
+        return None;
+    }
+    // Valeur = mantisse × 2^shift.
+    let (mantissa, shift) = if exponent == 0 {
+        (fraction, -1074_i32)
+    } else {
+        (fraction | (1_u64 << 52), i32::from(exponent).checked_sub(1075)?)
+    };
+    if mantissa == 0 {
+        return Some(0);
+    }
+    let (num, den) = if shift >= 0 {
+        // Au-delà de 2^63, la valeur sort de toute façon de `i64`.
+        if shift > 11 {
+            return None;
+        }
+        (
+            u128::from(mantissa).checked_shl(shift.unsigned_abs())?,
+            u128::from(divisor),
+        )
+    } else {
+        let s = shift.unsigned_abs();
+        // Valeur sous 2^-50 (mantisse sur 53 bits) : arrondie à 0.
+        if s > 100 {
+            return Some(0);
+        }
+        (u128::from(mantissa), u128::from(divisor).checked_shl(s)?)
+    };
+    let q = num.checked_div(den)?;
+    let r = num.checked_rem(den)?;
+    let rounded = if r.checked_mul(2)? >= den {
+        q.checked_add(1)?
+    } else {
+        q
+    };
+    let v = i64::try_from(rounded).ok()?;
+    Some(if negative { v.checked_neg()? } else { v })
+}

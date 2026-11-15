@@ -1205,7 +1205,7 @@ Règles J5 (ADR-0013, cahier `docs/plans/j5.md` § 2.3) : placement affectation 
 - **Tests** : `tests/rules/r179_summary_assignments.rs` (`r179_summary_assignment_own_duration`, `r179_fixed_duration_summary_assignment_own_duration`, `r179_summary_assignment_never_truncated`, `r179_summary_assignment_delay`, `r179_material_covers_summary`).
 
 ## R-180 — Profils de travail non uniformes
-- **Formulation** : une affectation de travail d'une tâche active dont le profil n'est pas `Flat` (`WorkContour` 1 à 8) est placée comme une affectation uniforme. `assignment.contour_unsupported` (info) est émis une fois par affectation et par recalcul. Le profil reste dans le modèle pour l'aller-retour. Exemple : tâche 2 j, R1 16 h en cloche ⇒ mêmes dates qu'uniforme, un diagnostic.
+- **Formulation** : une affectation de travail d'une tâche active dont le profil n'est pas `Flat` (`WorkContour` 1 à 8) est placée comme une affectation uniforme, sur la durée de la tâche (amendement R-297). `assignment.contour_unsupported` (info) est émis une fois par affectation et par recalcul. Le profil reste dans le modèle pour l'aller-retour. Exemple : tâche 2 j, R1 16 h en cloche ⇒ mêmes dates qu'uniforme, un diagnostic.
 - **Source** : hypothèse (ADR-0013 ; O33 : A7 a un `WorkContour` 8).
 - **Statut** : `hypothèse`.
 - **Tests** : `tests/rules/r180_work_contours.rs` (`r180_bell_scheduled_flat`).
@@ -2068,6 +2068,7 @@ Lecture des fichiers binaires de MS Project (`crates/plannercraft-mpp`). Le form
 - **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r290_manual_mode_and_active_flag`).
 
 ## R-291 — Import .mpp : dates enregistrées et dates recalculées
+- **Amendement (lot M2, R-298)** : tous les écarts sont listés (plus de plafond de 200) et chaque tâche différente est classée : arrondi (au plus 2 minutes) ou écart réel, avec sa cause non recalculable quand elle est connue.
 - **Formulation** : le début et la fin enregistrés de chaque tâche (calculés par MS Project) ne vont pas dans le projet (règle 3) ; après la lecture, le moteur calcule, et chaque tâche non vide planifiée est comparée **à la minute** (début et fin) ; le rapport donne les tâches comparées, identiques et différentes, les débuts et fins égaux, et les 200 premiers écarts (UID, ID, champ, date enregistrée, date calculée, écart signé en minutes). Rien n'est corrigé.
   - Exemple : A puis B liées FD, B enregistrée le mercredi alors que le moteur la place le mardi ⇒ 2 tâches comparées, 1 identique, écart `start` −1 440 min.
 - **Source** : hypothèse.
@@ -2081,7 +2082,7 @@ Lecture des fichiers binaires de MS Project (`crates/plannercraft-mpp`). Le form
 - **Statut** : `hypothèse`.
 - **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r292_inconsistent_task_table_is_refused`).
 
-### Parité des dates sur les fichiers réels (R-293 et suivantes ; ADR-0037, lot M2)
+### Parité des dates sur les fichiers réels (R-293 à R-298 ; ADR-0037, lot M2)
 
 Règles du moteur établies en comparant les dates recalculées aux dates enregistrées par MS Project dans des fichiers `.mpp` réels publics (`docs/plans/mpp-import.md` § 10). La source est « hypothèse » : l'observation porte sur des fichiers, pas sur MS Project lancé ; chaque fiche cite les fichiers, tâches et valeurs qui la fondent.
 
@@ -2091,3 +2092,38 @@ Règles du moteur établies en comparant les dates recalculées aux dates enregi
 - **Source** : hypothèse ; observé sur des fichiers `.mpp` réels publics : 20 feuilles automatiques sans lien ni contrainte, sous une récapitulative manuelle dont aucun ancêtre n'a de lien ni de contrainte, commencent toutes au début saisi de la récapitulative (aucune au début du projet), dont `4jvarun__Total-Quality-Project-Management__Project_V2v_Communications.mpp` UID 13 et 14 (récapitulatives manuelles UID 12 et 11 au 01/07/2019 08:00, début du projet 03/08/2019 08:00 : tâches enregistrées le 01/07/2019 08:00), UID 34 (récapitulative manuelle UID 28 au 19/08/2019 : tâche au 19/08/2019), `AtharvaTK1997__…__assign_1_20%.mpp` UID 2, `vincenzorusso3__uniseats__C06_SA_Vers.1.1.mpp` UID 2, 6, 8. Liens entrants : 9 feuilles de plus, sous une récapitulative manuelle qui a un prédécesseur, commencent aussi à son début saisi, même quand le lien tomberait plus tard (`chandana7373__branding-and-website-strategy-project-capstone__Capstone_Project_Integrated_Plan_Latinas_Outreach.mpp` : récapitulative manuelle UID 195 au 10/02/2025 08:00, prédécesseur UID 190 fini le 13/03/2025 17:00, sous-tâche UID 196 enregistrée le 10/02/2025 08:00 ; UID 204, 209, 213, 218, 222, 230, 233 ; `vincenzorusso3__uniseats__C06_SA_Vers.1.1.mpp` UID 27). Aucun contre-exemple dans les fichiers de test MPP14, les 7 fichiers de relecture ni le corpus MSPDI. Effet mesuré : 103 tâches de plus identiques sur les fichiers réels (2 255 → 2 358 sur 2 966 ; 2 335 avec le plancher seul), aucune perdue sur le corpus de test MPP14 (2 179 / 2 221) ni sur le corpus MSPDI (156 / 159).
 - **Statut** : `hypothèse`.
 - **Tests** : `tests/rules/r293_manual_summary_floor.rs` (`r293_children_start_at_the_entered_start`, `r293_before_the_project_start`, `r293_nested_summary_and_links`, `r293_undated_manual_summary_keeps_the_project_start`, `r293_links_into_the_manual_summary_are_not_inherited`) ; R-064 mis à jour (`tests/rules/r064_manual_summary.rs`).
+
+## R-294 — Import .mpp : ressources
+- **Formulation** : chaque enregistrement en service de `TBkndRsc` (hors UID 0, ressource vide du projet, et réservés) donne une ressource : UID, nom (valeur variable `0x0C400001`), unités maximales (`f64` en 1/10 000), calendrier (UID d'un calendrier dérivé lu, sinon aucun, `mpp.resource_calendar_unknown`), nature : coût si le bit `0x10` de l'octet 8 de l'élément de `Fixed2Meta` de même rang est posé, sinon matérielle si le bit 0 du `u16` de nature est posé, sinon travail. Disposition Project 2010 : UID à l'octet 0, calendrier à 16, nature à 14, unités maximales à 44 ; Project 2013 : 4, 154, 170, 8. L'étiquette d'unité d'une ressource matérielle et les coûts ne sont pas lus.
+  - Exemple : enregistrement Project 2013, UID 1, `f64` 20 000 à l'octet 8, calendrier 5, nature 0 ⇒ ressource travail « Ana », 200 %, calendrier 5.
+- **Source** : observé (`docs/formats/mpp.md` § 14).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r294_resources_kind_units_calendar`).
+
+## R-295 — Import .mpp : affectations
+- **Formulation** : chaque enregistrement en service de `TBkndAssn` donne une affectation : tâche (absente ⇒ ignorée, `mpp.assignment_ignored`), ressource (−65 535 ⇒ aucune ; inconnue ⇒ aucune, signalé), unités (`f64` en 1/10 000), travail et travail réel (`f64` en millièmes de minute, arrondis à la minute par R-001), travail restant dérivé (R-211), retard d'affectation et retard de nivellement (`i32`, dixièmes de minute ; disposition Project 2013 seulement, `mpp.assignment_delay_not_read` sinon), profil : modifié à la main si le bit de l'élément de méta est posé (`mpp.assignment_contoured`), sinon le code MSPDI lu à l'octet 28 de la répartition (valeur variable `0x0F400031`). Les dates enregistrées des affectations vont à part (règle 3).
+  - Exemple : UID 10, tâche 1, ressource 1, unités 5 000, travail 480 000 ⇒ 50 %, 480 min.
+- **Source** : observé (`docs/formats/mpp.md` § 15).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r295_assignments_units_work_delay_contour`).
+
+## R-296 — Import .mpp : calendriers de ressource
+- **Formulation** : un calendrier dont la base lue est positive est un calendrier dérivé de cette base : jours au code 1 hérités de la base (`Inherit`), jours au code 0 réglés (plages ou chômé), exceptions comme pour un calendrier de base (R-287) ; base absente ⇒ calendrier écarté (`mpp.calendar_base_unknown`, compté dans « non repris »). Le moteur place les affectations de travail sur le calendrier de leur ressource (R-171).
+  - Exemple : calendrier 5 dérivé du calendrier 1, lundi chômé, autres jours au code 1 ⇒ lundi chômé, mardi à dimanche hérités ; une affectation de 2 j de sa ressource sur une tâche commençant un lundi va du mardi au mercredi.
+- **Source** : observé (`docs/formats/mpp.md` § 10, § 14).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r296_resource_calendars_are_derived_calendars`).
+
+## R-297 — Durée d'une affectation à profil non uniforme
+- **Formulation** : la part d'une affectation de travail d'une feuille dont le profil n'est pas uniforme (`WorkContour` 1 à 8) dure la durée de la tâche (comme pour une tâche à durée fixe, R-170), et non travail ÷ unités ; elle reste placée comme uniforme (R-180). En cours (R-209) : durée réelle et reste de la tâche.
+  - Exemple : tâche 3 j, R1 16 h à 100 % en cloche ⇒ part de 3 j (uniforme : 2 j).
+- **Source** : hypothèse ; observé sur les fichiers `.mpp` de test publics : MS Project enregistre pour ces tâches une durée qui n'est pas travail ÷ unités (le profil étire la durée), et le moteur, avec les affectations lues, recalcule `mpp14timephasedsegments.mpp` 10 tâches sur 20 comme MS Project par travail ÷ unités, 19 avec la durée de la tâche ; corpus de test MPP14 : 2 167 → 2 188 tâches identiques sur 2 221 ; corpus MSPDI inchangé (156 / 159).
+- **Statut** : `hypothèse`.
+- **Tests** : `tests/rules/r297_contour_duration.rs` (`r297_contoured_part_lasts_the_task_duration`).
+
+## R-298 — Import .mpp : classes d'écart et causes non recalculables
+- **Formulation** : chaque tâche comparée (R-291) est identique à la minute, à deux minutes près (arrondi : le moteur compte en minutes entières, MS Project en dixièmes de minute, ADR-0037) ou en écart réel. Une tâche en écart réel reçoit une cause non recalculable quand elle est constatée sur la tâche elle-même, dans cet ordre : `mpp.gap.contoured_assignment` (une affectation a un profil modifié à la main), `mpp.gap.staggered_assignments` (une affectation de travail commence, enregistrée, plus de 2 minutes après la tâche, sans retard d'affectation ni de nivellement), `mpp.gap.unexplained_start` (feuille automatique sans lien, contrainte, avancement, retard ni mode manuel, elle et ses récapitulatives, dont le début enregistré n'est pas le début du projet), `mpp.gap.sub_minute` (date enregistrée à la fraction de minute). Le rapport (texte et JSON) donne les trois comptes, les comptes par cause et tous les écarts avec leur classe et leur cause.
+  - Exemple : tâche enregistrée à 08:01 – 17:01, recalculée 08:00 – 17:00 ⇒ arrondi ; tâche sans lien enregistrée le mercredi, projet commençant le lundi ⇒ écart réel, `mpp.gap.unexplained_start`.
+- **Source** : hypothèse (seuil de 2 minutes : écarts d'arrondi observés de 1 à 2 minutes sur les fichiers réels, `docs/plans/mpp-import.md` § 10).
+- **Statut** : `hypothèse`.
+- **Tests** : `crates/plannercraft-mpp/tests/rules.rs` (`r298_comparison_classes_and_causes`).

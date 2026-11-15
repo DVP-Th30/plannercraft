@@ -53,6 +53,23 @@ pub enum MppCode {
     /// Le mode de planification (manuel ou automatique) n'est pas lu : les
     /// tâches sont importées en automatique (R-290). Information, une fois.
     ModeNotRead,
+    /// Affectation à une tâche absente, ou ressource inconnue : ignorée
+    /// (tâche) ou gardée sans ressource.
+    AssignmentIgnored,
+    /// Valeur d'une ressource ou d'une affectation illisible (unités,
+    /// travail) : défaut.
+    ResourceValueInvalid,
+    /// Calendrier d'une ressource absent : calendrier du projet.
+    ResourceCalendarUnknown,
+    /// Calendrier dérivé dont la base est absente : ignoré.
+    CalendarBaseUnknown,
+    /// Profil d'affectation modifié à la main : la répartition saisie
+    /// n'est pas reprise (le moteur place le travail comme un profil
+    /// uniforme) ; dates non recalculables à l'identique.
+    AssignmentContoured,
+    /// Retard d'affectation non lu dans cette disposition (Project 2010) ;
+    /// information, une fois.
+    AssignmentDelayNotRead,
     /// Diagnostic de `Project::validate`.
     Core,
 }
@@ -82,6 +99,12 @@ impl MppCode {
             Self::PropertyMissing => "mpp.property_missing",
             Self::NotesTruncated => "mpp.notes_truncated",
             Self::ModeNotRead => "mpp.mode_not_read",
+            Self::AssignmentIgnored => "mpp.assignment_ignored",
+            Self::ResourceValueInvalid => "mpp.resource_value_invalid",
+            Self::ResourceCalendarUnknown => "mpp.resource_calendar_unknown",
+            Self::CalendarBaseUnknown => "mpp.calendar_base_unknown",
+            Self::AssignmentContoured => "mpp.assignment_contoured",
+            Self::AssignmentDelayNotRead => "mpp.assignment_delay_not_read",
             Self::Core => "mpp.core",
         }
     }
@@ -90,7 +113,11 @@ impl MppCode {
     #[must_use]
     pub const fn severity(self) -> Severity {
         match self {
-            Self::IdRenumbered | Self::ModeNotRead | Self::NotesTruncated | Self::Core => Severity::Info,
+            Self::IdRenumbered
+            | Self::ModeNotRead
+            | Self::NotesTruncated
+            | Self::AssignmentDelayNotRead
+            | Self::Core => Severity::Info,
             _ => Severity::Warning,
         }
     }
