@@ -3792,7 +3792,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "plannercraft"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "eframe",
@@ -3806,7 +3806,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-assistant"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "apple-native-keyring-store",
  "base64 0.23.1",
@@ -3827,7 +3827,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-automation"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "csv",
@@ -3847,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-cli"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "cfb",
  "chrono",
@@ -3866,7 +3866,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-core"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "criterion",
@@ -3878,7 +3878,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-mcp"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "bytes",
  "http-body-util",
@@ -3896,7 +3896,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-mpp"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "cfb",
  "plannercraft-core",
@@ -3909,7 +3909,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-mspdi"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "plannercraft-core",
@@ -3921,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-pdf"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "flate2",
  "krilla",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-pdfimport"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "hayro-interpret",
@@ -3950,7 +3950,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-render"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "plannercraft-core",
  "plannercraft-mspdi",
@@ -3963,7 +3963,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-tests"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "criterion",
@@ -3980,7 +3980,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-ui-egui"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "base64 0.23.1",
  "cfb",
@@ -4017,7 +4017,7 @@ dependencies = [
 
 [[package]]
 name = "plannercraft-web"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "eframe",
@@ -6586,7 +6586,7 @@ checksum = "9440ea3e5aeabb0ac63af70daf835274065238cdd0cec83418f417eae38bacee"
 
 [[package]]
 name = "xtask"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "cab",
  "cargo_metadata",

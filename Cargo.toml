@@ -21,7 +21,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 edition = "2024"
 # eframe/egui 0.37 exigent Rust 1.95.
 rust-version = "1.95"
@@ -30,16 +30,16 @@ repository = "https://github.com/DVP-Th30/plannercraft"
 
 [workspace.dependencies]
 # Crates internes (version explicite : pas de dépendance « wildcard » pour cargo-deny).
-plannercraft-core = { path = "crates/plannercraft-core", version = "1.0.0-rc.1" }
-plannercraft-mspdi = { path = "crates/plannercraft-mspdi", version = "1.0.0-rc.1" }
-plannercraft-render = { path = "crates/plannercraft-render", version = "1.0.0-rc.1" }
-plannercraft-pdf = { path = "crates/plannercraft-pdf", version = "1.0.0-rc.1" }
-plannercraft-pdfimport = { path = "crates/plannercraft-pdfimport", version = "1.0.0-rc.1" }
-plannercraft-mpp = { path = "crates/plannercraft-mpp", version = "1.0.0-rc.1" }
-plannercraft-automation = { path = "crates/plannercraft-automation", version = "1.0.0-rc.1" }
-plannercraft-mcp = { path = "crates/plannercraft-mcp", version = "1.0.0-rc.1" }
-plannercraft-assistant = { path = "crates/plannercraft-assistant", version = "1.0.0-rc.1" }
-plannercraft-ui-egui = { path = "crates/plannercraft-ui-egui", version = "1.0.0-rc.1" }
+plannercraft-core = { path = "crates/plannercraft-core", version = "1.0.0-rc.2" }
+plannercraft-mspdi = { path = "crates/plannercraft-mspdi", version = "1.0.0-rc.2" }
+plannercraft-render = { path = "crates/plannercraft-render", version = "1.0.0-rc.2" }
+plannercraft-pdf = { path = "crates/plannercraft-pdf", version = "1.0.0-rc.2" }
+plannercraft-pdfimport = { path = "crates/plannercraft-pdfimport", version = "1.0.0-rc.2" }
+plannercraft-mpp = { path = "crates/plannercraft-mpp", version = "1.0.0-rc.2" }
+plannercraft-automation = { path = "crates/plannercraft-automation", version = "1.0.0-rc.2" }
+plannercraft-mcp = { path = "crates/plannercraft-mcp", version = "1.0.0-rc.2" }
+plannercraft-assistant = { path = "crates/plannercraft-assistant", version = "1.0.0-rc.2" }
+plannercraft-ui-egui = { path = "crates/plannercraft-ui-egui", version = "1.0.0-rc.2" }
 
 # Dates en heure locale du projet, sans fuseau. On ne demande pas `clock`, mais
 # cela ne garantit rien : les features s'unifient sur le workspace et rmcp
