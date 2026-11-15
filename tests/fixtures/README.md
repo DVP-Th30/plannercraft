@@ -23,3 +23,9 @@ Petits fichiers MSPDI **écrits à la main** pour PlannerCraft (aucun fichier ti
 | `resources.xml` | ressources (travail, matérielle, coût ; taux par heure et unité d'affichage), affectations (unités, retard en dixièmes, profils, répartitions), lignes de base de tâche, de ressource et d'affectation, travail des tâches ; seules valeurs numériques reprises d'une observation : le taux et le coût de O18 | R-083, R-087, R-088, R-124 à R-126 |
 
 Les mêmes fichiers servent aux tests de robustesse du lecteur (`crates/plannercraft-mspdi/tests/robustness.rs` : chaque préfixe, mutations P18) et à la propriété « pas de fuite » P19 (`crates/plannercraft-mspdi/tests/no_leak.rs`).
+
+## `contract_bytes.txt` et `compat/` — contrats en minutes entières (ADR-0039, lot B2)
+
+`contract_bytes.txt` : empreintes SHA-256 des contrats produits par le scénario de `tests/corpus/bytes.rs` (modèle sérialisé, journal de commandes, sauvegarde automatique, vues JSON, MSPDI écrit) sur l'exemple de l'application et deux fichiers du corpus, **produites sur `main` à `d3b6fda`, avant le lot B2**. Pour un planning en minutes entières, ces octets ne doivent jamais changer ; une empreinte qui diffère est un défaut, pas une référence à régénérer.
+
+`compat/` : journal de commandes et sauvegarde automatique (base et lignes) de l'exemple, écrits par le même `main` ; le test vérifie qu'ils se relisent et se rejouent avec le même sens.
