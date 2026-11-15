@@ -21,6 +21,9 @@ plannercraft-assistant.workspace = true
 # Import d'un planning PDF (lot P1b, ADR-0033) : lecteur et conversion, sans
 # egui (règle 9) ; aussi dans la version web (lecture locale).
 plannercraft-pdfimport.workspace = true
+# Ouverture des fichiers .mpp et .mpt de MS Project (lot M3, ADR-0038) :
+# lecteur sans egui (règle 9), lu sur place, aussi dans la version web.
+plannercraft-mpp.workspace = true
 egui.workspace = true
 # Markdown des réponses de l'assistant, derrière `view::markdown::render_markdown`.
 pulldown-cmark.workspace = true
@@ -77,6 +80,10 @@ egui_system_font_provider.workspace = true
 plannercraft-tests = { path = "../../tests", version = "1.0.0-rc.1" }
 fluent-syntax.workspace = true
 proptest.workspace = true
+# Fichiers .mpp synthétiques des tests d'ouverture (lot M3) : même
+# écrivain indépendant que les tests de `plannercraft-mpp` (ADR-0036 D2),
+# jamais une dépendance du produit.
+cfb = "0.14.0"
 
 [lints]
 workspace = true

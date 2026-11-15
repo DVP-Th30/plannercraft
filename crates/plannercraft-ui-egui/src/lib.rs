@@ -34,6 +34,7 @@ pub mod i18n;
 pub mod indicators;
 pub mod io;
 pub mod keymap;
+pub mod mpp_open;
 pub mod nav;
 pub mod notify;
 pub mod palette;

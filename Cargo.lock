@@ -3983,6 +3983,7 @@ name = "plannercraft-ui-egui"
 version = "1.0.0-rc.1"
 dependencies = [
  "base64 0.23.1",
+ "cfb",
  "chrono",
  "eframe",
  "egui",
@@ -3996,6 +3997,7 @@ dependencies = [
  "plannercraft-assistant",
  "plannercraft-automation",
  "plannercraft-core",
+ "plannercraft-mpp",
  "plannercraft-mspdi",
  "plannercraft-pdfimport",
  "plannercraft-render",

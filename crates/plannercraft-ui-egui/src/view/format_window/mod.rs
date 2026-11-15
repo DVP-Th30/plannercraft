@@ -390,7 +390,7 @@ pub fn window_id() -> egui::Id {
 }
 
 /// Zone de travail : l'écran moins le rail ou le volet latéral (lot R1c).
-fn work_area(ctx: &egui::Context) -> Rect {
+pub(crate) fn work_area(ctx: &egui::Context) -> Rect {
     let screen = ctx.content_rect();
     let right = super::side_panel::work_right(ctx)
         .filter(|r| r.is_finite() && *r > screen.left())

@@ -72,6 +72,11 @@ mod gestures;
 mod group;
 mod j8_e2e;
 mod messages;
+/// Écrivain des fichiers `.mpp` synthétiques des tests de `plannercraft-mpp`
+/// (lot M3) : le même fichier, pas une copie.
+#[path = "../../../plannercraft-mpp/tests/common/mod.rs"]
+mod mpp_common;
+mod mpp_open;
 mod nav;
 mod outline;
 mod palette;

@@ -178,7 +178,10 @@ pub fn entries(ctx: &egui::Context, fc: &FrameCtx<'_>) -> Vec<Entry> {
     {
         add_cmd(&mut out, *cmd, None, path(cmd.menu_path()));
     }
-    for cmd in MenuCmd::ALL.into_iter().filter(|cmd| cmd.available()) {
+    for cmd in MenuCmd::ALL
+        .into_iter()
+        .filter(|cmd| cmd.available() && cmd.shown(fc))
+    {
         let choice = cmd.choice(fc);
         out.push(choice_entry(choice, path(cmd.menu_path()), None, os));
     }

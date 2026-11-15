@@ -255,6 +255,11 @@ pub trait FileService {
     }
 }
 
+/// Extensions du filtre d'« Ouvrir » (sans point) : MSPDI, et fichiers MS
+/// Project `.mpp` et `.mpt` (lot M3, ADR-0038 ; le type se reconnaît
+/// ensuite au contenu, `document::load_named`).
+pub const OPEN_EXTENSIONS: [&str; 3] = ["xml", "mpp", "mpt"];
+
 /// Octets au plus d'un fichier lu par [`FileService::pick_bytes`] : la
 /// borne de l'import CSV (64 Mio, `CsvLimits::max_bytes`).
 pub const MAX_PICKED_BYTES: u64 = 64 << 20;
@@ -377,7 +382,7 @@ impl FileService for RfdFileService {
         // l'application (`mainWindow`) : eframe n'en ouvre qu'une.
         let picked = rfd::AsyncFileDialog::new()
             .set_title(title)
-            .add_filter(filter, &["xml"])
+            .add_filter(filter, &OPEN_EXTENSIONS)
             .pick_file();
         if dialog_tx.send(Box::pin(picked)).is_err() {
             // Le fil s'est arrêté avant de recevoir le futur : la demande
@@ -410,7 +415,7 @@ impl FileService for RfdFileService {
         // dans Chromium). Hypothèse, à vérifier sur Safari.
         let dialog = rfd::AsyncFileDialog::new()
             .set_title(title)
-            .add_filter(filter, &["xml"]);
+            .add_filter(filter, &OPEN_EXTENSIONS);
         wasm_bindgen_futures::spawn_local(async move {
             // Annulation : rfd résout la promesse à `None` sur l'événement
             // `cancel` du sélecteur. Un navigateur qui n'émet pas `cancel`
@@ -436,7 +441,7 @@ impl FileService for RfdFileService {
                     let result = match document::check_blob_size(handle.inner().size()) {
                         Ok(()) => read_web_file(&handle)
                             .await
-                            .and_then(|bytes| document::load(&bytes, now)),
+                            .and_then(|bytes| document::load_named(&bytes, &origin.name, now)),
                         Err(error) => Err(error),
                     };
                     OpenEvent::Opened { origin, result }
@@ -580,6 +585,7 @@ impl FileService for RfdFileService {
                         read_web_file(&handle).await.map_err(|error| match error {
                             OpenError::Read(detail) => PickError::Read(detail),
                             OpenError::Mspdi(error) => PickError::Read(error.to_string()),
+                            OpenError::Mpp(error) => PickError::Read(error.to_string()),
                         })
                     };
                     PickedFile::Picked {
@@ -753,14 +759,23 @@ mod fsa {
         js_sys::Reflect::set(target, &JsValue::from_str(key), value).map(drop)
     }
 
-    /// Options d'un sélecteur : un seul type, « MSPDI (.xml) ».
-    fn picker_options(filter: &str) -> Result<js_sys::Object, JsValue> {
+    /// Options d'un sélecteur : un seul type, « MSPDI (.xml) » pour
+    /// enregistrer ; à l'ouverture (`open`), les fichiers MS Project
+    /// `.mpp` et `.mpt` aussi (lot M3).
+    fn picker_options(filter: &str, open: bool) -> Result<js_sys::Object, JsValue> {
         let accept = js_sys::Object::new();
         set(
             &accept,
             "application/xml",
             &js_sys::Array::of1(&JsValue::from_str(".xml")),
         )?;
+        if open {
+            set(
+                &accept,
+                "application/vnd.ms-project",
+                &js_sys::Array::of2(&JsValue::from_str(".mpp"), &JsValue::from_str(".mpt")),
+            )?;
+        }
         let kind = js_sys::Object::new();
         set(&kind, "description", &JsValue::from_str(filter))?;
         set(&kind, "accept", &accept)?;
@@ -875,7 +890,7 @@ mod fsa {
         language: Language,
         tx: Sender<SaveEvent>,
     ) {
-        let picked = picker_options(filter).and_then(|options| {
+        let picked = picker_options(filter, false).and_then(|options| {
             set(&options, "suggestedName", &JsValue::from_str(suggested))?;
             call_picker("showSaveFilePicker", &options)
         });
@@ -906,7 +921,8 @@ mod fsa {
     /// « Ouvrir » par `showOpenFilePicker` (H-UI-204) : fichier lu (taille
     /// contrôlée avant la lecture), document chargé et lié au descripteur.
     pub(super) fn open(ctx: &egui::Context, now: Moment, filter: &str, tx: Sender<OpenEvent>) {
-        let picked = picker_options(filter).and_then(|options| call_picker("showOpenFilePicker", &options));
+        let picked =
+            picker_options(filter, true).and_then(|options| call_picker("showOpenFilePicker", &options));
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let picked = match picked {
@@ -950,7 +966,11 @@ mod fsa {
             demo: false,
         };
         let result = read_and_load(&handle, now).await.map(|mut loaded| {
-            loaded.web_file = Some(register(handle));
+            // Fichier MS Project (lot M3) : jamais lié, « Enregistrer »
+            // n'écrira pas dans le `.mpp`.
+            if loaded.mpp.is_none() {
+                loaded.web_file = Some(register(handle));
+            }
             loaded
         });
         OpenEvent::Opened { origin, result }
@@ -969,7 +989,7 @@ mod fsa {
             .map_err(read)?;
         document::check_blob_size(file.size())?;
         let buffer = JsFuture::from(file.array_buffer()).await.map_err(read)?;
-        document::load(&js_sys::Uint8Array::new(&buffer).to_vec(), now)
+        document::load_named(&js_sys::Uint8Array::new(&buffer).to_vec(), &handle.name(), now)
     }
 }
 
@@ -1087,7 +1107,7 @@ fn open_path(path: &std::path::Path, now: Moment) -> OpenEvent {
         path: path.to_str().map(str::to_owned),
         demo: false,
     };
-    let result = document::read_path(path).and_then(|bytes| document::load(&bytes, now));
+    let result = document::read_path(path).and_then(|bytes| document::load_named(&bytes, &origin.name, now));
     OpenEvent::Opened { origin, result }
 }
 
