@@ -29,7 +29,9 @@ pub use display::{
     display_predecessors, format_resource_names, parse_percent, write_decimal, write_display_duration,
     write_display_lag,
 };
-pub use duration::{format_duration, format_lag, parse_duration, parse_lag};
+pub use duration::{
+    ENTRY_RESOLUTION, format_duration, format_lag, parse_duration, parse_duration_at, parse_lag, parse_lag_at,
+};
 pub(crate) use predecessors::predecessor_elements;
 pub use predecessors::{
     PredecessorRef, format_predecessor, format_predecessors, link_code, parse_predecessors,

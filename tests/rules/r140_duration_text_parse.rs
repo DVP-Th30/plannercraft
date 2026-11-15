@@ -265,3 +265,35 @@ fn r140_english_comma_thousands_are_refused() {
     assert_eq!(parse_duration("1.000 hrs", &en), Ok(work(60, DurationUnit::Hour)));
     assert_eq!(parse_duration("2 wks", &en), Ok(work(4_800, DurationUnit::Week)));
 }
+
+/// ADR-0039 (lot B3) : au dixième de minute, la saisie décimale garde sa
+/// fraction (R-001 au dixième) ; la saisie qui entre dans le modèle
+/// (`parse_duration`, `ENTRY_RESOLUTION`) reste à la minute entière
+/// jusqu'au lot B4, arrondie une seule fois (jamais en passant par le
+/// dixième).
+#[test]
+fn r140_tenth_resolution() {
+    use plannercraft_automation::text::{ENTRY_RESOLUTION, parse_duration_at, parse_lag_at};
+    use plannercraft_core::Resolution;
+    let tenth = |s: &str| parse_duration_at(s, &ctx(), Resolution::Tenth).map(|d| d.minutes().tenths());
+    assert_eq!(tenth("0,01j"), Ok(48));
+    assert_eq!(tenth("112,5m"), Ok(1_125));
+    assert_eq!(tenth("1,33h"), Ok(798));
+    assert_eq!(tenth("0,33j"), Ok(1_584));
+    assert_eq!(tenth("0,00001j"), Ok(0));
+    assert_eq!(tenth("5j"), Ok(24_000));
+    assert_eq!(ENTRY_RESOLUTION, Resolution::Minute);
+    let entry = |s: &str| parse_duration(s, &ctx()).map(|d| d.minutes().tenths());
+    assert_eq!(entry("0,01j"), Ok(50));
+    assert_eq!(entry("112,5m"), Ok(1_130));
+    // 4,46 min : 4 à la minute ; au dixième puis à la minute, ce serait 5.
+    assert_eq!(entry("4,46m"), Ok(40));
+    let lag = parse_lag_at("-0,01j", &ctx(), Resolution::Tenth).unwrap();
+    assert_eq!(
+        lag.value,
+        LagValue::Time {
+            minutes: Minutes::from_tenths(-48),
+            unit: DurationUnit::Day
+        }
+    );
+}

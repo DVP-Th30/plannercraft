@@ -13,12 +13,12 @@
 
 use plannercraft_automation::text::{
     DateRole, Language, MAX_INPUT_CHARS, PredecessorRef, TextContext, TextError, format_date,
-    format_duration, format_lag, format_predecessor, parse_date, parse_duration, parse_lag,
-    parse_predecessors,
+    format_duration, format_lag, format_predecessor, parse_date, parse_duration, parse_duration_at,
+    parse_lag, parse_lag_at, parse_predecessors,
 };
 use plannercraft_core::{
     ConversionFactors, Duration, DurationUnit, Lag, LagValue, LinkType, Minutes, Moment, ProjectOptions,
-    SignedPercent, TimeBasis,
+    Resolution, SignedPercent, TimeBasis,
 };
 use proptest::prelude::*;
 
@@ -46,6 +46,10 @@ fn basis() -> impl Strategy<Value = TimeBasis> {
 
 fn language() -> impl Strategy<Value = Language> {
     prop_oneof![Just(Language::Fr), Just(Language::En)]
+}
+
+fn tenths() -> impl Strategy<Value = i64> {
+    prop_oneof![0_i64..=100_000, 0_i64..=Duration::MAX_TENTHS]
 }
 
 fn minutes() -> impl Strategy<Value = i64> {
@@ -125,6 +129,42 @@ proptest! {
             );
         } else {
             prop_assert_eq!(parse_duration(&text, &other), Ok(d), "{}", text);
+        }
+    }
+
+    /// ADR-0039 (lot B3) : une durée au dixième de minute s'écrit (R-141)
+    /// et se relit au dixième (R-140) à l'identique, en 2, 5 ou 6
+    /// décimales ; une minute entière garde son texte d'avant, relu à la
+    /// minute (« 1,02h » pour 61 min se relirait 61,2 au dixième : B4).
+    #[test]
+    fn p29_tenths_duration_round_trip(
+        f in factors(), lang in language(), t in tenths(), u in unit(), b in basis(),
+        est in any::<bool>(),
+    ) {
+        let d = Duration::new(Minutes::from_tenths(t), u, b, est).unwrap();
+        let ctx = context(f, lang);
+        let text = format_duration(&d, &ctx);
+        // Minute entière : relue à la minute (texte d'avant B3) ; fraction :
+        // relue au dixième.
+        if d.minutes().whole_minutes().is_some() {
+            prop_assert_eq!(parse_duration(&text, &ctx), Ok(d), "{}", text);
+        } else {
+            prop_assert_eq!(parse_duration_at(&text, &ctx, Resolution::Tenth), Ok(d), "{}", text);
+        }
+    }
+
+    #[test]
+    fn p29_tenths_lag_round_trip(
+        f in factors(), lang in language(), t in tenths(), neg in any::<bool>(), u in unit(), b in basis(),
+    ) {
+        let value = LagValue::Time { minutes: Minutes::from_tenths(if neg { -t } else { t }), unit: u };
+        let l = Lag::new(b, value).unwrap();
+        let ctx = context(f, lang);
+        let text = format_lag(&l, &ctx);
+        if t % 10 == 0 {
+            prop_assert_eq!(parse_lag(&text, &ctx), Ok(l), "{}", text);
+        } else {
+            prop_assert_eq!(parse_lag_at(&text, &ctx, Resolution::Tenth), Ok(l), "{}", text);
         }
     }
 
