@@ -1,5 +1,6 @@
-//! Octets MSPDI → session d'édition prête à afficher (lecture + calcul),
-//! sans egui.
+//! Octets MSPDI, ou d'un fichier MS Project `.mpp`/`.mpt` (lot M3,
+//! ADR-0038, reconnu par son contenu) → session d'édition prête à afficher
+//! (lecture + calcul), sans egui.
 //!
 //! Le document est une [`Session`] de `plannercraft_automation` (ADR-0012 D11) :
 //! toute édition passe par un lot de commandes du registre, recalculé par
@@ -34,6 +35,9 @@ pub struct LoadedDocument {
     /// System Access, lot W1, H-UI-204) : « Enregistrer » le réécrit.
     /// `None` ailleurs.
     pub web_file: Option<crate::io::WebFile>,
+    /// Planning ouvert depuis un fichier MS Project (lot M3) : dates
+    /// enregistrées et comparaison au calcul ; `None` ailleurs.
+    pub mpp: Option<Box<crate::mpp_open::MppOpened>>,
 }
 
 /// Échec d'ouverture d'un document.
@@ -45,6 +49,10 @@ pub enum OpenError {
     /// Document MSPDI structurellement inexploitable.
     #[error(transparent)]
     Mspdi(#[from] MspdiError),
+    /// Fichier MS Project (`.mpp`, `.mpt`) refusé : version non lue,
+    /// fichier endommagé ou protégé, autre document (lot M3).
+    #[error("{0}")]
+    Mpp(plannercraft_mpp::MppError),
 }
 
 /// Taille maximale d'un document ouvert : la borne du lecteur MSPDI
@@ -109,7 +117,21 @@ pub fn read_path(path: &std::path::Path) -> Result<Vec<u8>, OpenError> {
     Ok(bytes)
 }
 
-/// Lit un document MSPDI et ouvre sa session (planning calculé).
+/// Lit un document MSPDI, ou un fichier MS Project, et ouvre sa session
+/// (planning calculé) ; sans nom de fichier (voir [`load_named`]).
+///
+/// # Errors
+///
+/// Comme [`load_named`].
+pub fn load(bytes: &[u8], now: Moment) -> Result<LoadedDocument, OpenError> {
+    load_named(bytes, "", now)
+}
+
+/// Lit le fichier `name` (nom affiché, sert au nom du projet et à
+/// reconnaître un gabarit `.mpt`) et ouvre sa session. Le type se reconnaît
+/// au **contenu** (lot M3, ADR-0038) : fichier composé ⇒ MS Project
+/// (`plannercraft-mpp`), sinon MSPDI (voir
+/// [`crate::mpp_open::is_project_file`]).
 ///
 /// `now` est la date courante injectée (`ReadOptions::current_date`) : aucune
 /// horloge n'est lue ici. L'origine de la session est posée par
@@ -119,9 +141,13 @@ pub fn read_path(path: &std::path::Path) -> Result<Vec<u8>, OpenError> {
 ///
 /// # Errors
 ///
-/// [`OpenError::Mspdi`] si le lecteur MSPDI refuse le document ; tout le
+/// [`OpenError::Mspdi`] si le lecteur MSPDI refuse le document,
+/// [`OpenError::Mpp`] si le lecteur `.mpp` refuse le fichier ; tout le
 /// reste devient un diagnostic.
-pub fn load(bytes: &[u8], now: Moment) -> Result<LoadedDocument, OpenError> {
+pub fn load_named(bytes: &[u8], name: &str, now: Moment) -> Result<LoadedDocument, OpenError> {
+    if crate::mpp_open::is_project_file(bytes, name) {
+        return load_mpp(bytes, name, now);
+    }
     let origin = SessionOrigin {
         name: String::new(),
         path: None,
@@ -137,7 +163,32 @@ pub fn load(bytes: &[u8], now: Moment) -> Result<LoadedDocument, OpenError> {
         range: range.span,
         range_truncated: range.truncated,
         web_file: None,
+        mpp: None,
     })
+}
+
+/// Fichier MS Project (lot M3) : lu par `plannercraft-mpp`, projet remis à
+/// une session neuve (planning calculé par le moteur, historique vide),
+/// dates enregistrées gardées à part et comparées au calcul.
+fn load_mpp(bytes: &[u8], name: &str, now: Moment) -> Result<LoadedDocument, OpenError> {
+    let stem = crate::mpp_open::document_name(name);
+    let options = plannercraft_mpp::ReadOptions::new(stem, now);
+    let plannercraft_mpp::MppDocument {
+        project,
+        recorded,
+        source,
+        diagnostics,
+    } = plannercraft_mpp::read(bytes, &options).map_err(OpenError::Mpp)?;
+    let mut loaded = load_project(project, now);
+    let opened = crate::mpp_open::MppOpened::new(
+        recorded,
+        &source,
+        &diagnostics,
+        &loaded.session,
+        crate::mpp_open::is_template_name(name),
+    );
+    loaded.mpp = Some(Box::new(opened));
+    Ok(loaded)
 }
 
 /// Ouvre la session d'un projet déjà construit (N8, J7 lot L14) : planning
@@ -157,6 +208,7 @@ pub fn load_project(project: Project, now: Moment) -> LoadedDocument {
         range: range.span,
         range_truncated: range.truncated,
         web_file: None,
+        mpp: None,
     }
 }
 

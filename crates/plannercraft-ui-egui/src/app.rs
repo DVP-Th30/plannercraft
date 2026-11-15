@@ -117,6 +117,9 @@ pub struct OpenDocument {
     /// H-UI-204) : posé par « Ouvrir » ou « Enregistrer sous » quand le
     /// navigateur donne un descripteur, réécrit par « Enregistrer ».
     pub web_file: Option<crate::io::WebFile>,
+    /// Planning ouvert depuis un fichier MS Project (lot M3, ADR-0038) :
+    /// dates enregistrées, comparaison, bandeau ; `None` ailleurs.
+    pub mpp: Option<Box<crate::mpp_open::MppOpened>>,
 }
 
 impl OpenDocument {
@@ -134,6 +137,7 @@ impl OpenDocument {
             opening,
             calendar_cache: crate::document::CalendarCache::new(),
             web_file: loaded.web_file,
+            mpp: loaded.mpp,
         }
     }
 
@@ -492,6 +496,8 @@ pub struct App {
     /// Import auquel vont les octets du prochain fichier choisi (CSV ou
     /// PDF, lot P1b).
     pub(crate) pick_purpose: PickPurpose,
+    /// Fenêtre « Différences avec MS Project » ouverte (lot M3, H-UI-233).
+    pub(crate) mpp_window: bool,
 }
 
 impl App {
@@ -562,6 +568,7 @@ impl App {
             pick_tx,
             pick_rx,
             pick_purpose: PickPurpose::Csv,
+            mpp_window: false,
         }
     }
 
@@ -710,6 +717,11 @@ impl App {
         }
         self.rows = Some(rows);
         self.diagnostics = DiagnosticsView::build(document, &self.texts);
+        // Lot M3 : comparaison à MS Project tant que le planning est celui
+        // du fichier.
+        if let Some(mpp) = document.mpp.as_deref_mut() {
+            mpp.refresh(&document.session);
+        }
         self.selected.retain(|uid| document.project().tasks.contains(uid));
         self.row_view_key = None;
         self.ensure_row_view();
@@ -934,6 +946,7 @@ impl App {
                     range: range.span,
                     range_truncated: range.truncated,
                     web_file: None,
+                    mpp: None,
                 };
                 let origin = DocOrigin {
                     name,
@@ -1285,7 +1298,7 @@ impl App {
         let file = std::sync::Arc::clone(file);
         wasm_bindgen_futures::spawn_local(async move {
             let result = match file.bytes_async().await {
-                Ok(bytes) => document::load(&bytes, now),
+                Ok(bytes) => document::load_named(&bytes, &origin.name, now),
                 Err(detail) => Err(OpenError::Read(detail)),
             };
             if tx.send(OpenEvent::Opened { origin, result }).is_err() {
@@ -1418,7 +1431,7 @@ impl App {
     /// Un échec devient un message ; le document précédent reste affiché.
     pub fn open_bytes(&mut self, bytes: &[u8], origin: DocOrigin) {
         let now = (self.env.now)();
-        match document::load(bytes, now) {
+        match document::load_named(bytes, &origin.name, now) {
             Ok(loaded) => self.install(loaded, origin),
             Err(error) => self.report_open_error(&error, &origin.name),
         }
@@ -1957,7 +1970,30 @@ impl App {
     }
 
     /// Installe un document chargé et reconstruit les caches.
-    fn install(&mut self, loaded: LoadedDocument, origin: DocOrigin) {
+    ///
+    /// Planning lu dans un fichier MS Project (lot M3, ADR-0038) : un
+    /// nouveau planning PlannerCraft, comme un import PDF ou CSV : nommé
+    /// d'après le fichier sans extension (un gabarit `.mpt` : « Projet1 »,
+    /// comme un nouveau planning), sans chemin ni fichier du navigateur
+    /// liés (« Enregistrer » demande où écrire, en XML, jamais dans le
+    /// `.mpp`), absent des fichiers récents.
+    fn install(&mut self, mut loaded: LoadedDocument, mut origin: DocOrigin) {
+        if let Some(mpp) = loaded.mpp.as_deref_mut() {
+            mpp.template = mpp.template || crate::mpp_open::is_template_name(&origin.name);
+            let stem = crate::mpp_open::document_name(&origin.name);
+            let name = if mpp.template || stem.is_empty() {
+                self.texts.get(TextId::NewProjectName)
+            } else {
+                stem
+            };
+            origin = DocOrigin {
+                name,
+                path: None,
+                demo: false,
+            };
+            loaded.web_file = None;
+        }
+        self.mpp_window = false;
         let opening = self.next_generation;
         self.next_generation = opening.saturating_add(1);
         let range_truncated = loaded.range_truncated;
@@ -1999,6 +2035,13 @@ impl App {
                 TextId::OpenErrorMspdi,
                 TextId::OpenErrorMspdiFile,
                 crate::diag_text::DiagTexts::new(&self.texts).mspdi_error(error),
+            ),
+            // Lot M3 : ce que c'est et quoi faire, dans la langue de
+            // l'interface.
+            OpenError::Mpp(error) => (
+                TextId::OpenErrorMpp,
+                TextId::OpenErrorMppFile,
+                self.texts.get(crate::view::mpp::refusal_text(error)),
             ),
         };
         let text = if name.is_empty() {
@@ -2144,7 +2187,7 @@ impl App {
     }
 
     /// Ramène le défilement horizontal dans `[0, max]`.
-    fn clamp_gantt_scroll(&mut self) {
+    pub(crate) fn clamp_gantt_scroll(&mut self) {
         let max = self.max_gantt_scroll();
         let x = self.view.gantt_scroll_x;
         self.view.gantt_scroll_x = if x.is_finite() { x.clamp(0.0, max) } else { 0.0 };
@@ -2514,6 +2557,9 @@ impl App {
             Action::Message(crate::action::MessageOp::Dismiss(id)) => self.messages.dismiss(id),
             Action::Message(crate::action::MessageOp::ToggleHistory) => self.messages.toggle_history(),
             Action::CloseDocumentGuarded => self.request(Pending::Close, ctx),
+            // Lot M3 (ADR-0038) : bandeau et fenêtre « Différences avec MS
+            // Project » (`view/mpp.rs`).
+            Action::Mpp(op) => self.mpp_op(op),
         }
     }
 
@@ -2665,7 +2711,8 @@ impl App {
         self.opening = true;
         let now = (self.env.now)();
         let title = self.texts.get(TextId::DialogOpenTitle);
-        let filter = self.texts.get(TextId::FileFilterMspdi);
+        // Lot M3 : `.xml`, `.mpp` et `.mpt` (`io::OPEN_EXTENSIONS`).
+        let filter = self.texts.get(TextId::FileFilterOpen);
         self.env
             .files
             .pick_and_open(ctx, now, title, filter, self.tx.clone());
@@ -3409,6 +3456,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let recovery_offer = self.recovery_offer();
         let restored_name = self.restored_banner().map(str::to_owned);
+        let mpp_banner = view::mpp::Banner::of(self.document.as_ref());
         // Nom du document du bandeau de confirmation, s'il y en a un.
         let confirm_name = self.confirm.as_ref().map(|_| {
             self.document
@@ -3468,6 +3516,7 @@ impl App {
                 #[cfg(not(target_arch = "wasm32"))]
                 view::recovery::recovery_banner(ui, &mut fc, recovery_offer);
                 view::recovery::restored_banner(ui, &mut fc, restored_name.as_deref());
+                view::mpp::banner(ui, &mut fc, mpp_banner.as_ref());
                 let ai = crate::approvals::panel_input(&self.approvals, banner);
                 view::side_panel::panel(ui, &mut fc, &self.side, ai, &mut self.assistant, button);
             }
@@ -3515,6 +3564,9 @@ impl App {
         self.show_confirmations(&ctx, &palette, &mut actions);
         // Fenêtre « Mise en forme » (lot F1, H-UI-216), non modale.
         self.show_format_window(&ctx, &mut actions);
+        // Fenêtre « Différences avec MS Project » (lot M3, H-UI-233), non
+        // modale.
+        self.show_mpp_differences(&ctx, &mut actions);
         // Échap restée libre après le dessin : réduit le volet (lot A5).
         self.escape_closes_assistant(&ctx, &mut actions);
         self.last_focus = ctx.memory(egui::Memory::focused);
@@ -3690,6 +3742,7 @@ impl App {
                     range: range.span,
                     range_truncated: range.truncated,
                     web_file: None,
+                    mpp: None,
                 };
                 let origin = DocOrigin {
                     name: name.clone(),
@@ -3833,6 +3886,7 @@ impl App {
                     range: range.span,
                     range_truncated: range.truncated,
                     web_file: None,
+                    mpp: None,
                 };
                 let origin = if orphan.file_changed {
                     DocOrigin {

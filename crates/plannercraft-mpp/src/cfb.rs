@@ -19,6 +19,14 @@ use crate::bytes::{le_u16, le_u32, le_u64};
 
 /// Signature de l'en-tête (`[MS-CFB]` § 2.2).
 const SIGNATURE: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+/// Les octets commencent par la signature d'un fichier composé (`.mpp`,
+/// `.mpt`, mais aussi d'autres documents Office) : reconnaissance par le
+/// contenu, sans regarder l'extension (lot M3, ADR-0038).
+#[must_use]
+pub fn is_compound(data: &[u8]) -> bool {
+    data.get(..8) == Some(&SIGNATURE[..])
+}
 /// Fin de chaîne.
 const END_OF_CHAIN: u32 = 0xFFFF_FFFE;
 /// Plus grand numéro de secteur ordinaire.

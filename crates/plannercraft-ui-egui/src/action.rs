@@ -279,6 +279,29 @@ pub enum Action {
     // --- Finitions avant v1.0.0 (ADR-0022, lot P3).
     /// Regrouper par, replier un groupe (H-UI-129 à H-UI-131).
     Group(crate::group_view::GroupOp),
+    // --- Ouverture des fichiers MS Project (lot M3, ADR-0038).
+    /// Bandeau de compte rendu et fenêtre « Différences avec MS Project »
+    /// (H-UI-232 à H-UI-235).
+    Mpp(MppOp),
+}
+
+/// Geste sur le compte rendu d'un planning ouvert depuis MS Project (lot
+/// M3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MppOp {
+    /// Ouvre la fenêtre « Différences avec MS Project » (« Voir » du
+    /// bandeau, menu Fichier).
+    ShowDifferences,
+    /// Referme la fenêtre.
+    CloseDifferences,
+    /// Clic sur une ligne de la fenêtre : la tâche devient la tâche
+    /// active, le planning défile jusqu'à elle.
+    Reveal(TaskUid),
+    /// « Garder les dates de MS Project » (R-299) : un lot, une entrée
+    /// d'annulation.
+    KeepDates,
+    /// Ferme le bandeau (il ne revient pas pour ce planning).
+    DismissBanner,
 }
 
 /// Opération sur les volets (seconde passe UX, ADR-0019 D5).

@@ -34,6 +34,7 @@ pub mod format_window;
 pub mod gantt;
 pub mod main_view;
 pub mod markdown;
+pub mod mpp;
 pub mod palette;
 pub mod recovery;
 pub mod resource_sheet;

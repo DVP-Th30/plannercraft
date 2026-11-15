@@ -9,7 +9,7 @@
 welcome-title = Welcome to { $product }
 welcome-subtitle = Free MS Project clone — open, edit, save
 welcome-open-demo = Open the sample: house construction
-welcome-open-file = Open an MSPDI file (.xml)…
+welcome-open-file = Open a file (.mpp, .xml)…
 welcome-new-project = New project
 welcome-web-note = The file stays in your browser; nothing is uploaded.
 welcome-language = Language
@@ -18,7 +18,7 @@ welcome-theme = Theme
 ## Menus
 
 menu-file = File
-menu-open = Open an MSPDI file (.xml)…
+menu-open = Open a file (.mpp, .xml)…
 menu-open-demo = Open the sample
 menu-close = Close
 menu-view = View
@@ -215,7 +215,7 @@ splitter-label = Splitter between the table and the Gantt chart
 gantt-scroll-label = Gantt chart horizontal scroll
 demo-file-name = Sample: house construction
 file-filter-mspdi = MSPDI file (XML)
-dialog-open-title = Open an MSPDI file
+dialog-open-title = Open an MS Project file
 state-load-warning = Display preferences ignored: { $detail }
 
 ## Menu Édition
@@ -2106,3 +2106,65 @@ error-pdfimport-flat_hierarchy = flat list with bold titles: the outline cannot 
 error-pdfimport-inconsistent_hierarchy = name indents do not match the summary dates: the outline cannot be read reliably
 error-pdfimport-no_tasks = table found, but no task read
 error-pdfimport-too_many_tasks = more tasks than the import limit (20,000)
+
+## Lot M3 (ADR-0038): opening MS Project files (.mpp, .mpt).
+file-filter-open = MS Project files (.mpp, .mpt, .xml)
+open-error-mpp = MS Project file not opened: { $detail }
+open-error-mpp-file = “{ $name }”: { $detail }
+mpp-refused-project2007 = file saved by Project 2007 (format not read). Save it from MS Project 2010 or later, or as XML.
+mpp-refused-project2003 = file saved by Project 2000 to 2003 (format not read). Save it from MS Project 2010 or later, or as XML.
+mpp-refused-project98 = file saved by Project 98 (format not read). Save it from MS Project 2010 or later, or as XML.
+mpp-refused-too-large = file too large (256 MiB at most).
+mpp-refused-not-project-file = not an MS Project file: content not recognised.
+mpp-refused-other-document = not an MS Project plan (another Office document?).
+mpp-refused-unreadable = unreadable MS Project file: damaged, password-protected or from an unrecognised version. Open it in MS Project and save it without a password, or as XML.
+mpp-count-tasks =
+    { $count ->
+        [one] { $count } task
+       *[other] { $count } tasks
+    }
+mpp-count-links =
+    { $count ->
+        [one] { $count } link
+       *[other] { $count } links
+    }
+mpp-banner-opened = MS Project plan opened: { $tasks }, { $links }.
+mpp-banner-opened-template = MS Project template opened as a new plan: { $tasks }, { $links }.
+mpp-gaps =
+    { $count ->
+        [one] { $count } task does not have the same dates as in MS Project.
+       *[other] { $count } tasks do not have the same dates as in MS Project.
+    }
+mpp-banner-show = View
+mpp-banner-not-taken = Not taken over: { $items }.
+mpp-not-contoured = work distributions edited by hand
+mpp-not-lag-percent = percentage lags (links kept without lag)
+mpp-not-resource-calendars =
+    { $count ->
+        [one] { $count } resource calendar
+       *[other] { $count } resource calendars
+    }
+mpp-banner-dismiss = Hide
+menu-mpp-differences = Differences with MS Project…
+mpp-diff-title = Differences with MS Project
+mpp-diff-explain = MS Project: dates saved in the file. Computed: dates recomputed here from the file's durations, links and calendars. Click a row to see the task.
+mpp-diff-none = No difference with MS Project any more.
+mpp-diff-kept = The tasks that differed keep the MS Project dates, manually scheduled. { $undo } undoes this.
+mpp-diff-rounding =
+    { $count ->
+        [one] { $count } task differs by one or two minutes (rounding): not counted.
+       *[other] { $count } tasks differ by one or two minutes (rounding): not counted.
+    }
+mpp-diff-keep = Keep the MS Project dates
+mpp-diff-keep-hint = These tasks become manually scheduled, with the MS Project dates. { $undo } undoes this.
+mpp-diff-summaries-only = Only summary tasks differ: their dates follow their subtasks.
+mpp-diff-close = Close
+mpp-diff-row = Task { $id }: { $name }
+mpp-col-start-recorded = MS Project start
+mpp-col-finish-recorded = MS Project finish
+mpp-col-start-computed = Computed start
+mpp-col-cause = Cause
+mpp-cause-contoured = work distribution edited by hand
+mpp-cause-staggered = leveling (assignments shifted)
+mpp-cause-unexplained-start = start placed by hand, without link or constraint
+mpp-cause-sub-minute = fractions of a minute

@@ -10,7 +10,7 @@
 welcome-title = Bienvenue dans { $product }
 welcome-subtitle = Clone libre de MS Project — ouvrir, modifier, enregistrer
 welcome-open-demo = Ouvrir l'exemple : construction d'une maison
-welcome-open-file = Ouvrir un fichier MSPDI (.xml)…
+welcome-open-file = Ouvrir un fichier (.mpp, .xml)…
 welcome-new-project = Nouveau projet
 welcome-web-note = Le fichier reste dans votre navigateur ; rien n'est envoyé.
 welcome-language = Langue
@@ -19,7 +19,7 @@ welcome-theme = Thème
 ## Menus
 
 menu-file = Fichier
-menu-open = Ouvrir un fichier MSPDI (.xml)…
+menu-open = Ouvrir un fichier (.mpp, .xml)…
 menu-open-demo = Ouvrir l'exemple
 menu-close = Fermer
 menu-view = Affichage
@@ -214,7 +214,7 @@ splitter-label = Séparateur entre la table et le Gantt
 gantt-scroll-label = Défilement horizontal du Gantt
 demo-file-name = Exemple : construction d'une maison
 file-filter-mspdi = Fichier MSPDI (XML)
-dialog-open-title = Ouvrir un fichier MSPDI
+dialog-open-title = Ouvrir un fichier MS Project
 state-load-warning = Préférences d'affichage ignorées : { $detail }
 
 ## Menu Édition
@@ -2113,3 +2113,65 @@ error-pdfimport-flat_hierarchy = liste sans retrait avec des titres en gras : l
 error-pdfimport-inconsistent_hierarchy = les retraits des noms ne correspondent pas aux dates des récapitulatives : la hiérarchie ne peut pas être lue sûrement
 error-pdfimport-no_tasks = tableau reconnu, mais aucune tâche lue
 error-pdfimport-too_many_tasks = plus de tâches que la borne de l'import (20 000)
+
+## Lot M3 (ADR-0038) : ouverture des fichiers MS Project (.mpp, .mpt).
+file-filter-open = Fichiers MS Project (.mpp, .mpt, .xml)
+open-error-mpp = Fichier MS Project non ouvert : { $detail }
+open-error-mpp-file = « { $name } » : { $detail }
+mpp-refused-project2007 = fichier enregistré par Project 2007 (format non lu). Enregistrez-le depuis MS Project 2010 ou plus récent, ou au format XML.
+mpp-refused-project2003 = fichier enregistré par Project 2000 à 2003 (format non lu). Enregistrez-le depuis MS Project 2010 ou plus récent, ou au format XML.
+mpp-refused-project98 = fichier enregistré par Project 98 (format non lu). Enregistrez-le depuis MS Project 2010 ou plus récent, ou au format XML.
+mpp-refused-too-large = fichier trop volumineux (256 Mio au plus).
+mpp-refused-not-project-file = ce n'est pas un fichier MS Project : contenu non reconnu.
+mpp-refused-other-document = ce n'est pas un planning MS Project (autre document Office ?).
+mpp-refused-unreadable = fichier MS Project illisible : endommagé, protégé par un mot de passe ou d'une version non reconnue. Ouvrez-le dans MS Project et enregistrez-le sans mot de passe, ou au format XML.
+mpp-count-tasks =
+    { $count ->
+        [one] { $count } tâche
+       *[other] { $count } tâches
+    }
+mpp-count-links =
+    { $count ->
+        [one] { $count } lien
+       *[other] { $count } liens
+    }
+mpp-banner-opened = Planning MS Project ouvert : { $tasks }, { $links }.
+mpp-banner-opened-template = Modèle MS Project ouvert comme un nouveau planning : { $tasks }, { $links }.
+mpp-gaps =
+    { $count ->
+        [one] { $count } tâche n'a pas les mêmes dates que dans MS Project.
+       *[other] { $count } tâches n'ont pas les mêmes dates que dans MS Project.
+    }
+mpp-banner-show = Voir
+mpp-banner-not-taken = Non repris : { $items }.
+mpp-not-contoured = répartitions du travail modifiées à la main
+mpp-not-lag-percent = décalages en pourcentage (liens gardés sans décalage)
+mpp-not-resource-calendars =
+    { $count ->
+        [one] { $count } calendrier de ressource
+       *[other] { $count } calendriers de ressource
+    }
+mpp-banner-dismiss = Masquer
+menu-mpp-differences = Différences avec MS Project…
+mpp-diff-title = Différences avec MS Project
+mpp-diff-explain = MS Project : dates enregistrées dans le fichier. Calculé : dates recalculées ici à partir des durées, des liens et des calendriers du fichier. Cliquez une ligne pour voir la tâche.
+mpp-diff-none = Plus aucune différence avec MS Project.
+mpp-diff-kept = Les tâches qui différaient gardent les dates de MS Project, en planification manuelle. { $undo } annule.
+mpp-diff-rounding =
+    { $count ->
+        [one] { $count } tâche diffère d'une ou deux minutes (arrondi) : non comptée.
+       *[other] { $count } tâches diffèrent d'une ou deux minutes (arrondi) : non comptées.
+    }
+mpp-diff-keep = Garder les dates de MS Project
+mpp-diff-keep-hint = Ces tâches passent en planification manuelle, avec les dates de MS Project. { $undo } annule.
+mpp-diff-summaries-only = Seules des récapitulatives diffèrent : leurs dates suivent leurs sous-tâches.
+mpp-diff-close = Fermer
+mpp-diff-row = Tâche { $id } : { $name }
+mpp-col-start-recorded = Début MS Project
+mpp-col-finish-recorded = Fin MS Project
+mpp-col-start-computed = Début calculé
+mpp-col-cause = Cause
+mpp-cause-contoured = répartition du travail modifiée à la main
+mpp-cause-staggered = nivellement (affectations décalées)
+mpp-cause-unexplained-start = début placé à la main, sans lien ni contrainte
+mpp-cause-sub-minute = fractions de minute

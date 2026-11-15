@@ -341,6 +341,11 @@ fn file_menu(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>) {
     menu_cmd(ui, fc, MenuCmd::ImportCsv);
     // Lot P1b : Fichier → Importer un PDF… (H-UI-205), sans document aussi.
     menu_cmd(ui, fc, MenuCmd::ImportPdf);
+    // Lot M3 : Fichier → Différences avec MS Project… (H-UI-233), seulement
+    // quand elle sert.
+    if MenuCmd::MppDifferences.shown(fc) {
+        menu_cmd(ui, fc, MenuCmd::MppDifferences);
+    }
     // --- J8 L13 ---
     // Fichier → Exporter (PDF, SVG, CSV) : téléchargement sur le web,
     // boîte « Enregistrer sous » sur le desktop.
@@ -1197,6 +1202,10 @@ pub(crate) enum MenuCmd {
     ImportCsv,
     /// Fichier → Importer un PDF… (lot P1b).
     ImportPdf,
+    /// Fichier → Différences avec MS Project… (lot M3, H-UI-233) : montrée
+    /// seulement pour un planning ouvert depuis MS Project qui avait des
+    /// écarts et n'a pas été modifié autrement ([`MenuCmd::shown`]).
+    MppDifferences,
     /// Fichier → Exporter → SVG.
     ExportSvg,
     /// Fichier → Exporter → CSV.
@@ -1213,13 +1222,14 @@ pub(crate) enum MenuCmd {
 
 impl MenuCmd {
     /// Toutes les entrées, dans l'ordre des menus.
-    pub(crate) const ALL: [Self; 12] = [
+    pub(crate) const ALL: [Self; 13] = [
         Self::New,
         Self::OpenDemo,
         Self::Open,
         Self::SaveAs,
         Self::ImportCsv,
         Self::ImportPdf,
+        Self::MppDifferences,
         Self::ExportSvg,
         Self::ExportCsv,
         Self::Close,
@@ -1232,6 +1242,19 @@ impl MenuCmd {
     /// le navigateur ne laisse pas une page fermer son onglet).
     pub(crate) const fn available(self) -> bool {
         !matches!(self, Self::Quit) || !cfg!(target_arch = "wasm32")
+    }
+
+    /// Entrée montrée pour le document de `fc` : toutes, sauf « Différences
+    /// avec MS Project… », absente (jamais grisée) hors d'un planning MS
+    /// Project dont la comparaison vaut encore (lot M3).
+    pub(crate) fn shown(self, fc: &FrameCtx<'_>) -> bool {
+        match self {
+            Self::MppDifferences => fc
+                .doc
+                .and_then(|d| d.mpp.as_deref())
+                .is_some_and(crate::mpp_open::MppOpened::differences_available),
+            _ => true,
+        }
     }
 
     /// Menu, puis sous-menus, où l'entrée est dessinée.
@@ -1271,6 +1294,12 @@ impl MenuCmd {
             ),
             Self::ImportCsv => (TextId::MenuImportCsv, Enabled::YES, None, Action::ImportCsv),
             Self::ImportPdf => (TextId::MenuImportPdf, Enabled::YES, None, Action::ImportPdf),
+            Self::MppDifferences => (
+                TextId::MenuMppDifferences,
+                Enabled::YES,
+                None,
+                Action::Mpp(crate::action::MppOp::ShowDifferences),
+            ),
             Self::ExportSvg => (TextId::MenuExportSvg, doc, None, Action::Export(SaveKind::Svg)),
             Self::ExportCsv => (TextId::MenuExportCsv, doc, None, Action::Export(SaveKind::Csv)),
             Self::Close => (

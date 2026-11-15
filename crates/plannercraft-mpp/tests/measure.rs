@@ -741,3 +741,81 @@ fn diagnose_roots() {
     }
     std::fs::write(out_path, out).unwrap();
 }
+
+/// « Garder les dates de MS Project » (R-299, lot M3) sur un dossier :
+/// tâches en écart réel avant, tâches gardées, écarts réels après (le
+/// projet relu avec les tâches gardées en manuel), temps.
+///
+/// `MPP_MEASURE_DIR=<dossier des .mpp> cargo test --release -p
+/// plannercraft-mpp --test measure keep_measure -- --ignored --nocapture`
+#[test]
+#[ignore = "mesure locale, hors CI"]
+fn keep_measure() {
+    use plannercraft_core::SchedulingMode;
+    let dir = PathBuf::from(std::env::var("MPP_MEASURE_DIR").expect("MPP_MEASURE_DIR"));
+    let now: Moment = "2026-11-14T08:00".parse().unwrap();
+    let mut files = Vec::new();
+    walk(&dir, &mut files);
+    let (mut total_off, mut total_kept, mut total_after, mut total_rounding) = (0, 0, 0, 0);
+    println!("| Fichier | Tâches | Écart réel | Gardées | Écart réel après | Arrondi après | ms |");
+    println!("|---|---|---|---|---|---|---|");
+    for path in &files {
+        let bytes = std::fs::read(path).unwrap();
+        let Ok(doc) = read(&bytes, &ReadOptions::new("m".to_owned(), now)) else {
+            continue;
+        };
+        let started = std::time::Instant::now();
+        let before = compare(&doc.project, &schedule(&doc.project), &doc.recorded);
+        let kept = plannercraft_mpp::kept_dates(&doc.project, &doc.recorded);
+        let elapsed = started.elapsed().as_millis();
+        let mut project = doc.project.clone();
+        for k in &kept {
+            project.tasks.get_mut(k.uid).unwrap().mode = SchedulingMode::Manual {
+                start: Some(k.start),
+                finish: Some(k.finish),
+                duration: None,
+            };
+        }
+        let after = compare(&project, &schedule(&project), &doc.recorded);
+        total_off += before.tasks_off;
+        total_kept += kept.len();
+        total_after += after.tasks_off;
+        total_rounding += after.tasks_rounding;
+        if before.tasks_off > 0 {
+            println!(
+                "| {} | {} | {} | {} | {} | {} | {elapsed} |",
+                path.file_name().unwrap().to_string_lossy(),
+                before.tasks_compared,
+                before.tasks_off,
+                kept.len(),
+                after.tasks_off,
+                after.tasks_rounding
+            );
+        }
+        if after.tasks_off > 0 {
+            let left: BTreeSet<String> = after
+                .gaps
+                .iter()
+                .filter(|g| g.class == plannercraft_mpp::compare::GapClass::Real)
+                .map(|g| {
+                    let pos = project.tasks.position(TaskUid::new(g.uid)).unwrap();
+                    let kind = if project.tasks.at(pos + 1).is_some_and(|n| {
+                        n.outline_level.get() > project.tasks.at(pos).unwrap().outline_level.get()
+                    }) {
+                        "récapitulative"
+                    } else {
+                        "feuille"
+                    };
+                    format!(
+                        "UID {} ({kind}) {} {} -> {}",
+                        g.uid, g.field, g.recorded, g.computed
+                    )
+                })
+                .collect();
+            println!("  restent : {left:?}");
+        }
+    }
+    println!(
+        "Total : {total_off} tâches en écart réel, {total_kept} gardées, {total_after} en écart réel après, {total_rounding} à l'arrondi après"
+    );
+}
