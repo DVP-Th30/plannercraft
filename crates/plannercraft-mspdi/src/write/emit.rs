@@ -297,9 +297,35 @@ impl Emitter {
     }
 
     /// Feuille travail ISO d'une valeur en millièmes de minute (R-120,
-    /// ADR-0039 : secondes au centième).
+    /// ADR-0039 : secondes au centième, sans zéro final), sans allocation ;
+    /// même texte que [`crate::scalar::format_iso_work`].
     pub(crate) fn leaf_work(&mut self, name: &'static str, milli: i64) {
-        self.leaf(name, &crate::scalar::format_iso_work(milli));
+        self.leaf_open(name);
+        if milli < 0 {
+            self.out.push(b'-');
+        }
+        let abs = milli.unsigned_abs();
+        let minutes = abs / 1_000;
+        // Centièmes de seconde : millièmes × 6.
+        let hundredths = (abs % 1_000).saturating_mul(6);
+        self.push("PT");
+        push_int(&mut self.out, i64::try_from(minutes / 60).unwrap_or(i64::MAX), 1);
+        self.out.push(b'H');
+        push_int(&mut self.out, i64::try_from(minutes % 60).unwrap_or(0), 1);
+        self.out.push(b'M');
+        push_int(&mut self.out, i64::try_from(hundredths / 100).unwrap_or(0), 1);
+        let frac = hundredths % 100;
+        if frac != 0 {
+            self.out.push(b'.');
+            self.out
+                .push(b'0'.saturating_add(u8::try_from(frac / 10).unwrap_or(0)));
+            if !frac.is_multiple_of(10) {
+                self.out
+                    .push(b'0'.saturating_add(u8::try_from(frac % 10).unwrap_or(0)));
+            }
+        }
+        self.out.push(b'S');
+        self.leaf_close(name);
     }
 
     /// Élément feuille facultatif : écrit seulement s'il a une valeur.
@@ -428,6 +454,43 @@ mod tests {
         );
         assert_eq!(sanitize("a\u{1}b"), ("a\u{FFFD}b".to_owned(), true));
         assert_eq!(sanitize("a\tb\n"), ("a\tb\n".to_owned(), false));
+    }
+
+    /// R-120 (ADR-0039) : les feuilles sans allocation écrivent le même
+    /// texte que les formateurs de `scalar`.
+    #[test]
+    fn r120_iso_leaves_match_formatters() {
+        let leaf = |f: &dyn Fn(&mut Emitter)| {
+            let mut e = Emitter::new(Newline::Lf, Indent::Tab);
+            e.root(&[], None);
+            f(&mut e);
+            e.end_root();
+            String::from_utf8(e.finish().0).unwrap()
+        };
+        for milli in [
+            0,
+            1,
+            7,
+            10,
+            125,
+            999,
+            112_125,
+            480_000,
+            -1_500,
+            99_999_999_960_000,
+        ] {
+            let got = leaf(&|e: &mut Emitter| e.leaf_work("Work", milli));
+            let want = format!("<Work>{}</Work>", crate::scalar::format_iso_work(milli));
+            assert!(got.contains(&want), "{milli} : {got}");
+        }
+        for tenths in [0, 1, 5, 9, 1_125, 24_000, -900] {
+            let got = leaf(&|e: &mut Emitter| e.leaf_iso("Duration", tenths));
+            let want = format!(
+                "<Duration>{}</Duration>",
+                crate::scalar::format_iso_duration(tenths)
+            );
+            assert!(got.contains(&want), "{tenths} : {got}");
+        }
     }
 
     #[test]
