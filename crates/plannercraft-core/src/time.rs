@@ -39,8 +39,9 @@ const EPOCH: NaiveDate = match NaiveDate::from_ymd_opt(1984, 1, 1) {
 /// Dixièmes de minute depuis 1984-01-01T00:00. Les constructeurs en minutes
 /// gardent leur sens ([`Moment::from_minutes`]) ; tout accès qui rend des
 /// minutes dit sa règle ([`Moment::whole_minutes`], [`Moment::minutes_floor`]).
-/// Sérialisé en `"2026-10-19T08:00"` (lot B1 : à la minute, tronqué) ; la
-/// lecture tolère un `":00"` final (secondes nulles), rien d'autre.
+/// Sérialisé en `"2026-10-19T08:00"`, avec `":SS"` quand l'instant tombe
+/// entre deux minutes (`"2026-10-19T08:00:30"`, ADR-0039 D5) ; la lecture
+/// accepte des secondes multiples de 6, rien d'autre.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Moment(i64);
@@ -202,7 +203,10 @@ impl Moment {
 }
 
 impl fmt::Display for Moment {
-    /// `2026-10-19T08:00`.
+    /// `2026-10-19T08:00`, suivi de `:SS` quand l'instant tombe entre deux
+    /// minutes (`2026-10-19T08:00:30`, ADR-0039 D5) : forme exacte des
+    /// contrats, sans perte. L'affichage à l'écran tronque à la minute
+    /// (R-143), par ses propres formateurs.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let dt = self.to_naive();
         write!(
@@ -213,29 +217,49 @@ impl fmt::Display for Moment {
             dt.day(),
             dt.hour(),
             dt.minute()
-        )
+        )?;
+        if dt.second() != 0 {
+            write!(f, ":{:02}", dt.second())?;
+        }
+        Ok(())
     }
 }
 
 impl FromStr for Moment {
     type Err = TimeError;
 
-    /// `AAAA-MM-JJTHH:MM`, éventuellement suivi de `:00`.
+    /// `AAAA-MM-JJTHH:MM`, éventuellement suivi de `:SS` : des secondes
+    /// multiples de 6 (un dixième de minute) sont lues exactement ; toute
+    /// autre seconde est refusée (ADR-0039 D5).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let invalid = || TimeError::InvalidFormat { input: s.to_owned() };
         let bytes = s.as_bytes();
         let date_part = bytes.get(..10).ok_or_else(invalid)?;
         let rest = bytes.get(10..).ok_or_else(invalid)?;
         let date = parse_date(date_part).ok_or_else(invalid)?;
-        let time = match rest {
-            [b'T', h1, h2, b':', m1, m2] | [b'T', h1, h2, b':', m1, m2, b':', b'0', b'0'] => {
-                let hour = parse_digits(&[*h1, *h2]).ok_or_else(invalid)?;
-                let minute = parse_digits(&[*m1, *m2]).ok_or_else(invalid)?;
-                NaiveTime::from_hms_opt(hour, minute, 0).ok_or_else(invalid)?
-            }
+        let (h, m, seconds) = match rest {
+            [b'T', h1, h2, b':', m1, m2] => ([*h1, *h2], [*m1, *m2], 0),
+            [b'T', h1, h2, b':', m1, m2, b':', s1, s2] => (
+                [*h1, *h2],
+                [*m1, *m2],
+                parse_digits(&[*s1, *s2]).ok_or_else(invalid)?,
+            ),
             _ => return Err(invalid()),
         };
-        Self::from_naive(NaiveDateTime::new(date, time))
+        let hour = parse_digits(&h).ok_or_else(invalid)?;
+        let minute = parse_digits(&m).ok_or_else(invalid)?;
+        if seconds >= 60 || seconds % 6 != 0 {
+            return Err(invalid());
+        }
+        let time = NaiveTime::from_hms_opt(hour, minute, 0).ok_or_else(invalid)?;
+        let at_minute = Self::from_naive(NaiveDateTime::new(date, time))?;
+        // Au plus 9 dixièmes : ne déborde pas ; au-delà de la fin du
+        // domaine, refusé comme hors domaine.
+        at_minute
+            .0
+            .checked_add(i64::from(seconds / 6))
+            .ok_or(TimeError::OutOfDomain)
+            .and_then(Self::from_tenths)
     }
 }
 
@@ -825,9 +849,26 @@ mod tests {
         assert_eq!(m.whole_minutes().unwrap(), 22_510_560);
         assert_eq!(m.to_string(), "2026-10-19T08:00");
         assert_eq!("2026-10-19T08:00:00".parse::<Moment>().unwrap(), m);
+        // ADR-0039 D5 (lot B2) : des secondes multiples de 6 sont un
+        // dixième de minute exact, écrites seulement quand non nulles
+        // (avant B2 : « 08:00:30 » était refusé).
+        let half: Moment = "2026-10-19T08:00:30".parse().unwrap();
+        assert_eq!(half.tenths(), m.tenths() + 5);
+        assert_eq!(half.to_string(), "2026-10-19T08:00:30");
+        assert_eq!(
+            "2026-10-19T08:00:54".parse::<Moment>().unwrap().tenths(),
+            m.tenths() + 9
+        );
+        assert_eq!(
+            "2149-12-31T23:59:54".parse::<Moment>().unwrap().tenths(),
+            Moment::MAX.tenths() - 1
+        );
         for bad in [
-            "2026-10-19T08:00:30",
+            "2026-10-19T08:00:31",
+            "2026-10-19T08:00:60",
+            "2026-10-19T08:00:5",
             "2026-10-19T08:00:00.000",
+            "2026-10-19T08:00:0x",
             "2026-10-19 08:00",
             "2026-10-19T8:00",
             "2026-10-19T24:00",

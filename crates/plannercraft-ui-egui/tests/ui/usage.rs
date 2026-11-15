@@ -169,7 +169,7 @@ fn usage_values_from_engine() {
         assert_eq!(row.work.len(), 1, "une période par cellule");
         assert_eq!(
             row.work[0].minutes,
-            Some(cell.work.whole_minutes().unwrap()),
+            Some(plannercraft_automation::json::MinutesNumber::from_work(cell.work)),
             "{cell:?}"
         );
         assert_eq!(row.overallocated[0], cell.over, "{cell:?}");

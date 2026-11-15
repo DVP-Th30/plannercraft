@@ -1,0 +1,12 @@
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"task.update","uid":2,"duration":{"text":"3j"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"task.update","uid":3,"duration":{"minutes":1500,"unit":"hour"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"link.add","pred":2,"succ":5,"kind":"ss","lag":{"text":"+2j"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"link.add","pred":3,"succ":5,"lag":{"minutes":-240,"unit":"hour"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"task.set_constraint","uid":4,"kind":"snet","date":"2026-11-02T08:00"}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"resource.add","name":"Équipe B2"}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"assignment.add","task":4,"resource":1,"work":{"text":"20h"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"progress.update","task":2,"percent_complete":{"text":"40%"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"baseline.set"}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"apply","batch":{"format_version":1,"ops":[{"op":"task.shift","tasks":[3],"by":{"text":"1j"}}]},"now":"2026-10-17T08:00","source":"user"}}
+{"epoch":0,"entry":{"kind":"undo"}}
+{"epoch":0,"entry":{"kind":"redo"}}

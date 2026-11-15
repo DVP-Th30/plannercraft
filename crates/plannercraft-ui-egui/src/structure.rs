@@ -23,7 +23,7 @@
 use std::collections::BTreeSet;
 
 use plannercraft_automation::command::{LinkKey, LinkSpec, TaskAdd, TaskDelete, TaskMove, TaskOne};
-use plannercraft_automation::json::DurationJson;
+use plannercraft_automation::json::{DurationJson, MinutesNumber};
 use plannercraft_automation::{Batch, Command, Placement, TaskRef};
 use plannercraft_core::{Project, TaskUid};
 
@@ -344,7 +344,7 @@ fn plan_milestone(project: &Project, selection: &Selection, name: &str) -> Comma
         label: None,
         at: Some(insert_at(project, selection)),
         duration: Some(DurationJson {
-            minutes: Some(0),
+            minutes: Some(MinutesNumber::whole(0)),
             ..DurationJson::default()
         }),
         milestone: Some(true),

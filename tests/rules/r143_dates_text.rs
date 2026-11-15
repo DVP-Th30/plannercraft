@@ -186,3 +186,23 @@ fn r143_writing() {
         }
     }
 }
+
+/// ADR-0039 (lot B3) : une date entre deux minutes s'affiche tronquée à la
+/// minute, comme MS Project ; la saisie reste à la minute.
+#[test]
+fn r143_display_truncates_tenths() {
+    let fr = ctx(Language::Fr);
+    let at = |s: &str| s.parse::<Moment>().unwrap();
+    assert_eq!(format_date(at("2026-10-19T08:00:54"), &fr), "19/10/2026 08:00");
+    assert_eq!(format_date(at("2026-10-19T16:59:30"), &fr), "19/10/2026 16:59");
+    assert_eq!(
+        format_date(at("2149-12-31T23:59:54"), &ctx(Language::En)),
+        "12/31/2149 23:59"
+    );
+    // Saisie : les secondes restent tronquées (R-004), la date est à la
+    // minute.
+    assert_eq!(
+        parse_date("19/10/2026 08:00:30", DateRole::Start, &fr),
+        Ok(moment("2026-10-19T08:00"))
+    );
+}

@@ -4,16 +4,16 @@
   "description": "Sens de planification et date pilote. JSON : `{\"start\":\"…\"}` ou\n`{\"finish\":\"…\"}` (un objet, pour l'étiquette interne de [`Command`]).",
   "properties": {
     "finish": {
-      "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00.",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"
       ]
     },
     "start": {
-      "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00.",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:00)?$",
+      "description": "Date et heure locales, sans fuseau : 2026-11-02T08:00. Secondes écrites seulement quand elles ne sont pas nulles (dixième de minute : multiple de 6) ; en saisie, une date à la minute entière.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
       "type": [
         "string",
         "null"

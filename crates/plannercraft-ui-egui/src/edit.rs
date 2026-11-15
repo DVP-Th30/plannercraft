@@ -1375,7 +1375,10 @@ mod tests {
         };
         assert_eq!(pred, &TaskRef::Uid(TaskUid::new(8)));
         assert_eq!(*kind, Some(LinkTypeJson::from(LinkType::StartToStart)));
-        assert_eq!(lag.as_ref().and_then(|l| l.minutes), Some(480));
+        assert_eq!(
+            lag.as_ref().and_then(|l| l.minutes),
+            Some(plannercraft_automation::json::MinutesNumber::whole(480))
+        );
         // Même liste avec un type changé : `link.update`.
         let got = ops(&typed(Some(uid(9)), Column::Predecessors, "7FF;6"));
         assert!(matches!(&got[..], [Command::LinkUpdate(_)]), "{got:?}");

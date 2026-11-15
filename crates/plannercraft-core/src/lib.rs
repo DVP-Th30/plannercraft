@@ -57,6 +57,7 @@ pub mod error;
 pub mod fixed;
 pub mod ids;
 pub mod model;
+pub mod number;
 pub mod parity;
 pub mod progress;
 pub mod quantity;
@@ -69,7 +70,8 @@ pub use calendar::{BuiltinCalendarNames, CalendarSet, CompiledCalendar, Directio
 pub use diagnostic::{Diagnostic, Diagnostics, OverriddenBound, Pass, Severity, Subject};
 pub use diagnostic_args::DiagArg;
 pub use duration::{
-    ConversionFactors, Duration, DurationUnit, Lag, LagValue, Minutes, TimeBasis, Work, percent_of,
+    ConversionFactors, Duration, DurationUnit, Lag, LagValue, Minutes, Resolution, TimeBasis, Work,
+    percent_of,
 };
 pub use error::{
     CalendarError, CalendarModelError, CoreError, DurationError, EntityKind, FixedError, ModelError,

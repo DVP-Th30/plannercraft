@@ -14,6 +14,7 @@
 use plannercraft_automation::command::params::{ApplyBatchParams, TaskListParams};
 use plannercraft_automation::command::{DurationJson, DurationUnitJson, LagJson, parse_params};
 use plannercraft_automation::error::{CommandErrorKind, MAX_MESSAGE_CHARS, codes};
+use plannercraft_automation::json::MinutesNumber;
 use plannercraft_automation::text::{Language, TextContext, TextError};
 use plannercraft_automation::{Batch, CommandError};
 use plannercraft_core::{
@@ -28,7 +29,7 @@ fn ctx(lang: Language) -> TextContext {
 
 fn dur(minutes: Option<i64>, unit: Option<DurationUnitJson>, text: Option<&str>) -> DurationJson {
     DurationJson {
-        minutes,
+        minutes: minutes.map(MinutesNumber::whole),
         unit,
         text: text.map(str::to_owned),
         elapsed: None,
@@ -177,8 +178,8 @@ fn duration_json_mismatch_refused() {
 #[test]
 fn lag_json_forms() {
     let fr = ctx(Language::Fr);
-    let lag = |minutes, percent, unit, text: Option<&str>| LagJson {
-        minutes,
+    let lag = |minutes: Option<i64>, percent, unit, text: Option<&str>| LagJson {
+        minutes: minutes.map(MinutesNumber::whole),
         percent,
         unit,
         text: text.map(str::to_owned),

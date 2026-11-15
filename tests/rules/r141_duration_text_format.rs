@@ -135,3 +135,46 @@ fn r141_lags() {
         }
     }
 }
+
+/// ADR-0039 (lot B3) : une valeur au dixième s'écrit pour se relire au
+/// dixième (2, puis 5, puis 6 décimales) ; une minute entière garde le
+/// texte d'avant (relecture à la minute).
+#[test]
+fn r141_tenths() {
+    use plannercraft_automation::text::parse_duration_at;
+    use plannercraft_core::Resolution;
+    let fr = ctx(Language::Fr);
+    let d = |t: i64, unit| Duration::new(Minutes::from_tenths(t), unit, TimeBasis::Working, false).unwrap();
+    for (t, unit, text) in [
+        (1_125, DurationUnit::Minute, "112,5m"),
+        (48, DurationUnit::Day, "0,01j"),
+        (5, DurationUnit::Hour, "0,00833h"),
+        (1, DurationUnit::Month, "0,00001mo"),
+        (1, DurationUnit::Day, "0,00021j"),
+        // Minutes entières : textes d'avant le lot B3.
+        (70, DurationUnit::Day, "0,01458j"),
+        (610, DurationUnit::Hour, "1,02h"),
+    ] {
+        let duration = d(t, unit);
+        assert_eq!(format_duration(&duration, &fr), text, "{t}");
+        if duration.minutes().whole_minutes().is_none() {
+            assert_eq!(
+                parse_duration_at(text, &fr, Resolution::Tenth),
+                Ok(duration),
+                "{text}"
+            );
+        }
+    }
+    // Mois écoulé de 43 200 min : 5 décimales ne relisent pas le dixième,
+    // 6 le font.
+    let e = Duration::new(
+        Minutes::from_tenths(1),
+        DurationUnit::Month,
+        TimeBasis::Elapsed,
+        false,
+    )
+    .unwrap();
+    let text = format_duration(&e, &fr);
+    assert_eq!(text, "0,000002emo");
+    assert_eq!(parse_duration_at(&text, &fr, Resolution::Tenth), Ok(e));
+}

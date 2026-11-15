@@ -667,6 +667,10 @@ impl Workspace {
                 .with_field("start"));
             }
         };
+        // Lots B2-B3 (ADR-0039) : date à la minute entière.
+        let (AnchorSpec::Start(m) | AnchorSpec::Finish(m)) = anchor;
+        crate::json::whole_minute_moment(m)
+            .map_err(|e| ToolError::from_command(&e.with_field("start"), lang))?;
         let init = NewProject {
             name: p.name,
             anchor,

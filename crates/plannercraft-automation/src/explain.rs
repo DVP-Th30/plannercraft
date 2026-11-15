@@ -616,7 +616,7 @@ impl Writer<'_> {
     fn duration(&self, m: Minutes) -> String {
         signed_minutes(m, self.p.options.default_duration_unit, &self.text)
             .text
-            .unwrap_or_else(|| format!("{} min", m.whole_minutes_round()))
+            .unwrap_or_else(|| format!("{} min", plannercraft_core::number::to_text(m.tenths(), 1)))
     }
 
     const fn constraint(&self, k: ConstraintKind) -> &'static str {

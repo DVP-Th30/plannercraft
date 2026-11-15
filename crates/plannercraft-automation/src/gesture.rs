@@ -29,6 +29,7 @@ use crate::command::{
     TaskUpdate,
 };
 use crate::error::codes;
+use crate::json::MinutesNumber;
 use crate::session::Session;
 
 /// Minutes d'un jour calendaire.
@@ -259,8 +260,8 @@ pub fn bar_resize(
     let cal = measure(s, set, task)?;
     let minutes = resized(cal.scale(task), t.start, target)?;
     let duration = DurationJson {
-        // Lot B1 : minutes entières (R-001).
-        minutes: Some(minutes.whole_minutes_round()),
+        // Un geste produit des minutes entières (R-240, R-001).
+        minutes: Some(MinutesNumber::whole(minutes.whole_minutes_round())),
         unit: Some(task.duration.unit().into()),
         text: None,
         elapsed: Some(task.duration.basis() == TimeBasis::Elapsed),

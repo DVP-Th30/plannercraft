@@ -27,6 +27,7 @@ use crate::command::{
 };
 use crate::csv::{self, CsvColumn, CsvEncoding, CsvError, CsvImportOptions, Recognized};
 use crate::error::codes;
+use crate::json::MinutesNumber;
 use crate::session::Session;
 use crate::text::lex::format_decimal;
 use crate::text::{Language, PredecessorRef, TextContext, format_date, format_duration, format_predecessor};
@@ -642,8 +643,7 @@ const fn task_update(r: TaskRef) -> TaskUpdate {
 /// l'identique).
 fn duration_json(d: &Duration) -> DurationJson {
     DurationJson {
-        // Lot B1 : minutes entières (R-001) ; la décimale arrive en B2.
-        minutes: Some(d.minutes().whole_minutes_round()),
+        minutes: Some(MinutesNumber::from_minutes(d.minutes())),
         unit: Some(d.unit().into()),
         text: None,
         elapsed: Some(d.basis() == TimeBasis::Elapsed),
@@ -654,7 +654,11 @@ fn duration_json(d: &Duration) -> DurationJson {
 /// Décalage en JSON, sans texte.
 fn lag_json(l: &Lag) -> LagJson {
     let (minutes, percent, unit) = match l.value {
-        LagValue::Time { minutes, unit } => (Some(minutes.whole_minutes_round()), None, Some(unit.into())),
+        LagValue::Time { minutes, unit } => (
+            Some(MinutesNumber::from_minutes(minutes)),
+            None,
+            Some(unit.into()),
+        ),
         LagValue::Percent { percent } => (None, Some(percent.get()), None),
     };
     LagJson {
