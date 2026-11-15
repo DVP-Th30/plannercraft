@@ -122,9 +122,10 @@ fn fraction_nanos(c: &mut Cursor<'_>) -> Option<(i128, bool)> {
 /// Instant lu dans un `xsd:dateTime` MSPDI.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParsedMoment {
-    /// Instant, à la minute (secondes tronquées, R-004).
+    /// Instant, au dixième de minute (secondes multiples de 6 lues
+    /// exactement, le reste tronqué au dixième, R-004, ADR-0039).
     pub moment: Moment,
-    /// Vrai si des secondes ou fractions non nulles ont été tronquées.
+    /// Vrai si une fraction de dixième de minute a été tronquée.
     pub rounded: bool,
     /// Vrai si un suffixe de fuseau (`Z`, `±hh:mm`) a été ignoré.
     pub zone_ignored: bool,
@@ -141,36 +142,40 @@ pub enum DateTimeError {
     OutOfDomain,
 }
 
-/// Heure `hh:mm[:ss[.fff]]` : minutes depuis minuit (0 à 1 440) et
-/// troncature des secondes. `24:00` n'est admis que sans secondes.
-fn clock(c: &mut Cursor<'_>) -> Option<(u16, bool)> {
+/// Heure `hh:mm[:ss[.fff]]` : minutes depuis minuit (0 à 1 440), puis les
+/// secondes en nanosecondes et un drapeau « chiffres ignorés au-delà de la
+/// nanoseconde ». `24:00` n'est admis que sans secondes.
+fn clock(c: &mut Cursor<'_>) -> Option<(u16, i128, bool)> {
     let h = c.fixed_digits(2)?;
     if !c.eat(b':') {
         return None;
     }
     let m = c.fixed_digits(2)?;
-    let mut rounded = false;
+    let mut nanos: i128 = 0;
+    let mut dropped = false;
     if c.eat(b':') {
         let s = c.fixed_digits(2)?;
         if s >= 60 {
             return None;
         }
-        rounded = s != 0;
+        nanos = i128::from(s).checked_mul(NANOS_PER_SECOND)?;
         if c.eat(b'.') {
-            let (nanos, dropped) = fraction_nanos(c)?;
-            rounded = rounded || nanos != 0 || dropped;
+            let (frac, lost) = fraction_nanos(c)?;
+            nanos = nanos.checked_add(frac)?;
+            dropped = lost;
         }
     }
-    if m >= 60 || h > 24 || (h == 24 && (m != 0 || rounded)) {
+    if m >= 60 || h > 24 || (h == 24 && (m != 0 || nanos != 0 || dropped)) {
         return None;
     }
     let minutes = u16::try_from(h.checked_mul(60)?.checked_add(m)?).ok()?;
-    Some((minutes, rounded))
+    Some((minutes, nanos, dropped))
 }
 
 /// R-075 : `AAAA-MM-JJThh:mm[:ss[.fff]]`, sans fuseau. Un suffixe `Z` ou
-/// `±hh:mm` est ignoré et signalé (`zone_ignored`) ; les secondes sont
-/// tronquées (R-004) ; `24:00:00` désigne le lendemain à 00:00 (XSD).
+/// `±hh:mm` est ignoré et signalé (`zone_ignored`) ; les secondes sont lues
+/// au dixième de minute (6 s) et le reste tronqué (R-004, ADR-0039) ;
+/// `24:00:00` désigne le lendemain à 00:00 (XSD).
 ///
 /// # Errors
 ///
@@ -191,13 +196,16 @@ pub fn parse_datetime(s: &str) -> Result<ParsedMoment, DateTimeError> {
         if !c.eat(b'T') {
             return None;
         }
-        let (minutes, rounded) = clock(&mut c)?;
+        let (minutes, nanos, dropped) = clock(&mut c)?;
         let zone_ignored = zone_suffix(&mut c)?;
         c.at_end().then_some(())?;
         let date = NaiveDate::from_ymd_opt(i32::try_from(y).ok()?, mo, d)?;
-        Some((date, minutes, rounded, zone_ignored))
+        Some((date, minutes, nanos, dropped, zone_ignored))
     })();
-    let (date, minutes, rounded, zone_ignored) = date.ok_or(DateTimeError::Syntax)?;
+    let (date, minutes, nanos, dropped, zone_ignored) = date.ok_or(DateTimeError::Syntax)?;
+    // Dixièmes entiers des secondes (0 à 9), reste tronqué (R-004).
+    let tenth = nanos.checked_div(NANOS_PER_TENTH).unwrap_or(0);
+    let rounded = dropped || nanos.checked_rem(NANOS_PER_TENTH).is_some_and(|r| r != 0);
     // 24:00 : minuit du lendemain (le 31/12/2149 à 24:00 est `Moment::MAX`).
     let (date, minutes) = if minutes == 1_440 {
         (date.succ_opt().ok_or(DateTimeError::OutOfDomain)?, 0)
@@ -207,7 +215,12 @@ pub fn parse_datetime(s: &str) -> Result<ParsedMoment, DateTimeError> {
     let naive = date
         .and_hms_opt(u32::from(minutes / 60), u32::from(minutes % 60), 0)
         .ok_or(DateTimeError::Syntax)?;
-    let (moment, _) = Moment::from_naive_floor(naive).map_err(|_| DateTimeError::OutOfDomain)?;
+    let (at_minute, _) = Moment::from_naive_floor(naive).map_err(|_| DateTimeError::OutOfDomain)?;
+    let moment = i64::try_from(tenth)
+        .ok()
+        .and_then(|t| at_minute.tenths().checked_add(t))
+        .and_then(|t| Moment::from_tenths(t).ok())
+        .ok_or(DateTimeError::OutOfDomain)?;
     Ok(ParsedMoment {
         moment,
         rounded,
@@ -242,20 +255,34 @@ fn zone_suffix(c: &mut Cursor<'_>) -> Option<bool> {
 #[must_use]
 pub fn parse_time(s: &str) -> Option<(TimeOfDay, bool)> {
     let mut c = Cursor::new(s.trim());
-    let (minutes, rounded) = clock(&mut c)?;
+    let (minutes, nanos, dropped) = clock(&mut c)?;
     if !c.at_end() {
         return None;
     }
-    TimeOfDay::new(minutes).ok().map(|t| (t, rounded))
+    // Plages de calendrier à la minute : secondes tronquées et signalées.
+    TimeOfDay::new(minutes).ok().map(|t| (t, nanos != 0 || dropped))
 }
 
-/// Durée ISO 8601 lue (R-070), en minutes signées.
+/// Durée ISO 8601 lue (R-070), signée, à deux échelles (ADR-0039) : en
+/// dixièmes de minute pour une durée, en millièmes pour un travail.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IsoDuration {
-    /// Minutes, arrondies par R-001 ; négatives pour `-P…`.
-    pub minutes: i64,
-    /// Vrai si des secondes (ou fractions) ont été arrondies à la minute.
-    pub rounded: bool,
+    /// Dixièmes de minute, arrondis par R-001 ; négatifs pour `-P…`.
+    pub tenths: i64,
+    /// Vrai si la valeur ne tombait pas sur un dixième (6 s).
+    pub tenth_rounded: bool,
+    /// Millièmes de minute (travail), arrondis par R-001.
+    pub milli: i64,
+    /// Vrai si la valeur ne tombait pas sur un millième (0,06 s).
+    pub milli_rounded: bool,
+}
+
+impl IsoDuration {
+    /// Durée en dixièmes.
+    #[must_use]
+    pub const fn minutes(&self) -> Minutes {
+        Minutes::from_tenths(self.tenths)
+    }
 }
 
 /// Échec de lecture d'une durée ISO 8601.
@@ -272,33 +299,42 @@ pub enum IsoDurationError {
     Overflow,
 }
 
-/// Nanosecondes dans une minute.
-const NANOS_PER_MINUTE: i128 = 60_000_000_000;
 /// Nanosecondes dans une seconde.
 const NANOS_PER_SECOND: i128 = 1_000_000_000;
+/// Nanosecondes dans un dixième de minute (6 s).
+const NANOS_PER_TENTH: i128 = 6_000_000_000;
+/// Nanosecondes dans un millième de minute (0,06 s).
+const NANOS_PER_MILLI: i128 = 60_000_000;
 
-/// R-070 : durée `[-]PnDTnHnMnS` (`xsd:duration`) en minutes. Un jour vaut
-/// 24 heures ; des décimales sont admises dans la dernière composante
-/// seulement ; les secondes sont arrondies à la minute par R-001 (`rounded`).
-/// Années et mois non nuls refusés (longueur variable) ; semaines (`W`) hors
-/// `xsd:duration`, refusées.
+/// R-070 : durée `[-]PnDTnHnMnS` (`xsd:duration`). Un jour vaut 24 heures ;
+/// des décimales sont admises dans la dernière composante seulement ; la
+/// valeur est arrondie par R-001 au dixième de minute (durée) et au
+/// millième (travail), chaque arrondi signalé (ADR-0039). Années et mois non
+/// nuls refusés (longueur variable) ; semaines (`W`) hors `xsd:duration`,
+/// refusées.
 ///
-/// Exemples : `PT80H0M0S` → 4 800 ; `PT8H30M0S` → 510 ; `PT0H0M30S` → 1 ;
-/// `PT1.5H` → 90 ; `P2D` → 2 880 ; `-PT8H` → −480.
+/// Exemples (dixièmes) : `PT80H0M0S` → 48 000 ; `PT8H30M0S` → 5 100 ;
+/// `PT0H0M30S` → 5 (exact) ; `PT0H0M29S` → 5 (arrondi) ; `PT1.5H` → 900 ;
+/// `P2D` → 28 800 ; `-PT8H` → −4 800.
 ///
 /// # Errors
 ///
 /// [`IsoDurationError`].
 pub fn parse_iso_duration(s: &str) -> Result<IsoDuration, IsoDurationError> {
     let signed = iso_duration_nanos(s)?;
-    let minutes = round_div(signed, NANOS_PER_MINUTE).ok_or(IsoDurationError::Overflow)?;
-    let rounded = signed.checked_rem(NANOS_PER_MINUTE).is_some_and(|r| r != 0);
-    Ok(IsoDuration { minutes, rounded })
+    let tenths = round_div(signed, NANOS_PER_TENTH).ok_or(IsoDurationError::Overflow)?;
+    let milli = round_div(signed, NANOS_PER_MILLI).ok_or(IsoDurationError::Overflow)?;
+    Ok(IsoDuration {
+        tenths,
+        tenth_rounded: signed.checked_rem(NANOS_PER_TENTH).is_some_and(|r| r != 0),
+        milli,
+        milli_rounded: signed.checked_rem(NANOS_PER_MILLI).is_some_and(|r| r != 0),
+    })
 }
 
-/// Nanosecondes dans une minute, pour l'arrondi d'une somme de durées lues
-/// par [`iso_duration_nanos`].
-pub(crate) const ISO_NANOS_PER_MINUTE: i128 = NANOS_PER_MINUTE;
+/// Nanosecondes dans un millième de minute, pour l'arrondi d'une somme de
+/// travaux lus par [`iso_duration_nanos`].
+pub(crate) const ISO_NANOS_PER_MILLI: i128 = NANOS_PER_MILLI;
 
 /// Durée `xsd:duration` en nanosecondes exactes (même syntaxe que
 /// [`parse_iso_duration`], sans arrondi à la minute ; un chiffre au-delà de
@@ -400,17 +436,12 @@ pub(crate) fn iso_duration_nanos(s: &str) -> Result<i128, IsoDurationError> {
     }
 }
 
-/// R-072 : `LinkLag` (dixièmes de minute) → minutes, `round_div(lag, 10)`
-/// (R-001). Le booléen vaut vrai si un reste a été arrondi. Exemples :
-/// 4 800 → 480 ; −4 800 → −480 ; 25 → 3 (arrondi) ; −25 → −3.
+/// R-072 : `LinkLag` (dixièmes de minute) → durée exacte (ADR-0039), sans
+/// arrondi : le booléen vaut toujours faux. Exemples : 4 800 → 480 min ;
+/// 25 → 2,5 min.
 #[must_use]
-pub fn tenths_to_minutes(tenths: i64) -> (Minutes, bool) {
-    // |tenths / 10| tient toujours dans un i64 : le repli ne sert jamais.
-    let minutes = round_div(i128::from(tenths), 10).unwrap_or(0);
-    (
-        Minutes::new(minutes),
-        tenths.checked_rem(10).is_some_and(|r| r != 0),
-    )
+pub const fn tenths_to_minutes(tenths: i64) -> (Minutes, bool) {
+    (Minutes::from_tenths(tenths), false)
 }
 
 /// R-073 (hypothèse pure) : un décalage en pourcentage est écrit
@@ -422,15 +453,17 @@ pub const fn percent_lag_from_link_lag(link_lag: i64) -> Option<i64> {
     link_lag.checked_mul(10)
 }
 
-/// R-120 : date `AAAA-MM-JJThh:mm:00`, sans fuseau (inverse de R-075).
-/// Calcul direct du calendrier civil (l'écriture de 5 000 tâches en formate
-/// plus de 50 000) ; repli sur l'affichage de `Moment` en cas d'échec.
+/// R-120 : date `AAAA-MM-JJThh:mm:ss`, sans fuseau (inverse de R-075),
+/// secondes du dixième de minute (multiples de 6, ADR-0039 ; `:00` pour une
+/// minute entière). Calcul direct du calendrier civil (l'écriture de 5 000
+/// tâches en formate plus de 50 000) ; repli sur l'affichage de `Moment` en
+/// cas d'échec.
 #[must_use]
 pub fn format_datetime(m: Moment) -> String {
-    // Lot B1 : à la minute, secondes tronquées (les secondes arrivent en B2).
+    let seconds = m.tenths().rem_euclid(10).saturating_mul(6);
     civil(m.minutes_floor()).map_or_else(
-        || format!("{m}:00"),
-        |(y, mo, d, h, mi)| format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:00"),
+        || m.to_string(),
+        |(y, mo, d, h, mi)| format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{seconds:02}"),
     )
 }
 
@@ -480,13 +513,36 @@ pub fn format_time(t: TimeOfDay, end_of_range: bool) -> String {
     format!("{:02}:{:02}:00", minutes / 60, minutes % 60)
 }
 
-/// R-120 : durée ISO 8601 `PT{h}H{m}M0S` (inverse de R-070), `-PT…` si
-/// négative. Exemple : 2 400 → `PT40H0M0S`.
+/// R-120 : durée ISO 8601 `PT{h}H{m}M{s}S` d'une valeur en dixièmes de
+/// minute (inverse de R-070, ADR-0039), `-PT…` si négative ; secondes
+/// multiples de 6. Exemples : 24 000 → `PT40H0M0S` ; 1 125 → `PT1H52M30S`.
 #[must_use]
-pub fn format_iso_duration(minutes: i64) -> String {
-    let sign = if minutes < 0 { "-" } else { "" };
-    let abs = minutes.unsigned_abs();
-    format!("{sign}PT{}H{}M0S", abs / 60, abs % 60)
+pub fn format_iso_duration(tenths: i64) -> String {
+    let sign = if tenths < 0 { "-" } else { "" };
+    let abs = tenths.unsigned_abs();
+    let minutes = abs / 10;
+    let seconds = (abs % 10).saturating_mul(6);
+    format!("{sign}PT{}H{}M{seconds}S", minutes / 60, minutes % 60)
+}
+
+/// R-120 : travail ISO 8601 `PT{h}H{m}M{s}S` d'une valeur en millièmes de
+/// minute (ADR-0039) : secondes au centième (un millième de minute vaut
+/// 0,06 s), sans zéro final. Exemples : 480 000 → `PT8H0M0S` ; 112 125 →
+/// `PT1H52M7.5S` ; 1 → `PT0H0M0.06S`.
+#[must_use]
+pub fn format_iso_work(milli: i64) -> String {
+    let sign = if milli < 0 { "-" } else { "" };
+    let abs = milli.unsigned_abs();
+    let minutes = abs / 1_000;
+    // Centièmes de seconde : millièmes × 6.
+    let hundredths = (abs % 1_000).saturating_mul(6);
+    let seconds = if hundredths.is_multiple_of(100) {
+        (hundredths / 100).to_string()
+    } else {
+        let frac = format!("{:02}", hundredths % 100);
+        format!("{}.{}", hundredths / 100, frac.trim_end_matches('0'))
+    };
+    format!("{sign}PT{}H{}M{seconds}S", minutes / 60, minutes % 60)
 }
 
 /// R-120 : booléen `0` / `1`.
@@ -584,8 +640,13 @@ mod tests {
         clippy::unnecessary_wraps,
         reason = "aide de test : se compare directement au résultat de parse_iso_duration"
     )]
-    fn iso(minutes: i64, rounded: bool) -> Result<IsoDuration, IsoDurationError> {
-        Ok(IsoDuration { minutes, rounded })
+    fn iso(tenths: i64, rounded: bool) -> Result<(i64, bool), IsoDurationError> {
+        Ok((tenths, rounded))
+    }
+
+    /// Lecture projetée sur le dixième de minute (durée).
+    fn at_tenth(s: &str) -> Result<(i64, bool), IsoDurationError> {
+        parse_iso_duration(s).map(|d: IsoDuration| (d.tenths, d.tenth_rounded))
     }
 
     #[test]
@@ -606,22 +667,29 @@ mod tests {
 
     #[test]
     fn iso_durations() {
-        assert_eq!(parse_iso_duration("PT80H0M0S"), iso(4_800, false));
-        assert_eq!(parse_iso_duration("PT0H0M0S"), iso(0, false));
-        assert_eq!(parse_iso_duration("PT8H30M0S"), iso(510, false));
-        assert_eq!(parse_iso_duration("PT1.5H"), iso(90, false));
-        assert_eq!(parse_iso_duration("P2D"), iso(2_880, false));
-        assert_eq!(parse_iso_duration("P1DT1H"), iso(1_500, false));
-        // 30 s = 0,5 min → 1 (moitié loin de zéro), arrondi signalé.
-        assert_eq!(parse_iso_duration("PT0H0M30S"), iso(1, true));
-        assert_eq!(parse_iso_duration("PT0H0M29S"), iso(0, true));
-        assert_eq!(parse_iso_duration("PT0H0M0.5S"), iso(0, true));
-        assert_eq!(parse_iso_duration("-PT8H"), iso(-480, false));
-        assert_eq!(parse_iso_duration("-PT0H0M30S"), iso(-1, true));
+        // ADR-0039 : lu au dixième de minute (avant : à la minute, `PT0H0M30S`
+        // donnait 1 min arrondie, `-PT0H0M30S` −1 min arrondie).
+        assert_eq!(at_tenth("PT80H0M0S"), iso(48_000, false));
+        assert_eq!(at_tenth("PT0H0M0S"), iso(0, false));
+        assert_eq!(at_tenth("PT8H30M0S"), iso(5_100, false));
+        assert_eq!(at_tenth("PT1.5H"), iso(900, false));
+        assert_eq!(at_tenth("P2D"), iso(28_800, false));
+        assert_eq!(at_tenth("P1DT1H"), iso(15_000, false));
+        // 30 s = 5 dixièmes exacts ; 29 s = 4,83 → 5, arrondi signalé.
+        assert_eq!(at_tenth("PT0H0M30S"), iso(5, false));
+        assert_eq!(at_tenth("PT0H0M29S"), iso(5, true));
+        assert_eq!(at_tenth("PT0H0M0.5S"), iso(0, true));
+        assert_eq!(at_tenth("-PT8H"), iso(-4_800, false));
+        assert_eq!(at_tenth("-PT0H0M30S"), iso(-5, false));
+        // Travail au millième (0,06 s) : 7,5 s exact, 11 s arrondi.
+        let milli = |s: &str| parse_iso_duration(s).map(|d| (d.milli, d.milli_rounded));
+        assert_eq!(milli("PT0H0M7.5S"), Ok((125, false)));
+        assert_eq!(milli("PT0H0M11S"), Ok((183, true)));
+        assert_eq!(milli("PT8H0M0S"), Ok((480_000, false)));
         // Années et mois : refusés s'ils sont non nuls.
         assert_eq!(parse_iso_duration("P1M"), Err(IsoDurationError::YearsOrMonths));
         assert_eq!(parse_iso_duration("P1Y"), Err(IsoDurationError::YearsOrMonths));
-        assert_eq!(parse_iso_duration("P0Y0M0DT8H0M0S"), iso(480, false));
+        assert_eq!(at_tenth("P0Y0M0DT8H0M0S"), iso(4_800, false));
         // Écritures invalides.
         for bad in [
             "",
@@ -640,11 +708,8 @@ mod tests {
         ] {
             assert_eq!(parse_iso_duration(bad), Err(IsoDurationError::Syntax), "{bad}");
         }
-        // 10^14 h tient en minutes ; 10^40 h déborde.
-        assert_eq!(
-            parse_iso_duration("PT99999999999999H"),
-            iso(5_999_999_999_999_940, false)
-        );
+        // 10^14 h tient en dixièmes ; 10^40 h déborde.
+        assert_eq!(at_tenth("PT99999999999999H"), iso(59_999_999_999_999_400, false));
         assert_eq!(
             parse_iso_duration("PT9999999999999999999999999999999999999999H"),
             Err(IsoDurationError::Overflow)
@@ -656,9 +721,14 @@ mod tests {
         let p = parse_datetime("2009-11-09T08:00:00").unwrap();
         assert_eq!(p.moment, m("2009-11-09T08:00"));
         assert!(!p.rounded && !p.zone_ignored);
+        // ADR-0039 : secondes au dixième (6 s), reste tronqué (avant :
+        // 18:18:20 → 18:18).
         let p = parse_datetime("2026-08-07T18:18:20").unwrap();
-        assert_eq!(p.moment, m("2026-08-07T18:18"));
+        assert_eq!(p.moment, m("2026-08-07T18:18:18"));
         assert!(p.rounded);
+        let p = parse_datetime("2026-08-07T18:18:30").unwrap();
+        assert_eq!(p.moment, m("2026-08-07T18:18:30"));
+        assert!(!p.rounded);
         let p = parse_datetime("2026-08-07T18:18").unwrap();
         assert_eq!(p.moment, m("2026-08-07T18:18"));
         let p = parse_datetime("2026-08-07T18:18:00.000").unwrap();
@@ -716,8 +786,9 @@ mod tests {
     fn tenths_and_percent_lags() {
         assert_eq!(tenths_to_minutes(4_800), (Minutes::new(480), false));
         assert_eq!(tenths_to_minutes(-4_800), (Minutes::new(-480), false));
-        assert_eq!(tenths_to_minutes(25), (Minutes::new(3), true));
-        assert_eq!(tenths_to_minutes(-25), (Minutes::new(-3), true));
+        // ADR-0039 : exact (avant : 25 → 3 min, arrondi signalé).
+        assert_eq!(tenths_to_minutes(25), (Minutes::from_tenths(25), false));
+        assert_eq!(tenths_to_minutes(-25), (Minutes::from_tenths(-25), false));
         // Borne de i64 (ADR-0039) : −922 337 203 685 477 581 minutes ne tiennent
         // plus en dixièmes ; la valeur est saturée, sans panique.
         assert_eq!(tenths_to_minutes(i64::MIN).0, Minutes::from_tenths(i64::MIN));
@@ -758,12 +829,23 @@ mod tests {
         assert_eq!(format_time(TimeOfDay::END_OF_DAY, true), "00:00:00");
         assert_eq!(format_time(TimeOfDay::END_OF_DAY, false), "24:00:00");
         assert_eq!(parse_time("24:00:00").unwrap().0, TimeOfDay::END_OF_DAY);
-        for minutes in [0, 1, 59, 60, 480, 2_400, 87_308_640, -480, -1] {
-            let text = format_iso_duration(minutes);
-            assert_eq!(parse_iso_duration(&text).unwrap().minutes, minutes, "{text}");
+        for tenths in [0, 1, 5, 9, 590, 600, 4_800, 24_000, 873_086_400, -4_800, -10, -1] {
+            let text = format_iso_duration(tenths);
+            assert_eq!(parse_iso_duration(&text).unwrap().tenths, tenths, "{text}");
         }
-        assert_eq!(format_iso_duration(2_400), "PT40H0M0S");
-        assert_eq!(format_iso_duration(-90), "-PT1H30M0S");
+        assert_eq!(format_iso_duration(24_000), "PT40H0M0S");
+        assert_eq!(format_iso_duration(-900), "-PT1H30M0S");
+        assert_eq!(format_iso_duration(1_125), "PT1H52M30S");
+        for milli in [0, 1, 7, 125, 112_125, 480_000, 999, -1_500] {
+            let text = super::format_iso_work(milli);
+            let d = parse_iso_duration(&text).unwrap();
+            assert_eq!((d.milli, d.milli_rounded), (milli, false), "{text}");
+        }
+        assert_eq!(super::format_iso_work(112_125), "PT1H52M7.5S");
+        assert_eq!(super::format_iso_work(1), "PT0H0M0.06S");
+        let at = m("2026-10-19T08:00:54");
+        assert_eq!(format_datetime(at), "2026-10-19T08:00:54");
+        assert_eq!(parse_datetime(&format_datetime(at)).unwrap().moment, at);
         assert_eq!(format_bool(true), "1");
         assert_eq!(format_bool(false), "0");
         let d = |m: i64, s: u8| plannercraft_core::Decimal::new(m, s).unwrap();

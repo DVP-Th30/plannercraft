@@ -136,9 +136,19 @@ fn r140_thousands_and_rounding() {
         parse_duration("1 000 h", &ctx()),
         Ok(work(60_000, DurationUnit::Hour))
     );
-    // 0,01 j = 4,8 min → 5 (R-001) ; 0,33 j = 158,4 → 158.
-    assert_eq!(parse_duration("0,01j", &ctx()), Ok(work(5, DurationUnit::Day)));
-    assert_eq!(parse_duration("0.33d", &ctx()), Ok(work(158, DurationUnit::Day)));
+    // Au dixième de minute (R-001, ADR-0039 ; avant : à la minute, 5 et
+    // 158) : 0,01 j = 4,8 min ; 0,33 j = 158,4.
+    let tenths = |t: i64| {
+        Duration::new(
+            Minutes::from_tenths(t),
+            DurationUnit::Day,
+            TimeBasis::Working,
+            false,
+        )
+        .unwrap()
+    };
+    assert_eq!(parse_duration("0,01j", &ctx()), Ok(tenths(48)));
+    assert_eq!(parse_duration("0.33d", &ctx()), Ok(tenths(1_584)));
     // 6 décimales au plus : 0,000001 j = 0,00048 min → 0.
     assert_eq!(
         parse_duration("0,000001j", &ctx()),
@@ -267,9 +277,9 @@ fn r140_english_comma_thousands_are_refused() {
 }
 
 /// ADR-0039 (lot B3) : au dixième de minute, la saisie décimale garde sa
-/// fraction (R-001 au dixième) ; la saisie qui entre dans le modèle
-/// (`parse_duration`, `ENTRY_RESOLUTION`) reste à la minute entière
-/// jusqu'au lot B4, arrondie une seule fois (jamais en passant par le
+/// fraction (R-001 au dixième) ; depuis le lot B4, c'est la résolution de
+/// la saisie qui entre dans le modèle (`ENTRY_RESOLUTION`) ; la minute
+/// reste disponible et arrondit une seule fois (jamais en passant par le
 /// dixième).
 #[test]
 fn r140_tenth_resolution() {
@@ -282,12 +292,15 @@ fn r140_tenth_resolution() {
     assert_eq!(tenth("0,33j"), Ok(1_584));
     assert_eq!(tenth("0,00001j"), Ok(0));
     assert_eq!(tenth("5j"), Ok(24_000));
-    assert_eq!(ENTRY_RESOLUTION, Resolution::Minute);
+    assert_eq!(ENTRY_RESOLUTION, Resolution::Tenth);
     let entry = |s: &str| parse_duration(s, &ctx()).map(|d| d.minutes().tenths());
-    assert_eq!(entry("0,01j"), Ok(50));
-    assert_eq!(entry("112,5m"), Ok(1_130));
+    assert_eq!(entry("0,01j"), Ok(48));
+    assert_eq!(entry("112,5m"), Ok(1_125));
+    let minute = |s: &str| parse_duration_at(s, &ctx(), Resolution::Minute).map(|d| d.minutes().tenths());
+    assert_eq!(minute("0,01j"), Ok(50));
+    assert_eq!(minute("112,5m"), Ok(1_130));
     // 4,46 min : 4 à la minute ; au dixième puis à la minute, ce serait 5.
-    assert_eq!(entry("4,46m"), Ok(40));
+    assert_eq!(minute("4,46m"), Ok(40));
     let lag = parse_lag_at("-0,01j", &ctx(), Resolution::Tenth).unwrap();
     assert_eq!(
         lag.value,

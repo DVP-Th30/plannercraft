@@ -26,6 +26,6 @@ Les mêmes fichiers servent aux tests de robustesse du lecteur (`crates/plannerc
 
 ## `contract_bytes.txt` et `compat/` — contrats en minutes entières (ADR-0039, lot B2)
 
-`contract_bytes.txt` : empreintes SHA-256 des contrats produits par le scénario de `tests/corpus/bytes.rs` (modèle sérialisé, journal de commandes, sauvegarde automatique, vues JSON, MSPDI écrit) sur l'exemple de l'application et deux fichiers du corpus, **produites sur `main` à `d3b6fda`, avant le lot B2**. Pour un planning en minutes entières, ces octets ne doivent jamais changer ; une empreinte qui diffère est un défaut, pas une référence à régénérer.
+`contract_bytes.txt` : empreintes SHA-256 des contrats produits par le scénario de `tests/corpus/bytes.rs` (modèle sérialisé, journal de commandes, sauvegarde automatique, vues JSON, MSPDI écrit) sur l'exemple de l'application et deux fichiers du corpus, **produites sur `main` à `d3b6fda`, avant le lot B2**. Pour un planning en minutes entières, ces octets ne doivent jamais changer ; une empreinte qui diffère est un défaut, pas une référence à régénérer. Lot B4 (ADR-0039) : trois empreintes `*/mspdi` changent, expliquées en tête du fichier (agrégats de récapitulative au dixième, R-210) ; toutes les autres restent celles de `main` avant B2.
 
 `compat/` : journal de commandes et sauvegarde automatique (base et lignes) de l'exemple, écrits par le même `main` ; le test vérifie qu'ils se relisent et se rejouent avec le même sens.

@@ -9,7 +9,7 @@ use super::emit::Emitter;
 use super::{OrderProfile, baseline, entity, max_len, plan, unscoped};
 use crate::codes;
 use crate::resource::rate_factor;
-use crate::scalar::{format_bool, format_decimal, format_iso_duration};
+use crate::scalar::{format_bool, format_decimal, format_iso_work};
 use crate::schema::Parent;
 
 /// Décimales au plus d'un taux horaire écrit.
@@ -134,9 +134,7 @@ pub(crate) fn write(
             ),
             "Work" => em.opt_leaf(
                 name,
-                computed
-                    .and_then(|v| v.work)
-                    .map(|w| format_iso_duration(w.whole_minutes_round())),
+                computed.and_then(|v| v.work).map(|w| format_iso_work(w.milli())),
             ),
             // R-226 : écart de travail (minutes × 1000).
             "WorkVariance" => em.opt_leaf(

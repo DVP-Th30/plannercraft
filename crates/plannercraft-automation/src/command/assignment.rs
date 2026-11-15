@@ -275,14 +275,7 @@ pub(super) fn balance_of(
 
 /// Travail en minutes ouvrées d'une durée JSON (`elapsed` refusé).
 fn work_of(ctx: &Ctx<'_>, d: &DurationJson, field: &str) -> Result<Work, CommandError> {
-    let d = ctx.duration(d, field)?;
-    if d.basis() == TimeBasis::Elapsed {
-        return Err(invalid(
-            field,
-            "travail en temps ouvré attendu (durée écoulée refusée)",
-        ));
-    }
-    Work::new(d.minutes()).map_err(|_| invalid(field, "travail hors des bornes"))
+    ctx.work(d, field)
 }
 
 /// Délai d'affectation en minutes (`Delay`, R-177) : ouvré, ≥ 0.
@@ -297,13 +290,14 @@ fn delay_of(ctx: &Ctx<'_>, d: &DurationJson, field: &str) -> Result<Minutes, Com
     Ok(d.minutes())
 }
 
-/// Travail d'une quantité matérielle : `q × 60 min` (R-001, O30).
+/// Travail d'une quantité matérielle : `q × 60 min`, au millième de
+/// minute (O30, R-001, ADR-0039).
 fn quantity_work(q: Units, field: &str) -> Result<Work, CommandError> {
-    let minutes = i128::from(q.get())
-        .checked_mul(60)
+    let milli = i128::from(q.get())
+        .checked_mul(60_000)
         .and_then(|n| round_div(n, UNIT_SCALE))
         .ok_or_else(|| invalid(field, "quantité hors des bornes"))?;
-    Work::new(Minutes::new(minutes)).map_err(|_| invalid(field, "quantité hors des bornes"))
+    Work::from_milli(milli).map_err(|_| invalid(field, "quantité hors des bornes"))
 }
 
 /// Durée calculée de la récapitulative `task` dans l'état courant du lot
@@ -324,12 +318,13 @@ fn summary_duration(ctx: &Ctx<'_>, task: TaskUid, stored: Minutes) -> Minutes {
 /// Travail par défaut d'une affectation de récapitulative : durée calculée
 /// × unités (R-170, R-179, R-196 ; hypothèse).
 fn summary_work(duration: Minutes, units: Units) -> Result<Work, CommandError> {
-    // Lot B1 : en minutes entières (R-001).
-    let minutes = i128::from(duration.whole_minutes_round())
+    // Dixièmes × U × 100 ÷ 10 000 : millièmes, arrondis (R-001, ADR-0039).
+    let milli = i128::from(duration.tenths())
         .checked_mul(i128::from(units.get()))
+        .and_then(|n| n.checked_mul(100))
         .and_then(|n| round_div(n, UNIT_SCALE))
         .ok_or_else(|| invalid("units", "travail hors des bornes"))?;
-    Work::new(Minutes::new(minutes)).map_err(|_| invalid("units", "travail hors des bornes"))
+    Work::from_milli(milli).map_err(|_| invalid("units", "travail hors des bornes"))
 }
 
 /// Affectation de `resource` à `task`, s'il y en a une.

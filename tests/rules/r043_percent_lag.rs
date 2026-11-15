@@ -40,10 +40,11 @@ fn r043_elapsed_percent() {
 }
 
 #[test]
-fn r043_percent_rounded_to_the_minute() {
-    // A 1 j, B FS+33 % : 0,33 × 480 = 158,4 → 158 (R-001) ;
-    // add(lun 17:00, 158) = mar 10:38 → B mar 10:38 – mer 10:38.
+fn r043_percent_rounded_to_the_tenth() {
+    // A 1 j, B FS+33 % : 0,33 × 480 = 158,4 min, au dixième (R-001,
+    // ADR-0039 ; avant : 158, B à 10:38) ; add(lun 17:00, 158,4) = mar
+    // 10:38:24 → B mar 10:38:24 – mer 10:38:24.
     let r = run(480, LinkType::FinishToStart, lag_pct(33));
-    assert_eq!(r.at("B").early.start, moment("2026-10-20T10:38"));
-    assert_eq!(r.at("B").early.finish, moment("2026-10-21T10:38"));
+    assert_eq!(r.at("B").early.start, moment("2026-10-20T10:38:24"));
+    assert_eq!(r.at("B").early.finish, moment("2026-10-21T10:38:24"));
 }

@@ -67,7 +67,7 @@ fn check(before: &Task, inputs: &[Input], out: &Edited, parts_before: &[Part]) {
     let pg = &out.progress;
     let dur = out.duration;
     assert!(
-        dur >= Minutes::ZERO && dur.whole_minutes().unwrap() <= Duration::MAX_MINUTES,
+        dur >= Minutes::ZERO && dur.tenths() <= Duration::MAX_TENTHS,
         "{dur:?}"
     );
     assert!(
@@ -75,8 +75,8 @@ fn check(before: &Task, inputs: &[Input], out: &Edited, parts_before: &[Part]) {
         "{pg:?} {dur:?}"
     );
     assert_eq!(
-        pg.remaining_duration.whole_minutes().unwrap(),
-        dur.whole_minutes().unwrap() - pg.actual_duration.whole_minutes().unwrap(),
+        pg.remaining_duration.tenths(),
+        dur.tenths() - pg.actual_duration.tenths(),
         "{pg:?}"
     );
     assert_eq!(
@@ -111,19 +111,15 @@ fn check(before: &Task, inputs: &[Input], out: &Edited, parts_before: &[Part]) {
     uids.sort_unstable();
     assert_eq!(out.parts.iter().map(|q| q.uid).collect::<Vec<_>>(), uids);
     if !out.parts.is_empty() {
-        let w: i64 = out.parts.iter().map(|q| q.work.whole_minutes().unwrap()).sum();
-        let aw: i64 = out
-            .parts
-            .iter()
-            .map(|q| q.actual_work.whole_minutes().unwrap())
-            .sum();
+        let w: i64 = out.parts.iter().map(|q| q.work.milli()).sum();
+        let aw: i64 = out.parts.iter().map(|q| q.actual_work.milli()).sum();
         assert!(
             out.parts.iter().all(|q| q.actual_work <= q.work),
             "{:?}",
             out.parts
         );
-        assert_eq!(pg.actual_work.whole_minutes().unwrap(), aw);
-        assert_eq!(pg.remaining_work.whole_minutes().unwrap(), w - aw);
+        assert_eq!(pg.actual_work.milli(), aw);
+        assert_eq!(pg.remaining_work.milli(), w - aw);
     }
 }
 

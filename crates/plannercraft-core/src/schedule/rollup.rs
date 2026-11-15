@@ -571,10 +571,10 @@ impl Calc<'_, '_> {
         // D de la tâche (R-200), et non la durée utilisée d'une manuelle ni
         // la plus longue part d'une feuille affectée (O40 : A7, Σ D = 9 840
         // sur les durées des tâches).
-        // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
-        let d = i128::from(task.duration.minutes().whole_minutes_round().max(0));
+        // En dixièmes de minute (ADR-0039) : le % pondéré est un rapport.
+        let d = i128::from(task.duration.minutes().tenths().max(0));
         let state = progress::facts(task).state;
-        let entered = i128::from(task.progress.actual_duration.whole_minutes_round().max(0));
+        let entered = i128::from(task.progress.actual_duration.tenths().max(0));
         let pct = match state {
             ProgressState::Complete => 10_000,
             _ => i128::from(task.progress.percent_complete.get()),
@@ -806,8 +806,8 @@ fn summary_progress(ts: &TaskSchedule, agg: &Agg, manual: Option<Minutes>) -> Op
         return None;
     }
     let dm = manual.unwrap_or(ts.duration).max(Minutes::ZERO);
-    // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
-    let d = i128::from(dm.whole_minutes_round());
+    // En dixièmes de minute (ADR-0039).
+    let d = i128::from(dm.tenths());
     let by_percent = || {
         d.checked_mul(i128::from(ts.percent_complete.get()))
             .and_then(|x| round_div(x, 10_000))
@@ -829,8 +829,8 @@ fn summary_progress(ts: &TaskSchedule, agg: &Agg, manual: Option<Minutes>) -> Op
         actual_finish: agg.actual_finish.filter(|_| complete),
         stop,
         resume: stop,
-        actual_duration: Minutes::new(actual),
-        remaining_duration: Minutes::new(dm.whole_minutes_round().saturating_sub(actual).max(0)),
+        actual_duration: Minutes::from_tenths(actual),
+        remaining_duration: Minutes::from_tenths(dm.tenths().saturating_sub(actual).max(0)),
         percent_complete: ts.percent_complete,
         percent_work_complete: ratio(agg.actual_work, agg.work),
         actual_work: work_of(agg.actual_work),

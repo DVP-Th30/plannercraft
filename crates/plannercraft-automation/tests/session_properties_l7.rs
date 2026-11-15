@@ -263,12 +263,14 @@ fn p31_violation(s: &Session) -> Option<String> {
         {
             continue;
         }
+        // ADR-0039 : W en millièmes, d en dixièmes tronqués (R-170) :
+        // |W × 10 000 − d × 100 × U| ≤ ½ millième (arrondi du travail) plus
+        // un dixième × U (troncature de d), en millièmes × 10 000.
         let u = i128::from(model.units.get());
-        let w = i128::from(model.work.whole_minutes().unwrap());
-        let d = i128::from(a.duration.whole_minutes().unwrap());
-        // |W × 10 000 − d × U| ≤ max(1, U / 20 000) × 10 000.
-        let gap = (w * 10_000 - d * u).abs();
-        let tolerance = (u / 2).max(10_000);
+        let w = i128::from(model.work.milli());
+        let d = i128::from(a.duration.tenths());
+        let gap = (w * 10_000 - d * 100 * u).abs();
+        let tolerance = 5_000 + 100 * u;
         if gap > tolerance {
             return Some(format!("P31 : affectation {uid} W {w} d {d} U {u}"));
         }
@@ -286,14 +288,14 @@ fn p31_violation(s: &Session) -> Option<String> {
                     .and_then(|r| p.resources.get(r))
                     .is_some_and(|r| r.kind == ResourceKind::Work)
             })
-            .map(|a| a.work.whole_minutes().unwrap())
+            .map(|a| a.work.milli())
             .sum();
         let has_parts = p.assignments.iter().any(|a| a.task == t.uid());
-        if has_parts && t.work.whole_minutes().unwrap() != sum {
+        if has_parts && t.work.milli() != sum {
             return Some(format!(
                 "travail de la tâche {} : {} ≠ Σ {sum}",
                 t.uid(),
-                t.work.whole_minutes().unwrap()
+                t.work.milli()
             ));
         }
     }

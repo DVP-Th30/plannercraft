@@ -13,11 +13,15 @@ fn r075_local_datetime() {
 }
 
 #[test]
-fn r075_seconds_truncated() {
-    // 18:18:20 → 18:18 (R-004), troncature signalée (`mspdi.rounded`).
+fn r075_seconds_truncated_to_the_tenth() {
+    // ADR-0039 : secondes au dixième de minute (6 s), reste tronqué (R-004)
+    // et signalé : 18:18:20 → 18:18:18 (avant : 18:18) ; 18:18:30 exact.
     let p = parse_datetime("2026-08-07T18:18:20").unwrap();
-    assert_eq!(p.moment, moment("2026-08-07T18:18"));
+    assert_eq!(p.moment, moment("2026-08-07T18:18:18"));
     assert!(p.rounded);
+    let p = parse_datetime("2026-08-07T18:18:30").unwrap();
+    assert_eq!(p.moment, moment("2026-08-07T18:18:30"));
+    assert!(!p.rounded);
 }
 
 #[test]

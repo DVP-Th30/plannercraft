@@ -598,7 +598,7 @@ impl Calc<'_, '_> {
             }
         };
         let stop = self.stop_of(v, actual_start, ip.actual)?;
-        let mut from = ip.resume.map_or(stop, |r| r.max(stop));
+        let mut from = self.resume_from(v, stop, ip.resume)?;
         if ip.split {
             from = from.max(b.start);
             if let Some(date) = self.net.node(v).and_then(|n| n.constraint).and_then(|c| c.date) {
@@ -645,6 +645,35 @@ impl Calc<'_, '_> {
             .scale(node.place)
             .ok_or(Fail::Internal("échelle hors bornes"))?;
         Ok(scale.forward_span(actual_start, actual)?.finish.max(actual_start))
+    }
+
+    /// R-300 : instant d'où part le reste d'une feuille en cours `v` arrêtée
+    /// en `stop`, de reprise saisie `resume` : `max(stop, resume)`, sauf
+    /// quand `stop` tombe entre deux minutes et que la reprise, au plus à la
+    /// minute supérieure, tombe hors du temps ouvré : enregistrée à la
+    /// minute, elle n'interrompt pas la tâche et le reste part de `stop`
+    /// (hypothèse, ADR-0039 ; observé : `maryam24-git…` UID 2).
+    pub(super) fn resume_from(
+        &self,
+        v: NodeIx,
+        stop: Moment,
+        resume: Option<Moment>,
+    ) -> Result<Moment, Fail> {
+        let Some(r) = resume.filter(|r| *r > stop) else {
+            return Ok(stop);
+        };
+        if stop.whole_minutes().is_some() {
+            return Ok(r);
+        }
+        let ceil = stop
+            .minutes_floor()
+            .checked_add(1)
+            .and_then(|m| Moment::from_minutes(m).ok());
+        if ceil.is_none_or(|c| r > c) {
+            return Ok(r);
+        }
+        let working = self.remaining_placer(v)?.forward_span(r)?.start == r;
+        Ok(if working { r } else { stop })
     }
 
     /// R-205 : fractionnement non permis, `progress.link_ignored` pour

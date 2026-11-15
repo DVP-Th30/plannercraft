@@ -48,7 +48,7 @@
           ]
         },
         "minutes": {
-          "description": "Minutes (signées). En sortie, entier, ou décimal au dixième de minute\nquand la valeur ne l'est pas ; en saisie, minutes entières (une\nfraction est refusée).",
+          "description": "Minutes (signées) : entier, ou décimal au dixième de minute.",
           "type": [
             "number",
             "null"

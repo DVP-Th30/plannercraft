@@ -34,12 +34,12 @@ pub(crate) fn part(id: u32, u: i64, w: i64) -> Part {
 
 /// Tâche feuille de type `t`, durée `d`, travail = Σ des affectations.
 pub(crate) fn task(t: TaskType, effort_driven: bool, d: i64, parts: &[Part]) -> TaskSide {
-    let total = parts.iter().map(|p| p.work.whole_minutes().unwrap()).sum();
+    let total = parts.iter().map(|p| p.work.milli()).sum();
     TaskSide {
         task_type: t,
         effort_driven,
         duration: Minutes::new(d),
-        work: work(total),
+        work: Work::from_milli(total).unwrap(),
         summary: false,
     }
 }
@@ -74,10 +74,14 @@ fn r170_work_equals_duration_times_units() {
     // À 50 % : 2 400 × 5 000 / 10 000 = 1 200 (20 h).
     let half = check(&side, &[], add(5_000), 5 * DAY, 20 * HOUR, Recalculated::Work);
     assert_eq!(half.parts, [part(1, 5_000, 1_200)]);
-    // Arrondi R-001 : 7 min à 50 % = 3,5 → 4.
+    // Travail au millième (ADR-0039) : 7 min à 50 % = 3,5 min exactes
+    // (avant : arrondi à la minute, 4).
     let odd = task(TaskType::FixedUnits, false, 7, &[]);
-    let out = check(&odd, &[], add(5_000), 7, 4, Recalculated::Work);
-    assert_eq!(out.parts, [part(1, 5_000, 4)]);
+    let out = apply(&odd, &[], &add(5_000)).unwrap();
+    assert_eq!(out.duration, Minutes::new(7));
+    assert_eq!(out.work, Work::from_milli(3_500).unwrap());
+    assert_eq!(out.recalculated, Recalculated::Work);
+    assert_eq!(out.parts[0].work, Work::from_milli(3_500).unwrap());
 }
 
 #[test]

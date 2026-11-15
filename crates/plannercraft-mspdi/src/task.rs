@@ -251,7 +251,7 @@ fn recorded_task(f: &Fields<'_>, sink: &mut Sink<'_>) -> RecordedTask {
         finish_slack: tenths("FinishSlack", sink),
         critical: f.bool("Critical", sink),
         summary: f.bool("Summary", sink),
-        duration: f.duration("Duration", sink).map(|(d, _)| Minutes::new(d.minutes)),
+        duration: f.duration("Duration", sink).map(|(d, _)| d.minutes()),
         assignments: 0,
         stop: f.datetime("Stop", sink),
         resume: f.datetime("Resume", sink),
@@ -576,9 +576,9 @@ fn percent(f: &Fields<'_>, name: &str, sink: &mut Sink<'_>) -> Percent {
 /// Durée ≥ 0 (durée réelle ou restante) ; négative → 0, signalé.
 fn non_negative_minutes(f: &Fields<'_>, name: &str, sink: &mut Sink<'_>) -> Minutes {
     match f.duration(name, sink) {
-        Some((d, _)) if d.minutes >= 0 => Minutes::new(d.minutes),
+        Some((d, _)) if d.tenths >= 0 => d.minutes(),
         Some((d, at)) => {
-            f.invalid(name, at, &d.minutes.to_string(), sink);
+            f.invalid(name, at, &plannercraft_core::number::to_text(d.tenths, 1), sink);
             Minutes::ZERO
         }
         None => Minutes::ZERO,
@@ -603,13 +603,18 @@ fn mode(f: &Fields<'_>, rec: &RecordedTask, duration: Duration, sink: &mut Sink<
     let manual_duration = match f.duration("ManualDuration", sink) {
         Some((d, at)) => {
             let made = Duration::new(
-                Minutes::new(d.minutes),
+                d.minutes(),
                 duration.unit(),
                 duration.basis(),
                 duration.is_estimated(),
             );
             if made.is_err() {
-                f.invalid("ManualDuration", at, &d.minutes.to_string(), sink);
+                f.invalid(
+                    "ManualDuration",
+                    at,
+                    &plannercraft_core::number::to_text(d.tenths, 1),
+                    sink,
+                );
             }
             made.ok()
         }

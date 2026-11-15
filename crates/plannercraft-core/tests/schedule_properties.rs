@@ -1527,7 +1527,7 @@ fn p23(seed: u64) {
     let (set, _) = CalendarSet::compile(&n);
     let cal = set.get(n.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().tenths();
     let ScheduleAnchor::FromStart(s0) = n.anchor else {
         panic!("ancre")
     };
@@ -1538,7 +1538,7 @@ fn p23(seed: u64) {
     // Date miroir : W(c') = W(F') + W(s) − W(c).
     let mirror = |c: Moment| {
         let d = w(c) - w(s0);
-        cal.add_working(f0, Minutes::new(-d)).unwrap()
+        cal.add_working(f0, Minutes::from_tenths(-d)).unwrap()
     };
     p23_check(&n, f0, &mirror);
 }
@@ -1554,9 +1554,7 @@ fn p23b(seed: u64) {
     let c: Moment = "2026-10-21T12:30".parse().unwrap();
     n.anchor = ScheduleAnchor::FromStart(s0);
     n.calendar = CalendarUid::new(1);
-    let mirror = |t: Moment| {
-        Moment::from_minutes(2 * c.whole_minutes().unwrap() - t.whole_minutes().unwrap()).unwrap()
-    };
+    let mirror = |t: Moment| Moment::from_tenths(2 * c.tenths() - t.tenths()).unwrap();
     p23_check(&n, mirror(s0), &mirror);
 }
 
@@ -1566,7 +1564,7 @@ fn p23_check(n: &Project, f0: Moment, mirror: &dyn Fn(Moment) -> Moment) {
     let (set, _) = CalendarSet::compile(n);
     let cal = set.get(n.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().tenths();
     let ScheduleAnchor::FromStart(s0) = n.anchor else {
         panic!("ancre")
     };
@@ -1683,22 +1681,17 @@ struct Oracle {
 /// `ES ≥ ES_p + L − d`, `ES ≥ W(début)` ; retour symétrique.
 fn oracle(p: &Project, w_start: i64) -> Oracle {
     let n = p.tasks.len();
-    let d: Vec<i64> = p
-        .tasks
-        .iter()
-        .map(|t| t.duration.minutes().whole_minutes().unwrap())
-        .collect();
+    let d: Vec<i64> = p.tasks.iter().map(|t| t.duration.minutes().tenths()).collect();
     // Liens : (pred, succ, type, L).
     let mut links = Vec::new();
     for (si, t) in p.tasks.iter().enumerate() {
         for l in &t.predecessors {
             let pi = p.tasks.position(l.predecessor).unwrap();
             let lag = match l.lag.value {
-                LagValue::Time { minutes, .. } => minutes.whole_minutes().unwrap(),
-                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent)
-                    .unwrap()
-                    .whole_minutes()
-                    .unwrap(),
+                LagValue::Time { minutes, .. } => minutes.tenths(),
+                LagValue::Percent { percent } => {
+                    percent_of(Minutes::from_tenths(d[pi]), percent).unwrap().tenths()
+                }
             };
             links.push((pi, si, l.kind, lag));
         }
@@ -1763,7 +1756,7 @@ fn p15(p: &Project) {
     let (set, _) = CalendarSet::compile(p);
     let cal = set.get(p.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().tenths();
     let ScheduleAnchor::FromStart(start) = p.anchor else {
         panic!("ancre")
     };
@@ -1775,8 +1768,8 @@ fn p15(p: &Project) {
             w(ts.early.finish),
             w(ts.late.start),
             w(ts.late.finish),
-            ts.total_slack.whole_minutes().unwrap(),
-            ts.free_slack.whole_minutes().unwrap(),
+            ts.total_slack.tenths(),
+            ts.free_slack.tenths(),
         );
         let want = (o.es[i], o.ef[i], o.ls[i], o.lf[i], o.lf[i] - o.ef[i], o.free[i]);
         assert_eq!(got, want, "tâche {} (ES, EF, LS, LF, TF, FS)", t.uid());
@@ -1829,7 +1822,7 @@ fn anchor_of(
         return scale.forward_span(date, d).ok();
     }
     let f = scale.backward_span(date, Minutes::ZERO).ok()?.finish;
-    let start = scale.add(f, Minutes::new(-d.whole_minutes().unwrap())).ok()?;
+    let start = scale.add(f, Minutes::from_tenths(-d.tenths())).ok()?;
     Some(plannercraft_core::Span { start, finish: f })
 }
 
@@ -1858,7 +1851,7 @@ fn p20(p: &Project) {
             cals.place(p, t)
         };
         let Some(place) = place else { continue };
-        let w = |a: Moment, b: Moment| place.between(a, b).unwrap().whole_minutes().unwrap();
+        let w = |a: Moment, b: Moment| place.between(a, b).unwrap().tenths();
         if let Some(dl) = t.deadline {
             assert_eq!(
                 w(dl, ts.finish) > 0,
@@ -1933,11 +1926,7 @@ fn p20(p: &Project) {
 fn oracle_constrained(p: &Project, w_start: i64, w: &dyn Fn(Moment) -> i64) -> Oracle {
     let n = p.tasks.len();
     let honor = p.options.honor_constraints;
-    let d: Vec<i64> = p
-        .tasks
-        .iter()
-        .map(|t| t.duration.minutes().whole_minutes().unwrap())
-        .collect();
+    let d: Vec<i64> = p.tasks.iter().map(|t| t.duration.minutes().tenths()).collect();
     let rules: Vec<(Rule, bool, i64)> = p
         .tasks
         .iter()
@@ -1956,11 +1945,10 @@ fn oracle_constrained(p: &Project, w_start: i64, w: &dyn Fn(Moment) -> i64) -> O
         for l in &t.predecessors {
             let pi = p.tasks.position(l.predecessor).unwrap();
             let lag = match l.lag.value {
-                LagValue::Time { minutes, .. } => minutes.whole_minutes().unwrap(),
-                LagValue::Percent { percent } => percent_of(Minutes::new(d[pi]), percent)
-                    .unwrap()
-                    .whole_minutes()
-                    .unwrap(),
+                LagValue::Time { minutes, .. } => minutes.tenths(),
+                LagValue::Percent { percent } => {
+                    percent_of(Minutes::from_tenths(d[pi]), percent).unwrap().tenths()
+                }
             };
             links.push((pi, si, l.kind, lag));
         }
@@ -2068,7 +2056,7 @@ fn p21(p: &Project) {
     let (set, _) = CalendarSet::compile(p);
     let cal = set.get(p.calendar).unwrap();
     let origin: Moment = "2025-01-01T00:00".parse().unwrap();
-    let w = |m: Moment| cal.working_between(origin, m).unwrap().whole_minutes().unwrap();
+    let w = |m: Moment| cal.working_between(origin, m).unwrap().tenths();
     let ScheduleAnchor::FromStart(start) = p.anchor else {
         panic!("ancre")
     };
@@ -2080,8 +2068,8 @@ fn p21(p: &Project) {
             w(ts.early.finish),
             w(ts.late.start),
             w(ts.late.finish),
-            ts.total_slack.whole_minutes().unwrap(),
-            ts.free_slack.whole_minutes().unwrap(),
+            ts.total_slack.tenths(),
+            ts.free_slack.tenths(),
         );
         let want = (o.es[i], o.ef[i], o.ls[i], o.lf[i], o.lf[i] - o.ef[i], o.free[i]);
         assert_eq!(got, want, "tâche {} (ES, EF, LS, LF, TF, FS)", t.uid());

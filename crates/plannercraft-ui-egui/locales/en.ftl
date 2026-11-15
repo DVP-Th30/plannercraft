@@ -2152,8 +2152,8 @@ mpp-diff-none = No difference with MS Project any more.
 mpp-diff-kept = The tasks that differed keep the MS Project dates, manually scheduled. { $undo } undoes this.
 mpp-diff-rounding =
     { $count ->
-        [one] { $count } task differs by one or two minutes (rounding): not counted.
-       *[other] { $count } tasks differ by one or two minutes (rounding): not counted.
+        [one] { $count } task differs by one minute at most: not counted.
+       *[other] { $count } tasks differ by one minute at most: not counted.
     }
 mpp-diff-keep = Keep the MS Project dates
 mpp-diff-keep-hint = These tasks become manually scheduled, with the MS Project dates. { $undo } undoes this.
@@ -2167,4 +2167,3 @@ mpp-col-cause = Cause
 mpp-cause-contoured = work distribution edited by hand
 mpp-cause-staggered = leveling (assignments shifted)
 mpp-cause-unexplained-start = start placed by hand, without link or constraint
-mpp-cause-sub-minute = fractions of a minute

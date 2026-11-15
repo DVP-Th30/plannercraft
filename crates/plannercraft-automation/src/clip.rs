@@ -266,21 +266,6 @@ fn shown_span(outcome: Option<&TaskOutcome>) -> Option<(Moment, Moment)> {
     }
 }
 
-/// Quantité d'une affectation matérielle depuis son travail (`q × 60 min`,
-/// O30) : `travail × 10 000 / 60`, arrondi au plus proche.
-fn material_quantity(work_minutes: i64) -> Units {
-    i64::try_from(
-        i128::from(work_minutes)
-            .saturating_mul(10_000)
-            .saturating_add(30)
-            .checked_div(60)
-            .unwrap_or(0),
-    )
-    .ok()
-    .and_then(|q| Units::new(q).ok())
-    .unwrap_or(Units::FULL)
-}
-
 /// Champs copiés de `t`.
 fn fields_of(project: &Project, t: &Task) -> ClipFields {
     let manual_values = match t.mode {
@@ -459,8 +444,8 @@ fn capture_positions(
             let task = *index.get(&a.task)?;
             let r = project.resources.get(a.resource?)?;
             let units = match r.kind {
-                // Lot B1 : quantité tirée du travail en minutes entières (R-001).
-                ResourceKind::Material { .. } => material_quantity(a.work.whole_minutes_round()),
+                // Quantité tirée du travail en millièmes (O30, ADR-0039).
+                ResourceKind::Material { .. } => crate::view::material_quantity(a.work),
                 ResourceKind::Work | ResourceKind::Cost => a.units,
             };
             Some(ClipAssignment {
@@ -1049,8 +1034,12 @@ mod tests {
 
     #[test]
     fn material_quantity_inverts_work() {
-        // 3 unités ⇒ 180 min ⇒ 3 unités ; 1,5 ⇒ 90 min.
-        assert_eq!(material_quantity(180).get(), 30_000);
-        assert_eq!(material_quantity(90).get(), 15_000);
+        // 3 unités ⇒ 180 min ⇒ 3 unités ; 1,5 ⇒ 90 min (travail au
+        // millième, `view::material_quantity`).
+        let q = |m: i64| {
+            crate::view::material_quantity(plannercraft_core::Work::from_whole_minutes(m).unwrap_or_default())
+        };
+        assert_eq!(q(180).get(), 30_000);
+        assert_eq!(q(90).get(), 15_000);
     }
 }

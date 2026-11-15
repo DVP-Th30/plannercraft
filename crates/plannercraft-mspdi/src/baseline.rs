@@ -5,8 +5,8 @@
 use std::collections::BTreeMap;
 
 use plannercraft_core::{
-    AssignmentBaseline, BaselineNumber, Duration, ExtraEntry, Minutes, Money, ProjectOptions,
-    ResourceBaseline, Subject, TaskBaseline, TimeBasis, Work,
+    AssignmentBaseline, BaselineNumber, Duration, ExtraEntry, Money, ProjectOptions, ResourceBaseline,
+    Subject, TaskBaseline, TimeBasis, Work,
 };
 
 use crate::codes::{self, DurationCode};
@@ -64,10 +64,10 @@ fn read_all<T>(
 
 /// Travail ISO ≥ 0 ; négatif ou trop grand → absent, signalé.
 pub(crate) fn work(f: &Fields<'_>, name: &str, sink: &mut Sink<'_>) -> Option<Work> {
-    let (d, at) = f.duration(name, sink)?;
-    let w = Work::new(Minutes::new(d.minutes)).ok();
+    let (d, at) = f.work_iso(name, sink)?;
+    let w = Work::from_milli(d.milli).ok();
     if w.is_none() {
-        f.invalid(name, at, &d.minutes.to_string(), sink);
+        f.invalid(name, at, &plannercraft_core::number::to_text(d.milli, 3), sink);
     }
     w
 }
@@ -111,9 +111,14 @@ fn baseline_duration(f: &Fields<'_>, options: &ProjectOptions, sink: &mut Sink<'
         }
     };
     let estimated = f.bool("EstimatedDuration", sink).unwrap_or(estimated);
-    let made = Duration::new(Minutes::new(d.minutes), unit, basis, estimated).ok();
+    let made = Duration::new(d.minutes(), unit, basis, estimated).ok();
     if made.is_none() {
-        f.invalid("Duration", at, &d.minutes.to_string(), sink);
+        f.invalid(
+            "Duration",
+            at,
+            &plannercraft_core::number::to_text(d.tenths, 1),
+            sink,
+        );
     }
     made
 }

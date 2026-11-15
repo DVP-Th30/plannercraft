@@ -421,9 +421,9 @@ fn spread_with(
     mut add: impl FnMut(usize, i128),
 ) {
     let periods = bounds.len().saturating_sub(1);
-    // Lot B1 : travail réparti en minutes entières (R-001) ; les durées en
-    // dixièmes n'entrent que par leur rapport.
-    let w = i128::from(a.work.whole_minutes_round());
+    // Travail en millièmes de minute (ADR-0039) ; les durées en dixièmes
+    // n'entrent que par leur rapport.
+    let w = i128::from(a.work.milli());
     if w == 0 {
         return;
     }
@@ -476,11 +476,11 @@ fn mark(bounds: &[Moment], (from, to): (Moment, Moment), flags: &mut [bool]) {
     }
 }
 
-/// Travail en minutes entières (lot B1) borné au domaine de [`Work`].
+/// Travail en millièmes de minute borné au domaine de [`Work`].
 fn clamp_work(v: i128) -> Work {
-    let m = v.clamp(0, i128::from(Work::MAX_MINUTES));
+    let m = v.clamp(0, i128::from(Work::MAX_MILLI));
     i64::try_from(m)
         .ok()
-        .and_then(|m| Work::from_whole_minutes(m).ok())
+        .and_then(|m| Work::from_milli(m).ok())
         .unwrap_or(Work::ZERO)
 }

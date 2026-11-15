@@ -402,8 +402,8 @@ impl Calc<'_, '_> {
         self.ensure_start(st);
         // Non achevée : réel < D (un arrondi à D donnerait 100 % sans fin
         // réelle, contraire à « 100 % ⇔ fin réelle », P39).
-        // Une minute sous D (lot B1, comme avant l'ADR-0039).
-        let below = Minutes::from_tenths(st.d.tenths().saturating_sub(Minutes::new(1).tenths()).max(0));
+        // Un dixième de minute sous D, le pas du moteur (ADR-0039).
+        let below = Minutes::from_tenths(st.d.tenths().saturating_sub(1).max(0));
         st.act = share(st.d, p)?.min(below);
         st.finish = None;
         Ok(false)
@@ -450,11 +450,14 @@ fn derived_percent(st: &State) -> Percent {
         .unwrap_or(Percent::ZERO)
 }
 
-/// `percent_of(W, p)` sur du travail (R-211) : `0 ≤ résultat ≤ W`.
+/// `W × p ÷ 10 000` sur du travail (R-211), arrondi au millième de minute
+/// (R-001, ADR-0039) : `0 ≤ résultat ≤ W`.
 fn work_share(w: Work, p: Percent) -> Result<Work, EditError> {
-    // Lot B1 : part arrondie à la minute (R-010), travail arrondi au dixième
-    // avant (exact pour un travail en minutes entières).
-    Work::new(share(w.duration_round(), p)?).map_err(out_of_bounds)
+    let num = i128::from(w.milli())
+        .checked_mul(i128::from(p.get()))
+        .ok_or(EditError::Overflow)?;
+    let milli = round_div(num, 10_000).ok_or(EditError::Overflow)?;
+    Work::from_milli(milli).map_err(out_of_bounds)
 }
 
 /// R-211 : répartit `total` sur les affectations au prorata de leur
@@ -462,15 +465,14 @@ fn work_share(w: Work, p: Percent) -> Result<Work, EditError> {
 /// par plus grand reste, puis UID croissant (`parts` triées par UID) ; la
 /// somme vaut `total`.
 fn distribute(parts: &[Part], total: Work) -> Result<Vec<Work>, EditError> {
-    // Lot B1 : répartition en minutes entières (R-001 sur le total et les
-    // poids), comme avant l'ADR-0039.
-    let x = i128::from(total.whole_minutes_round());
+    // Répartition en millièmes de minute (ADR-0039).
+    let x = i128::from(total.milli());
     let all_zero = parts.iter().all(|p| p.work == Work::ZERO);
     let weight = |p: &Part| {
         if all_zero {
             1_i128
         } else {
-            i128::from(p.work.whole_minutes_round())
+            i128::from(p.work.milli())
         }
     };
     let sum = parts
@@ -507,7 +509,7 @@ fn distribute(parts: &[Part], total: Work) -> Result<Vec<Work>, EditError> {
         .map(|f| {
             i64::try_from(f)
                 .map_err(out_of_bounds)
-                .and_then(|m| Work::from_whole_minutes(m).map_err(out_of_bounds))
+                .and_then(|m| Work::from_milli(m).map_err(out_of_bounds))
         })
         .collect()
 }
@@ -682,18 +684,18 @@ fn apply_work(
         }
         // R-211 amendée (arbitrage du 2026-10-20) : travail saisi seul sur
         // une tâche affectée non achevée ⇒ durée réelle tirée du travail,
-        // `round_div(D × Σ AW, Σ W)` bornée à D − 1 : la partie réelle de
+        // `round_div(D × Σ AW, Σ W)` bornée à D − 0,1 min : la partie réelle de
         // chaque affectation (R-209, AW_a / U_a) finit au plus tard à `Stop`
         // et son reste ne la chevauche plus.
         if e.duration_field().is_none() && st.finish.is_none() && planned_work > 0 {
-            // Lot B1 : en minutes entières (R-001), comme avant l'ADR-0039.
-            let d = i128::from(st.d.whole_minutes_round());
+            // En dixièmes de minute (ADR-0039) ; borné à D − 0,1 min.
+            let d = i128::from(st.d.tenths());
             let act = d
                 .checked_mul(i128::from(done_work))
                 .and_then(|x| round_div(x, i128::from(planned_work)))
                 .ok_or(EditError::Overflow)?;
-            let below = st.d.whole_minutes_round().saturating_sub(1).max(0);
-            st.act = Minutes::new(act.clamp(0, below));
+            let below = st.d.tenths().saturating_sub(1).max(0);
+            st.act = Minutes::from_tenths(act.clamp(0, below));
         }
         if done_work > 0 {
             calc.ensure_start(st);
@@ -862,11 +864,14 @@ mod tests {
 
     #[test]
     fn distribute_sums_and_breaks_ties_by_uid() {
+        // ADR-0039 : répartition au millième de minute (avant : minutes
+        // entières, [3, 2, 2] et [0, 1]).
+        let milli = |m: i64| Work::from_milli(m).unwrap();
         let shares = distribute(&[part(1, 0), part(2, 0), part(3, 0)], work(7)).unwrap();
-        assert_eq!(shares, vec![work(3), work(2), work(2)]);
+        assert_eq!(shares, vec![milli(2_334), milli(2_333), milli(2_333)]);
         let shares = distribute(&[part(1, 1), part(2, 2)], work(1)).unwrap();
-        // 1/3 et 2/3 : le plus grand reste (2/3) prend la minute.
-        assert_eq!(shares, vec![work(0), work(1)]);
+        // 1/3 et 2/3 : le plus grand reste (2/3) prend le millième.
+        assert_eq!(shares, vec![milli(333), milli(667)]);
         assert_eq!(distribute(&[], work(5)).unwrap(), Vec::<Work>::new());
     }
 

@@ -76,11 +76,11 @@ fn r088_assignments_are_read() {
     // `Delay` 4 200 dixièmes → 420 min (O20).
     assert_eq!(one.delay, Minutes::new(420));
     assert_eq!(one.contour, WorkContour::Flat);
-    // UID 2 : `ResourceUID -65535` → aucune ressource ; `Delay` 25 → 3,
-    // `mspdi.rounded`.
+    // UID 2 : `ResourceUID -65535` → aucune ressource ; `Delay` 25 → 2,5
+    // min exactes (ADR-0039 ; avant : 3, `mspdi.rounded`).
     assert_eq!(a(2).resource, None);
-    assert_eq!(a(2).delay, Minutes::new(3));
-    assert!(has(&doc, &ImportCode::Rounded, "Assignments/Assignment/Delay"));
+    assert_eq!(a(2).delay, Minutes::from_tenths(25));
+    assert!(!has(&doc, &ImportCode::Rounded, "Assignments/Assignment/Delay"));
     assert_eq!(a(2).contour, WorkContour::Contoured);
     // UID 4 : ressource 9 inconnue → gardée, signalée par `Project::validate`.
     assert_eq!(a(4).resource, Some(ResourceUid::new(9)));

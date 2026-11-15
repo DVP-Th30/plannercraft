@@ -200,7 +200,21 @@ impl<'e> Fields<'e> {
             self.invalid(name, at, t, sink);
             return None;
         };
-        if d.rounded {
+        if d.tenth_rounded {
+            self.report(ImportCode::Rounded, name, at, Some(t), sink);
+        }
+        Some((d, at))
+    }
+
+    /// Travail ISO 8601 (R-070, ADR-0039), signé, au millième de minute ;
+    /// arrondi au millième signalé ; illisible → diagnostic, `None`.
+    pub(crate) fn work_iso(&self, name: &str, sink: &mut Sink<'_>) -> Option<(IsoDuration, u64)> {
+        let (t, at) = self.scalar(name, sink)?;
+        let Ok(d) = parse_iso_duration(t) else {
+            self.invalid(name, at, t, sink);
+            return None;
+        };
+        if d.milli_rounded {
             self.report(ImportCode::Rounded, name, at, Some(t), sink);
         }
         Some((d, at))

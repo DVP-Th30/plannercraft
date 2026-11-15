@@ -16,7 +16,7 @@ use plannercraft_core::resource::edit::effective_effort_driven;
 use plannercraft_core::schedule::{TaskOutcome, TaskRole, measure_calendar_in};
 use plannercraft_core::{
     Arena, Assignment, CalendarError, Constraint, Duration, Minutes, ModelError, Moment, OutlineLevel,
-    ScheduleAnchor, SchedulingMode, Subject, Task, TaskType, TaskUid, TimeBasis, Work,
+    ScheduleAnchor, SchedulingMode, Subject, Task, TaskType, TaskUid, TimeBasis,
 };
 
 use super::assignment::{Balance, balance_of};
@@ -814,16 +814,7 @@ fn j5_balance(
     };
     let work = match &op.work {
         Patch::Keep => None,
-        Patch::Set(w) => {
-            let d = ctx.duration(w, "work")?;
-            if d.basis() == TimeBasis::Elapsed {
-                return Err(invalid(
-                    "work",
-                    "travail en temps ouvré attendu (durée écoulée refusée)",
-                ));
-            }
-            Some(Work::new(d.minutes()).map_err(|_| invalid("work", "travail hors des bornes"))?)
-        }
+        Patch::Set(w) => Some(ctx.work(w, "work")?),
         Patch::Clear => return Err(invalid("work", "travail attendu (il ne s'efface pas)")),
     };
     if !j5 && (duration.is_none() || summary) {

@@ -54,12 +54,13 @@ fn r211_prorata_and_largest_remainder() {
     .unwrap();
     assert_eq!(e.progress.actual_duration, plannercraft_core::Minutes::new(480));
 
-    // 7 min sur trois W égaux : 2 chacune, la minute restante au plus petit
-    // UID ⇒ 3, 2, 2.
+    // 7 min sur trois W égaux, au millième (ADR-0039 ; avant : minutes
+    // entières, 3, 2, 2) : 2,333 chacune, le millième restant au plus petit
+    // UID ⇒ 2,334, 2,333, 2,333.
     let three = [part(3, 60), part(1, 60), part(2, 60)];
     let e = apply(&task(960), &three, &[Input::ActualWork(work(7))], &c).unwrap();
-    let aw: Vec<Work> = e.parts.iter().map(|p| p.actual_work).collect();
-    assert_eq!(aw, [work(3), work(2), work(2)]);
+    let aw: Vec<i64> = e.parts.iter().map(|p| p.actual_work.milli()).collect();
+    assert_eq!(aw, [2_334, 2_333, 2_333]);
 
     // % travail 100 % : travail achevé ⇒ tâche achevée (S52), fin réelle =
     // fin planifiée mar 17:00.

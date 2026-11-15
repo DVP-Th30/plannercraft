@@ -7,7 +7,6 @@ use super::emit::Emitter;
 use super::resource::units_text;
 use super::{OrderProfile, WriteCode, baseline, entity, leveling, plan, timephased, unscoped};
 use crate::codes;
-use crate::scalar::format_iso_duration;
 use crate::schema::Parent;
 
 /// `ResourceUID` d'une affectation sans ressource (R-125, R-079).
@@ -62,15 +61,12 @@ pub(crate) fn write(em: &mut Emitter, a: &Assignment, values: Option<&Values>, p
                 &a.resource
                     .map_or_else(|| NO_RESOURCE.to_owned(), |r| r.get().to_string()),
             ),
-            "ActualWork" => em.leaf(name, &format_iso_duration(a.actual_work.whole_minutes_round())),
+            "ActualWork" => em.leaf_work(name, a.actual_work.milli()),
             // R-125 : retard en dixièmes de minute (O20).
             "Delay" => em.leaf(name, &a.delay.tenths().to_string()),
-            "RemainingWork" => em.leaf(
-                name,
-                &format_iso_duration(remaining_work(a).whole_minutes_round()),
-            ),
+            "RemainingWork" => em.leaf_work(name, remaining_work(a).milli()),
             "Units" => em.leaf(name, &units_text(a.units)),
-            "Work" => em.leaf(name, &format_iso_duration(a.work.whole_minutes_round())),
+            "Work" => em.leaf_work(name, a.work.milli()),
             "WorkContour" => em.leaf(name, &codes::work_contour_code(a.contour).to_string()),
             "Baseline" => baseline::assignment(em, &a.baselines, &planned, profile),
             "Start" => em.opt_date(name, computed.and_then(|v| v.start)),

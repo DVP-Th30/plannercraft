@@ -54,7 +54,7 @@ pub struct Banner {
     pub tasks: usize,
     /// Liens.
     pub links: usize,
-    /// Tâches en écart réel (au-delà de deux minutes) ; 0 si le planning
+    /// Tâches en écart réel (au-delà d'une minute) ; 0 si le planning
     /// a été modifié depuis l'ouverture.
     pub gaps: u32,
     /// Non repris, constaté pour ce fichier.
@@ -170,7 +170,6 @@ pub const fn cause_text(cause: GapCause) -> TextId {
         GapCause::ContouredAssignment => TextId::MppCauseContoured,
         GapCause::StaggeredAssignments => TextId::MppCauseStaggered,
         GapCause::UnexplainedStart => TextId::MppCauseUnexplainedStart,
-        GapCause::SubMinute => TextId::MppCauseSubMinute,
     }
 }
 

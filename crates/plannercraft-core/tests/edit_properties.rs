@@ -131,28 +131,26 @@ impl State {
 }
 
 fn total_work(parts: &[Part]) -> i64 {
-    parts.iter().map(|p| p.work.whole_minutes().unwrap()).sum()
+    parts.iter().map(|p| p.work.milli()).sum()
 }
 
-/// P31 pour une affectation hors durée fixe : `d_a = W × 10 000 / U`
-/// (R-170) dans le domaine des durées et `|W − d_a × U / 10 000| ≤ 1` min.
-/// Au-delà de 200 %, la minute de `d_a` ne permet pas mieux que
-/// `U / 20 000` min (`|d_a − W × 10 000 / U| ≤ ½`) : la tolérance est
-/// alors celle-là.
+/// P31 pour une affectation hors durée fixe (ADR-0039) : `d_a = W × 10 000
+/// / U` arrondi au dixième (R-170) dans le domaine des durées, et
+/// `|W − d_a × U / 10 000|` borné par l'arrondi du travail au millième
+/// (½ millième) plus celui de `d_a` (moins d'un dixième × U).
+/// Mesures : W en millièmes, d en dixièmes, écart en millièmes × 10 000.
 fn p31_holds(p: &Part) -> bool {
     let u = i128::from(p.units.get());
     if u == 0 {
         return true;
     }
-    let w = i128::from(p.work.whole_minutes().unwrap());
-    let Some(d) = round_div(w * 10_000, u) else {
-        return false;
-    };
-    if !(0..=Duration::MAX_MINUTES).contains(&d) {
+    let w = i128::from(p.work.milli());
+    let d = (2 * w * 10_000 + u * 100) / (2 * u * 100);
+    if !(0..=i128::from(Duration::MAX_TENTHS)).contains(&d) {
         return false;
     }
-    let gap = (w * 10_000 - i128::from(d) * u).abs();
-    gap <= 10_000.max((u + 1) / 2)
+    let gap = (w * 10_000 - d * u * 100).abs();
+    gap <= 5_000 + 100 * u
 }
 
 proptest! {
@@ -188,8 +186,8 @@ proptest! {
             if neutral {
                 continue;
             }
-            prop_assert_eq!(s.side.work.whole_minutes().unwrap(), total_work(&s.parts));
-            prop_assert!((0..=Duration::MAX_MINUTES).contains(&s.side.duration.whole_minutes().unwrap()));
+            prop_assert_eq!(s.side.work.milli(), total_work(&s.parts));
+            prop_assert!((0..=Duration::MAX_TENTHS).contains(&s.side.duration.tenths()));
             if s.side.task_type != TaskType::FixedDuration {
                 for p in &s.parts {
                     prop_assert!(p31_holds(p), "P31 : {:?} après {:?}", p, edit);
@@ -214,10 +212,10 @@ proptest! {
             .enumerate()
             .map(|(i, &(u, w))| Part { uid: AssignmentUid::new(u32::try_from(i).unwrap() + 1), units: units(u), work: work(w) })
             .collect();
-        let Some(total) = parts.iter().try_fold(0_i64, |a, p| a.checked_add(p.work.whole_minutes().unwrap())) else {
+        let Some(total) = parts.iter().try_fold(0_i64, |a, p| a.checked_add(p.work.milli())) else {
             return Ok(());
         };
-        let Ok(total_w) = Work::new(Minutes::new(total)) else { return Ok(()) };
+        let Ok(total_w) = Work::from_milli(total) else { return Ok(()) };
         let mut s = State {
             side: TaskSide {
                 task_type: kind,
@@ -271,8 +269,8 @@ proptest! {
     }
 
     /// P33 : une seule affectation initiale, à l'état normalisé de R-170
-    /// (unités fixes, travail fixe : D = W × 10 000 / U ; durée fixe :
-    /// U = W × 10 000 / D) : ajouter puis retirer une ressource restaure
+    /// (unités fixes, travail fixe : D = W × 10 000 / U arrondi au dixième ;
+    /// durée fixe : U = W × 10 000 / D) : ajouter puis retirer une ressource restaure
     /// exactement l'état, pilotée par l'effort ou non.
     #[test]
     fn p33_add_then_remove_restores(
@@ -283,19 +281,21 @@ proptest! {
         d_fd in 1_i64..=Duration::MAX_MINUTES,
         u2 in units_value(),
     ) {
+        // Durées en dixièmes, travail en millièmes (ADR-0039).
         let (d, u1) = if kind == TaskType::FixedDuration {
             let Some(u) = round_div(i128::from(w1) * 10_000, i128::from(d_fd)) else { return Ok(()) };
             let Ok(u) = Units::new(u) else { return Ok(()) };
-            (d_fd, u)
+            (d_fd * 10, u)
         } else {
-            let Some(d) = round_div(i128::from(w1) * 10_000, i128::from(u1)) else { return Ok(()) };
-            if d > Duration::MAX_MINUTES { return Ok(()); }
+            if u1 == 0 { return Ok(()); }
+            let Some(d) = round_div(i128::from(w1) * 1_000 * 10_000, i128::from(u1) * 100) else { return Ok(()) };
+            if d > Duration::MAX_TENTHS { return Ok(()); }
             (d, units(u1))
         };
         let side = TaskSide {
             task_type: kind,
             effort_driven: effective_effort_driven(kind, effort),
-            duration: Minutes::new(d),
+            duration: Minutes::from_tenths(d),
             work: work(w1),
             summary: false,
         };

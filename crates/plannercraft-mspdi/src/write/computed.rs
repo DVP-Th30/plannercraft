@@ -212,7 +212,7 @@ fn from_task_schedule(s: &TaskSchedule, scale: Option<TimeScale<'_>>, summary: b
         start_slack,
         finish_slack,
         critical: Some(s.critical),
-        duration: (summary && !s.manual).then_some(s.duration.whole_minutes_round()),
+        duration: (summary && !s.manual).then_some(s.duration.tenths()),
         work: summary.then_some(s.work),
         ..TaskValues::default()
     }
@@ -260,12 +260,8 @@ pub(crate) fn progress_values(
         p.percent_work_complete = ps.percent_work_complete;
         p.remaining_duration = ps.remaining_duration;
         p.actual_work = ps.actual_work;
-        let rest = s
-            .work
-            .whole_minutes_round()
-            .saturating_sub(ps.actual_work.whole_minutes_round())
-            .max(0);
-        p.remaining_work = Work::new(Minutes::new(rest)).unwrap_or(Work::ZERO);
+        let rest = s.work.milli().saturating_sub(ps.actual_work.milli()).max(0);
+        p.remaining_work = Work::from_milli(rest).unwrap_or(Work::ZERO);
         p.resume = None;
     } else if ps.state != ProgressState::Started {
         p.resume = None;
@@ -580,7 +576,7 @@ fn recorded_values(r: &RecordedTask) -> TaskValues {
         start_slack: t(r.start_slack),
         finish_slack: t(r.finish_slack),
         critical: r.critical,
-        duration: r.duration.map(Minutes::whole_minutes_round),
+        duration: r.duration.map(Minutes::tenths),
         stop: r.stop,
         resume: r.resume,
         start_variance: r.start_variance,

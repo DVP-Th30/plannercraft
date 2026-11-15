@@ -198,11 +198,13 @@ fn r047_start_cap_off_working_time_elapsed_lag() {
     let run = net().run();
     assert_eq!(run.at("B").early.start, moment("2026-10-20T08:00"));
     assert_eq!(run.schedule.project_finish, moment("2026-10-22T17:00"));
+    // ADR-0039 : le dernier début plaçable est au dixième de minute (mer
+    // 16:59:54 ; avant : 16:59, TF 1 439, FS 479).
     let a = *run.at("A");
-    assert_eq!(a.late.start, moment("2026-10-21T16:59"));
-    assert_eq!(a.late.finish, moment("2026-10-22T16:59"));
-    assert_eq!(a.total_slack, Minutes::new(1_439));
-    assert_eq!(a.free_slack, Minutes::new(479));
+    assert_eq!(a.late.start, moment("2026-10-21T16:59:54"));
+    assert_eq!(a.late.finish, moment("2026-10-22T16:59:54"));
+    assert_eq!(a.total_slack, Minutes::from_tenths(14_399));
+    assert_eq!(a.free_slack, Minutes::from_tenths(4_799));
     // A placée à ses dates au plus tard : la fin du projet ne bouge pas.
     assert_eq!(
         finish_with(net, "A", a.late.start, a.late.finish),
@@ -228,8 +230,9 @@ fn r047_start_cap_from_another_calendar() {
     let run = net().run();
     assert_eq!(run.schedule.project_finish, moment("2026-10-23T17:00"));
     assert_eq!(run.at("B").late.start, moment("2026-10-22T01:00"));
+    // ADR-0039 : mer 16:59:54 (avant : 16:59).
     let a = *run.at("A");
-    assert_eq!(a.late.start, moment("2026-10-21T16:59"));
+    assert_eq!(a.late.start, moment("2026-10-21T16:59:54"));
     assert_eq!(
         finish_with(net, "A", a.late.start, a.late.finish),
         moment("2026-10-23T17:00")
@@ -258,9 +261,10 @@ fn r047_lead_into_elapsed_successor_is_adjoint_in_raw_time() {
     assert_eq!(run.at("B").early.finish, moment("2026-10-21T17:20"));
     assert_eq!(run.schedule.project_finish, moment("2026-10-22T17:00"));
     assert_eq!(run.at("B").late.start, moment("2026-10-20T22:40"));
+    // ADR-0039 : au dixième, mer 16:59:54, TF 479,9 (avant : 16:59, 479).
     let a = *run.at("A");
-    assert_eq!(a.late.finish, moment("2026-10-21T16:59"));
-    assert_eq!(a.total_slack, Minutes::new(479));
+    assert_eq!(a.late.finish, moment("2026-10-21T16:59:54"));
+    assert_eq!(a.total_slack, Minutes::from_tenths(4_799));
     assert_eq!(a.free_slack, Minutes::ZERO);
     assert_eq!(
         finish_with(net, "A", a.late.start, a.late.finish),
@@ -289,9 +293,10 @@ fn r047_lead_into_milestone_reads_raw_time() {
     let run = net().run();
     assert_eq!(run.at("M").early.start, moment("2026-10-19T16:00"));
     assert_eq!(run.at("M").late.start, moment("2026-10-20T17:00"));
+    // ADR-0039 : au dixième, mer 08:59:54, TF 539,9 (avant : 08:59, 539).
     let a = *run.at("A");
-    assert_eq!(a.late.finish, moment("2026-10-21T08:59"));
-    assert_eq!(a.total_slack, Minutes::new(539));
+    assert_eq!(a.late.finish, moment("2026-10-21T08:59:54"));
+    assert_eq!(a.total_slack, Minutes::from_tenths(5_399));
     assert_eq!(
         finish_with(net, "A", a.late.start, a.late.finish),
         moment("2026-10-21T17:00")

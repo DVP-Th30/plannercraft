@@ -19,7 +19,7 @@ use plannercraft_core::resource::Edit;
 use plannercraft_core::schedule::measure_calendar_in;
 use plannercraft_core::{
     Arena, Constraint, ConstraintKind, Diagnostic, Duration, Minutes, Moment, Progress, ProgressState,
-    Project, ResourceKind, Schedule, SchedulingMode, Subject, Task, TaskOutcome, TaskUid, TimeBasis, Work,
+    Project, ResourceKind, Schedule, SchedulingMode, Subject, Task, TaskOutcome, TaskUid, Work,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -112,15 +112,7 @@ fn inputs_of(op: &ProgressUpdate, ctx: &Ctx<'_>) -> Result<Vec<Input>, CommandEr
         inputs.push(Input::PercentWork(percent(p, PERCENT_WORK)?));
     }
     if let Some(d) = &op.actual_work {
-        let d = ctx.duration(d, ACTUAL_WORK)?;
-        if d.basis() == TimeBasis::Elapsed {
-            return Err(invalid(
-                ACTUAL_WORK,
-                "travail en temps ouvré attendu (durée écoulée refusée)",
-            ));
-        }
-        let w = Work::new(d.minutes()).map_err(|_| invalid(ACTUAL_WORK, "travail hors des bornes"))?;
-        inputs.push(Input::ActualWork(w));
+        inputs.push(Input::ActualWork(ctx.work(d, ACTUAL_WORK)?));
     }
     if let Some(p) = &op.physical_percent_complete {
         inputs.push(Input::Physical(percent(p, PHYSICAL)?));

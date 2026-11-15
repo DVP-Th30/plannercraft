@@ -1129,10 +1129,7 @@ fn cli_import_mpp() {
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
     assert!(text.contains("Fichier MPP14"), "{text}");
     assert!(text.contains("1 tâches identiques à la minute sur 1"), "{text}");
-    assert!(
-        text.contains("0 à deux minutes près (arrondi), 0 en écart réel"),
-        "{text}"
-    );
+    assert!(text.contains("0 à une minute près, 0 en écart réel"), "{text}");
     let o = run(&["tasks", s(&out), "--json"]);
     assert_eq!(code(&o), 0, "{}", String::from_utf8_lossy(&o.stderr));
     assert!(String::from_utf8_lossy(&o.stdout).contains("Gros œuvre"));

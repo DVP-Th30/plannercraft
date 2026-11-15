@@ -145,6 +145,27 @@ impl Ctx<'_> {
         d.to_duration(self.text).map_err(|e| e.with_field(field))
     }
 
+    /// Travail JSON → modèle, au millième de minute (voir
+    /// [`DurationJson::to_work`], ADR-0039), en temps ouvré : une durée
+    /// écoulée est refusée ; erreur sur le champ `field`.
+    pub(crate) fn work(
+        &self,
+        d: &DurationJson,
+        field: &str,
+    ) -> Result<plannercraft_core::Work, CommandError> {
+        let (w, basis) = d.to_work(self.text).map_err(|e| e.with_field(field))?;
+        if basis == plannercraft_core::TimeBasis::Elapsed {
+            return Err(CommandError::new(
+                crate::error::codes::PARAM_INVALID,
+                crate::error::CommandErrorKind::InvalidParam(
+                    "travail en temps ouvré attendu (durée écoulée refusée)".to_owned(),
+                ),
+            )
+            .with_field(field));
+        }
+        Ok(w)
+    }
+
     /// Décalage JSON → modèle (voir [`LagJson::to_lag`]), erreur sur le
     /// champ `field`.
     pub(crate) fn lag(&self, l: &LagJson, field: &str) -> Result<Lag, CommandError> {

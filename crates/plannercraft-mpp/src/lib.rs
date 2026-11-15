@@ -223,9 +223,6 @@ pub struct RecordedTask {
     pub start: Option<Moment>,
     /// Fin enregistrée.
     pub finish: Option<Moment>,
-    /// Le début ou la fin enregistré porte une fraction de minute
-    /// (dixièmes non multiples de 10), tronquée à la lecture (R-283).
-    pub sub_minute: bool,
 }
 
 /// Dates d'une affectation telles qu'enregistrées par MS Project.

@@ -284,3 +284,70 @@ Par l'application (`tests/ui/mpp_open.rs`, `h_ui_230_corpus_files_open`, chemin 
 - Rien n'est vérifié dans un navigateur réel par ce lot (chemins web compilés en `wasm32-unknown-unknown`, logique testée en natif) ni contre MS Project.
 - Diagnostics de lecture `mpp.*` hors du panneau des diagnostics ; compte rendu perdu au rechargement de la page.
 - Suite : M5 (formats 2007 et 2003, si des fichiers du propriétaire l'exigent), M4 (gabarits avec leurs colonnes et leurs styles, champs personnalisés) ; mesure sur des plannings de chantier du propriétaire, toujours à faire.
+
+## 12. Moteur au dixième de minute (ADR-0039, lot B4, 2026-11-15)
+
+Le moteur compte désormais en dixièmes de minute (travail en millièmes), lit les `.mpp` sans conversion et compare au dixième (R-298). Mesure (`measure_against_oracle`, mêmes fichiers et même corrigé qu'au § 10), après révision de D4 (durée tirée du travail arrondie, R-170) et R-300 (reprise enregistrée à la minute) :
+
+| | Avant B4 (minute) | Après B4 (dixième) |
+|---|---|---|
+| Fichiers réels : identiques | 2 423 / 2 966 | 2 756 / 2 966 |
+| Fichiers réels : proches (avant ≤ 2 min ; après ≤ 1 min) | 165 | 44 |
+| Fichiers réels : écart réel | 378 (dont 238 « fractions de minute ») | 166 (cause `mpp.gap.sub_minute` retirée) |
+| Même calcul sur le XML du corrigé | 2 417 / 2 967 | 2 434 / 2 967 |
+| Corrigé sans ressources ni affectations | 2 360 / 2 967 | 2 713 / 2 967 |
+| Corpus de test MPP14 : identiques | 2 188 / 2 221 | 2 188 / 2 221 |
+| Corpus MSPDI | 156 / 159 | 156 / 159 |
+
+Aucun fichier ne perd de tâche identique. Étapes mesurées : troncature de la durée tirée du travail (D4 initiale) 2 444 (311 tâches d'`advaith14…` décalées de 0,1 min par son UID 12, `maryam24-git…` 46 → 45) ; arrondi R-001 2 755 (même perte de `maryam24-git…`) ; arrondi et R-300 2 756.
+
+**Classe proche** : 44 tâches, toutes d'`AtharvaTK1997…`, décalées de 0,1 à 0,5 min (8 à 0,1 ; 11 à 0,2 ; 12 à 0,3 ; 11 à 0,4 ; 2 à 0,5) par quatre durées que MS Project enregistre un dixième sous le quotient exact (division flottante, R-170). Seuil ramené de deux minutes à une, texte de la fenêtre « n tâches diffèrent d'une minute au plus : non comptées. ».
+
+Par fichier (fichiers réels ; `Comparées` : tâches non vides planifiées avec début et fin enregistrés) :
+
+| Fichier | Comparées | Identiques avant (minute) | Identiques après (dixième) | Proches avant (≤ 2 min) / après (≤ 1 min) | Écart réel avant / après |
+|---|---|---|---|---|---|
+| `4jvarun__Total-Quality-Project-Management__Project_V2v_Co…` | 72 | 72 | 72 | 0 / 0 | 0 / 0 |
+| `AlejoTechEngineer__Planificacion_Ejecucion_Y_Gestion_Del_…` | 16 | 16 | 16 | 0 / 0 | 0 / 0 |
+| `AlizaKhan3__Software-Eng-Project-Management__Incremental_…` | 36 | 36 | 36 | 0 / 0 | 0 / 0 |
+| `AmaalAyman__Project-Management__Pm_Project_1.mpp` | 20 | 14 | 14 | 0 / 0 | 6 / 6 |
+| `AtharvaTK1997__Software-Project-Management-Assignment-1__…` | 62 | 1 | 18 | 22 / 44 | 39 / 0 |
+| `Deapry__MS_Project-SamyLao__ProjetFinal_SamyLao.mpp` | 30 | 30 | 30 | 0 / 0 | 0 / 0 |
+| `Development-of-Information-Systems__Cash-Management__Διάγ…` | 24 | 24 | 24 | 0 / 0 | 0 / 0 |
+| `Dimitrije-Sokolovic__Guitar-Shop-Management-Project__Guit…` | 64 | 42 | 42 | 0 / 0 | 22 / 22 |
+| `HamzaMalikProjects__CPS714-Software-Project-Management__C…` | 56 | 55 | 55 | 0 / 0 | 1 / 1 |
+| `HetLimbani-cyber__luxury-desk-project-plan__Luxury_Custom…` | 75 | 75 | 75 | 0 / 0 | 0 / 0 |
+| `Kalani0056__ms-project-planning__st20357430_CIS6011.mpp` | 41 | 34 | 34 | 0 / 0 | 7 / 7 |
+| `MahanPourhosseini__Neobank-Project-Management-and-Schedul…` | 55 | 55 | 55 | 0 / 0 | 0 / 0 |
+| `MaralSmi__residential-construction-project-planning__Mara…` | 176 | 172 | 172 | 0 / 0 | 4 / 4 |
+| `Masetto97__PLANIFICACION_DE_PROYECTOS__Plan_de_Proyecto_E…` | 69 | 57 | 57 | 0 / 0 | 12 / 12 |
+| `Moein-Bagheri__talent-search-project-planning__Talent_Sea…` | 111 | 111 | 111 | 0 / 0 | 0 / 0 |
+| `Oisin003__Project-Management-Assignment__assignmentv5.mpp` | 36 | 36 | 36 | 0 / 0 | 0 / 0 |
+| `OlgaSlipak__-Banking-System-__BankingSystem_MSProject_ver…` | 40 | 40 | 40 | 0 / 0 | 0 / 0 |
+| `PacktPublishing__Planning-and-Control-Using-Microsoft-Pro…` | 10 | 10 | 10 | 0 / 0 | 0 / 0 |
+| `PacktPublishing__Planning-and-Control-Using-Microsoft-Pro…` | 18 | 18 | 18 | 0 / 0 | 0 / 0 |
+| `SafiaAbdulRab__lahore-safe-city-project__Project1_epm.mpp` | 36 | 36 | 36 | 0 / 0 | 0 / 0 |
+| `Sebastianelli-Nicola__Fidardarena-Project-Management-PMBO…` | 169 | 169 | 169 | 0 / 0 | 0 / 0 |
+| `ShidehParastariFarkoush__Project-Control-Project__PC-MSP-…` | 66 | 66 | 66 | 0 / 0 | 0 / 0 |
+| `Smruti0708__Residential-Construction-Simulation__Resident…` | 102 | 83 | 83 | 0 / 0 | 19 / 19 |
+| `abhuiyan00__Computer-Project-Management__export-import-sy…` | 44 | 44 | 44 | 0 / 0 | 0 / 0 |
+| `advaith14__Project-Management-for-World-Hotels-__IST645F1…` | 330 | 14 | 330 | 143 / 0 | 173 / 0 |
+| `ahmerakamran964-hue__Ms-Project-Solar-Panel-Installation-…` | 32 | 32 | 32 | 0 / 0 | 0 / 0 |
+| `chandana7373__branding-and-website-strategy-project-capst…` | 83 | 81 | 81 | 0 / 0 | 2 / 2 |
+| `cmoulika009__Software-Methods-and-Tools__Course_Schedule_…` | 47 | 47 | 47 | 0 / 0 | 0 / 0 |
+| `davidramosf__Planificacion-de-un-proyecto-utilizando-MS-P…` | 61 | 25 | 25 | 0 / 0 | 36 / 36 |
+| `lautarofaccini__Proyecto-Planificacion__Proyect_POS_Corra…` | 44 | 37 | 37 | 0 / 0 | 7 / 7 |
+| `maryam24-git__Employee-Attendance-System-__Employee_Atten…` | 46 | 46 | 46 | 0 / 0 | 0 / 0 |
+| `muhammadmuqris14__project-scheduling-msproject__Enterpris…` | 64 | 64 | 64 | 0 / 0 | 0 / 0 |
+| `nehathota123__projectmanagement__ISM4314_–_MS_Project_Pla…` | 83 | 46 | 46 | 0 / 0 | 37 / 37 |
+| `saahilanande__cse-5325__assignment2.mpp` | 68 | 68 | 68 | 0 / 0 | 0 / 0 |
+| `salamc1996-ai__Construction-Project-Analytics__portfolio_…` | 24 | 24 | 24 | 0 / 0 | 0 / 0 |
+| `salemsolomon25__project-server-2019-deployment-plan__proj…` | 27 | 17 | 17 | 0 / 0 | 10 / 10 |
+| `svsuriyaa__Project-Management--Mitigating-Systematic-Bias…` | 80 | 80 | 80 | 0 / 0 | 0 / 0 |
+| `tefsantana__uala-digital-project-management-case-study__u…` | 120 | 118 | 118 | 0 / 0 | 2 / 2 |
+| `ubhurase__IPM__Big_Pharma_Case_Project_Final.mpp` | 106 | 105 | 105 | 0 / 0 | 1 / 1 |
+| `vincenzorusso3__uniseats__C06_SA_Vers.1.1.mpp` | 96 | 96 | 96 | 0 / 0 | 0 / 0 |
+| `zahmed02__CS4044-Software-Project-Management__CS4044_FSPM…` | 227 | 227 | 227 | 0 / 0 | 0 / 0 |
+| **Total** | 2966 | 2423 | 2756 | 165 / 44 | 378 / 166 |
+
+Écart réel restant (166 tâches) : `nehathota123…` 37, `davidramosf…` 36, `Dimitrije-Sokolovic…` 22, `Smruti0708…` 19, `Masetto97…` 12, `salemsolomon25…` 10, `Kalani0056…` 7, `lautarofaccini…` 7, `AmaalAyman…` 6, `MaralSmi…` 4, `chandana7373…` 2, `tefsantana…` 2, `HamzaMalikProjects…` 1, `ubhurase…` 1 ; causes constatées : profil modifié à la main 6, affectations décalées 5, début inexpliqué 1, sans cause constatée 154 (nivellement, valeurs incohérentes laissées dans le fichier, § 10.5).

@@ -79,9 +79,12 @@ fn r141_five_decimals_when_two_do_not_round_trip() {
     assert_eq!(format_duration(&d, &ctx(Language::Fr)), "0,01458j");
     assert_eq!(format_duration(&d, &ctx(Language::En)), "0.01458d");
     assert_eq!(parse_duration("0,01458j", &ctx(Language::Fr)), Ok(d));
-    // 158 min en jours : 0,33 j = 158,4 → 158 : 2 décimales suffisent.
+    // 158 min en jours : 0,33 j se relit 158,4 au dixième (ADR-0039 ; avant,
+    // relu à la minute, « 0,33j » suffisait) : 5 décimales, 0,32917 j =
+    // 158,0016 → 158.
     let d = dur(158, DurationUnit::Day, TimeBasis::Working, false);
-    assert_eq!(format_duration(&d, &ctx(Language::Fr)), "0,33j");
+    assert_eq!(format_duration(&d, &ctx(Language::Fr)), "0,32917j");
+    assert_eq!(parse_duration("0,32917j", &ctx(Language::Fr)), Ok(d));
     // 1 min en mois (9 600 min) : 0,00010 → 0,0001 ; 0,0001 × 9 600 = 0,96 → 1.
     let d = dur(1, DurationUnit::Month, TimeBasis::Working, false);
     assert_eq!(format_duration(&d, &ctx(Language::Fr)), "0,0001mo");
@@ -137,8 +140,8 @@ fn r141_lags() {
 }
 
 /// ADR-0039 (lot B3) : une valeur au dixième s'écrit pour se relire au
-/// dixième (2, puis 5, puis 6 décimales) ; une minute entière garde le
-/// texte d'avant (relecture à la minute).
+/// dixième (2, puis 5, puis 6 décimales), minute entière comprise depuis le
+/// lot B4 (la saisie se relit au dixième).
 #[test]
 fn r141_tenths() {
     use plannercraft_automation::text::parse_duration_at;
@@ -151,19 +154,20 @@ fn r141_tenths() {
         (5, DurationUnit::Hour, "0,00833h"),
         (1, DurationUnit::Month, "0,00001mo"),
         (1, DurationUnit::Day, "0,00021j"),
-        // Minutes entières : textes d'avant le lot B3.
+        // Minutes entières : 7 min en jours garde son texte ; 61 min en
+        // heures, « 1,02h » se relirait 61,2 min : « 1,01667h » (avant le
+        // lot B4 : « 1,02h », relu à la minute).
         (70, DurationUnit::Day, "0,01458j"),
-        (610, DurationUnit::Hour, "1,02h"),
+        (610, DurationUnit::Hour, "1,01667h"),
     ] {
         let duration = d(t, unit);
         assert_eq!(format_duration(&duration, &fr), text, "{t}");
-        if duration.minutes().whole_minutes().is_none() {
-            assert_eq!(
-                parse_duration_at(text, &fr, Resolution::Tenth),
-                Ok(duration),
-                "{text}"
-            );
-        }
+        assert_eq!(
+            parse_duration_at(text, &fr, Resolution::Tenth),
+            Ok(duration),
+            "{text}"
+        );
+        assert_eq!(parse_duration(text, &fr), Ok(duration), "{text}");
     }
     // Mois écoulé de 43 200 min : 5 décimales ne relisent pas le dixième,
     // 6 le font.

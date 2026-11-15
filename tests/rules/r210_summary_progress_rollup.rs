@@ -194,8 +194,8 @@ fn r210_started_summary_starts_at_actual_start() {
 #[test]
 fn r210_corpus_a7_project_summary() {
     // A7 (fichier du corpus, absent hors du job `corpus`), O40 : UID 0 à
-    // 960 / 9 840 ⇒ 976 (écrit 10 %) ; réel round_div(7 920 × 960, 9 840) =
-    // 773 (relu 772,7) ; % travail 22 h / 378 h ⇒ 582 (écrit 6 %) ; début
+    // 960 / 9 840 ⇒ 976 (écrit 10 %) ; réel 7 920 × 960 / 9 840 = 772,7 au
+    // dixième, la valeur relue (ADR-0039 ; avant : 773 à la minute) ; % travail 22 h / 378 h ⇒ 582 (écrit 6 %) ; début
     // réel ven 04/10/2024 08:00 ; `Stop` = `Resume` = ven 20:00 ; pas de fin
     // réelle. UID 1 (manuelle) : réel 24 h, `Stop` ven 20:00.
     let Ok(bytes) = std::fs::read(tests_path("corpus/files/projinteg.xml")) else {
@@ -207,7 +207,7 @@ fn r210_corpus_a7_project_summary() {
     assert_eq!(root.percent_complete, pct(976));
     assert_eq!(root.start, moment("2024-10-04T08:00"));
     let p = root.progress.unwrap();
-    assert_eq!(p.actual_duration, Minutes::new(773));
+    assert_eq!(p.actual_duration, Minutes::from_tenths(7_727));
     assert_eq!(p.percent_work_complete, pct(582));
     assert_eq!(p.actual_start, moment("2024-10-04T08:00"));
     assert_eq!(

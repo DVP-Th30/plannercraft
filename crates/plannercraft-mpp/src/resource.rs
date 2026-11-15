@@ -190,7 +190,8 @@ fn values(
             Some("unités".to_owned()),
         ),
     }
-    let work = |off: usize| le_f64_round(rec, off, 1_000).and_then(|m| Work::new(Minutes::new(m)).ok());
+    // Travail en millièmes de minute, l'échelle du fichier (ADR-0039).
+    let work = |off: usize| le_f64_round(rec, off, 1).and_then(|m| Work::from_milli(m).ok());
     match work(al.work) {
         Some(w) => a.work = w,
         None => sink.push(

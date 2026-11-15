@@ -156,12 +156,8 @@ pub(crate) fn remaining(t: &Task, summary: bool) -> (Minutes, Work) {
     if summary {
         return (p.remaining_duration, p.remaining_work);
     }
-    let rest = t
-        .work
-        .whole_minutes_round()
-        .saturating_sub(p.actual_work.whole_minutes_round())
-        .max(0);
-    let work = Work::new(Minutes::new(rest)).unwrap_or(Work::ZERO);
+    let rest = t.work.milli().saturating_sub(p.actual_work.milli()).max(0);
+    let work = Work::from_milli(rest).unwrap_or(Work::ZERO);
     (plannercraft_core::progress::remaining_duration(t), work)
 }
 
@@ -271,7 +267,7 @@ fn field(
         // feuille automatique affectée (R-199).
         "Duration" => {
             if !row.summary || manual.is_some() {
-                em.leaf_iso(name, duration_of(row).minutes().whole_minutes_round());
+                em.leaf_iso(name, duration_of(row).minutes().tenths());
             } else {
                 em.opt_leaf(name, computed.and_then(|v| v.duration).map(format_iso_duration));
             }
@@ -282,7 +278,7 @@ fn field(
                 let value = match name {
                     "ManualStart" => date(start),
                     "ManualFinish" => date(finish),
-                    _ => duration.map(|d| format_iso_duration(d.minutes().whole_minutes_round())),
+                    _ => duration.map(|d| format_iso_duration(d.minutes().tenths())),
                 };
                 em.leaf(name, &value.unwrap_or_default());
             }
@@ -290,13 +286,7 @@ fn field(
         "DurationFormat" => em.leaf(name, &duration_format(&t.duration)),
         // R-199 : travail calculé d'une récapitulative et de l'UID 0 avec
         // `Computed::Schedule` (R-184), sinon celui du modèle.
-        "Work" => em.leaf_iso(
-            name,
-            computed
-                .and_then(|v| v.work)
-                .unwrap_or(t.work)
-                .whole_minutes_round(),
-        ),
+        "Work" => em.leaf_work(name, computed.and_then(|v| v.work).unwrap_or(t.work).milli()),
         "EffortDriven" => em.leaf(name, format_bool(t.effort_driven)),
         "Recurring" => em.leaf(name, format_bool(t.recurring)),
         "Estimated" => em.leaf(name, format_bool(t.duration.is_estimated())),
@@ -315,10 +305,10 @@ fn field(
         ),
         "ActualStart" => em.opt_date(name, progress_of(row).actual_start),
         "ActualFinish" => em.opt_date(name, progress_of(row).actual_finish),
-        "ActualDuration" => em.leaf_iso(name, progress_of(row).actual_duration.whole_minutes_round()),
-        "ActualWork" => em.leaf_iso(name, progress_of(row).actual_work.whole_minutes_round()),
-        "RemainingDuration" => em.leaf_iso(name, remaining_of(row).0.whole_minutes_round()),
-        "RemainingWork" => em.leaf_iso(name, remaining_of(row).1.whole_minutes_round()),
+        "ActualDuration" => em.leaf_iso(name, progress_of(row).actual_duration.tenths()),
+        "ActualWork" => em.leaf_work(name, progress_of(row).actual_work.milli()),
+        "RemainingDuration" => em.leaf_iso(name, remaining_of(row).0.tenths()),
+        "RemainingWork" => em.leaf_work(name, remaining_of(row).1.milli()),
         "ConstraintType" => em.leaf_int(name, codes::constraint_code(t.constraint.kind())),
         "CalendarUID" => em.leaf(
             name,

@@ -133,7 +133,7 @@ fn granularity(r: &mut Rng) -> Granularity {
 }
 
 fn minutes(w: &[Work]) -> Vec<i64> {
-    w.iter().map(|w| w.whole_minutes().unwrap()).collect()
+    w.iter().map(|w| w.milli()).collect()
 }
 
 /// Ressources demandées : toutes, dans un ordre mélangé, avec un doublon et
@@ -184,7 +184,7 @@ proptest! {
             for a in rows.rows.iter().filter(|a| a.resource == row.resource) {
                 prop_assert_eq!(a.work.len(), n);
                 for (x, w) in sum.iter_mut().zip(&a.work) {
-                    *x += w.whole_minutes().unwrap();
+                    *x += w.milli();
                 }
             }
             prop_assert_eq!(&sum, &minutes(&row.work), "ressource {:?}", row.resource);
@@ -195,7 +195,7 @@ proptest! {
             if p.resources.get(a.resource).is_some_and(|x| x.kind == ResourceKind::Work) {
                 let t = totals.entry(a.task).or_insert_with(|| vec![0; n]);
                 for (x, w) in t.iter_mut().zip(&a.work) {
-                    *x += w.whole_minutes().unwrap();
+                    *x += w.milli();
                 }
             }
         }
@@ -293,11 +293,7 @@ fn p46_generator_is_not_trivial() {
         let all: Vec<ResourceUid> = (1..=p.resources.len() as u32).map(ResourceUid::new).collect();
         let (from, to) = (origin(), origin().checked_add(days(260)).unwrap());
         let rows = usage_by_assignment(&p, &s, &set, from, to, Granularity::Week, &all).unwrap();
-        if rows
-            .rows
-            .iter()
-            .any(|a| a.work.iter().any(|w| w.whole_minutes().unwrap() > 0))
-        {
+        if rows.rows.iter().any(|a| a.work.iter().any(|w| w.milli() > 0)) {
             busy += 1;
         }
         let kind = |k: fn(&ResourceKind) -> bool| p.resources.iter().any(|x| k(&x.kind));
