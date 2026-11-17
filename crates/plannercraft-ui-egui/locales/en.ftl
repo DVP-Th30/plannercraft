@@ -1754,7 +1754,7 @@ assistant-error-keyring = System keychain failed ({ $detail }).
 # --- Lot A1b (ADR-0024): assistant conversation ---
 reduce-motion = Reduce motion
 assistant-menu = Assistant options
-assistant-empty-title = What would you like to know about this schedule?
+assistant-empty-title = What would you like to do with this schedule?
 assistant-suggest-house-title = Create a schedule
 assistant-suggest-house-detail = for building a detached house
 assistant-suggest-renovation-title = Create a schedule

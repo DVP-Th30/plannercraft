@@ -1754,7 +1754,7 @@ assistant-error-keyring = Trousseau du système en échec ({ $detail }).
 # --- Lot A1b (ADR-0024) : conversation de l'assistant ---
 reduce-motion = Réduire les animations
 assistant-menu = Options de l'assistant
-assistant-empty-title = Que voulez-vous savoir sur ce planning ?
+assistant-empty-title = Que voulez-vous faire de ce planning ?
 assistant-suggest-house-title = Crée un planning
 assistant-suggest-house-detail = de chantier de maison individuelle
 assistant-suggest-renovation-title = Crée un planning
