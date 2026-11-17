@@ -508,8 +508,8 @@ fn long_text(n: usize) -> String {
     text
 }
 
-/// H-UI-143 : état vide (transparence, suggestions qui préremplissent la
-/// saisie).
+/// H-UI-143 : état vide (transparence) ; les suggestions d'action et leur
+/// clic sont vérifiés par `assistant_suggestions.rs` (H-UI-237).
 #[test]
 fn h_ui_143_empty_state_suggestions() {
     let transport = Arc::new(ScriptedTransport::new(vec![]));
@@ -517,12 +517,6 @@ fn h_ui_143_empty_state_suggestions() {
     enable_with_key(&mut harness);
     harness.get_by_label(&fr(TextId::AssistantEmptyTitle));
     harness.get_by_label(&fr(TextId::AssistantDisclosure));
-    click(&mut harness, &fr(TextId::AssistantSuggestCritical));
-    harness.run();
-    assert_eq!(
-        harness.state().assistant().draft,
-        fr(TextId::AssistantSuggestCritical)
-    );
 }
 
 /// H-UI-143 : tour riche — réflexion repliée (dépliable), trois lectures
