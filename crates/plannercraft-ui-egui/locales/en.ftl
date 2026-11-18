@@ -2179,3 +2179,39 @@ mpp-col-cause = Cause
 mpp-cause-contoured = work distribution edited by hand
 mpp-cause-staggered = leveling (assignments shifted)
 mpp-cause-unexplained-start = start placed by hand, without link or constraint
+
+## “My account” window (H-UI-238 to H-UI-243)
+account-window-title = My account
+account-window-menu = My account…
+account-window-open-hint = Open “My account”: purchases and usage
+account-window-signed-out = Sign in to your PlannerCraft account to see your balance, purchases and usage.
+account-window-sign-in = Sign in…
+account-window-balance = Balance
+account-window-purchases = Purchases
+account-window-purchases-loading = Loading purchases…
+account-window-purchases-empty = No purchase yet.
+account-window-purchases-unavailable = Purchase history is not offered by the PlannerCraft server yet.
+account-window-purchases-failed = Purchases unavailable for now ({ $detail }).
+account-window-receipt = Receipt ↗
+account-window-receipt-hint = Open the receipt in the browser
+account-window-usage = Usage (30 days)
+account-window-usage-loading = Loading usage…
+account-window-usage-unavailable = Usage unavailable for now.
+account-window-requests =
+    { $count ->
+        [one] { $count } req.
+       *[other] { $count } req.
+    }
+account-window-dates-utc = Dates in UTC.
+account-kind-pack = { $value } pack
+account-kind-purchase = Purchase
+account-kind-trial = Trial
+account-kind-grant = Free credit
+account-kind-refund = Refund
+account-kind-adjustment =
+    { $count ->
+        [one] Adjustment
+       *[other] { $count } adjustments
+    }
+account-kind-other = Other change
+account-credits-added = Credits added: { $value }

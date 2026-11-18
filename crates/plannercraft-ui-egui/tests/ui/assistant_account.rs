@@ -10,12 +10,16 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::platform::BrowserOpener;
+use plannercraft_assistant::relay::Client;
 use plannercraft_assistant::testing::{
     FAKE_CHECKOUT_URL, FAKE_CODE, FAKE_LINK_TOKEN, FAKE_SESSION, FakeRelay, text_chunks, tool_call_chunks,
 };
 use plannercraft_ui_egui::App;
 use plannercraft_ui_egui::action::Action;
-use plannercraft_ui_egui::assistant::{AccountStage, AssistantOp, AssistantServices, Notice};
+use plannercraft_ui_egui::assistant::{
+    AccountInfo, AccountStage, AssistantOp, AssistantServices, CHECKOUT_POLL_SECS, CHECKOUT_WATCH_SECS,
+    Notice, Purchases,
+};
 use plannercraft_ui_egui::i18n::TextId;
 use plannercraft_ui_egui::state::AssistantAccess;
 use plannercraft_ui_egui::view::side_panel::{SideOp, SideTab};
@@ -438,4 +442,306 @@ fn snapshot_assistant_account_chat_fr_light() {
     assert!(!harness.state().assistant().conversation.busy());
     assert_eq!(harness.state().assistant().account().balance(), Some(434));
     crate::common::snapshot(&mut harness, "assistant_account_chat_fr_light");
+}
+
+// --- Fenêtre « Mon compte » (H-UI-238 à H-UI-243) ---
+
+const NB: char = '\u{a0}';
+
+fn window_open(harness: &Harness<'static, App>) -> bool {
+    harness.state().assistant().account().window_open()
+}
+
+/// Ferme la fenêtre par son geste (×).
+fn close_window(harness: &mut Harness<'static, App>) {
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(false)));
+    harness.run();
+    assert!(!window_open(harness));
+}
+
+/// Compte avec un pack payé (reçu), un essai (sans reçu) et deux
+/// ajustements.
+fn relay_with_purchases(balance: i64) -> Arc<FakeRelay> {
+    let relay = Arc::new(FakeRelay::new(balance));
+    relay.push_purchase("2026-11-17T09:00:00.000001Z", "trial", 50, None, None);
+    relay.push_purchase("2026-11-17T12:00:00.5Z", "adjustment", -3, None, None);
+    relay.push_purchase("2026-11-18T08:00:00.25Z", "adjustment", -2, None, None);
+    relay.push_purchase(
+        "2026-11-18T10:05:25.123456Z",
+        "purchase",
+        500,
+        Some("p5"),
+        Some("https://pay.stripe.com/receipts/r_1"),
+    );
+    relay
+}
+
+/// H-UI-238 : la fenêtre s'ouvre par le clic sur le solde, le menu « … »
+/// et la palette de commandes ; à l'ouverture, compte, consommation et
+/// achats sont relus.
+#[test]
+fn h_ui_238_account_window_three_entries() {
+    let relay = relay_with_purchases(550);
+    let mut harness = account_harness(Arc::clone(&relay), Arc::default());
+    sign_in(&mut harness);
+    assert!(!window_open(&harness));
+    // 1. Clic sur le solde.
+    harness.get_by_label(&format!("Solde{NB}: 5,50{NB}€")).click();
+    run(&mut harness, 3);
+    assert!(window_open(&harness));
+    harness.get_by_label(&fr(TextId::AccountWindowTitle));
+    let routes = relay.routes();
+    for route in ["Get /v1/me", "Get /v1/usage", "Get /v1/purchases"] {
+        assert!(routes.iter().any(|r| r == route), "{route} : {routes:?}");
+    }
+    close_window(&mut harness);
+    // 2. Menu « … ».
+    click(&mut harness, &fr(TextId::AssistantMenu));
+    click(&mut harness, &fr(TextId::AccountWindowMenu));
+    run(&mut harness, 3);
+    assert!(window_open(&harness));
+    close_window(&mut harness);
+    // 3. Palette de commandes.
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::K);
+    harness.run();
+    assert!(harness.state().palette().open);
+    harness.event(Event::Text("Mon compte".to_owned()));
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    run(&mut harness, 3);
+    assert!(window_open(&harness));
+    harness.get_by_label(&fr(TextId::AccountWindowPurchases));
+}
+
+/// H-UI-238 : hors connexion, la fenêtre propose de se connecter et
+/// renvoie au formulaire du volet (accès « compte », assistant activé).
+#[test]
+fn h_ui_238_account_window_signed_out_offers_sign_in() {
+    let relay = Arc::new(FakeRelay::new(0));
+    let mut harness = account_harness(Arc::clone(&relay), Arc::default());
+    harness.state_mut().dispatch(Action::SidePanel(SideOp::Close));
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(true)));
+    harness.run();
+    assert!(window_open(&harness));
+    harness.get_by_label(&fr(TextId::AccountWindowSignedOut));
+    assert!(relay.requests().is_empty(), "rien n'est envoyé sans session");
+    click(&mut harness, &fr(TextId::AccountWindowSignIn));
+    run(&mut harness, 2);
+    wait_session_loaded(&mut harness);
+    let app = harness.state();
+    assert!(!window_open(&harness));
+    assert_eq!(app.state.assistant.access, AssistantAccess::Account);
+    assert!(app.state.assistant.enabled);
+    assert!(app.side_panel().open);
+    harness.get_by_label(&fr(TextId::AssistantAccountSendLink));
+}
+
+/// H-UI-239, H-UI-240 : adresse, solde, achats (date, libellé, montant
+/// signé), « Reçu ↗ » seulement pour l'achat qui en a un, ajustements
+/// regroupés ; le reçu s'ouvre dans le navigateur ; consommation par
+/// modèle.
+#[test]
+fn h_ui_240_purchases_listed_receipt_opens() {
+    let relay = relay_with_purchases(550);
+    relay.push_chat(text_chunks("Bonjour.", 0.001), 4);
+    let browser = Arc::new(RecordingBrowser::default());
+    let mut harness = account_harness(Arc::clone(&relay), Arc::clone(&browser));
+    sign_in(&mut harness);
+    ask(&mut harness, "Bonjour");
+    settle(&mut harness);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(true)));
+    run(&mut harness, 4);
+    harness.get_by_label(EMAIL);
+    harness.get_by_label(&format!("5,46{NB}€"));
+    harness.get_by_label("18/11/2026");
+    harness.get_by_label(&format!("Pack 5{NB}€"));
+    harness.get_by_label(&format!("+5,00{NB}€"));
+    harness.get_by_label("Essai");
+    harness.get_by_label(&format!("+0,50{NB}€"));
+    harness.get_by_label(&format!("2{NB}ajustements"));
+    harness.get_by_label(&format!("-0,05{NB}€"));
+    // Un seul reçu : l'essai n'en a pas.
+    let receipt = fr(TextId::AccountWindowReceipt);
+    assert_eq!(harness.query_all_by_label(&receipt).count(), 1);
+    // Consommation (30 j) : une demande, 0,04 €.
+    harness.get_by_label(&fr(TextId::AccountWindowUsage));
+    harness.get_by_label(&format!("1{NB}req."));
+    harness.get_by_label(&format!("Total{NB}: 0,04{NB}€"));
+    harness.get_by_label(&receipt).click();
+    run(&mut harness, 2);
+    assert_eq!(
+        *browser.0.lock().unwrap(),
+        ["https://pay.stripe.com/receipts/r_1".to_owned()]
+    );
+    // Une adresse hors de la liste n'est jamais ouverte.
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::OpenReceipt(
+            "https://exemple.fr/x".to_owned(),
+        )));
+    harness.run();
+    assert_eq!(browser.0.lock().unwrap().len(), 1);
+}
+
+/// H-UI-241 : relais antérieur à `/v1/purchases` (`404`) : la fenêtre
+/// s'affiche sans les achats, message discret, aucune erreur.
+#[test]
+fn h_ui_241_old_relay_without_purchases() {
+    let relay = Arc::new(FakeRelay::new(437));
+    relay.remove_purchases_route();
+    let mut harness = account_harness(Arc::clone(&relay), Arc::default());
+    sign_in(&mut harness);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(true)));
+    run(&mut harness, 4);
+    assert!(window_open(&harness));
+    let account = harness.state().assistant().account();
+    assert_eq!(*account.purchases(), Purchases::Unavailable);
+    assert!(account.signed_in());
+    assert_eq!(harness.state().assistant().notice, None);
+    harness.get_by_label(&fr(TextId::AccountWindowPurchasesUnavailable));
+    harness.get_by_label(&fr(TextId::AssistantUsageEmpty));
+    assert!(relay.routes().iter().any(|r| r == "Get /v1/purchases"));
+}
+
+/// H-UI-242 : après l'ouverture de la page de paiement, le solde est relu
+/// à intervalle (heure d'egui) ; quand le paiement crédite le compte,
+/// « Crédits ajoutés : +5,00 € » s'affiche (volet, fenêtre, notification)
+/// et la relecture s'arrête ; la liste des achats est relue.
+#[test]
+fn h_ui_242_credits_confirmed_after_checkout() {
+    let relay = Arc::new(FakeRelay::new(30));
+    let mut harness = account_harness(Arc::clone(&relay), Arc::new(RecordingBrowser::default()));
+    sign_in(&mut harness);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(true)));
+    run(&mut harness, 3);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::Checkout("p5")));
+    run(&mut harness, 3);
+    assert!(harness.state().assistant().account().watching_checkout());
+    let me_count = |relay: &FakeRelay| relay.routes().iter().filter(|r| *r == "Get /v1/me").count();
+    let before = me_count(&relay);
+    // 6 s sans paiement (pas de 0,25 s) : relu, rien d'annoncé.
+    harness.run_steps(24);
+    assert!(me_count(&relay) > before, "solde relu à intervalle");
+    assert!(harness.state().assistant().account().watching_checkout());
+    assert_ne!(
+        harness.state().assistant().account().info,
+        Some(AccountInfo::CreditsAdded(500))
+    );
+    // Paiement abouti (webhook) : à la relecture suivante, confirmation.
+    relay.complete_purchase("p5", 500);
+    harness.run_steps(24);
+    harness.run();
+    let account = harness.state().assistant().account();
+    assert_eq!(account.balance(), Some(530));
+    assert_eq!(account.info, Some(AccountInfo::CreditsAdded(500)));
+    assert!(!account.watching_checkout());
+    let text = format!("Crédits ajoutés{NB}: +5,00{NB}€");
+    assert!(harness.state().messages().iter().any(|m| m.text == text));
+    assert!(harness.query_all_by_label(&text).count() >= 1);
+    match account.purchases() {
+        Purchases::Ready(report) => assert_eq!(report.items.len(), 1),
+        other => panic!("achats non relus : {other:?}"),
+    }
+    // Plus de relecture après la confirmation.
+    let after = me_count(&relay);
+    harness.run_steps(40);
+    assert_eq!(me_count(&relay), after);
+}
+
+/// H-UI-242 : sans paiement, la relecture s'arrête au bout de 10 minutes.
+#[test]
+fn h_ui_242_watch_bounded() {
+    let relay = Arc::new(FakeRelay::new(30));
+    let mut harness = account_harness(Arc::clone(&relay), Arc::new(RecordingBrowser::default()));
+    sign_in(&mut harness);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::Checkout("p20")));
+    run(&mut harness, 3);
+    let panel = harness.state_mut().assistant_mut();
+    assert!(panel.account().watching_checkout());
+    let now = 1.0e6;
+    assert!(panel.tick_account(now).is_none(), "délai dépassé");
+    assert!(!panel.account().watching_checkout());
+    assert_eq!(panel.tick_account(now + 10.0), None);
+    let _ = (CHECKOUT_POLL_SECS, CHECKOUT_WATCH_SECS);
+}
+
+/// H-UI-243 : `client` de `/v1/credits/checkout` : `desktop` depuis
+/// l'application de bureau, `web` depuis la version web.
+#[test]
+fn h_ui_243_checkout_sends_client_origin() {
+    for (client, expected) in [(Client::Desktop, "desktop"), (Client::Web, "web")] {
+        let relay = Arc::new(FakeRelay::new(30));
+        let mut harness = harness();
+        harness.state_mut().set_assistant_services(
+            AssistantServices::with_transport(Arc::clone(&relay) as _)
+                .with_browser(Arc::new(RecordingBrowser::default()))
+                .with_client(client),
+        );
+        open_demo(&mut harness);
+        harness
+            .state_mut()
+            .dispatch(Action::SidePanel(SideOp::Open(SideTab::Assistant)));
+        harness.run();
+        sign_in(&mut harness);
+        harness
+            .state_mut()
+            .dispatch(Action::Assistant(AssistantOp::Checkout("p5")));
+        run(&mut harness, 3);
+        let checkout = relay
+            .requests()
+            .into_iter()
+            .find(|r| r.url.ends_with("/v1/credits/checkout"))
+            .unwrap();
+        let body: Value = serde_json::from_slice(&checkout.body).unwrap();
+        assert_eq!(body["client"], expected);
+        assert_eq!(body["pack"], "p5");
+    }
+    assert_eq!(AssistantServices::offline().client, Client::Desktop);
+}
+
+/// Capture de la fenêtre « Mon compte » (achats, consommation).
+#[test]
+fn snapshot_account_window_fr_light() {
+    use plannercraft_ui_egui::{LanguagePref, ThemePref};
+    let relay = relay_with_purchases(550);
+    relay.push_chat(text_chunks("Bonjour.", 0.001), 4);
+    let mut harness =
+        crate::assistant::capture_harness(Arc::clone(&relay) as _, LanguagePref::Fr, ThemePref::Light);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::ChooseAccess(
+            AssistantAccess::Account,
+        )));
+    run(&mut harness, 2);
+    wait_session_loaded(&mut harness);
+    let app = harness.state_mut();
+    let mut prefs = app.state.assistant.clone();
+    app.assistant_mut().sign_in_with_link(FAKE_LINK_TOKEN, &mut prefs);
+    app.state.assistant = prefs;
+    run(&mut harness, 4);
+    crate::assistant::send_now(&mut harness, "Bonjour");
+    run(&mut harness, 10);
+    harness
+        .state_mut()
+        .dispatch(Action::Assistant(AssistantOp::AccountWindow(true)));
+    run(&mut harness, 6);
+    assert!(matches!(
+        harness.state().assistant().account().purchases(),
+        Purchases::Ready(_)
+    ));
+    crate::common::snapshot(&mut harness, "account_window_fr_light");
 }

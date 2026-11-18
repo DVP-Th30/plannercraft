@@ -1724,6 +1724,18 @@ impl App {
         // relu à la fin de chaque demande.
         self.assistant
             .after_conversation_poll(was_busy, self.state.assistant.access);
+        // Après l'ouverture de la page de paiement (H-UI-242) : solde relu
+        // à intervalle (heure d'egui), image demandée à la prochaine
+        // relecture ; crédits ajoutés annoncés par une notification.
+        if let Some(next) = self.assistant.tick_account(self.clock) {
+            ctx.request_repaint_after(
+                std::time::Duration::try_from_secs_f64(next).unwrap_or(std::time::Duration::from_secs(1)),
+            );
+        }
+        if let Some(cents) = self.assistant.take_credits_added() {
+            let text = view::assistant_account::credits_added_text(&self.texts, cents);
+            self.push_message(Severity::Info, text);
+        }
         if changed {
             ctx.request_repaint();
         }
@@ -3558,6 +3570,8 @@ impl App {
                     ui.advance_cursor_after_rect(card);
                 });
             }
+            // Fenêtre « Mon compte » (H-UI-238), non modale.
+            view::account_window::window(&ctx, &mut fc, &self.assistant);
             // Palette de commandes (lot U3), au-dessus de tout.
             view::palette::show(&ctx, &mut fc, &mut self.palette);
         }

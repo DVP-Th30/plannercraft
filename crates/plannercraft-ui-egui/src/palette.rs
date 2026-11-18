@@ -185,7 +185,25 @@ pub fn entries(ctx: &egui::Context, fc: &FrameCtx<'_>) -> Vec<Entry> {
         let choice = cmd.choice(fc);
         out.push(choice_entry(choice, path(cmd.menu_path()), None, os));
     }
+    out.extend(account_entry(fc));
     out
+}
+
+/// « Mon compte… » (H-UI-238) : entrée du menu « … » de l'assistant, en
+/// mode « Compte PlannerCraft » activé seulement.
+fn account_entry(fc: &FrameCtx<'_>) -> Option<Entry> {
+    let assistant = &fc.state.assistant;
+    (assistant.enabled && assistant.access == crate::state::AssistantAccess::Account).then(|| Entry {
+        run: Run::Do(Action::Assistant(crate::assistant::AssistantOp::AccountWindow(
+            true,
+        ))),
+        label: fc.texts.get(TextId::AccountWindowMenu),
+        origin: fc.texts.get(TextId::AssistantName),
+        shortcut: None,
+        enabled: Enabled::YES,
+        icon: Some(Icon::Sparkles),
+        on: None,
+    })
 }
 
 /// Ajoute les entrées d'une liste déroulante du ruban.

@@ -2186,3 +2186,39 @@ mpp-col-cause = Cause
 mpp-cause-contoured = répartition du travail modifiée à la main
 mpp-cause-staggered = nivellement (affectations décalées)
 mpp-cause-unexplained-start = début placé à la main, sans lien ni contrainte
+
+## Fenêtre « Mon compte » (H-UI-238 à H-UI-243)
+account-window-title = Mon compte
+account-window-menu = Mon compte…
+account-window-open-hint = Ouvrir « Mon compte » : achats et consommation
+account-window-signed-out = Connectez-vous à votre compte PlannerCraft pour voir votre solde, vos achats et votre consommation.
+account-window-sign-in = Se connecter…
+account-window-balance = Solde
+account-window-purchases = Achats
+account-window-purchases-loading = Chargement des achats…
+account-window-purchases-empty = Aucun achat pour l'instant.
+account-window-purchases-unavailable = L'historique des achats n'est pas encore proposé par le serveur PlannerCraft.
+account-window-purchases-failed = Achats indisponibles pour l'instant ({ $detail }).
+account-window-receipt = Reçu ↗
+account-window-receipt-hint = Ouvrir le reçu dans le navigateur
+account-window-usage = Consommation (30 j)
+account-window-usage-loading = Chargement de la consommation…
+account-window-usage-unavailable = Consommation indisponible pour l'instant.
+account-window-requests =
+    { $count ->
+        [one] { $count } req.
+       *[other] { $count } req.
+    }
+account-window-dates-utc = Dates en temps universel (UTC).
+account-kind-pack = Pack { $value }
+account-kind-purchase = Achat
+account-kind-trial = Essai
+account-kind-grant = Crédit offert
+account-kind-refund = Remboursement
+account-kind-adjustment =
+    { $count ->
+        [one] Ajustement
+       *[other] { $count } ajustements
+    }
+account-kind-other = Autre mouvement
+account-credits-added = Crédits ajoutés : { $value }

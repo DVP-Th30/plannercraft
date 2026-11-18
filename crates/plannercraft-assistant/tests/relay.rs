@@ -153,6 +153,52 @@ fn relay_errors_mapped() {
     assert!(!conv.take_session_ended());
 }
 
+fn call(
+    relay: &FakeRelay,
+    request: plannercraft_assistant::http::HttpRequest,
+) -> plannercraft_assistant::login::Received {
+    plannercraft_assistant::login::PendingResponse::send(relay, request, None)
+        .poll()
+        .unwrap()
+        .unwrap()
+}
+
+/// `/v1/purchases` du faux relais : plus récents d'abord, paiement abouti
+/// (solde et reçu), `404` d'un relais ancien lu comme « pas d'achats » ;
+/// `client` de l'achat contrôlé.
+#[test]
+fn fake_relay_purchases_and_checkout_client() {
+    let relay = signed_in(0);
+    let base = "https://relay.test";
+    relay.push_purchase("2026-11-17T09:00:00Z", "trial", 50, None, None);
+    relay.complete_purchase("p5", 500);
+    let (status, headers, body) = call(&relay, relay::purchases_request(base, FAKE_SESSION));
+    let report = relay::read_purchases(status, &headers, &body).unwrap().unwrap();
+    assert_eq!(report.items.len(), 2);
+    assert_eq!(report.items[0].kind, relay::PurchaseKind::Purchase);
+    assert_eq!(report.items[0].cents, 500);
+    assert_eq!(
+        report.items[0].receipt_url.as_deref(),
+        Some("https://pay.stripe.com/receipts/test_p5")
+    );
+    assert_eq!(report.items[1].kind, relay::PurchaseKind::Trial);
+    assert_eq!(relay.balance(), 500);
+    let (status, headers, body) = call(&relay, relay::purchases_request(base, "autre"));
+    assert_eq!(
+        relay::read_purchases(status, &headers, &body),
+        Err(AssistantError::SessionEnded { expired: false })
+    );
+    for client in [relay::Client::Desktop, relay::Client::Web] {
+        let (status, headers, body) =
+            call(&relay, relay::checkout_request(base, FAKE_SESSION, "p20", client));
+        assert!(relay::read_checkout(status, &headers, &body).is_ok());
+    }
+    relay.remove_purchases_route();
+    let (status, headers, body) = call(&relay, relay::purchases_request(base, FAKE_SESSION));
+    assert_eq!(status, 404);
+    assert_eq!(relay::read_purchases(status, &headers, &body), Ok(None));
+}
+
 /// Essai réel contre un relais local (`PLANNERCRAFT_RELAY_URL`, par
 /// exemple `http://127.0.0.1:8080`) avec un jeton de session obtenu à la
 /// main (`PLANNERCRAFT_RELAY_SESSION`) : `/v1/me`, puis une complétion

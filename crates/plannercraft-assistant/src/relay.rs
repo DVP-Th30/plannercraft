@@ -19,7 +19,12 @@
 //!   ([`crate::sse::parse_relay_cost`]). Les trailers
 //!   `X-PlannerCraft-Cost-Cents` ne sont pas lus (ni `ehttp` ni `fetch` ne
 //!   les rendent).
-//! - `POST /v1/credits/checkout { pack }` → `{ url }` (Stripe Checkout).
+//! - `POST /v1/credits/checkout { pack, client }` → `{ url }` (Stripe
+//!   Checkout) ; `client` (`desktop` | `web`) dit d'où vient l'achat
+//!   ([`Client`]).
+//! - `GET /v1/purchases` : achats et mouvements de crédits (50 au plus,
+//!   plus récents d'abord) ; un relais ancien répond `404`
+//!   ([`read_purchases`] rend alors `None`).
 //! - Erreurs `{ code, message }` ([`api_error`]).
 //!
 //! Le jeton de session n'apparaît jamais dans un `Debug` ni dans un
@@ -188,12 +193,56 @@ pub fn usage_request(base: &str, session: &str) -> HttpRequest {
     get(base, "/v1/usage", session)
 }
 
-/// `POST /v1/credits/checkout { pack }`.
+/// Origine d'un achat (`client` de `/v1/credits/checkout`) : le relais
+/// en déduit les adresses de retour de la page de paiement (défaut du
+/// serveur : `desktop`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Client {
+    /// Application de bureau.
+    #[default]
+    Desktop,
+    /// Version web.
+    Web,
+}
+
+impl Client {
+    /// Origine de la cible compilée : `Web` en WebAssembly, sinon
+    /// `Desktop`.
+    #[must_use]
+    pub const fn current() -> Self {
+        if cfg!(target_arch = "wasm32") {
+            Self::Web
+        } else {
+            Self::Desktop
+        }
+    }
+
+    /// Valeur envoyée au relais.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Desktop => "desktop",
+            Self::Web => "web",
+        }
+    }
+}
+
+/// `POST /v1/credits/checkout { pack, client }`.
 #[must_use]
-pub fn checkout_request(base: &str, session: &str, pack: &str) -> HttpRequest {
-    let mut request = post_json(base, "/v1/credits/checkout", &json!({ "pack": pack }));
+pub fn checkout_request(base: &str, session: &str, pack: &str, client: Client) -> HttpRequest {
+    let mut request = post_json(
+        base,
+        "/v1/credits/checkout",
+        &json!({ "pack": pack, "client": client.as_str() }),
+    );
     bearer(&mut request.headers, session);
     request
+}
+
+/// `GET /v1/purchases` (achats et mouvements de crédits).
+#[must_use]
+pub fn purchases_request(base: &str, session: &str) -> HttpRequest {
+    get(base, "/v1/purchases", session)
 }
 
 /// `POST /v1/assistant/chat` : `body` est la requête du mode « ma clé »
@@ -350,6 +399,74 @@ pub struct UsageReport {
     /// Total de la période, centimes.
     #[serde(default)]
     pub total_cents: i64,
+}
+
+/// Lignes d'achats gardées au plus (contrat : 50).
+pub const MAX_PURCHASES: usize = 50;
+
+/// Sorte d'un mouvement de crédits (`/v1/purchases`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PurchaseKind {
+    /// Achat d'un pack.
+    Purchase,
+    /// Crédit d'essai d'un compte neuf.
+    Trial,
+    /// Crédit offert.
+    Grant,
+    /// Remboursement.
+    Refund,
+    /// Ajustement manuel.
+    Adjustment,
+    /// Sorte inconnue de cette version (relais plus récent) : affichée
+    /// sans erreur.
+    Other(String),
+}
+
+impl<'de> Deserialize<'de> for PurchaseKind {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = String::deserialize(deserializer)?;
+        Ok(match raw.as_str() {
+            "purchase" => Self::Purchase,
+            "trial" => Self::Trial,
+            "grant" => Self::Grant,
+            "refund" => Self::Refund,
+            "adjustment" => Self::Adjustment,
+            _ => Self::Other(truncate_message(&raw)),
+        })
+    }
+}
+
+/// Mouvement de crédits (`GET /v1/purchases`).
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct Purchase {
+    /// Horodatage RFC 3339 (UTC).
+    pub at: String,
+    /// Sorte.
+    pub kind: PurchaseKind,
+    /// Montant signé, centimes d'euro.
+    #[serde(default)]
+    pub cents: i64,
+    /// Pack acheté (identifiant du relais), s'il y en a un.
+    #[serde(default)]
+    pub pack: Option<String>,
+    /// Reçu de paiement ; seule une adresse `https://` est gardée
+    /// ([`read_purchases`]).
+    #[serde(default)]
+    pub receipt_url: Option<String>,
+}
+
+/// Achats (`GET /v1/purchases`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+pub struct PurchasesReport {
+    /// Lignes, plus récentes d'abord ([`MAX_PURCHASES`] au plus).
+    #[serde(default)]
+    pub items: Vec<Purchase>,
+}
+
+/// Adresse qu'on peut ouvrir dans le navigateur : `https://`, sans espace.
+#[must_use]
+pub fn safe_https(url: &str) -> bool {
+    url.len() > "https://".len() && url.starts_with("https://") && !url.chars().any(char::is_whitespace)
 }
 
 /// Erreur d'une réponse non 2xx du relais (`{ code, message }`) :
@@ -526,11 +643,34 @@ pub fn read_checkout(
     value
         .get("url")
         .and_then(Value::as_str)
-        .filter(|u| u.starts_with("https://") && !u.chars().any(char::is_whitespace))
+        .filter(|u| safe_https(u))
         .map(str::to_owned)
         .ok_or_else(|| AssistantError::Protocol {
             detail: "adresse de paiement absente ou non sécurisée".to_owned(),
         })
+}
+
+/// Lit `/v1/purchases`. `404` (relais antérieur à la route) : `Ok(None)`,
+/// la fenêtre « Mon compte » se passe des achats. Reçu non `https` :
+/// retiré ; au plus [`MAX_PURCHASES`] lignes.
+///
+/// # Errors
+///
+/// Voir [`api_error`] ; corps illisible : [`AssistantError::Protocol`].
+pub fn read_purchases(
+    status: u16,
+    headers: &[(String, String)],
+    body: &[u8],
+) -> Result<Option<PurchasesReport>, AssistantError> {
+    if status == 404 {
+        return Ok(None);
+    }
+    let mut report: PurchasesReport = ok_json(status, headers, body, "achats")?;
+    report.items.truncate(MAX_PURCHASES);
+    for item in &mut report.items {
+        item.receipt_url = item.receipt_url.take().filter(|u| safe_https(u));
+    }
+    Ok(Some(report))
 }
 
 #[cfg(test)]
@@ -566,8 +706,15 @@ mod tests {
         let out = logout_request(&base, "sess-secret");
         assert_eq!(out.body, Vec::<u8>::new());
         assert_eq!(out.url, "http://127.0.0.1:8080/v1/auth/logout");
-        let buy = checkout_request(&base, "sess-secret", "p20");
-        assert_eq!(body_of(&buy), json!({ "pack": "p20" }));
+        let buy = checkout_request(&base, "sess-secret", "p20", Client::Desktop);
+        assert_eq!(body_of(&buy), json!({ "pack": "p20", "client": "desktop" }));
+        let web = checkout_request(&base, "s", "p5", Client::Web);
+        assert_eq!(body_of(&web), json!({ "pack": "p5", "client": "web" }));
+        assert_eq!(Client::current(), Client::Desktop);
+        let purchases = purchases_request(&base, "sess-secret");
+        assert_eq!(purchases.method, Method::Get);
+        assert_eq!(purchases.url, "http://127.0.0.1:8080/v1/purchases");
+        assert_eq!(purchases.header("authorization"), Some("Bearer sess-secret"));
         assert_eq!(usage_request(&base, "s").url, "http://127.0.0.1:8080/v1/usage");
         // Jamais le jeton dans un journal.
         for r in [&me, &out, &buy] {
@@ -722,6 +869,54 @@ mod tests {
         );
         assert!(read_checkout(200, &[], br#"{"url":"javascript:alert(1)"}"#).is_err());
         assert!(read_magic_link(204, &[], b"").is_ok());
+        let purchases = read_purchases(
+            200,
+            &[],
+            br#"{"items":[
+                {"at":"2026-11-18T10:05:25.123456Z","kind":"purchase","cents":500,"pack":"p5","receipt_url":"https://pay.stripe.com/receipts/x"},
+                {"at":"2026-11-17T09:00:00Z","kind":"trial","cents":50,"pack":null,"receipt_url":null},
+                {"at":"2026-11-16T09:00:00Z","kind":"refund","cents":-500,"receipt_url":"javascript:alert(1)"},
+                {"at":"2026-11-15T09:00:00Z","kind":"cashback","cents":10}
+            ]}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(purchases.items.len(), 4);
+        assert_eq!(purchases.items[0].kind, PurchaseKind::Purchase);
+        assert_eq!(purchases.items[0].pack.as_deref(), Some("p5"));
+        assert_eq!(
+            purchases.items[0].receipt_url.as_deref(),
+            Some("https://pay.stripe.com/receipts/x")
+        );
+        assert_eq!(purchases.items[1].kind, PurchaseKind::Trial);
+        assert_eq!(purchases.items[1].receipt_url, None);
+        assert_eq!(purchases.items[2].cents, -500);
+        assert_eq!(purchases.items[2].receipt_url, None, "reçu non https retiré");
+        assert_eq!(
+            purchases.items[3].kind,
+            PurchaseKind::Other("cashback".to_owned())
+        );
+        // Relais antérieur à la route : pas d'achats, pas d'erreur.
+        assert_eq!(
+            read_purchases(404, &[], br#"{"code":"not_found","message":"x"}"#),
+            Ok(None)
+        );
+        assert_eq!(
+            read_purchases(401, &[], br#"{"code":"auth.required","message":"x"}"#),
+            Err(AssistantError::SessionEnded { expired: false })
+        );
+        let many: Vec<Value> = (0..60)
+            .map(|i| json!({ "at": "2026-11-18T10:00:00Z", "kind": "grant", "cents": i }))
+            .collect();
+        let body = json!({ "items": many }).to_string();
+        assert_eq!(
+            read_purchases(200, &[], body.as_bytes())
+                .unwrap()
+                .unwrap()
+                .items
+                .len(),
+            MAX_PURCHASES
+        );
         assert_eq!(
             read_me(401, &[], br#"{"code":"auth.expired","message":"x"}"#),
             Err(AssistantError::SessionEnded { expired: true })
