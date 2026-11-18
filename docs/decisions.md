@@ -1602,3 +1602,13 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 - **Classe proche** : après correction, 44 tâches, toutes d'`AtharvaTK1997…` (successeurs des 4 durées flottantes), écart de 0,1 à 0,5 min. Seuil ramené de deux minutes à une (`ROUNDING_MINUTES` = 1 ; une affectation reste « décalée » au-delà de deux minutes) ; textes : fenêtre des différences « n tâches diffèrent d'une minute au plus : non comptées. » (avant : « d'une ou deux minutes (arrondi) »), rapport texte « à une minute près », guide ; deux captures régénérées pour ce seul texte (`mpp_differences_fr_light`, `mpp_differences_fr_dark`, différence limitée à la ligne) ; noms du JSON (`tasks_rounding`, classe `rounding`) inchangés.
 - **Mesure finale** : fichiers réels **2 756 / 2 966** (44 proches, 166 en écart réel ; aucun fichier ne perd de tâche, tableau par fichier dans `docs/plans/mpp-import.md` § 12) ; corpus de test MPP14 2 188 / 2 221 ; corpus MSPDI 156 / 159 ; temps de calcul −1,1 % à +1,1 % contre `5b1171c` (médianes de trois passes, dossiers `target` séparés). Remplace les chiffres et les points « à trancher » de l'état B4-B5 ci-dessus.
 
+
+## ADR-0040 — 2026-11-18 — Alerte RustSec « chrono non maintenu » tolérée
+
+**Contexte.** L'avis RUSTSEC-2026-0543 (publié entre le 16 et le 17 novembre 2026) classe `chrono` « non maintenu ». `cargo deny` refuse tout avis visant une dépendance du workspace (`unmaintained = "workspace"`) : le job CI échoue sur `main` comme sur toutes les PR, sans changement de code. Ce n'est pas une vulnérabilité : aucun défaut connu n'est signalé dans la version utilisée (0.4.45). `chrono` sert aux frontières (serde, import MSPDI et `.mpp`, CSV, horloge injectée par `Env::now`) dans une dizaine de crates.
+
+**Décision (propriétaire, 2026-11-18).** L'avis est ajouté à `ignore` dans `deny.toml`, avec sa justification. Toute autre alerte, et toute vulnérabilité visant `chrono`, continue d'échouer.
+
+**Écarté.** Remplacer `chrono` tout de suite (par `jiff` ou `time`) : chantier qui touche les lecteurs, les écrivains et les contrats de dates du moteur, avec mesure de parité sur les corpus ; il bloquerait toutes les PR d'ici là. Passer `unmaintained` à `"none"` : masquerait aussi les prochains avis du même type sur d'autres crates.
+
+**Suite.** Remplacer `chrono` dans un lot à part, puis retirer l'entrée de `ignore`. Même choix fait dans le relais (`plannercraft-relay`, D11).
