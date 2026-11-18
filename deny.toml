@@ -13,7 +13,11 @@ all-features = true
 version = 2
 yanked = "deny"
 unmaintained = "workspace"
-ignore = []
+ignore = [
+    # chrono signalé « non maintenu » (pas une vulnérabilité) : toléré en
+    # attendant son remplacement (ADR-0040).
+    { id = "RUSTSEC-2026-0543", reason = "unmaintained, not a vulnerability; replacement tracked in ADR-0040" },
+]
 
 [licenses]
 version = 2
