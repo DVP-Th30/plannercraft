@@ -51,6 +51,7 @@ mod assistant;
 mod assistant_account;
 mod assistant_panel;
 mod assistant_proposals;
+mod assistant_suggestions;
 mod cells;
 mod clipboard;
 mod columns;

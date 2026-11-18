@@ -24,6 +24,7 @@ use crate::approvals::ProposalOp;
 use crate::assistant::{
     AssistantOp, AssistantPanel, ChatLayout, MAX_KEY_CHARS, MAX_QUESTION_CHARS, Notice, ScrollMode,
 };
+use crate::format::format_date;
 use crate::i18n::{Arg, Language, TextId, Texts};
 use crate::ribbon::Icon;
 use crate::ribbon::icons::paint_icon;
@@ -73,6 +74,24 @@ const ANCHOR_ANIM: f64 = 0.18;
 const COPIED_FOR: f64 = 1.5;
 /// Largeur au plus d'un message de l'utilisateur (part du volet).
 const USER_MAX_SHARE: f32 = 0.85;
+/// Suggestions de l'état vide au plus (H-UI-237).
+pub const MAX_SUGGESTIONS: usize = 4;
+/// Espace entre deux cartes de suggestion.
+const SUGGESTION_GAP: f32 = 8.0;
+/// Marge intérieure horizontale d'une carte de suggestion.
+const CARD_PAD_X: f32 = 12.0;
+/// Marge intérieure verticale d'une carte de suggestion.
+const CARD_PAD_Y: f32 = 10.0;
+/// Côté de l'icône d'une carte.
+const CARD_ICON: f32 = 18.0;
+/// Écart entre l'icône et le texte d'une carte.
+const CARD_ICON_GAP: f32 = 12.0;
+/// Titre d'une carte (Inter `SemiBold` quand la police est chargée).
+const CARD_TITLE_SIZE: f32 = 13.5;
+/// Écart entre le titre et le détail d'une carte.
+const CARD_LINE_GAP: f32 = 2.0;
+/// Rayon des coins d'une carte.
+const CARD_RADIUS: f32 = 10.0;
 
 /// Identifiant du champ de la question.
 #[must_use]
@@ -1380,8 +1399,9 @@ fn footer(
     });
 }
 
-/// État vide (H-UI-143) : transparence (AI Act art. 50) et suggestions
-/// métier qui préremplissent la saisie.
+/// État vide (H-UI-143 ; suggestions refaites en H-UI-237) : transparence
+/// (AI Act art. 50) et suggestions d'action choisies d'après le planning
+/// ouvert ([`suggestions`]), qui préremplissent la saisie sans l'envoyer.
 fn empty_state(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, events: &mut Vec<ChatEvent>) {
     let texts = fc.texts;
     egui::Frame::NONE
@@ -1404,37 +1424,220 @@ fn empty_state(ui: &mut egui::Ui, fc: &FrameCtx<'_>, t: &ChatTokens, events: &mu
                 ui.add_space(2.0);
                 assistant_account::relay_notice(ui, fc, t);
             }
-            if fc.doc.is_none() {
+            let Some(doc) = fc.doc else {
                 ui.add_space(6.0);
                 ui.label(
                     RichText::new(texts.get(TextId::AssistantNoDocument))
                         .size(META_SIZE)
                         .color(t.meta),
                 );
-            }
+                return;
+            };
             ui.add_space(14.0);
-            for id in [
-                TextId::AssistantSuggestCritical,
-                TextId::AssistantSuggestLate,
-                TextId::AssistantSuggestOverload,
-                TextId::AssistantSuggestSummary,
-            ] {
-                let text = texts.get(id);
-                let button = egui::Button::new(RichText::new(&text).size(13.0).color(t.text))
-                    .fill(t.surface)
-                    .stroke(Stroke::new(1.0, t.border))
-                    .corner_radius(8.0)
-                    .min_size(vec2(ui.available_width(), 30.0));
-                if ui
-                    .with_layout(Layout::top_down_justified(Align::LEFT), |ui| ui.add(button))
-                    .inner
-                    .clicked()
-                {
-                    events.push(ChatEvent::Suggest(text));
+            // Date de fin du moteur (R-045), formatée comme la barre d'état :
+            // jamais calculée ici (règle 3).
+            let finish = format_date(doc.schedule().project_finish, texts.format_labels());
+            for (index, suggestion) in suggestions(doc, fc.rows).into_iter().enumerate() {
+                let (title, detail) = suggestion.texts(texts, &finish);
+                let id = Id::unique(("plannercraft.assistant.suggestion", index));
+                if suggestion_card(ui, id, suggestion.icon(), &title, &detail, t).clicked() {
+                    events.push(ChatEvent::Suggest(format!("{title} {detail}")));
                 }
-                ui.add_space(6.0);
+                ui.add_space(SUGGESTION_GAP);
             }
         });
+}
+
+/// Suggestion d'action de l'état vide (H-UI-237). Le texte complet mis
+/// dans la saisie est « titre détail » : les deux chaînes Fluent sont
+/// coupées pour se lire bout à bout dans chaque langue.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Suggestion {
+    /// Projet vide : planning de maison individuelle.
+    CreateHouse,
+    /// Projet vide : rénovation d'appartement en trois phases.
+    CreateRenovation,
+    /// Tâches en retard : rattraper sans décaler la fin.
+    CatchUp,
+    /// Ressources surutilisées : lisser.
+    Level,
+    /// Projet sain : phase 2 après la fin.
+    AddPhase,
+    /// Projet sain : décaler une phase.
+    ShiftPhase,
+    /// Projet sain : raccourcir le planning.
+    Shorten,
+    /// Pourquoi le projet finit à la date du moteur.
+    WhyFinish,
+}
+
+impl Suggestion {
+    /// Icône de la carte.
+    const fn icon(self) -> Icon {
+        match self {
+            Self::CreateHouse | Self::AddPhase => Icon::ListPlus,
+            Self::CreateRenovation => Icon::ListTree,
+            Self::CatchUp => Icon::CalendarClock,
+            Self::Level => Icon::Users,
+            Self::ShiftPhase => Icon::MoveHorizontal,
+            Self::Shorten => Icon::CalendarRange,
+            Self::WhyFinish => Icon::ScanSearch,
+        }
+    }
+
+    /// Titre et détail dans la langue de `texts` ; `finish` : date de fin
+    /// du projet déjà formatée.
+    fn texts(self, texts: &Texts, finish: &str) -> (String, String) {
+        let (title, detail) = match self {
+            Self::CreateHouse => (
+                TextId::AssistantSuggestHouseTitle,
+                TextId::AssistantSuggestHouseDetail,
+            ),
+            Self::CreateRenovation => (
+                TextId::AssistantSuggestRenovationTitle,
+                TextId::AssistantSuggestRenovationDetail,
+            ),
+            Self::CatchUp => (
+                TextId::AssistantSuggestCatchUpTitle,
+                TextId::AssistantSuggestCatchUpDetail,
+            ),
+            Self::Level => (
+                TextId::AssistantSuggestLevelTitle,
+                TextId::AssistantSuggestLevelDetail,
+            ),
+            Self::AddPhase => (
+                TextId::AssistantSuggestPhaseTitle,
+                TextId::AssistantSuggestPhaseDetail,
+            ),
+            Self::ShiftPhase => (
+                TextId::AssistantSuggestShiftTitle,
+                TextId::AssistantSuggestShiftDetail,
+            ),
+            Self::Shorten => (
+                TextId::AssistantSuggestShortenTitle,
+                TextId::AssistantSuggestShortenDetail,
+            ),
+            Self::WhyFinish => (
+                TextId::AssistantSuggestFinishTitle,
+                TextId::AssistantSuggestFinishDetail,
+            ),
+        };
+        (
+            texts.get(title),
+            texts.get_args(detail, &[("date", Arg::Str(finish.into()))]),
+        )
+    }
+}
+
+/// Suggestions de l'état vide d'après le document ouvert (H-UI-237), au
+/// plus [`MAX_SUGGESTIONS`]. Lecture seule de ce que le moteur a déjà
+/// calculé, à chaque image (aucun appel réseau, aucune date calculée) :
+/// - aucune tâche (lignes vides exceptées) : deux créations de planning ;
+/// - tâche active dont la fin calculée dépasse sa fin de référence
+///   (variation de fin à la ligne de base 0 strictement positive, R-224,
+///   lue dans le [`RowModel`](crate::rows::RowModel) déjà construit) :
+///   rattraper le retard ;
+/// - ressource surutilisée selon le moteur (`Schedule::resources`, R-186 ;
+///   indicateur de la feuille des ressources, H-UI-23) : lisser ;
+/// - ni l'un ni l'autre : phase 2, décaler, raccourcir.
+///
+/// « Pourquoi le projet finit le … ? » ferme la liste dès qu'une tâche est
+/// planifiée (récapitulative du projet présente, R-068) ; sinon le moteur
+/// n'a pas de date de fin à citer et la suggestion est omise.
+#[must_use]
+pub fn suggestions(doc: &crate::app::OpenDocument, rows: Option<&crate::rows::RowModel>) -> Vec<Suggestion> {
+    let project = doc.project();
+    let schedule = doc.schedule();
+    if project.tasks.iter().all(|task| task.is_null) {
+        return vec![Suggestion::CreateHouse, Suggestion::CreateRenovation];
+    }
+    let late = rows.is_some_and(|rows| {
+        (0..rows.len()).filter_map(|i| rows.row(i)).any(|row| {
+            row.active
+                && row
+                    .finish_variance
+                    .is_some_and(|v| v > plannercraft_core::Minutes::ZERO)
+        })
+    });
+    // Ressource cachée d'UID 0 ignorée, comme la feuille des ressources.
+    let overallocated = schedule
+        .resources
+        .iter()
+        .any(|(uid, load)| uid.get() != 0 && load.overallocated);
+    let mut out = Vec::with_capacity(MAX_SUGGESTIONS);
+    if late {
+        out.push(Suggestion::CatchUp);
+    }
+    if overallocated {
+        out.push(Suggestion::Level);
+    }
+    if !late && !overallocated {
+        out.extend([Suggestion::AddPhase, Suggestion::ShiftPhase, Suggestion::Shorten]);
+    }
+    if schedule.project_summary.is_some() {
+        out.push(Suggestion::WhyFinish);
+    }
+    out.truncate(MAX_SUGGESTIONS);
+    out
+}
+
+/// Carte d'une suggestion (H-UI-237) : pleine largeur, coins arrondis,
+/// icône à l'accent, titre appuyé et détail en méta ; survol et focus
+/// teintés à l'accent. Nom accessible : la phrase complète.
+fn suggestion_card(
+    ui: &mut egui::Ui,
+    id: Id,
+    icon: Icon,
+    title: &str,
+    detail: &str,
+    t: &ChatTokens,
+) -> egui::Response {
+    let width = ui.available_width();
+    let wrap = (width - 2.0 * CARD_PAD_X - CARD_ICON - CARD_ICON_GAP).max(1.0);
+    let title_galley = ui.painter().layout(
+        title.to_owned(),
+        crate::theme::strong_font(ui.ctx(), CARD_TITLE_SIZE),
+        t.text,
+        wrap,
+    );
+    let detail_galley = ui
+        .painter()
+        .layout(detail.to_owned(), FontId::proportional(META_SIZE), t.meta, wrap);
+    let text_h = title_galley.size().y + CARD_LINE_GAP + detail_galley.size().y;
+    let height = text_h.max(CARD_ICON) + 2.0 * CARD_PAD_Y;
+    let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+    let response = ui
+        .interact(rect, id, Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    let (fill, stroke) = if response.hovered() || response.has_focus() {
+        (t.user_bg, Stroke::new(1.0, t.accent))
+    } else {
+        (t.surface, Stroke::new(1.0, t.border))
+    };
+    let painter = ui.painter();
+    painter.rect_filled(rect, CARD_RADIUS, fill);
+    painter.rect_stroke(rect, CARD_RADIUS, stroke, egui::StrokeKind::Inside);
+    if response.has_focus() {
+        painter.rect_stroke(
+            rect,
+            CARD_RADIUS,
+            Stroke::new(1.5, t.accent),
+            egui::StrokeKind::Inside,
+        );
+    }
+    let icon_rect = Rect::from_min_size(
+        pos2(rect.left() + CARD_PAD_X, rect.center().y - CARD_ICON / 2.0),
+        Vec2::splat(CARD_ICON),
+    );
+    paint_icon(painter, icon_rect, icon, t.accent);
+    let text_x = icon_rect.right() + CARD_ICON_GAP;
+    let text_top = rect.center().y - text_h / 2.0;
+    let detail_top = text_top + title_galley.size().y + CARD_LINE_GAP;
+    painter.galley(pos2(text_x, text_top), title_galley, t.text);
+    painter.galley(pos2(text_x, detail_top), detail_galley, t.meta);
+    let label = format!("{title} {detail}");
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
+    response
 }
 
 /// Barre d'état du flux (H-UI-143), seulement pendant une génération :
