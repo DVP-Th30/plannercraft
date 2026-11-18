@@ -1612,3 +1612,16 @@ Derniers numéros pris : R-236, O43, S59, P44, H-UI-12. Cahier d'implémentation
 **Écarté.** Remplacer `chrono` tout de suite (par `jiff` ou `time`) : chantier qui touche les lecteurs, les écrivains et les contrats de dates du moteur, avec mesure de parité sur les corpus ; il bloquerait toutes les PR d'ici là. Passer `unmaintained` à `"none"` : masquerait aussi les prochains avis du même type sur d'autres crates.
 
 **Suite.** Remplacer `chrono` dans un lot à part, puis retirer l'entrée de `ignore`. Même choix fait dans le relais (`plannercraft-relay`, D11).
+
+## ADR-0041 — 2026-11-18 — Fenêtre « Mon compte », confirmation d'achat et origine du paiement
+
+**Contexte.** Mode « Compte PlannerCraft » (ADR-0024, ADR-0025) : après un paiement, rien ne changeait dans l'application (le solde n'était relu qu'une fois, au retour du focus, souvent avant que le webhook Stripe ait crédité le compte) ; aucun historique des achats ni reçu ; le relais ne savait pas si l'achat venait du desktop ou du web. Choix validés par le propriétaire le 2026-11-18 (maquette « Mon compte »).
+
+**Décisions.**
+- **Fenêtre dédiée « Mon compte »** (non modale, identique desktop et web), pas une vue de plus dans le volet : le volet garde la conversation ; ouverture par le menu « … », la palette et le clic sur le solde. La vue « Consommation » du volet (H-UI-159) reste, la fenêtre en donne un résumé par modèle.
+- **Achats** par la route `GET /v1/purchases` (contrat fixé avec le relais, PR relay#2). Un relais qui répond `404` (antérieur à la route) n'est pas une erreur : la section est remplacée par un message discret.
+- **Ajustements regroupés** : les lignes `adjustment` sont de petites corrections de débit, potentiellement nombreuses ; listées une à une, elles noieraient les achats. Elles sont résumées en une ligne « n ajustements » avec leur somme signée ; `purchase`, `trial`, `grant`, `refund` restent visibles. Écarté : les masquer (le total des mouvements ne se retrouverait plus) ; les filtrer côté relais (hors de ce dépôt, possible plus tard).
+- **Confirmation après achat** : à l'ouverture de la page de paiement, le solde est relu au retour du focus et toutes les 5 s pendant 10 min au plus, jusqu'à ce qu'il augmente ; alors « Crédits ajoutés : +x € » (volet, fenêtre, notification). Le temps est celui d'egui (`ctx.input(|i| i.time)`), passé par `App` : aucune horloge système dans l'interface (règle 5, `clippy.toml` de l'UI), déterministe sous kittest. Écarté : relire seulement au focus (le webhook arrive souvent après ; sur le web, l'onglet d'origine ne perd pas forcément le focus) ; relire sans fin (requêtes inutiles après un paiement abandonné) ; un canal poussé par le relais (SSE ou WebSocket : coût côté serveur et CORS pour un seul évènement).
+- **Origine de l'achat** : `client: "desktop" | "web"` dans `POST /v1/credits/checkout`, fixé par les services (`AssistantServices::desktop` / `web`), surchargeable en test ; le relais choisit ses adresses de retour (défaut `desktop`).
+
+**Limites.** Un crédit arrivé après 10 min n'est pas annoncé (le solde se met à jour au prochain `/v1/me`) ; un crédit sans rapport arrivé pendant l'attente est annoncé comme l'achat ; la liste montre les 50 dernières lignes du relais, ajustements compris.

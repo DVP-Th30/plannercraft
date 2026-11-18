@@ -23,6 +23,7 @@ use crate::selection::Selection;
 use crate::state::{TaskViewState, UiState};
 use crate::theme::Palette;
 
+pub mod account_window;
 pub mod approval;
 pub mod assistant;
 pub mod assistant_account;

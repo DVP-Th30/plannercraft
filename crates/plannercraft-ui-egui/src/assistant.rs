@@ -23,10 +23,12 @@
 //!   projet ni dans `UiState`).
 //! - Lot A4 (H-UI-155 à H-UI-160) : deux accès, « Compte PlannerCraft »
 //!   (relais de l'éditeur, [`account`]) et « Ma clé OpenRouter ».
+//! - Fenêtre « Mon compte » (H-UI-238 à H-UI-243) : achats, consommation,
+//!   confirmation des crédits ajoutés après un paiement.
 
 mod account;
 
-pub use account::{Account, AccountInfo, AccountStage};
+pub use account::{Account, AccountInfo, AccountStage, CHECKOUT_POLL_SECS, CHECKOUT_WATCH_SECS, Purchases};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -67,6 +69,12 @@ pub enum AssistantOp {
     Checkout(&'static str),
     /// Ouvre ou ferme la vue « Consommation ».
     ShowUsage(bool),
+    /// Ouvre ou ferme la fenêtre « Mon compte » (H-UI-238) ; à
+    /// l'ouverture, compte, achats et consommation sont relus.
+    AccountWindow(bool),
+    /// « Reçu ↗ » d'un achat (H-UI-240) : ouvre l'adresse dans le
+    /// navigateur si elle est celle d'un reçu de la liste lue.
+    OpenReceipt(String),
     /// Désactive l'assistant (la conversation est oubliée).
     Disable,
     /// Envoie la question saisie.
@@ -224,6 +232,8 @@ pub struct AssistantServices {
     pub session_secrets: Option<SharedSecrets>,
     /// Adresse du relais de PlannerCraft (lot A4).
     pub relay_url: String,
+    /// Origine des achats (`client` de `/v1/credits/checkout`, H-UI-243).
+    pub client: plannercraft_assistant::relay::Client,
     /// Navigateur de la connexion OAuth et de la page de paiement
     /// (desktop) ; `None` : bouton « Se connecter » grisé.
     #[cfg(not(target_arch = "wasm32"))]
@@ -256,6 +266,7 @@ impl AssistantServices {
             secrets: Some(Arc::new(MemoryStore::default())),
             session_secrets: Some(Arc::new(MemoryStore::default())),
             relay_url: TEST_RELAY_URL.to_owned(),
+            client: plannercraft_assistant::relay::Client::current(),
             #[cfg(not(target_arch = "wasm32"))]
             browser: None,
             #[cfg(target_arch = "wasm32")]
@@ -272,6 +283,7 @@ impl AssistantServices {
             secrets: None,
             session_secrets: None,
             relay_url: plannercraft_assistant::relay::base_url(),
+            client: plannercraft_assistant::relay::Client::Desktop,
             browser: Some(Arc::new(plannercraft_assistant::platform::SystemBrowser)),
         }
     }
@@ -286,6 +298,7 @@ impl AssistantServices {
             secrets: Some(Arc::new(MemoryStore::default())),
             session_secrets: Some(Arc::new(MemoryStore::default())),
             relay_url: plannercraft_assistant::relay::base_url(),
+            client: plannercraft_assistant::relay::Client::Web,
             web_login: true,
         }
     }
@@ -295,6 +308,14 @@ impl AssistantServices {
     #[must_use]
     pub fn with_browser(mut self, browser: Arc<dyn plannercraft_assistant::platform::BrowserOpener>) -> Self {
         self.browser = Some(browser);
+        self
+    }
+
+    /// Origine des achats donnée (tests : achat « web » depuis le
+    /// desktop).
+    #[must_use]
+    pub const fn with_client(mut self, client: plannercraft_assistant::relay::Client) -> Self {
+        self.client = client;
         self
     }
 
@@ -731,6 +752,8 @@ impl AssistantPanel {
             AssistantOp::AccountRefresh => self.refresh_account(),
             AssistantOp::Checkout(pack) => self.checkout(pack),
             AssistantOp::ShowUsage(open) => self.show_usage(open),
+            AssistantOp::AccountWindow(open) => self.show_account_window(open),
+            AssistantOp::OpenReceipt(url) => self.open_receipt(&url),
             AssistantOp::Disable => {
                 prefs.enabled = false;
                 // « Désactiver » oublie la conversation du document.

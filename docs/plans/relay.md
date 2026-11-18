@@ -22,7 +22,8 @@ Toutes les réponses en JSON ; erreurs `{ "code": "…", "message": "…" }` ; c
 | `GET /v1/me` | Bearer | `{ email, balance_cents, currency: "EUR", models: [ { id, label, input_cents_per_mtok, output_cents_per_mtok } ], low_balance: bool }` |
 | `GET /v1/usage?from&to` | Bearer | `{ items: [ { at, model, prompt_tokens, completion_tokens, cached_tokens, cost_cents } ], total_cents }` |
 | `POST /v1/assistant/chat` | Bearer, `X-PlannerCraft-Request: <uuid>`, `X-PlannerCraft-Turn: n`, corps = requête OpenRouter **sans** `provider`, `transforms`, `route`, clés inconnues refusées | flux SSE identique à OpenRouter (y compris le `usage` final) ; en-tête de réponse `X-PlannerCraft-Cost-Cents` et `X-PlannerCraft-Balance-Cents` à la fin (trailer ou dernier évènement `: plannercraft-cost …`) |
-| `POST /v1/credits/checkout` | Bearer, `{ pack: "p5" \| "p20" \| "p50" }` | `{ url }` (Stripe Checkout, mode paiement unique ; `client_reference_id` = compte) |
+| `GET /v1/purchases` | Bearer | `{ items: [ { at, kind, cents, pack, receipt_url } ] }` (ajout du 2026-11-18 : `kind` ∈ `purchase` \| `trial` \| `grant` \| `refund` \| `adjustment`, `cents` signé, `pack` et `receipt_url` nullables, 50 lignes au plus, plus récentes d'abord) |
+| `POST /v1/credits/checkout` | Bearer, `{ pack: "p5" \| "p20" \| "p50", client?: "desktop" \| "web" }` (`client` ajouté le 2026-11-18, défaut `desktop`) | `{ url }` (Stripe Checkout, mode paiement unique ; `client_reference_id` = compte) |
 | `POST /v1/stripe/webhook` | signature Stripe | `checkout.session.completed` ⇒ crédit du compte, idempotent par `event.id` |
 | `GET /healthz` | — | `200` |
 

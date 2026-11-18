@@ -38,9 +38,18 @@ Une fois connecté, le **solde** s'affiche sous le titre du volet (« Solde : 4,
 ### Acheter des crédits
 
 - **Acheter des crédits ▾** (sous le titre, ou dans la conversation quand les crédits sont épuisés) : packs de **5 €, 20 € ou 50 €**. La page de paiement (Stripe) s'ouvre dans votre navigateur ; PlannerCraft ne voit jamais votre carte.
-- Au retour dans l'application, le solde se met à jour ; sinon, **Actualiser le solde** (bouton ⟳ à côté, ou menu « … »). Dans la version web, la page de paiement s'ouvre dans un nouvel onglet : revenez à l'onglet de PlannerCraft.
+- Une fois le paiement fait, PlannerCraft vérifie votre solde pendant quelques minutes et affiche **« Crédits ajoutés : +5,00 € »** dès que les crédits sont arrivés (en général quelques secondes). Sinon, **Actualiser le solde** (bouton ⟳ à côté, ou menu « … »). Dans la version web, la page de paiement s'ouvre dans un nouvel onglet : revenez à l'onglet de PlannerCraft.
 - Chaque réponse indique son coût en euros dans son pied (« Sonnet 5.5 · 2,3 k jetons · 0,03 € » ; « < 0,01 € » pour une toute petite réponse : les fractions de centime sont reportées sur la suivante). **Consommation** liste vos demandes des 30 derniers jours et leur total (heures en temps universel).
 - Le prix des modèles (par million de jetons) s'affiche au survol de la liste des modèles.
+
+### Mon compte
+
+La fenêtre **Mon compte** rassemble votre compte au même endroit. Ouvrez-la d'un clic sur le solde, par le menu « … » de l'assistant (**Mon compte…**) ou par la palette de commandes (Ctrl/Cmd+K, « Mon compte »).
+
+- En haut : votre adresse et **Se déconnecter** ; votre **solde** et **Acheter des crédits**.
+- **Achats** : la date, le pack (« Pack 5 € »), l'essai offert à l'ouverture du compte, les crédits offerts et les remboursements, avec leur montant ; **Reçu ↗** ouvre le reçu du paiement dans votre navigateur. Les petites corrections de débit sont regroupées sur une ligne « n ajustements ». Dates en temps universel.
+- **Consommation (30 j)** : pour chaque modèle, le nombre de demandes et leur coût, puis le total.
+- Sans connexion, la fenêtre propose de vous connecter.
 
 ### Sécurité et confidentialité
 

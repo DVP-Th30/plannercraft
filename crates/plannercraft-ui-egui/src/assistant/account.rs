@@ -11,13 +11,21 @@
 //! - Une session refusée (`auth.expired`, `auth.invalid`) ramène à l'écran
 //!   de connexion avec un message ; un résultat arrivé après une
 //!   déconnexion est ignoré (génération de session).
+//! - Fenêtre « Mon compte » (H-UI-238 à H-UI-243) : achats
+//!   (`/v1/purchases`, facultatif : un relais ancien répond `404`),
+//!   consommation, et après l'ouverture de la page de paiement, solde relu
+//!   au retour du focus et toutes les [`CHECKOUT_POLL_SECS`] secondes
+//!   pendant [`CHECKOUT_WATCH_SECS`] secondes au plus, jusqu'à ce qu'il
+//!   augmente (« Crédits ajoutés »). L'heure est celle d'egui, passée par
+//!   l'application ([`AssistantPanel::tick_account`]) : aucune horloge lue
+//!   ici.
 
 use std::sync::Arc;
 
 use plannercraft_assistant::error::AssistantError;
 use plannercraft_assistant::login::PendingResponse;
 use plannercraft_assistant::platform::Background;
-use plannercraft_assistant::relay::{self, Me, UsageReport};
+use plannercraft_assistant::relay::{self, Me, PurchasesReport, UsageReport};
 use plannercraft_assistant::secrets::SharedSecrets;
 
 use super::{AssistantPanel, Loaded, Notice};
@@ -32,6 +40,46 @@ pub enum AccountInfo {
     CheckoutReturn,
     /// Retour de la page de paiement : paiement abandonné (web).
     CheckoutCancelled,
+    /// Solde augmenté après l'ouverture de la page de paiement : montant
+    /// ajouté, centimes (H-UI-242).
+    CreditsAdded(i64),
+}
+
+/// Intervalle de relecture du solde après l'ouverture de la page de
+/// paiement, secondes (H-UI-242).
+pub const CHECKOUT_POLL_SECS: f64 = 5.0;
+/// Durée au plus de la relecture après l'ouverture de la page de paiement,
+/// secondes (10 minutes : un paiement abandonné ne fait pas tourner de
+/// requêtes indéfiniment).
+pub const CHECKOUT_WATCH_SECS: f64 = 600.0;
+
+/// Achats de la fenêtre « Mon compte » (`/v1/purchases`).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum Purchases {
+    /// Jamais demandés.
+    #[default]
+    Idle,
+    /// Première lecture en cours.
+    Loading,
+    /// Lus.
+    Ready(PurchasesReport),
+    /// Relais antérieur à la route (`404`) : section remplacée par un
+    /// message discret.
+    Unavailable,
+    /// Lecture refusée ou impossible (réseau…) : message dans la section,
+    /// rien de bloquant.
+    Failed(AssistantError),
+}
+
+/// Relecture du solde après l'ouverture de la page de paiement.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct CheckoutWatch {
+    /// Heure d'egui de la première image après l'ouverture.
+    started: Option<f64>,
+    /// Heure de la dernière relecture.
+    last_poll: Option<f64>,
+    /// Solde de référence (le plus bas vu depuis l'ouverture), centimes.
+    baseline: Option<i64>,
 }
 
 /// Étape de la connexion au compte.
@@ -60,6 +108,8 @@ enum Call {
     Usage,
     /// Paiement (`/v1/credits/checkout`).
     Checkout,
+    /// Achats (`/v1/purchases`).
+    Purchases,
     /// Déconnexion (révocation, sans suite).
     Logout,
 }
@@ -72,6 +122,10 @@ enum SessionLoad {
 }
 
 /// État du compte (jamais sérialisé).
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "drapeaux indépendants (vue Consommation, fenêtre, focus, relecture au focus)"
+)]
 pub struct Account {
     token: Option<String>,
     store: Option<SharedSecrets>,
@@ -101,6 +155,14 @@ pub struct Account {
     focused: bool,
     /// Adresses ouvertes dans le navigateur (tests : navigateur simulé).
     opened: Vec<String>,
+    /// Fenêtre « Mon compte » ouverte (H-UI-238).
+    window_open: bool,
+    /// Achats lus pour la fenêtre.
+    purchases: Purchases,
+    /// Relecture du solde après l'ouverture de la page de paiement.
+    watch: Option<CheckoutWatch>,
+    /// Crédits ajoutés à annoncer (notification de l'application).
+    credits_added: Option<i64>,
 }
 
 impl Default for Account {
@@ -122,6 +184,10 @@ impl Default for Account {
             refresh_on_focus: false,
             focused: true,
             opened: Vec::new(),
+            window_open: false,
+            purchases: Purchases::Idle,
+            watch: None,
+            credits_added: None,
         }
     }
 }
@@ -176,10 +242,38 @@ impl Account {
         self.store.as_ref().is_some_and(|s| s.persistent())
     }
 
-    /// Adresses ouvertes dans le navigateur par l'achat de crédits.
+    /// Adresses ouvertes dans le navigateur (page de paiement, reçus).
     #[must_use]
     pub fn opened(&self) -> &[String] {
         &self.opened
+    }
+
+    /// Fenêtre « Mon compte » ouverte.
+    #[must_use]
+    pub const fn window_open(&self) -> bool {
+        self.window_open
+    }
+
+    /// Achats lus pour la fenêtre « Mon compte ».
+    #[must_use]
+    pub const fn purchases(&self) -> &Purchases {
+        &self.purchases
+    }
+
+    /// Consommation en cours de lecture.
+    #[must_use]
+    pub fn usage_loading(&self) -> bool {
+        self.pending(&Call::Usage)
+    }
+
+    /// Le solde est relu en attendant le crédit d'un paiement (H-UI-242).
+    #[must_use]
+    pub const fn watching_checkout(&self) -> bool {
+        self.watch.is_some()
+    }
+
+    fn pending(&self, call: &Call) -> bool {
+        self.calls.iter().any(|(c, _, _)| c == call)
     }
 
     /// Jeton de session (demande relayée ; jamais affiché ni sérialisé).
@@ -344,7 +438,8 @@ impl AssistantPanel {
         self.call(Call::Usage, request);
     }
 
-    /// « Acheter des crédits » : session de paiement, puis navigateur.
+    /// « Acheter des crédits » : session de paiement (origine `client`
+    /// des services, H-UI-243), puis navigateur.
     pub(super) fn checkout(&mut self, pack: &str) {
         let Some(token) = self.account.token.clone() else {
             return;
@@ -353,8 +448,114 @@ impl AssistantPanel {
             return;
         }
         self.clear_notice();
-        let request = relay::checkout_request(&self.base(), &token, pack);
+        let request = relay::checkout_request(&self.base(), &token, pack, self.services.client);
         self.call(Call::Checkout, request);
+    }
+
+    /// Ouvre ou ferme la fenêtre « Mon compte » (H-UI-238) ; à
+    /// l'ouverture, compte, consommation et achats sont relus.
+    pub(super) fn show_account_window(&mut self, open: bool) {
+        self.account.window_open = open;
+        if open {
+            self.refresh_account();
+            self.fetch_window_data();
+        }
+    }
+
+    /// Consommation et achats de la fenêtre (connecté seulement ; un appel
+    /// déjà en cours n'est pas doublé ; les données lues restent affichées
+    /// pendant la relecture).
+    fn fetch_window_data(&mut self) {
+        let Some(token) = self.account.token.clone() else {
+            return;
+        };
+        if !self.account.pending(&Call::Usage) {
+            let request = relay::usage_request(&self.base(), &token);
+            self.call(Call::Usage, request);
+        }
+        self.fetch_purchases();
+    }
+
+    fn fetch_purchases(&mut self) {
+        let Some(token) = self.account.token.clone() else {
+            return;
+        };
+        if self.account.pending(&Call::Purchases) {
+            return;
+        }
+        if !matches!(self.account.purchases, Purchases::Ready(_)) {
+            self.account.purchases = Purchases::Loading;
+        }
+        let request = relay::purchases_request(&self.base(), &token);
+        self.call(Call::Purchases, request);
+    }
+
+    /// « Reçu ↗ » (H-UI-240) : seule l'adresse d'un reçu de la liste lue
+    /// (déjà filtrée `https`) est ouverte.
+    pub(super) fn open_receipt(&mut self, url: &str) {
+        let known = match &self.account.purchases {
+            Purchases::Ready(report) => report.items.iter().any(|p| p.receipt_url.as_deref() == Some(url)),
+            _ => false,
+        };
+        if !known || !relay::safe_https(url) {
+            return;
+        }
+        if let Err(detail) = self.open_in_browser(url) {
+            self.notice = Some(Notice::Error(AssistantError::Network { detail }));
+        }
+    }
+
+    /// Relecture du solde après l'ouverture de la page de paiement
+    /// (H-UI-242), à chaque image : `now` est l'heure d'egui (secondes).
+    /// Rend le délai avant la prochaine relecture (l'application demande
+    /// une image à ce moment), `None` hors attente.
+    pub fn tick_account(&mut self, now: f64) -> Option<f64> {
+        let watch = self.account.watch.as_mut()?;
+        let started = *watch.started.get_or_insert(now);
+        let last = *watch.last_poll.get_or_insert(now);
+        if now - started > CHECKOUT_WATCH_SECS {
+            self.account.watch = None;
+            return None;
+        }
+        if now - last >= CHECKOUT_POLL_SECS {
+            watch.last_poll = Some(now);
+            self.refresh_account();
+            return Some(CHECKOUT_POLL_SECS);
+        }
+        Some((CHECKOUT_POLL_SECS - (now - last)).max(0.0))
+    }
+
+    /// Crédits ajoutés depuis la dernière lecture (centimes), à annoncer
+    /// une fois par une notification.
+    pub const fn take_credits_added(&mut self) -> Option<i64> {
+        self.account.credits_added.take()
+    }
+
+    /// Compte lu (`/v1/me`) : pendant l'attente d'un paiement, un solde
+    /// plus haut que la référence est annoncé (« Crédits ajoutés »),
+    /// l'attente s'arrête et les achats sont relus si la fenêtre est
+    /// ouverte ; un solde plus bas (demande payée entre-temps) devient la
+    /// référence.
+    fn receive_me(&mut self, me: Me) {
+        let balance = me.balance_cents;
+        self.account.me = Some(me);
+        let Some(watch) = &mut self.account.watch else {
+            return;
+        };
+        match watch.baseline {
+            Some(base) if balance > base => {
+                let added = balance.saturating_sub(base);
+                self.account.watch = None;
+                self.account.refresh_on_focus = false;
+                self.account.info = Some(AccountInfo::CreditsAdded(added));
+                self.account.credits_added = Some(added);
+                if self.account.window_open {
+                    self.fetch_window_data();
+                }
+            }
+            Some(base) if balance >= base => {}
+            _ => watch.baseline = Some(balance),
+        }
     }
 
     /// « Se déconnecter du compte » : jeton révoqué sur le relais (sans
@@ -382,6 +583,9 @@ impl AssistantPanel {
         self.account.usage_open = false;
         self.account.info = None;
         self.account.refresh_on_focus = false;
+        self.account.purchases = Purchases::Idle;
+        self.account.watch = None;
+        self.account.credits_added = None;
         self.account.generation = self.account.generation.wrapping_add(1);
         if let Some(store) = self.account.store.clone() {
             self.account.save = Some(Background::spawn(move || store.delete(), self.waker.clone()));
@@ -406,6 +610,9 @@ impl AssistantPanel {
             _ => self.start_session_load(),
         }
         self.refresh_account();
+        if self.account.window_open {
+            self.fetch_window_data();
+        }
     }
 
     fn clear_notice(&mut self) {
@@ -417,7 +624,7 @@ impl AssistantPanel {
     pub fn set_focused(&mut self, focused: bool) {
         let regained = focused && !self.account.focused;
         self.account.focused = focused;
-        if regained && self.account.refresh_on_focus {
+        if regained && (self.account.refresh_on_focus || self.account.watch.is_some()) {
             self.account.refresh_on_focus = false;
             self.refresh_account();
         }
@@ -426,10 +633,15 @@ impl AssistantPanel {
     /// Après une image de conversation : solde annoncé par le relais,
     /// session refusée, `/v1/me` relu à la fin de chaque demande.
     pub fn after_conversation_poll(&mut self, was_busy: bool, access: AssistantAccess) {
-        if let Some(balance) = self.conversation.take_balance()
-            && let Some(me) = &mut self.account.me
-        {
-            me.balance_cents = balance;
+        if let Some(balance) = self.conversation.take_balance() {
+            if let Some(me) = &mut self.account.me {
+                me.balance_cents = balance;
+            }
+            // Demande payée pendant l'attente d'un paiement : la référence
+            // suit le solde vers le bas.
+            if let Some(watch) = &mut self.account.watch {
+                watch.baseline = Some(watch.baseline.map_or(balance, |b| b.min(balance)));
+            }
         }
         if self.conversation.take_session_ended() {
             let error = self
@@ -529,6 +741,7 @@ impl AssistantPanel {
             Call::Me => relay::read_me(status, &headers, &body).map(Done::Me),
             Call::Usage => relay::read_usage(status, &headers, &body).map(Done::Usage),
             Call::Checkout => relay::read_checkout(status, &headers, &body).map(Done::Checkout),
+            Call::Purchases => relay::read_purchases(status, &headers, &body).map(Done::Purchases),
             Call::Logout => Ok(Done::Sent),
         });
         match (call, outcome) {
@@ -538,21 +751,31 @@ impl AssistantPanel {
                 self.account.code_draft.clear();
             }
             (_, Ok(Done::Session(token))) => self.set_session(&token),
-            (_, Ok(Done::Me(me))) => self.account.me = Some(me),
+            (_, Ok(Done::Me(me))) => self.receive_me(me),
+            (_, Ok(Done::Purchases(Some(report)))) => self.account.purchases = Purchases::Ready(report),
+            (_, Ok(Done::Purchases(None))) => self.account.purchases = Purchases::Unavailable,
             (_, Ok(Done::Usage(usage))) => self.account.usage = Some(usage),
             (_, Ok(Done::Checkout(url))) => self.open_checkout(&url),
             (_, Ok(Done::Sent)) => {}
             (Call::Exchange | Call::MagicLink(_), Err(error)) => self.notice = Some(Notice::Error(error)),
             (_, Err(error @ AssistantError::SessionEnded { .. })) => self.end_session(error),
+            // Fenêtre « Mon compte » (vue « Consommation » du volet fermée) :
+            // section « indisponible », rien de bloquant.
+            (Call::Usage, Err(_)) if self.account.window_open && !self.account.usage_open => {
+                self.account.usage = None;
+            }
             (Call::Usage, Err(error)) => {
                 self.account.usage_open = false;
                 self.notice = Some(Notice::Error(error));
             }
+            (Call::Purchases, Err(error)) => self.account.purchases = Purchases::Failed(error),
             (_, Err(error)) => self.notice = Some(Notice::Error(error)),
         }
     }
 
-    fn open_checkout(&mut self, url: &str) {
+    /// Ouvre `url` dans le navigateur du système (desktop) ou un nouvel
+    /// onglet (web).
+    fn open_in_browser(&mut self, url: &str) -> Result<(), String> {
         #[cfg(not(target_arch = "wasm32"))]
         let opened = match &self.services.browser {
             Some(browser) => browser.open(url),
@@ -560,11 +783,23 @@ impl AssistantPanel {
         };
         #[cfg(target_arch = "wasm32")]
         let opened = plannercraft_assistant::web::open_tab(url);
-        match opened {
+        if opened.is_ok() {
+            self.account.opened.push(url.to_owned());
+        }
+        opened
+    }
+
+    fn open_checkout(&mut self, url: &str) {
+        match self.open_in_browser(url) {
             Ok(()) => {
-                self.account.opened.push(url.to_owned());
                 self.account.info = Some(AccountInfo::CheckoutOpened);
                 self.account.refresh_on_focus = true;
+                // Solde relu jusqu'à ce qu'il augmente (H-UI-242).
+                self.account.watch = Some(CheckoutWatch {
+                    started: None,
+                    last_poll: None,
+                    baseline: self.account.balance(),
+                });
             }
             Err(detail) => {
                 self.notice = Some(Notice::Error(AssistantError::Network { detail }));
@@ -580,4 +815,5 @@ enum Done {
     Me(Me),
     Usage(UsageReport),
     Checkout(String),
+    Purchases(Option<PurchasesReport>),
 }

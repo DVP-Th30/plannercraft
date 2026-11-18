@@ -213,6 +213,9 @@ pub const FAKE_LINK_TOKEN: &str = "ml_fake-link-token-0123456789";
 pub const FAKE_SESSION: &str = "pcs_fake-session-token-abcdef0123456789";
 /// Adresse de paiement rendue par [`FakeRelay`] (suivie du pack).
 pub const FAKE_CHECKOUT_URL: &str = "https://checkout.stripe.com/c/pay/cs_test_";
+/// Début de l'adresse des reçus de [`FakeRelay::complete_purchase`]
+/// (suivie du pack).
+pub const FAKE_RECEIPT_URL: &str = "https://pay.stripe.com/receipts/test_";
 
 #[derive(Default)]
 #[allow(clippy::struct_excessive_bools, reason = "état d'un faux serveur de test")]
@@ -233,11 +236,17 @@ struct RelayState {
     chats: VecDeque<(Vec<Value>, i64)>,
     /// Lignes de consommation.
     usage: Vec<Value>,
+    /// Mouvements de crédits (`/v1/purchases`), du plus ancien au plus
+    /// récent.
+    purchases: Vec<Value>,
+    /// Relais antérieur à `/v1/purchases` : la route répond `404`.
+    no_purchases_route: bool,
 }
 
 /// Faux relais de PlannerCraft (lot A4) : connexion par lien magique et
 /// code ([`FAKE_CODE`], [`FAKE_LINK_TOKEN`]), session ([`FAKE_SESSION`]),
-/// `/v1/me`, `/v1/usage`, achat (`/v1/credits/checkout`), chat relayé
+/// `/v1/me`, `/v1/usage`, `/v1/purchases`, achat (`/v1/credits/checkout`,
+/// `client` contrôlé), chat relayé
 /// avec le commentaire `: plannercraft-cost <centimes> <solde>` et débit
 /// du solde, erreurs `{ code, message }` du contrat. Aucun réseau ;
 /// requêtes gardées pour les vérifications.
@@ -330,6 +339,36 @@ impl FakeRelay {
     /// Solde du compte (achat de crédits simulé).
     pub fn set_balance(&self, cents: i64) {
         self.with_state(|s| s.balance = cents);
+    }
+
+    /// Ajoute un mouvement de crédits (`/v1/purchases`) sans toucher au
+    /// solde : `kind` du contrat (`purchase`, `trial`…), montant signé,
+    /// pack et reçu facultatifs, horodatage RFC 3339.
+    pub fn push_purchase(&self, at: &str, kind: &str, cents: i64, pack: Option<&str>, receipt: Option<&str>) {
+        self.with_state(|s| {
+            s.purchases.push(json!({
+                "at": at, "kind": kind, "cents": cents, "pack": pack, "receipt_url": receipt,
+            }));
+        });
+    }
+
+    /// Paiement abouti (webhook Stripe simulé) : le solde augmente de
+    /// `cents` et l'achat du pack s'inscrit dans `/v1/purchases`, avec un
+    /// reçu.
+    pub fn complete_purchase(&self, pack: &str, cents: i64) {
+        self.with_state(|s| {
+            s.balance = s.balance.saturating_add(cents);
+            let at = format!("2026-11-18T10:{:02}:00.123456Z", s.purchases.len() % 60);
+            s.purchases.push(json!({
+                "at": at, "kind": "purchase", "cents": cents, "pack": pack,
+                "receipt_url": format!("{FAKE_RECEIPT_URL}{pack}"),
+            }));
+        });
+    }
+
+    /// Relais antérieur à `/v1/purchases` : la route répond `404`.
+    pub fn remove_purchases_route(&self) {
+        self.with_state(|s| s.no_purchases_route = true);
     }
 
     /// Solde du compte.
@@ -468,9 +507,23 @@ impl FakeRelay {
                 let items: Vec<Value> = s.usage.iter().rev().cloned().collect();
                 json_events(200, &json!({ "items": items, "total_cents": total }), &[])
             }
+            "/v1/purchases" if !s.no_purchases_route => {
+                if let Some(error) = Self::session_error(&s, request) {
+                    return error;
+                }
+                let items: Vec<Value> = s.purchases.iter().rev().take(50).cloned().collect();
+                json_events(200, &json!({ "items": items }), &[])
+            }
             "/v1/credits/checkout" => {
                 if let Some(error) = Self::session_error(&s, request) {
                     return error;
+                }
+                // `client` facultatif (défaut du relais : `desktop`).
+                if !matches!(
+                    body.get("client").and_then(Value::as_str),
+                    None | Some("desktop" | "web")
+                ) {
+                    return relay_error(400, "request.invalid", "Client inconnu.");
                 }
                 match body.get("pack").and_then(Value::as_str) {
                     Some(pack @ ("p5" | "p20" | "p50")) => {

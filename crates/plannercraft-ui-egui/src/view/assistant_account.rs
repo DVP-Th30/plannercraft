@@ -298,12 +298,24 @@ pub fn balance_bar(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPa
     ui.add_space(2.0);
     ui.horizontal(|ui| {
         ui.set_min_height(30.0);
-        ui.label(
-            RichText::new(texts.get_args(TextId::AssistantBalance, &[("value", Arg::Str(value.into()))]))
-                .size(13.0)
-                .strong()
-                .color(t.text),
-        );
+        // Clic sur le solde : fenêtre « Mon compte » (H-UI-238).
+        let balance = ui
+            .add(
+                egui::Label::new(
+                    RichText::new(
+                        texts.get_args(TextId::AssistantBalance, &[("value", Arg::Str(value.into()))]),
+                    )
+                    .size(13.0)
+                    .strong()
+                    .color(t.text),
+                )
+                .sense(Sense::click()),
+            )
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(texts.get(TextId::AccountWindowOpenHint));
+        if balance.clicked() {
+            push(fc, AssistantOp::AccountWindow(true));
+        }
         if me.is_some_and(Me::low) {
             let (rect, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
             paint_icon(ui.painter(), rect, Icon::TriangleAlert, t.warn);
@@ -351,14 +363,37 @@ pub fn info(ui: &mut egui::Ui, fc: &FrameCtx<'_>, panel: &AssistantPanel, t: &Ch
         AccountInfo::CheckoutOpened => TextId::AssistantCheckoutOpened,
         AccountInfo::CheckoutReturn => TextId::AssistantCheckoutReturn,
         AccountInfo::CheckoutCancelled => TextId::AssistantCheckoutCancelled,
+        // Confirmation visible (H-UI-242) : texte fort, couleur d'accent.
+        AccountInfo::CreditsAdded(cents) => {
+            ui.label(
+                RichText::new(credits_added_text(fc.texts, cents))
+                    .size(META_SIZE)
+                    .strong()
+                    .color(t.accent),
+            );
+            return;
+        }
     };
     ui.label(RichText::new(fc.texts.get(id)).size(META_SIZE).color(t.meta));
 }
 
-/// Éléments du menu « … » propres au compte (H-UI-159) : adresse,
-/// Consommation, Actualiser le solde, Se déconnecter du compte.
+/// « Crédits ajoutés : +5,00 € » (H-UI-242).
+#[must_use]
+pub fn credits_added_text(texts: &crate::i18n::Texts, cents: i64) -> String {
+    let value = super::account_window::signed_euros(texts, cents);
+    texts.get_args(TextId::AccountCreditsAdded, &[("value", Arg::Str(value.into()))])
+}
+
+/// Éléments du menu « … » propres au compte (H-UI-159, H-UI-238) : « Mon
+/// compte… », adresse, Consommation, Actualiser le solde, Se déconnecter
+/// du compte.
 pub fn menu_items(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPanel, t: &ChatTokens) {
     let texts = fc.texts;
+    // « Mon compte… » (H-UI-238) : connecté ou non (la fenêtre propose
+    // alors de se connecter).
+    if ui.button(texts.get(TextId::AccountWindowMenu)).clicked() {
+        push(fc, AssistantOp::AccountWindow(true));
+    }
     let Some(email) = panel.account().signed_in().then(|| {
         panel
             .account()
@@ -366,6 +401,7 @@ pub fn menu_items(ui: &mut egui::Ui, fc: &mut FrameCtx<'_>, panel: &AssistantPan
             .as_ref()
             .map_or_else(String::new, |m| m.email.clone())
     }) else {
+        ui.separator();
         return;
     };
     if !email.is_empty() {
